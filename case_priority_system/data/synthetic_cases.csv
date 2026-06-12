@@ -1,0 +1,1001 @@
+case_id,description,crime_type,severity,vulnerability,influence,priority
+CASE_0000,"A case of property has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Medium,Low,Low
+CASE_0001,"A case of financial has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves debt issues.",Financial,No Injury,Low,High,Medium
+CASE_0002,The accused attacked the victim with a gun. The victim was injury and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,High,High
+CASE_0003,The accused attacked the victim with a knife. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0004,"A case of cyber has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Medium,Low,Low
+CASE_0005,"A case of cyber has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,High,Low,Medium
+CASE_0006,"A case of property has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves tax issues.",Property,No Injury,Low,Low,Low
+CASE_0007,"A case of property has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Low,Low,Low
+CASE_0008,"A case of financial has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Medium,Low,Low
+CASE_0009,"A case of cyber has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0010,"A case of property has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves tax issues.",Property,No Injury,High,Low,Medium
+CASE_0011,The accused assault the victim with a knife. The victim was weapon and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,High,Medium
+CASE_0012,"A case of financial has been reported. The dispute is over a contract involving debt. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Low,Low,Low
+CASE_0013,"A case of financial has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Medium,Low,Low
+CASE_0014,"A case of non-violent has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0015,"A case of financial has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves land issues.",Financial,No Injury,Low,Low,Low
+CASE_0016,"A case of financial has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves contract issues.",Financial,Minor,Low,Low,Low
+CASE_0017,"A case of cyber has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,Low,High,Medium
+CASE_0018,"A case of financial has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Medium,High,Medium
+CASE_0019,The accused assault the victim with a gun. The victim was injury and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,High,Low,High
+CASE_0020,"A case of property has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves fraud issues.",Property,Minor,High,Low,Medium
+CASE_0021,"A case of property has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves contract issues.",Property,Minor,Low,Low,Low
+CASE_0022,"A case of financial has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Medium,Low,Low
+CASE_0023,"A case of financial has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves debt issues.",Financial,Minor,Medium,Low,Low
+CASE_0024,The accused rape the victim with a stick. The victim was blood and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0025,"A case of non-violent has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0026,"A case of financial has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves contract issues.",Financial,No Injury,Low,High,Medium
+CASE_0027,"A case of property has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves dispute issues.",Property,No Injury,Low,Low,Low
+CASE_0028,"A case of financial has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Medium,Low,Low
+CASE_0029,"A case of non-violent has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0030,The accused blood the victim with a gun. The victim was threat and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0031,"A case of property has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves tax issues.",Property,No Injury,Medium,Low,Low
+CASE_0032,The accused blood the victim with a gun. The victim was murder and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0033,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0034,The accused threat the victim with a knife. The victim was murder and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Low,Low,High
+CASE_0035,"A case of cyber has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves theft issues.",Cyber,Minor,Medium,High,Medium
+CASE_0036,"A case of cyber has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Medium,High,Medium
+CASE_0037,"A case of property has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves dispute issues.",Property,Minor,High,Low,Medium
+CASE_0038,"A case of cyber has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,High,Low,Medium
+CASE_0039,The accused threat the victim with a gun. The victim was killed and suffered major injuries. There was a injury during the incident.,Violent,Major,High,Low,High
+CASE_0040,"A case of property has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves dispute issues.",Property,No Injury,Medium,High,Medium
+CASE_0041,"A case of non-violent has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves theft issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0042,"A case of non-violent has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0043,The accused assault the victim with a stick. The victim was injury and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0044,"A case of financial has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,Medium,Low,Low
+CASE_0045,"A case of financial has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,Medium,Low,Low
+CASE_0046,"A case of cyber has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0047,"A case of property has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,High,Low,Medium
+CASE_0048,"A case of financial has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Financial,No Injury,Low,Low,Low
+CASE_0049,"A case of non-violent has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0050,The accused rape the victim with a gun. The victim was killed and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0051,The accused killed the victim with a gun. The victim was assault and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0052,"A case of financial has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Medium,Low,Low
+CASE_0053,The accused injury the victim with a stick. The victim was weapon and suffered major injuries. There was a murder during the incident.,Violent,Major,High,Low,High
+CASE_0054,"A case of property has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves tax issues.",Property,Minor,Low,High,Medium
+CASE_0055,"A case of non-violent has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0056,The accused threat the victim with a stick. The victim was killed and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Low,High,High
+CASE_0057,"A case of cyber has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves land issues.",Cyber,Minor,Low,Low,Low
+CASE_0058,The accused weapon the victim with a stick. The victim was attacked and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0059,The accused injury the victim with a stick. The victim was murder and suffered major injuries. There was a blood during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0060,The accused threat the victim with a stick. The victim was murder and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,Low,Medium
+CASE_0061,"A case of property has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves fraud issues.",Property,No Injury,Medium,Low,Low
+CASE_0062,"A case of property has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves land issues.",Property,No Injury,Low,Low,Low
+CASE_0063,"A case of financial has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,High,Low,Medium
+CASE_0064,"A case of non-violent has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves tax issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0065,The accused killed the victim with a stick. The victim was blood and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,High,High
+CASE_0066,"A case of financial has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves tax issues.",Financial,Minor,Medium,Low,Low
+CASE_0067,"A case of property has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves contract issues.",Property,No Injury,High,High,Medium
+CASE_0068,The accused threat the victim with a gun. The victim was rape and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Low,Low,High
+CASE_0069,The accused blood the victim with a gun. The victim was weapon and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,Low,High
+CASE_0070,"A case of non-violent has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0071,The accused injury the victim with a stick. The victim was rape and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0072,The accused killed the victim with a gun. The victim was rape and suffered major injuries. There was a attacked during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0073,"A case of non-violent has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0074,The accused attacked the victim with a stick. The victim was assault and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0075,The accused assault the victim with a gun. The victim was threat and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0076,"A case of cyber has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves contract issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0077,"A case of cyber has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves land issues.",Cyber,Minor,Medium,Low,Low
+CASE_0078,The accused murder the victim with a gun. The victim was assault and suffered major injuries. There was a rape during the incident.,Violent,Major,Low,Low,Medium
+CASE_0079,"A case of financial has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Medium,Low,Low
+CASE_0080,"A case of property has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves dispute issues.",Property,Minor,Medium,Low,Low
+CASE_0081,"A case of non-violent has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0082,"A case of non-violent has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,High,High,Medium
+CASE_0083,"A case of non-violent has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0084,The accused weapon the victim with a stick. The victim was injury and suffered major injuries. There was a threat during the incident.,Violent,Major,Low,High,Medium
+CASE_0085,"A case of financial has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves land issues.",Financial,No Injury,Low,Low,Low
+CASE_0086,The accused injury the victim with a gun. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0087,The accused injury the victim with a stick. The victim was rape and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,Low,High
+CASE_0088,The accused attacked the victim with a knife. The victim was rape and suffered major injuries. There was a threat during the incident.,Violent,Major,Low,High,Medium
+CASE_0089,"A case of property has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves theft issues.",Property,No Injury,Low,Low,Low
+CASE_0090,The accused killed the victim with a knife. The victim was assault and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,High,High
+CASE_0091,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Low,Low,Low
+CASE_0092,"A case of financial has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves land issues.",Financial,Minor,Low,Low,Low
+CASE_0093,"A case of cyber has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves tax issues.",Cyber,Minor,High,Low,Medium
+CASE_0094,"A case of property has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves fraud issues.",Property,Minor,Medium,Low,Low
+CASE_0095,"A case of non-violent has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0096,"A case of cyber has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves contract issues.",Cyber,Minor,High,Low,Medium
+CASE_0097,"A case of cyber has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves contract issues.",Cyber,No Injury,Medium,High,Medium
+CASE_0098,The accused injury the victim with a knife. The victim was attacked and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0099,"A case of financial has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves debt issues.",Financial,No Injury,Low,Low,Low
+CASE_0100,The accused threat the victim with a gun. The victim was rape and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0101,"A case of financial has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,High,High,Medium
+CASE_0102,The accused threat the victim with a gun. The victim was weapon and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Low,Low,High
+CASE_0103,"A case of cyber has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0104,The accused injury the victim with a stick. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0105,"A case of cyber has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0106,"A case of financial has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Medium,Low,Low
+CASE_0107,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0108,"A case of cyber has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Low,High,Medium
+CASE_0109,"A case of financial has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,High,Low,Medium
+CASE_0110,The accused threat the victim with a knife. The victim was blood and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0111,"A case of cyber has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves contract issues.",Cyber,Minor,High,High,Medium
+CASE_0112,"A case of non-violent has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves theft issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0113,The accused murder the victim with a stick. The victim was blood and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0114,"A case of cyber has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Medium,Low,Low
+CASE_0115,The accused weapon the victim with a knife. The victim was assault and suffered major injuries. There was a killed during the incident.,Violent,Major,Low,High,Medium
+CASE_0116,"A case of financial has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Medium,High,Medium
+CASE_0117,"A case of cyber has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves theft issues.",Cyber,Minor,High,Low,Medium
+CASE_0118,"A case of financial has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0119,The accused injury the victim with a gun. The victim was weapon and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0120,"A case of property has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves contract issues.",Property,No Injury,High,Low,Medium
+CASE_0121,"A case of cyber has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Low,Low,Low
+CASE_0122,"A case of non-violent has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0123,The accused threat the victim with a knife. The victim was rape and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0124,"A case of property has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves fraud issues.",Property,Minor,Medium,Low,Low
+CASE_0125,The accused blood the victim with a stick. The victim was assault and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,High,High,High
+CASE_0126,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves debt issues.",Cyber,Minor,High,Low,Medium
+CASE_0127,"A case of property has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves contract issues.",Property,Minor,High,Low,Medium
+CASE_0128,The accused killed the victim with a gun. The victim was blood and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0129,"A case of financial has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves debt issues.",Financial,Minor,Medium,Low,Low
+CASE_0130,The accused threat the victim with a gun. The victim was weapon and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0131,"A case of property has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves debt issues.",Property,Minor,High,High,Medium
+CASE_0132,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves contract issues.",Financial,No Injury,Low,Low,Low
+CASE_0133,The accused threat the victim with a gun. The victim was injury and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0134,The accused blood the victim with a knife. The victim was threat and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Low,Low,High
+CASE_0135,The accused weapon the victim with a knife. The victim was assault and suffered major injuries. There was a attacked during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0136,The accused assault the victim with a knife. The victim was rape and suffered major injuries. There was a killed during the incident.,Violent,Major,Low,High,Medium
+CASE_0137,The accused rape the victim with a knife. The victim was injury and suffered major injuries. There was a blood during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0138,"A case of cyber has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Medium,Low,Low
+CASE_0139,"A case of non-violent has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves debt issues.",Non-Violent,No Injury,Low,High,Medium
+CASE_0140,"A case of non-violent has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0141,"A case of financial has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves tax issues.",Financial,No Injury,High,Low,Medium
+CASE_0142,The accused killed the victim with a gun. The victim was attacked and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,Low,High
+CASE_0143,"A case of non-violent has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0144,The accused threat the victim with a stick. The victim was blood and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0145,The accused murder the victim with a stick. The victim was injury and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0146,"A case of financial has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves land issues.",Financial,No Injury,Medium,Low,Low
+CASE_0147,"A case of property has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves land issues.",Property,No Injury,Medium,High,Medium
+CASE_0148,The accused rape the victim with a knife. The victim was killed and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0149,The accused rape the victim with a knife. The victim was injury and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,Low,Medium
+CASE_0150,"A case of cyber has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0151,The accused injury the victim with a gun. The victim was weapon and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0152,The accused murder the victim with a gun. The victim was assault and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0153,The accused assault the victim with a knife. The victim was weapon and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0154,"A case of financial has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Low,Low,Low
+CASE_0155,"A case of property has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves debt issues.",Property,No Injury,Low,Low,Low
+CASE_0156,"A case of property has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves tax issues.",Property,No Injury,Medium,High,Medium
+CASE_0157,"A case of cyber has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0158,The accused rape the victim with a knife. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0159,"A case of cyber has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves theft issues.",Cyber,Minor,Medium,High,Medium
+CASE_0160,"A case of cyber has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Low,Low,Low
+CASE_0161,The accused injury the victim with a stick. The victim was assault and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0162,"A case of cyber has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Medium,Low,Low
+CASE_0163,"A case of financial has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves debt issues.",Financial,No Injury,Medium,Low,Low
+CASE_0164,"A case of non-violent has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Low,High,Medium
+CASE_0165,The accused murder the victim with a stick. The victim was assault and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0166,"A case of cyber has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Cyber,Minor,Medium,Low,Low
+CASE_0167,"A case of cyber has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,Low,Low,Low
+CASE_0168,"A case of non-violent has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves debt issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0169,"A case of non-violent has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0170,The accused assault the victim with a knife. The victim was blood and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,High,High
+CASE_0171,The accused rape the victim with a stick. The victim was blood and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0172,"A case of cyber has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves theft issues.",Cyber,Minor,Medium,High,Medium
+CASE_0173,"A case of non-violent has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0174,The accused weapon the victim with a knife. The victim was killed and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0175,"A case of financial has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Financial,Minor,High,Low,Medium
+CASE_0176,"A case of property has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves contract issues.",Property,No Injury,High,Low,Medium
+CASE_0177,"A case of non-violent has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0178,The accused threat the victim with a gun. The victim was attacked and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0179,The accused threat the victim with a stick. The victim was killed and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,High,High
+CASE_0180,"A case of property has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves land issues.",Property,Minor,Low,High,Medium
+CASE_0181,The accused threat the victim with a gun. The victim was rape and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,Low,High
+CASE_0182,"A case of financial has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves contract issues.",Financial,Minor,High,High,Medium
+CASE_0183,"A case of non-violent has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves fraud issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0184,"A case of non-violent has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,High,Medium
+CASE_0185,"A case of financial has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,High,Medium
+CASE_0186,"A case of property has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves land issues.",Property,Minor,Medium,Low,Low
+CASE_0187,The accused assault the victim with a stick. The victim was weapon and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0188,"A case of non-violent has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0189,"A case of cyber has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves land issues.",Cyber,Minor,Low,High,Medium
+CASE_0190,"A case of cyber has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves debt issues.",Cyber,Minor,High,Low,Medium
+CASE_0191,The accused murder the victim with a stick. The victim was injury and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0192,The accused murder the victim with a stick. The victim was rape and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,Low,Medium
+CASE_0193,"A case of cyber has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Medium,Low,Low
+CASE_0194,The accused injury the victim with a gun. The victim was threat and suffered major injuries. There was a weapon during the incident.,Violent,Major,High,Low,High
+CASE_0195,"A case of non-violent has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves fraud issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0196,"A case of financial has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves tax issues.",Financial,Minor,High,Low,Medium
+CASE_0197,"A case of cyber has been reported. The dispute is over a insolvency involving fraud. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,High,Low,Medium
+CASE_0198,The accused assault the victim with a knife. The victim was attacked and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,Low,High
+CASE_0199,"A case of financial has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,Low,Low
+CASE_0200,The accused threat the victim with a gun. The victim was blood and suffered major injuries. There was a murder during the incident.,Violent,Major,High,Low,High
+CASE_0201,The accused rape the victim with a gun. The victim was weapon and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,High,High
+CASE_0202,"A case of financial has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves contract issues.",Financial,Minor,Medium,Low,Low
+CASE_0203,"A case of non-violent has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0204,The accused assault the victim with a gun. The victim was threat and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0205,"A case of financial has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves land issues.",Financial,Minor,Medium,Low,Low
+CASE_0206,"A case of non-violent has been reported. The dispute is over a tax involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0207,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0208,"A case of non-violent has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0209,"A case of cyber has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves land issues.",Cyber,No Injury,Low,High,Medium
+CASE_0210,"A case of cyber has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Low,Low,Low
+CASE_0211,The accused weapon the victim with a stick. The victim was attacked and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0212,"A case of financial has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,Low,Low
+CASE_0213,The accused assault the victim with a stick. The victim was threat and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Low,Low,High
+CASE_0214,"A case of cyber has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves tax issues.",Cyber,Minor,Low,High,Medium
+CASE_0215,"A case of financial has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves theft issues.",Financial,No Injury,High,Low,Medium
+CASE_0216,The accused attacked the victim with a knife. The victim was blood and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0217,The accused weapon the victim with a gun. The victim was assault and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,High,Medium
+CASE_0218,"A case of property has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves contract issues.",Property,Minor,Medium,High,Medium
+CASE_0219,The accused threat the victim with a gun. The victim was injury and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,High,Medium
+CASE_0220,"A case of cyber has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,Low,Low,Low
+CASE_0221,"A case of non-violent has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves tax issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0222,"A case of property has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves contract issues.",Property,Minor,Medium,Low,Low
+CASE_0223,"A case of financial has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves theft issues.",Financial,Minor,High,Low,Medium
+CASE_0224,The accused attacked the victim with a knife. The victim was injury and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0225,"A case of cyber has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,High,Low,Medium
+CASE_0226,The accused weapon the victim with a stick. The victim was murder and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0227,"A case of financial has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves land issues.",Financial,Minor,Medium,Low,Low
+CASE_0228,"A case of property has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves fraud issues.",Property,No Injury,High,Low,Medium
+CASE_0229,The accused murder the victim with a gun. The victim was killed and suffered major injuries. There was a weapon during the incident.,Violent,Major,High,High,High
+CASE_0230,"A case of property has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves debt issues.",Property,Minor,Medium,Low,Low
+CASE_0231,The accused weapon the victim with a stick. The victim was rape and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0232,"A case of financial has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Medium,Low,Low
+CASE_0233,The accused killed the victim with a knife. The victim was assault and suffered major injuries. There was a murder during the incident.,Violent,Major,High,Low,High
+CASE_0234,The accused attacked the victim with a stick. The victim was killed and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,Low,Medium
+CASE_0235,"A case of property has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves dispute issues.",Property,No Injury,Medium,Low,Low
+CASE_0236,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves debt issues.",Cyber,Minor,Medium,Low,Low
+CASE_0237,"A case of financial has been reported. The dispute is over a tax involving insolvency. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Medium,Low,Low
+CASE_0238,"A case of financial has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves theft issues.",Financial,Minor,High,Low,Medium
+CASE_0239,The accused weapon the victim with a gun. The victim was injury and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0240,"A case of non-violent has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,High,Medium
+CASE_0241,The accused killed the victim with a knife. The victim was assault and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0242,The accused killed the victim with a knife. The victim was threat and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0243,The accused killed the victim with a knife. The victim was assault and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,High,High,High
+CASE_0244,The accused killed the victim with a knife. The victim was rape and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0245,"A case of non-violent has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0246,"A case of property has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves land issues.",Property,No Injury,Low,Low,Low
+CASE_0247,"A case of cyber has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves tax issues.",Cyber,Minor,High,High,Medium
+CASE_0248,"A case of non-violent has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0249,The accused threat the victim with a knife. The victim was attacked and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0250,The accused rape the victim with a stick. The victim was attacked and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,High,High
+CASE_0251,The accused blood the victim with a gun. The victim was injury and suffered major injuries. There was a rape during the incident.,Violent,Major,High,Low,High
+CASE_0252,"A case of non-violent has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,Low,High,Medium
+CASE_0253,The accused blood the victim with a stick. The victim was murder and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0254,The accused rape the victim with a gun. The victim was murder and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0255,"A case of non-violent has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0256,The accused weapon the victim with a knife. The victim was killed and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0257,"A case of cyber has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Low,Low,Low
+CASE_0258,The accused rape the victim with a gun. The victim was attacked and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,High,High
+CASE_0259,"A case of cyber has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,High,High,Medium
+CASE_0260,"A case of cyber has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Low,Low,Low
+CASE_0261,"A case of non-violent has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0262,"A case of financial has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Low,Low,Low
+CASE_0263,"A case of financial has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves debt issues.",Financial,Minor,Low,High,Medium
+CASE_0264,"A case of cyber has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,High,Low,Medium
+CASE_0265,"A case of financial has been reported. The dispute is over a insolvency involving fraud. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0266,"A case of non-violent has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves insolvency issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0267,The accused threat the victim with a knife. The victim was blood and suffered major injuries. There was a murder during the incident.,Violent,Major,High,Low,High
+CASE_0268,"A case of property has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves fraud issues.",Property,Minor,Low,Low,Low
+CASE_0269,The accused killed the victim with a knife. The victim was assault and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,Low,High
+CASE_0270,The accused attacked the victim with a knife. The victim was injury and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,High,Low,High
+CASE_0271,"A case of non-violent has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0272,"A case of cyber has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves debt issues.",Cyber,Minor,Low,Low,Low
+CASE_0273,The accused rape the victim with a knife. The victim was weapon and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0274,The accused weapon the victim with a knife. The victim was killed and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0275,"A case of non-violent has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves insolvency issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0276,"A case of property has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves dispute issues.",Property,No Injury,Medium,Low,Low
+CASE_0277,The accused rape the victim with a gun. The victim was murder and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,High,High
+CASE_0278,"A case of property has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves insolvency issues.",Property,Minor,High,Low,Medium
+CASE_0279,The accused weapon the victim with a knife. The victim was blood and suffered major injuries. There was a attacked during the incident.,Violent,Major,Medium,High,Medium
+CASE_0280,"A case of financial has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves land issues.",Financial,No Injury,Low,High,Medium
+CASE_0281,The accused weapon the victim with a stick. The victim was murder and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0282,"A case of financial has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,Medium,Low,Low
+CASE_0283,"A case of non-violent has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0284,The accused threat the victim with a knife. The victim was assault and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Low,Low,High
+CASE_0285,"A case of cyber has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Medium,Low,Low
+CASE_0286,The accused rape the victim with a stick. The victim was threat and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,High,Low,High
+CASE_0287,"A case of property has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves contract issues.",Property,No Injury,Medium,Low,Low
+CASE_0288,"A case of property has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Low,Low,Low
+CASE_0289,"A case of non-violent has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves fraud issues.",Non-Violent,Minor,High,High,Medium
+CASE_0290,The accused weapon the victim with a stick. The victim was murder and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Low,Low,High
+CASE_0291,"A case of cyber has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Low,Low,Low
+CASE_0292,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,High,Medium
+CASE_0293,The accused assault the victim with a stick. The victim was threat and suffered major injuries. There was a injury during the incident.,Violent,Major,High,Low,High
+CASE_0294,"A case of property has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves contract issues.",Property,No Injury,Low,Low,Low
+CASE_0295,The accused assault the victim with a stick. The victim was attacked and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,Low,High
+CASE_0296,"A case of property has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves theft issues.",Property,No Injury,High,Low,Medium
+CASE_0297,"A case of non-violent has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0298,The accused attacked the victim with a gun. The victim was injury and suffered major injuries. There was a assault during the incident.,Violent,Major,Low,Low,Medium
+CASE_0299,"A case of financial has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves fraud issues.",Financial,Minor,High,High,Medium
+CASE_0300,"A case of cyber has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves tax issues.",Cyber,Minor,High,Low,Medium
+CASE_0301,"A case of property has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves land issues.",Property,No Injury,High,Low,Medium
+CASE_0302,The accused injury the victim with a knife. The victim was rape and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0303,"A case of non-violent has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0304,"A case of financial has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves dispute issues.",Financial,Minor,High,High,Medium
+CASE_0305,The accused murder the victim with a gun. The victim was assault and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0306,The accused assault the victim with a stick. The victim was attacked and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,Low,High
+CASE_0307,The accused blood the victim with a gun. The victim was attacked and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,High,Medium
+CASE_0308,The accused attacked the victim with a stick. The victim was injury and suffered major injuries. There was a threat during the incident.,Violent,Major,High,High,High
+CASE_0309,"A case of property has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves debt issues.",Property,No Injury,High,Low,Medium
+CASE_0310,The accused rape the victim with a gun. The victim was injury and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0311,The accused injury the victim with a knife. The victim was assault and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Low,Low,High
+CASE_0312,The accused injury the victim with a knife. The victim was attacked and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0313,The accused murder the victim with a stick. The victim was threat and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0314,"A case of cyber has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Low,Low,Low
+CASE_0315,"A case of cyber has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Medium,High,Medium
+CASE_0316,The accused blood the victim with a gun. The victim was weapon and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,High,High
+CASE_0317,"A case of property has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves dispute issues.",Property,Minor,High,Low,Medium
+CASE_0318,"A case of cyber has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0319,"A case of property has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves tax issues.",Property,No Injury,Low,Low,Low
+CASE_0320,"A case of financial has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves tax issues.",Financial,No Injury,High,Low,Medium
+CASE_0321,The accused injury the victim with a gun. The victim was weapon and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0322,"A case of cyber has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Low,Low,Low
+CASE_0323,"A case of cyber has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,High,Low,Medium
+CASE_0324,The accused attacked the victim with a stick. The victim was rape and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0325,"A case of cyber has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves tax issues.",Cyber,Minor,Medium,High,Medium
+CASE_0326,"A case of cyber has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves land issues.",Cyber,Minor,High,High,Medium
+CASE_0327,"A case of non-violent has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves insolvency issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0328,"A case of non-violent has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0329,"A case of cyber has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves theft issues.",Cyber,Minor,Medium,Low,Low
+CASE_0330,The accused rape the victim with a stick. The victim was killed and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0331,"A case of cyber has been reported. The dispute is over a insolvency involving fraud. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Low,Low,Low
+CASE_0332,"A case of cyber has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Low,High,Medium
+CASE_0333,The accused injury the victim with a stick. The victim was assault and suffered major injuries. There was a threat during the incident.,Violent,Major,High,Low,High
+CASE_0334,The accused blood the victim with a stick. The victim was killed and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Low,Low,High
+CASE_0335,"A case of financial has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,Low,Low
+CASE_0336,The accused rape the victim with a stick. The victim was murder and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0337,"A case of property has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves land issues.",Property,Minor,High,Low,Medium
+CASE_0338,The accused assault the victim with a stick. The victim was killed and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,High,Medium
+CASE_0339,"A case of financial has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves contract issues.",Financial,No Injury,Low,High,Medium
+CASE_0340,The accused weapon the victim with a gun. The victim was rape and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0341,"A case of financial has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0342,The accused threat the victim with a stick. The victim was blood and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Low,Low,High
+CASE_0343,"A case of financial has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Low,Low,Low
+CASE_0344,The accused murder the victim with a gun. The victim was killed and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0345,The accused attacked the victim with a knife. The victim was injury and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,Low,Medium
+CASE_0346,The accused murder the victim with a knife. The victim was attacked and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,Low,High
+CASE_0347,"A case of non-violent has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0348,The accused weapon the victim with a stick. The victim was assault and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0349,"A case of cyber has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves tax issues.",Cyber,Minor,Medium,Low,Low
+CASE_0350,The accused weapon the victim with a gun. The victim was injury and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0351,"A case of financial has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Medium,Low,Low
+CASE_0352,"A case of non-violent has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0353,"A case of financial has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Medium,Low,Low
+CASE_0354,"A case of cyber has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0355,"A case of property has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves tax issues.",Property,Minor,Medium,High,Medium
+CASE_0356,"A case of property has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves land issues.",Property,No Injury,High,Low,Medium
+CASE_0357,The accused weapon the victim with a gun. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0358,The accused attacked the victim with a stick. The victim was killed and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Low,High,High
+CASE_0359,"A case of cyber has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,High,High,Medium
+CASE_0360,"A case of financial has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,Medium,Low,Low
+CASE_0361,The accused attacked the victim with a gun. The victim was blood and suffered major injuries. There was a weapon during the incident.,Violent,Major,High,High,High
+CASE_0362,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0363,The accused blood the victim with a knife. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0364,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves debt issues.",Cyber,Minor,Low,Low,Low
+CASE_0365,"A case of property has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,Medium,Low,Low
+CASE_0366,The accused threat the victim with a stick. The victim was blood and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,High,High,High
+CASE_0367,The accused assault the victim with a gun. The victim was blood and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,High,Low,High
+CASE_0368,The accused attacked the victim with a gun. The victim was weapon and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,High,High
+CASE_0369,The accused injury the victim with a stick. The victim was killed and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0370,"A case of non-violent has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0371,"A case of non-violent has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves tax issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0372,The accused murder the victim with a knife. The victim was weapon and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0373,The accused weapon the victim with a knife. The victim was assault and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0374,The accused rape the victim with a stick. The victim was injury and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0375,"A case of financial has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Medium,Low,Low
+CASE_0376,"A case of cyber has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0377,"A case of property has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves insolvency issues.",Property,Minor,High,Low,Medium
+CASE_0378,"A case of financial has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Medium,Low,Low
+CASE_0379,"A case of non-violent has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0380,"A case of non-violent has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0381,The accused injury the victim with a gun. The victim was threat and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0382,"A case of cyber has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0383,The accused rape the victim with a knife. The victim was weapon and suffered major injuries. There was a injury during the incident.,Violent,Major,High,Low,High
+CASE_0384,"A case of property has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves dispute issues.",Property,Minor,Low,Low,Low
+CASE_0385,"A case of property has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves dispute issues.",Property,No Injury,Low,Low,Low
+CASE_0386,"A case of non-violent has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0387,The accused blood the victim with a stick. The victim was murder and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0388,The accused blood the victim with a gun. The victim was assault and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0389,"A case of cyber has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves theft issues.",Cyber,Minor,High,Low,Medium
+CASE_0390,The accused attacked the victim with a knife. The victim was threat and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0391,"A case of financial has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Low,High,Medium
+CASE_0392,"A case of cyber has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Low,Low,Low
+CASE_0393,"A case of cyber has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0394,"A case of non-violent has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves debt issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0395,"A case of non-violent has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0396,The accused injury the victim with a knife. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,High,High,High
+CASE_0397,"A case of non-violent has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0398,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0399,The accused attacked the victim with a gun. The victim was weapon and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0400,"A case of financial has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Medium,Low,Low
+CASE_0401,The accused injury the victim with a gun. The victim was killed and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0402,"A case of financial has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves theft issues.",Financial,Minor,Medium,Low,Low
+CASE_0403,The accused injury the victim with a knife. The victim was attacked and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,High,Low,High
+CASE_0404,"A case of property has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves contract issues.",Property,Minor,High,Low,Medium
+CASE_0405,The accused rape the victim with a knife. The victim was killed and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,High,Medium
+CASE_0406,"A case of financial has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,Low,Low,Low
+CASE_0407,"A case of non-violent has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0408,The accused weapon the victim with a stick. The victim was threat and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,High,Low,High
+CASE_0409,The accused injury the victim with a gun. The victim was killed and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0410,"A case of property has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Low,Low,Low
+CASE_0411,The accused murder the victim with a knife. The victim was killed and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,Low,High
+CASE_0412,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Low,Low,Low
+CASE_0413,The accused murder the victim with a knife. The victim was weapon and suffered major injuries. There was a killed during the incident.,Violent,Major,Low,Low,Medium
+CASE_0414,"A case of cyber has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,High,Low,Medium
+CASE_0415,"A case of financial has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves debt issues.",Financial,Minor,Medium,High,Medium
+CASE_0416,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,High,Low,Medium
+CASE_0417,The accused assault the victim with a knife. The victim was weapon and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0418,The accused blood the victim with a gun. The victim was weapon and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,High,Low,High
+CASE_0419,"A case of non-violent has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0420,"A case of property has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves tax issues.",Property,No Injury,Low,Low,Low
+CASE_0421,"A case of property has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves debt issues.",Property,Minor,Medium,High,Medium
+CASE_0422,The accused weapon the victim with a knife. The victim was threat and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0423,"A case of financial has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Low,High,Medium
+CASE_0424,The accused weapon the victim with a stick. The victim was murder and suffered major injuries. There was a rape during the incident.,Violent,Major,Low,Low,Medium
+CASE_0425,"A case of cyber has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Low,Low,Low
+CASE_0426,"A case of financial has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves contract issues.",Financial,No Injury,Medium,Low,Low
+CASE_0427,"A case of property has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves fraud issues.",Property,Minor,High,Low,Medium
+CASE_0428,"A case of cyber has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves contract issues.",Cyber,Minor,High,Low,Medium
+CASE_0429,"A case of financial has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves debt issues.",Financial,Minor,Low,Low,Low
+CASE_0430,"A case of cyber has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Low,Low,Low
+CASE_0431,"A case of financial has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves debt issues.",Financial,No Injury,Low,Low,Low
+CASE_0432,The accused injury the victim with a stick. The victim was assault and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0433,"A case of non-violent has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0434,"A case of non-violent has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0435,The accused murder the victim with a stick. The victim was threat and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,High,Low,High
+CASE_0436,"A case of financial has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves contract issues.",Financial,No Injury,Low,Low,Low
+CASE_0437,"A case of non-violent has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Medium,High,Medium
+CASE_0438,"A case of non-violent has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0439,The accused threat the victim with a stick. The victim was blood and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0440,"A case of financial has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Low,High,Medium
+CASE_0441,"A case of property has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves theft issues.",Property,Minor,High,Low,Medium
+CASE_0442,"A case of non-violent has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0443,The accused weapon the victim with a gun. The victim was threat and suffered major injuries. There was a murder during the incident.,Violent,Major,High,High,High
+CASE_0444,"A case of financial has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Medium,High,Medium
+CASE_0445,The accused injury the victim with a knife. The victim was threat and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,High,Low,High
+CASE_0446,"A case of non-violent has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,Low,High,Medium
+CASE_0447,The accused attacked the victim with a gun. The victim was murder and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Low,Low,High
+CASE_0448,"A case of financial has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves land issues.",Financial,Minor,Low,High,Medium
+CASE_0449,The accused murder the victim with a knife. The victim was attacked and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0450,"A case of financial has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,High,Low,Medium
+CASE_0451,"A case of financial has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Medium,High,Medium
+CASE_0452,The accused assault the victim with a knife. The victim was threat and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0453,"A case of property has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves contract issues.",Property,No Injury,Medium,Low,Low
+CASE_0454,"A case of cyber has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0455,The accused assault the victim with a stick. The victim was weapon and suffered major injuries. There was a rape during the incident.,Violent,Major,Low,High,Medium
+CASE_0456,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0457,The accused attacked the victim with a knife. The victim was rape and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,Low,Medium
+CASE_0458,The accused killed the victim with a stick. The victim was blood and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0459,"A case of non-violent has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0460,"A case of property has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves tax issues.",Property,No Injury,Low,Low,Low
+CASE_0461,"A case of cyber has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,Low,Low,Low
+CASE_0462,The accused weapon the victim with a stick. The victim was rape and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0463,The accused injury the victim with a knife. The victim was murder and suffered major injuries. There was a assault during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0464,"A case of cyber has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0465,"A case of non-violent has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0466,The accused rape the victim with a gun. The victim was threat and suffered major injuries. There was a weapon during the incident.,Violent,Major,High,High,High
+CASE_0467,The accused attacked the victim with a gun. The victim was assault and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,High,High
+CASE_0468,The accused weapon the victim with a gun. The victim was attacked and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0469,The accused murder the victim with a gun. The victim was blood and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0470,"A case of property has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves tax issues.",Property,Minor,Low,High,Medium
+CASE_0471,"A case of cyber has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves tax issues.",Cyber,Minor,Low,High,Medium
+CASE_0472,The accused attacked the victim with a knife. The victim was weapon and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0473,"A case of non-violent has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0474,The accused injury the victim with a stick. The victim was attacked and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,High,Low,High
+CASE_0475,The accused injury the victim with a gun. The victim was weapon and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0476,"A case of non-violent has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0477,The accused blood the victim with a stick. The victim was threat and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,Low,Medium
+CASE_0478,The accused injury the victim with a gun. The victim was assault and suffered major injuries. There was a attacked during the incident.,Violent,Major,Medium,High,Medium
+CASE_0479,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Medium,Low,Low
+CASE_0480,The accused murder the victim with a knife. The victim was killed and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0481,"A case of property has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves contract issues.",Property,Minor,Medium,Low,Low
+CASE_0482,"A case of non-violent has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0483,The accused killed the victim with a knife. The victim was threat and suffered major injuries. There was a blood during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0484,"A case of cyber has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0485,"A case of non-violent has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0486,The accused assault the victim with a stick. The victim was weapon and suffered major injuries. There was a threat during the incident.,Violent,Major,High,Low,High
+CASE_0487,"A case of property has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves fraud issues.",Property,No Injury,High,Low,Medium
+CASE_0488,The accused threat the victim with a knife. The victim was rape and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,Low,High
+CASE_0489,The accused threat the victim with a knife. The victim was killed and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0490,"A case of cyber has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Low,Low,Low
+CASE_0491,The accused threat the victim with a gun. The victim was murder and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0492,"A case of financial has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves land issues.",Financial,Minor,Medium,Low,Low
+CASE_0493,The accused injury the victim with a knife. The victim was threat and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,High,High
+CASE_0494,The accused attacked the victim with a gun. The victim was rape and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0495,"A case of financial has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0496,"A case of cyber has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves tax issues.",Cyber,Minor,High,Low,Medium
+CASE_0497,The accused threat the victim with a knife. The victim was injury and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0498,"A case of non-violent has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves insolvency issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0499,"A case of cyber has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0500,"A case of non-violent has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,Low,High,Medium
+CASE_0501,The accused rape the victim with a knife. The victim was assault and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0502,"A case of property has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves theft issues.",Property,Minor,Medium,Low,Low
+CASE_0503,"A case of property has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves land issues.",Property,Minor,High,Low,Medium
+CASE_0504,"A case of non-violent has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves debt issues.",Non-Violent,No Injury,Medium,High,Medium
+CASE_0505,"A case of non-violent has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0506,"A case of cyber has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves contract issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0507,"A case of non-violent has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0508,The accused blood the victim with a stick. The victim was murder and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0509,"A case of financial has been reported. The dispute is over a contract involving debt. No physical harm was reported, but it involves theft issues.",Financial,Minor,High,Low,Medium
+CASE_0510,The accused weapon the victim with a knife. The victim was threat and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,High,Low,High
+CASE_0511,The accused killed the victim with a gun. The victim was blood and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0512,The accused injury the victim with a gun. The victim was threat and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,High,Medium
+CASE_0513,The accused killed the victim with a gun. The victim was attacked and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0514,"A case of financial has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Medium,High,Medium
+CASE_0515,"A case of financial has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves theft issues.",Financial,Minor,High,Low,Medium
+CASE_0516,The accused weapon the victim with a gun. The victim was injury and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Low,Low,High
+CASE_0517,"A case of cyber has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Medium,High,Medium
+CASE_0518,"A case of non-violent has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0519,"A case of property has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves tax issues.",Property,No Injury,Medium,Low,Low
+CASE_0520,"A case of non-violent has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0521,"A case of property has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves land issues.",Property,No Injury,Low,Low,Low
+CASE_0522,The accused murder the victim with a stick. The victim was attacked and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0523,The accused threat the victim with a stick. The victim was attacked and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,High,Low,High
+CASE_0524,"A case of cyber has been reported. The dispute is over a insolvency involving fraud. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0525,The accused weapon the victim with a gun. The victim was attacked and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,High,High,High
+CASE_0526,"A case of cyber has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves tax issues.",Cyber,Minor,Medium,High,Medium
+CASE_0527,The accused threat the victim with a stick. The victim was attacked and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Low,High,High
+CASE_0528,The accused attacked the victim with a knife. The victim was threat and suffered major injuries. There was a blood during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0529,"A case of non-violent has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0530,"A case of financial has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves contract issues.",Financial,Minor,Medium,Low,Low
+CASE_0531,The accused injury the victim with a knife. The victim was weapon and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0532,"A case of non-violent has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0533,The accused blood the victim with a knife. The victim was murder and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,Low,Medium
+CASE_0534,The accused murder the victim with a stick. The victim was weapon and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0535,The accused attacked the victim with a stick. The victim was assault and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,High,Medium
+CASE_0536,"A case of non-violent has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0537,The accused injury the victim with a gun. The victim was threat and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Low,Low,High
+CASE_0538,"A case of financial has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves land issues.",Financial,No Injury,Low,Low,Low
+CASE_0539,"A case of cyber has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0540,"A case of property has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves debt issues.",Property,Minor,Medium,Low,Low
+CASE_0541,"A case of cyber has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,High,Low,Medium
+CASE_0542,The accused blood the victim with a gun. The victim was attacked and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0543,"A case of financial has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Medium,Low,Low
+CASE_0544,The accused assault the victim with a gun. The victim was threat and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Low,Low,High
+CASE_0545,The accused assault the victim with a stick. The victim was weapon and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,High,Medium
+CASE_0546,The accused weapon the victim with a gun. The victim was blood and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0547,The accused attacked the victim with a stick. The victim was assault and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,Low,Medium
+CASE_0548,"A case of cyber has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves contract issues.",Cyber,No Injury,Low,Low,Low
+CASE_0549,"A case of cyber has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Cyber,No Injury,High,Low,Medium
+CASE_0550,"A case of non-violent has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Low,High,Medium
+CASE_0551,"A case of property has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves contract issues.",Property,Minor,Medium,High,Medium
+CASE_0552,The accused rape the victim with a stick. The victim was assault and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0553,The accused injury the victim with a gun. The victim was blood and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,High,Medium
+CASE_0554,The accused attacked the victim with a stick. The victim was threat and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0555,"A case of non-violent has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves theft issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0556,The accused assault the victim with a gun. The victim was weapon and suffered major injuries. There was a threat during the incident.,Violent,Major,High,High,High
+CASE_0557,"A case of property has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves theft issues.",Property,Minor,High,Low,Medium
+CASE_0558,"A case of property has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Low,Low,Low
+CASE_0559,The accused weapon the victim with a knife. The victim was injury and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0560,"A case of cyber has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Medium,Low,Low
+CASE_0561,"A case of financial has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Low,High,Medium
+CASE_0562,"A case of financial has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves theft issues.",Financial,Minor,Medium,High,Medium
+CASE_0563,"A case of cyber has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Low,Low,Low
+CASE_0564,"A case of property has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves theft issues.",Property,No Injury,High,High,Medium
+CASE_0565,"A case of property has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves theft issues.",Property,No Injury,Low,Low,Low
+CASE_0566,"A case of property has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves debt issues.",Property,No Injury,High,Low,Medium
+CASE_0567,"A case of property has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves debt issues.",Property,No Injury,High,Low,Medium
+CASE_0568,The accused assault the victim with a stick. The victim was attacked and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,High,Medium
+CASE_0569,"A case of non-violent has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0570,"A case of non-violent has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Medium,High,Medium
+CASE_0571,"A case of property has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves dispute issues.",Property,No Injury,High,Low,Medium
+CASE_0572,The accused threat the victim with a knife. The victim was blood and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0573,"A case of cyber has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves land issues.",Cyber,Minor,Low,High,Medium
+CASE_0574,"A case of cyber has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,High,Low,Medium
+CASE_0575,The accused rape the victim with a gun. The victim was murder and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,High,Low,High
+CASE_0576,The accused weapon the victim with a knife. The victim was threat and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0577,"A case of property has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves fraud issues.",Property,No Injury,Low,Low,Low
+CASE_0578,The accused attacked the victim with a knife. The victim was killed and suffered major injuries. There was a weapon during the incident.,Violent,Major,High,Low,High
+CASE_0579,"A case of financial has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,Low,Low,Low
+CASE_0580,"A case of cyber has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,High,Low,Medium
+CASE_0581,The accused rape the victim with a gun. The victim was weapon and suffered major injuries. There was a threat during the incident.,Violent,Major,Low,Low,Medium
+CASE_0582,"A case of property has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves contract issues.",Property,Minor,High,Low,Medium
+CASE_0583,"A case of financial has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Low,High,Medium
+CASE_0584,The accused attacked the victim with a stick. The victim was killed and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,High,High,High
+CASE_0585,"A case of cyber has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Low,Low,Low
+CASE_0586,"A case of cyber has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Low,Low,Low
+CASE_0587,"A case of non-violent has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0588,The accused injury the victim with a knife. The victim was killed and suffered major injuries. There was a assault during the incident.,Violent,Major,Low,Low,Medium
+CASE_0589,The accused injury the victim with a stick. The victim was attacked and suffered major injuries. There was a assault during the incident.,Violent,Major,Medium,High,Medium
+CASE_0590,"A case of non-violent has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0591,"A case of financial has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Medium,Low,Low
+CASE_0592,"A case of property has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves land issues.",Property,Minor,Medium,Low,Low
+CASE_0593,"A case of cyber has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Medium,Low,Low
+CASE_0594,"A case of non-violent has been reported. The dispute is over a tax involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0595,The accused blood the victim with a knife. The victim was attacked and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0596,"A case of financial has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves debt issues.",Financial,No Injury,Medium,High,Medium
+CASE_0597,The accused assault the victim with a stick. The victim was attacked and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,High,High
+CASE_0598,"A case of cyber has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Medium,Low,Low
+CASE_0599,"A case of cyber has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Low,Low,Low
+CASE_0600,"A case of property has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves tax issues.",Property,Minor,Low,Low,Low
+CASE_0601,"A case of property has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves debt issues.",Property,No Injury,Low,Low,Low
+CASE_0602,"A case of non-violent has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0603,"A case of property has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves tax issues.",Property,Minor,Low,Low,Low
+CASE_0604,The accused threat the victim with a stick. The victim was blood and suffered major injuries. There was a assault during the incident.,Violent,Major,Low,Low,Medium
+CASE_0605,"A case of financial has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,Low,Low
+CASE_0606,"A case of non-violent has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0607,"A case of cyber has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves tax issues.",Cyber,Minor,High,Low,Medium
+CASE_0608,"A case of non-violent has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,Low,High,Medium
+CASE_0609,The accused killed the victim with a gun. The victim was weapon and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,High,High
+CASE_0610,The accused rape the victim with a stick. The victim was blood and suffered major injuries. There was a killed during the incident.,Violent,Major,Low,Low,Medium
+CASE_0611,"A case of cyber has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Medium,Low,Low
+CASE_0612,The accused killed the victim with a gun. The victim was assault and suffered major injuries. There was a weapon during the incident.,Violent,Major,Low,High,Medium
+CASE_0613,"A case of financial has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves land issues.",Financial,Minor,Low,Low,Low
+CASE_0614,The accused injury the victim with a stick. The victim was assault and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Low,Low,High
+CASE_0615,"A case of non-violent has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves theft issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0616,"A case of cyber has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Medium,Low,Low
+CASE_0617,"A case of financial has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves dispute issues.",Financial,No Injury,Low,Low,Low
+CASE_0618,The accused murder the victim with a gun. The victim was weapon and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,High,High
+CASE_0619,"A case of property has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Medium,Low,Low
+CASE_0620,"A case of financial has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves debt issues.",Financial,Minor,Low,Low,Low
+CASE_0621,The accused threat the victim with a gun. The victim was attacked and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0622,"A case of financial has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,Low,Low
+CASE_0623,The accused murder the victim with a gun. The victim was assault and suffered major injuries. There was a rape during the incident.,Violent,Major,High,Low,High
+CASE_0624,"A case of cyber has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,Low,Low,Low
+CASE_0625,"A case of cyber has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Low,Low,Low
+CASE_0626,"A case of non-violent has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves debt issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0627,The accused blood the victim with a stick. The victim was assault and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Medium,High,High
+CASE_0628,The accused weapon the victim with a gun. The victim was rape and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0629,"A case of financial has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,High,Low,Medium
+CASE_0630,The accused murder the victim with a knife. The victim was weapon and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0631,The accused blood the victim with a stick. The victim was injury and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Low,Low,High
+CASE_0632,"A case of non-violent has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0633,The accused rape the victim with a stick. The victim was weapon and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0634,The accused weapon the victim with a gun. The victim was attacked and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0635,"A case of cyber has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0636,"A case of non-violent has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0637,"A case of non-violent has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0638,The accused weapon the victim with a stick. The victim was attacked and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0639,The accused rape the victim with a knife. The victim was killed and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0640,"A case of property has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves theft issues.",Property,No Injury,Medium,Low,Low
+CASE_0641,"A case of financial has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves tax issues.",Financial,Minor,High,Low,Medium
+CASE_0642,"A case of property has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves debt issues.",Property,Minor,Medium,Low,Low
+CASE_0643,"A case of financial has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves dispute issues.",Financial,Minor,High,Low,Medium
+CASE_0644,"A case of non-violent has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves contract issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0645,"A case of financial has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Low,Low,Low
+CASE_0646,"A case of non-violent has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0647,"A case of property has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves fraud issues.",Property,No Injury,Low,Low,Low
+CASE_0648,"A case of non-violent has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,High,High,Medium
+CASE_0649,"A case of financial has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves contract issues.",Financial,Minor,Low,Low,Low
+CASE_0650,"A case of financial has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves fraud issues.",Financial,Minor,High,Low,Medium
+CASE_0651,The accused injury the victim with a gun. The victim was rape and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0652,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves debt issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0653,The accused threat the victim with a knife. The victim was killed and suffered major injuries. There was a assault during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0654,"A case of financial has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves contract issues.",Financial,Minor,High,Low,Medium
+CASE_0655,"A case of non-violent has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0656,The accused assault the victim with a knife. The victim was rape and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,High,High
+CASE_0657,The accused rape the victim with a stick. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,High,High
+CASE_0658,"A case of property has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,Low,Low,Low
+CASE_0659,The accused injury the victim with a gun. The victim was assault and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Low,Low,High
+CASE_0660,The accused injury the victim with a gun. The victim was assault and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Low,Low,High
+CASE_0661,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves theft issues.",Cyber,Minor,Low,Low,Low
+CASE_0662,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,High,Low,Medium
+CASE_0663,The accused rape the victim with a stick. The victim was weapon and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,Low,Medium
+CASE_0664,The accused weapon the victim with a gun. The victim was attacked and suffered major injuries. There was a rape during the incident.,Violent,Major,High,Low,High
+CASE_0665,"A case of property has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves tax issues.",Property,No Injury,High,Low,Medium
+CASE_0666,"A case of cyber has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0667,The accused rape the victim with a stick. The victim was assault and suffered major injuries. There was a killed during the incident.,Violent,Major,High,High,High
+CASE_0668,The accused attacked the victim with a stick. The victim was injury and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Low,Low,High
+CASE_0669,The accused rape the victim with a stick. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0670,The accused blood the victim with a stick. The victim was rape and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0671,"A case of non-violent has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0672,The accused attacked the victim with a gun. The victim was assault and suffered major injuries. There was a killed during the incident.,Violent,Major,Low,Low,Medium
+CASE_0673,"A case of property has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves land issues.",Property,No Injury,Low,Low,Low
+CASE_0674,"A case of cyber has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves debt issues.",Cyber,Minor,Low,Low,Low
+CASE_0675,"A case of cyber has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Medium,Low,Low
+CASE_0676,The accused murder the victim with a gun. The victim was injury and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0677,"A case of property has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves land issues.",Property,No Injury,Medium,Low,Low
+CASE_0678,"A case of cyber has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0679,"A case of financial has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves theft issues.",Financial,No Injury,High,Low,Medium
+CASE_0680,"A case of financial has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Medium,Low,Low
+CASE_0681,"A case of cyber has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Low,Low,Low
+CASE_0682,"A case of cyber has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves land issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0683,"A case of property has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves contract issues.",Property,Minor,High,Low,Medium
+CASE_0684,"A case of financial has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Low,Low,Low
+CASE_0685,"A case of cyber has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,High,Low,Medium
+CASE_0686,"A case of non-violent has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0687,"A case of financial has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Medium,Low,Low
+CASE_0688,"A case of cyber has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0689,"A case of non-violent has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0690,"A case of non-violent has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0691,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,High,High,Medium
+CASE_0692,"A case of cyber has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Low,Low,Low
+CASE_0693,The accused injury the victim with a knife. The victim was attacked and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Low,Low,High
+CASE_0694,The accused rape the victim with a gun. The victim was blood and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0695,"A case of financial has been reported. The dispute is over a contract involving debt. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0696,"A case of non-violent has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,High,Medium
+CASE_0697,"A case of financial has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves theft issues.",Financial,Minor,High,Low,Medium
+CASE_0698,"A case of financial has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves debt issues.",Financial,No Injury,High,Low,Medium
+CASE_0699,"A case of cyber has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0700,"A case of non-violent has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,Low,High,Medium
+CASE_0701,The accused weapon the victim with a stick. The victim was attacked and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,High,High,High
+CASE_0702,The accused killed the victim with a stick. The victim was rape and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,High,Medium
+CASE_0703,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0704,"A case of cyber has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,High,Low,Medium
+CASE_0705,"A case of property has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,Low,Low,Low
+CASE_0706,"A case of non-violent has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves fraud issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0707,"A case of cyber has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,High,Low,Medium
+CASE_0708,The accused killed the victim with a stick. The victim was blood and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,High,High
+CASE_0709,"A case of cyber has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Low,Low,Low
+CASE_0710,The accused attacked the victim with a gun. The victim was killed and suffered major injuries. There was a murder during the incident.,Violent,Major,Medium,High,Medium
+CASE_0711,"A case of property has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves land issues.",Property,No Injury,Medium,Low,Low
+CASE_0712,"A case of property has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves debt issues.",Property,No Injury,Low,Low,Low
+CASE_0713,"A case of cyber has been reported. The dispute is over a theft involving land. No physical harm was reported, but it involves dispute issues.",Cyber,No Injury,Medium,High,Medium
+CASE_0714,The accused injury the victim with a gun. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0715,"A case of property has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,Medium,Low,Low
+CASE_0716,The accused weapon the victim with a gun. The victim was injury and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,High,Medium
+CASE_0717,"A case of property has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves debt issues.",Property,No Injury,Low,Low,Low
+CASE_0718,The accused assault the victim with a knife. The victim was weapon and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0719,"A case of property has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves dispute issues.",Property,No Injury,Low,High,Medium
+CASE_0720,"A case of property has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves tax issues.",Property,No Injury,High,Low,Medium
+CASE_0721,"A case of non-violent has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0722,"A case of cyber has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves theft issues.",Cyber,Minor,Low,Low,Low
+CASE_0723,The accused threat the victim with a stick. The victim was assault and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0724,The accused attacked the victim with a stick. The victim was injury and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0725,"A case of cyber has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves land issues.",Cyber,Minor,High,Low,Medium
+CASE_0726,The accused injury the victim with a stick. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,High,High
+CASE_0727,The accused injury the victim with a knife. The victim was killed and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,High,High,High
+CASE_0728,The accused blood the victim with a knife. The victim was murder and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,Low,High
+CASE_0729,"A case of cyber has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves theft issues.",Cyber,Minor,High,Low,Medium
+CASE_0730,"A case of property has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves land issues.",Property,No Injury,Medium,Low,Low
+CASE_0731,The accused threat the victim with a gun. The victim was rape and suffered major injuries. There was a assault during the incident.,Violent,Major,High,High,High
+CASE_0732,"A case of property has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves dispute issues.",Property,Minor,High,Low,Medium
+CASE_0733,"A case of financial has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves tax issues.",Financial,Minor,Low,Low,Low
+CASE_0734,"A case of cyber has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,Medium,Low,Low
+CASE_0735,"A case of financial has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves land issues.",Financial,No Injury,High,Low,Medium
+CASE_0736,"A case of financial has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves debt issues.",Financial,Minor,High,High,Medium
+CASE_0737,"A case of cyber has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,High,Low,Medium
+CASE_0738,The accused murder the victim with a stick. The victim was killed and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0739,"A case of cyber has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Medium,Low,Low
+CASE_0740,The accused killed the victim with a stick. The victim was weapon and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0741,The accused rape the victim with a gun. The victim was assault and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Low,High,High
+CASE_0742,"A case of financial has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves land issues.",Financial,Minor,High,Low,Medium
+CASE_0743,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves land issues.",Financial,No Injury,High,Low,Medium
+CASE_0744,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves contract issues.",Financial,Minor,Medium,Low,Low
+CASE_0745,The accused rape the victim with a knife. The victim was threat and suffered major injuries. There was a blood during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0746,The accused injury the victim with a knife. The victim was rape and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0747,"A case of cyber has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves fraud issues.",Cyber,Minor,High,Low,Medium
+CASE_0748,"A case of financial has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves theft issues.",Financial,Minor,Medium,Low,Low
+CASE_0749,The accused murder the victim with a gun. The victim was attacked and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0750,"A case of financial has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves insolvency issues.",Financial,No Injury,High,High,Medium
+CASE_0751,The accused weapon the victim with a stick. The victim was rape and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0752,The accused threat the victim with a gun. The victim was murder and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0753,"A case of property has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves debt issues.",Property,Minor,Medium,Low,Low
+CASE_0754,"A case of property has been reported. The dispute is over a fraud involving insolvency. No physical harm was reported, but it involves tax issues.",Property,No Injury,Low,Low,Low
+CASE_0755,"A case of property has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves theft issues.",Property,No Injury,Low,High,Medium
+CASE_0756,"A case of property has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves fraud issues.",Property,Minor,Low,Low,Low
+CASE_0757,"A case of cyber has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,High,High,Medium
+CASE_0758,"A case of financial has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves tax issues.",Financial,No Injury,Low,Low,Low
+CASE_0759,The accused threat the victim with a stick. The victim was rape and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0760,"A case of non-violent has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0761,"A case of non-violent has been reported. The dispute is over a tax involving insolvency. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,Medium,High,Medium
+CASE_0762,"A case of non-violent has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0763,The accused blood the victim with a stick. The victim was rape and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0764,"A case of property has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves debt issues.",Property,Minor,Medium,Low,Low
+CASE_0765,"A case of cyber has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,High,Low,Medium
+CASE_0766,The accused attacked the victim with a stick. The victim was assault and suffered major injuries. There was a killed during the incident.,Violent,Major,High,Low,High
+CASE_0767,The accused weapon the victim with a knife. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,Low,High,Medium
+CASE_0768,"A case of non-violent has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0769,The accused attacked the victim with a gun. The victim was murder and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0770,"A case of financial has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Low,Low,Low
+CASE_0771,"A case of non-violent has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves fraud issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0772,"A case of property has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves land issues.",Property,Minor,Low,Low,Low
+CASE_0773,"A case of cyber has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves tax issues.",Cyber,Minor,High,Low,Medium
+CASE_0774,The accused attacked the victim with a stick. The victim was weapon and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0775,The accused assault the victim with a gun. The victim was attacked and suffered major injuries. There was a murder during the incident.,Violent,Major,High,Low,High
+CASE_0776,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves tax issues.",Financial,Minor,Medium,Low,Low
+CASE_0777,"A case of non-violent has been reported. The dispute is over a land involving dispute. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,High,High,Medium
+CASE_0778,The accused assault the victim with a knife. The victim was rape and suffered major injuries. There was a attacked during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0779,"A case of cyber has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves contract issues.",Cyber,No Injury,Medium,High,Medium
+CASE_0780,The accused attacked the victim with a knife. The victim was blood and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0781,"A case of financial has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Medium,Low,Low
+CASE_0782,"A case of non-violent has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0783,"A case of cyber has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Low,Low,Low
+CASE_0784,"A case of non-violent has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0785,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0786,The accused assault the victim with a knife. The victim was threat and suffered major injuries. There was a rape during the incident.,Violent,Major,High,Low,High
+CASE_0787,The accused killed the victim with a knife. The victim was blood and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0788,"A case of financial has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves land issues.",Financial,Minor,Low,Low,Low
+CASE_0789,The accused attacked the victim with a stick. The victim was threat and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0790,The accused attacked the victim with a stick. The victim was assault and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,High,Low,High
+CASE_0791,"A case of non-violent has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0792,The accused attacked the victim with a gun. The victim was threat and suffered major injuries. There was a injury during the incident.,Violent,Major,Low,Low,Medium
+CASE_0793,The accused killed the victim with a gun. The victim was assault and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Low,Low,High
+CASE_0794,The accused assault the victim with a knife. The victim was blood and suffered major injuries. There was a threat during the incident.,Violent,Major,Low,High,Medium
+CASE_0795,"A case of non-violent has been reported. The dispute is over a debt involving land. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0796,"A case of financial has been reported. The dispute is over a debt involving theft. No physical harm was reported, but it involves contract issues.",Financial,No Injury,High,Low,Medium
+CASE_0797,"A case of property has been reported. The dispute is over a tax involving insolvency. No physical harm was reported, but it involves debt issues.",Property,Minor,Low,Low,Low
+CASE_0798,"A case of financial has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves land issues.",Financial,Minor,Medium,Low,Low
+CASE_0799,The accused weapon the victim with a gun. The victim was threat and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,Low,High
+CASE_0800,The accused threat the victim with a gun. The victim was attacked and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,Low,High,High
+CASE_0801,"A case of non-violent has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0802,The accused rape the victim with a stick. The victim was injury and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0803,"A case of property has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves contract issues.",Property,No Injury,Medium,Low,Low
+CASE_0804,The accused blood the victim with a stick. The victim was weapon and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,Low,High
+CASE_0805,The accused blood the victim with a knife. The victim was assault and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0806,The accused weapon the victim with a gun. The victim was attacked and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,High,Low,High
+CASE_0807,"A case of cyber has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves tax issues.",Cyber,Minor,Low,Low,Low
+CASE_0808,"A case of property has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,Low,Low,Low
+CASE_0809,"A case of property has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves dispute issues.",Property,Minor,Low,High,Medium
+CASE_0810,"A case of cyber has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves land issues.",Cyber,Minor,Medium,Low,Low
+CASE_0811,"A case of cyber has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves debt issues.",Cyber,Minor,Medium,Low,Low
+CASE_0812,"A case of property has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves debt issues.",Property,Minor,High,High,Medium
+CASE_0813,The accused blood the victim with a stick. The victim was injury and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0814,The accused threat the victim with a gun. The victim was weapon and suffered major injuries. There was a blood during the incident.,Violent,Major,High,High,High
+CASE_0815,"A case of non-violent has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves insolvency issues.",Non-Violent,No Injury,High,High,Medium
+CASE_0816,The accused weapon the victim with a stick. The victim was threat and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0817,"A case of non-violent has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves fraud issues.",Non-Violent,Minor,High,High,Medium
+CASE_0818,"A case of financial has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves land issues.",Financial,No Injury,High,Low,Medium
+CASE_0819,"A case of financial has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves tax issues.",Financial,No Injury,High,Low,Medium
+CASE_0820,The accused rape the victim with a stick. The victim was killed and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,Low,Medium
+CASE_0821,"A case of non-violent has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0822,"A case of cyber has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0823,The accused rape the victim with a knife. The victim was blood and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,High,High
+CASE_0824,"A case of financial has been reported. The dispute is over a tax involving dispute. No physical harm was reported, but it involves contract issues.",Financial,No Injury,High,Low,Medium
+CASE_0825,"A case of financial has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves tax issues.",Financial,Minor,High,High,Medium
+CASE_0826,"A case of financial has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves land issues.",Financial,No Injury,High,Low,Medium
+CASE_0827,The accused rape the victim with a knife. The victim was threat and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,Low,High
+CASE_0828,"A case of property has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves fraud issues.",Property,Minor,High,High,Medium
+CASE_0829,The accused murder the victim with a knife. The victim was assault and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,High,Medium
+CASE_0830,"A case of non-violent has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0831,The accused assault the victim with a gun. The victim was blood and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,Low,Medium
+CASE_0832,The accused injury the victim with a stick. The victim was murder and suffered major injuries. There was a attacked during the incident.,Violent,Major,High,High,High
+CASE_0833,"A case of non-violent has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0834,The accused weapon the victim with a knife. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Low,Low,High
+CASE_0835,"A case of property has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves theft issues.",Property,No Injury,Medium,Low,Low
+CASE_0836,"A case of financial has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves contract issues.",Financial,No Injury,Low,Low,Low
+CASE_0837,The accused threat the victim with a stick. The victim was assault and suffered major injuries. There was a injury during the incident.,Violent,Major,High,Low,High
+CASE_0838,"A case of financial has been reported. The dispute is over a contract involving debt. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Low,High,Medium
+CASE_0839,"A case of non-violent has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0840,"A case of cyber has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Low,Low,Low
+CASE_0841,"A case of property has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,Low,Low,Low
+CASE_0842,"A case of cyber has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Low,Low,Low
+CASE_0843,"A case of property has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves theft issues.",Property,No Injury,High,Low,Medium
+CASE_0844,The accused threat the victim with a stick. The victim was weapon and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,High,High
+CASE_0845,The accused rape the victim with a stick. The victim was blood and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0846,"A case of non-violent has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0847,"A case of non-violent has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0848,The accused weapon the victim with a knife. The victim was killed and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Low,Low,High
+CASE_0849,"A case of non-violent has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0850,The accused attacked the victim with a stick. The victim was rape and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0851,"A case of non-violent has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0852,"A case of non-violent has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0853,"A case of non-violent has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0854,The accused threat the victim with a stick. The victim was murder and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0855,"A case of property has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves contract issues.",Property,Minor,High,Low,Medium
+CASE_0856,The accused injury the victim with a knife. The victim was killed and suffered major injuries. There was a weapon during the incident.,Violent,Major,High,Low,High
+CASE_0857,"A case of cyber has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Low,High,Medium
+CASE_0858,"A case of non-violent has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0859,"A case of non-violent has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Low,High,Medium
+CASE_0860,"A case of non-violent has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0861,The accused blood the victim with a stick. The victim was assault and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0862,"A case of cyber has been reported. The dispute is over a fraud involving contract. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Low,Low,Low
+CASE_0863,"A case of non-violent has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves tax issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0864,"A case of cyber has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves land issues.",Cyber,Minor,Medium,Low,Low
+CASE_0865,The accused killed the victim with a gun. The victim was murder and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,High,Medium
+CASE_0866,The accused assault the victim with a gun. The victim was attacked and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0867,"A case of financial has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves land issues.",Financial,No Injury,Low,High,Medium
+CASE_0868,The accused rape the victim with a gun. The victim was assault and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0869,"A case of cyber has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves insolvency issues.",Cyber,Minor,Low,Low,Low
+CASE_0870,"A case of non-violent has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves contract issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0871,"A case of cyber has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Medium,Low,Low
+CASE_0872,The accused killed the victim with a knife. The victim was assault and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
+CASE_0873,The accused threat the victim with a knife. The victim was blood and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0874,"A case of financial has been reported. The dispute is over a land involving debt. No physical harm was reported, but it involves tax issues.",Financial,Minor,High,Low,Medium
+CASE_0875,"A case of cyber has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves contract issues.",Cyber,No Injury,Low,High,Medium
+CASE_0876,The accused killed the victim with a knife. The victim was murder and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,High,High
+CASE_0877,The accused injury the victim with a stick. The victim was weapon and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0878,"A case of financial has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves debt issues.",Financial,No Injury,High,Low,Medium
+CASE_0879,The accused weapon the victim with a gun. The victim was threat and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,High,Low,High
+CASE_0880,"A case of non-violent has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves land issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0881,The accused rape the victim with a gun. The victim was attacked and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,High,High,High
+CASE_0882,"A case of financial has been reported. The dispute is over a dispute involving fraud. No physical harm was reported, but it involves tax issues.",Financial,No Injury,High,Low,Medium
+CASE_0883,The accused blood the victim with a gun. The victim was attacked and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0884,"A case of financial has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Medium,Low,Low
+CASE_0885,The accused injury the victim with a knife. The victim was blood and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0886,"A case of financial has been reported. The dispute is over a contract involving tax. No physical harm was reported, but it involves fraud issues.",Financial,Minor,Low,Low,Low
+CASE_0887,"A case of property has been reported. The dispute is over a fraud involving dispute. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Medium,Low,Low
+CASE_0888,"A case of cyber has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves theft issues.",Cyber,No Injury,High,Low,Medium
+CASE_0889,"A case of non-violent has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Medium,High,Medium
+CASE_0890,"A case of financial has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Low,Low,Low
+CASE_0891,"A case of property has been reported. The dispute is over a theft involving insolvency. No physical harm was reported, but it involves debt issues.",Property,No Injury,High,Low,Medium
+CASE_0892,The accused weapon the victim with a stick. The victim was rape and suffered major injuries. There was a injury during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0893,"A case of cyber has been reported. The dispute is over a theft involving fraud. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,High,Low,Medium
+CASE_0894,The accused threat the victim with a stick. The victim was blood and suffered major injuries. There was a assault during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0895,The accused rape the victim with a stick. The victim was attacked and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,Low,High
+CASE_0896,"A case of property has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves dispute issues.",Property,Minor,Medium,Low,Low
+CASE_0897,"A case of non-violent has been reported. The dispute is over a land involving contract. No physical harm was reported, but it involves tax issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0898,"A case of cyber has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,High,Low,Medium
+CASE_0899,"A case of property has been reported. The dispute is over a tax involving debt. No physical harm was reported, but it involves insolvency issues.",Property,Minor,High,Low,Medium
+CASE_0900,"A case of property has been reported. The dispute is over a fraud involving theft. No physical harm was reported, but it involves tax issues.",Property,No Injury,Low,Low,Low
+CASE_0901,The accused injury the victim with a stick. The victim was rape and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0902,"A case of property has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves insolvency issues.",Property,No Injury,High,Low,Medium
+CASE_0903,"A case of property has been reported. The dispute is over a debt involving dispute. No physical harm was reported, but it involves tax issues.",Property,No Injury,High,Low,Medium
+CASE_0904,"A case of cyber has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves tax issues.",Cyber,No Injury,High,Low,Medium
+CASE_0905,The accused threat the victim with a knife. The victim was murder and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0906,The accused injury the victim with a gun. The victim was murder and suffered major injuries. There was a killed during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0907,The accused injury the victim with a stick. The victim was blood and suffered major injuries. There was a attacked during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0908,"A case of non-violent has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0909,"A case of property has been reported. The dispute is over a dispute involving debt. No physical harm was reported, but it involves land issues.",Property,Minor,Medium,Low,Low
+CASE_0910,The accused rape the victim with a gun. The victim was injury and suffered major injuries. There was a threat during the incident.,Violent,Major,Low,Low,Medium
+CASE_0911,"A case of cyber has been reported. The dispute is over a dispute involving theft. No physical harm was reported, but it involves land issues.",Cyber,Minor,Low,Low,Low
+CASE_0912,"A case of financial has been reported. The dispute is over a theft involving tax. No physical harm was reported, but it involves dispute issues.",Financial,Minor,High,Low,Medium
+CASE_0913,The accused blood the victim with a stick. The victim was assault and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,High,High
+CASE_0914,The accused injury the victim with a knife. The victim was killed and suffered major injuries. There was a murder during the incident.,Violent,Major,High,Low,High
+CASE_0915,"A case of non-violent has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0916,The accused weapon the victim with a stick. The victim was killed and suffered major injuries. There was a murder during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0917,"A case of cyber has been reported. The dispute is over a tax involving land. No physical harm was reported, but it involves insolvency issues.",Cyber,No Injury,Low,High,Medium
+CASE_0918,"A case of non-violent has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0919,The accused blood the victim with a stick. The victim was murder and suffered major injuries. There was a injury during the incident.,Violent,Major,High,Low,High
+CASE_0920,"A case of financial has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Low,Low,Low
+CASE_0921,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0922,"A case of property has been reported. The dispute is over a insolvency involving fraud. No physical harm was reported, but it involves theft issues.",Property,Minor,High,Low,Medium
+CASE_0923,"A case of property has been reported. The dispute is over a contract involving theft. No physical harm was reported, but it involves fraud issues.",Property,Minor,Medium,Low,Low
+CASE_0924,The accused assault the victim with a gun. The victim was attacked and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0925,"A case of non-violent has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0926,"A case of property has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves tax issues.",Property,Minor,High,Low,Medium
+CASE_0927,"A case of financial has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves debt issues.",Financial,No Injury,Medium,High,Medium
+CASE_0928,The accused murder the victim with a knife. The victim was threat and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,Low,Medium
+CASE_0929,The accused murder the victim with a knife. The victim was rape and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,High,High,High
+CASE_0930,The accused murder the victim with a knife. The victim was threat and suffered major injuries. There was a blood during the incident.,Violent,Major,High,Low,High
+CASE_0931,The accused weapon the victim with a stick. The victim was threat and suffered major injuries. There was a blood during the incident.,Violent,Major,Low,Low,Medium
+CASE_0932,The accused killed the victim with a knife. The victim was weapon and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0933,The accused rape the victim with a gun. The victim was killed and suffered major injuries. There was a threat during the incident.,Violent,Major,High,Low,High
+CASE_0934,"A case of cyber has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves contract issues.",Cyber,Minor,Medium,Low,Low
+CASE_0935,The accused weapon the victim with a gun. The victim was assault and suffered major injuries. There was a murder during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0936,"A case of financial has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Medium,Low,Low
+CASE_0937,"A case of cyber has been reported. The dispute is over a land involving fraud. No physical harm was reported, but it involves debt issues.",Cyber,Minor,Medium,Low,Low
+CASE_0938,The accused assault the victim with a knife. The victim was blood and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0939,"A case of non-violent has been reported. The dispute is over a insolvency involving tax. No physical harm was reported, but it involves land issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0940,"A case of property has been reported. The dispute is over a debt involving contract. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Low,Low,Low
+CASE_0941,The accused threat the victim with a stick. The victim was assault and suffered fatal injuries. There was a blood during the incident.,Violent,Fatal,High,Low,High
+CASE_0942,The accused weapon the victim with a stick. The victim was murder and suffered major injuries. There was a assault during the incident.,Violent,Major,High,Low,High
+CASE_0943,The accused attacked the victim with a gun. The victim was threat and suffered major injuries. There was a murder during the incident.,Violent,Major,High,High,High
+CASE_0944,The accused threat the victim with a gun. The victim was assault and suffered major injuries. There was a rape during the incident.,Violent,Major,Low,Low,Medium
+CASE_0945,The accused attacked the victim with a stick. The victim was rape and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,High,Low,High
+CASE_0946,"A case of non-violent has been reported. The dispute is over a insolvency involving debt. No physical harm was reported, but it involves dispute issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0947,"A case of financial has been reported. The dispute is over a fraud involving debt. No physical harm was reported, but it involves tax issues.",Financial,Minor,High,High,Medium
+CASE_0948,"A case of property has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves fraud issues.",Property,Minor,Low,Low,Low
+CASE_0949,"A case of non-violent has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,High,High,Medium
+CASE_0950,"A case of property has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves debt issues.",Property,No Injury,Medium,Low,Low
+CASE_0951,"A case of financial has been reported. The dispute is over a tax involving fraud. No physical harm was reported, but it involves contract issues.",Financial,Minor,Medium,Low,Low
+CASE_0952,The accused attacked the victim with a knife. The victim was weapon and suffered fatal injuries. There was a injury during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0953,"A case of non-violent has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves insolvency issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0954,"A case of property has been reported. The dispute is over a insolvency involving land. No physical harm was reported, but it involves theft issues.",Property,No Injury,Low,High,Medium
+CASE_0955,"A case of non-violent has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0956,The accused attacked the victim with a gun. The victim was blood and suffered major injuries. There was a assault during the incident.,Violent,Major,Low,Low,Medium
+CASE_0957,The accused injury the victim with a stick. The victim was blood and suffered fatal injuries. There was a attacked during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0958,"A case of cyber has been reported. The dispute is over a dispute involving contract. No physical harm was reported, but it involves debt issues.",Cyber,No Injury,Low,Low,Low
+CASE_0959,"A case of non-violent has been reported. The dispute is over a contract involving dispute. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0960,"A case of cyber has been reported. The dispute is over a land involving tax. No physical harm was reported, but it involves fraud issues.",Cyber,No Injury,Low,High,Medium
+CASE_0961,"A case of financial has been reported. The dispute is over a fraud involving tax. No physical harm was reported, but it involves theft issues.",Financial,No Injury,Medium,Low,Low
+CASE_0962,The accused rape the victim with a knife. The victim was threat and suffered major injuries. There was a attacked during the incident.,Violent,Major,Low,High,Medium
+CASE_0963,"A case of non-violent has been reported. The dispute is over a land involving theft. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0964,"A case of financial has been reported. The dispute is over a dispute involving land. No physical harm was reported, but it involves fraud issues.",Financial,Minor,High,Low,Medium
+CASE_0965,"A case of non-violent has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves tax issues.",Non-Violent,No Injury,Medium,Low,Low
+CASE_0966,"A case of non-violent has been reported. The dispute is over a insolvency involving contract. No physical harm was reported, but it involves theft issues.",Non-Violent,No Injury,Low,Low,Low
+CASE_0967,The accused blood the victim with a gun. The victim was injury and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,High,Low,High
+CASE_0968,The accused rape the victim with a knife. The victim was weapon and suffered fatal injuries. There was a killed during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0969,"A case of financial has been reported. The dispute is over a fraud involving land. No physical harm was reported, but it involves debt issues.",Financial,Minor,Medium,Low,Low
+CASE_0970,The accused murder the victim with a knife. The victim was threat and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,Medium,High,High
+CASE_0971,The accused blood the victim with a knife. The victim was weapon and suffered fatal injuries. There was a rape during the incident.,Violent,Fatal,Medium,High,High
+CASE_0972,The accused assault the victim with a knife. The victim was threat and suffered major injuries. There was a rape during the incident.,Violent,Major,Medium,High,Medium
+CASE_0973,The accused threat the victim with a stick. The victim was attacked and suffered fatal injuries. There was a assault during the incident.,Violent,Fatal,High,Low,High
+CASE_0974,"A case of financial has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves tax issues.",Financial,No Injury,High,Low,Medium
+CASE_0975,"A case of non-violent has been reported. The dispute is over a tax involving contract. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Medium,Low,Low
+CASE_0976,"A case of property has been reported. The dispute is over a dispute involving tax. No physical harm was reported, but it involves fraud issues.",Property,Minor,High,Low,Medium
+CASE_0977,"A case of financial has been reported. The dispute is over a land involving insolvency. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Low,Low,Low
+CASE_0978,"A case of property has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves insolvency issues.",Property,Minor,Medium,Low,Low
+CASE_0979,"A case of financial has been reported. The dispute is over a tax involving theft. No physical harm was reported, but it involves land issues.",Financial,Minor,Low,Low,Low
+CASE_0980,"A case of non-violent has been reported. The dispute is over a contract involving land. No physical harm was reported, but it involves dispute issues.",Non-Violent,Minor,Low,Low,Low
+CASE_0981,"A case of cyber has been reported. The dispute is over a insolvency involving dispute. No physical harm was reported, but it involves theft issues.",Cyber,Minor,High,Low,Medium
+CASE_0982,"A case of non-violent has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves debt issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0983,"A case of property has been reported. The dispute is over a contract involving fraud. No physical harm was reported, but it involves insolvency issues.",Property,Minor,High,Low,Medium
+CASE_0984,"A case of non-violent has been reported. The dispute is over a insolvency involving theft. No physical harm was reported, but it involves tax issues.",Non-Violent,Minor,High,Low,Medium
+CASE_0985,"A case of property has been reported. The dispute is over a debt involving insolvency. No physical harm was reported, but it involves land issues.",Property,No Injury,Low,Low,Low
+CASE_0986,The accused killed the victim with a gun. The victim was weapon and suffered fatal injuries. There was a threat during the incident.,Violent,Fatal,Medium,Low,High
+CASE_0987,The accused blood the victim with a knife. The victim was injury and suffered fatal injuries. There was a weapon during the incident.,Violent,Fatal,High,Low,High
+CASE_0988,"A case of property has been reported. The dispute is over a debt involving tax. No physical harm was reported, but it involves contract issues.",Property,No Injury,Medium,Low,Low
+CASE_0989,The accused rape the victim with a stick. The victim was blood and suffered major injuries. There was a threat during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0990,"A case of financial has been reported. The dispute is over a theft involving dispute. No physical harm was reported, but it involves fraud issues.",Financial,No Injury,Medium,Low,Low
+CASE_0991,"A case of financial has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves dispute issues.",Financial,Minor,Medium,Low,Low
+CASE_0992,"A case of financial has been reported. The dispute is over a contract involving insolvency. No physical harm was reported, but it involves tax issues.",Financial,Minor,Medium,High,Medium
+CASE_0993,"A case of financial has been reported. The dispute is over a theft involving debt. No physical harm was reported, but it involves insolvency issues.",Financial,Minor,Low,Low,Low
+CASE_0994,The accused attacked the victim with a knife. The victim was threat and suffered fatal injuries. There was a murder during the incident.,Violent,Fatal,Low,High,High
+CASE_0995,"A case of cyber has been reported. The dispute is over a theft involving contract. No physical harm was reported, but it involves dispute issues.",Cyber,Minor,Low,Low,Low
+CASE_0996,"A case of non-violent has been reported. The dispute is over a dispute involving insolvency. No physical harm was reported, but it involves fraud issues.",Non-Violent,No Injury,High,Low,Medium
+CASE_0997,"A case of property has been reported. The dispute is over a debt involving fraud. No physical harm was reported, but it involves contract issues.",Property,Minor,Medium,Low,Low
+CASE_0998,The accused blood the victim with a knife. The victim was murder and suffered major injuries. There was a weapon during the incident.,Violent,Major,Medium,Low,Medium
+CASE_0999,The accused blood the victim with a knife. The victim was attacked and suffered major injuries. There was a murder during the incident.,Violent,Major,Low,Low,Medium
