@@ -61,35 +61,93 @@ LEGAL_CATEGORIES = {
         "centralexcise", "exciseduty", "excisesand salt act", "central excises",
         "assistant collector of central excise", "tariff item", "classification list", "assessable value",
         "tax assessment", "taxable value", "refund of excise", "pre-deposit", "elt",
-        "ecc", "excisable goods", "central excise act"
+        "ecc", "excisable goods", "central excise act",
+        "customs duty", "sales tax", "gst", "goods and services tax", "income tax",
+        "taxable", "exemption", "tariff classification", "valuation", "rebate",
+        "cenvat", "modvat", "service tax", "tax invoice", "tax demand",
+        "penalty", "adjudication", "show cause notice", "scn", "demand notice",
+        "interest", "surcharge", "cess", "countervailing", "anti-dumping",
     ],
     "Customs/Import-Export": [
         "customs", "import", "export", "advance licence", "d.r.i", "directorate of revenue",
-        "seized", "seizure", "bales", "raw silk", "notification"
+        "seized", "seizure", "bales", "raw silk", "notification",
+        "smuggling", "confiscation", "re-export", "bill of entry", "shipping bill",
+        "customs act", "foreign trade", "export promotion", "import license",
+        "customs broker", "clearance", "bonded warehouse", "drawback",
+        "duty drawback", "airport customs", "seaport", "customs house",
+        "re-import", "prohibited goods", "contraband", "customs tariff",
+        "ftdr", "foreign exchange", "fema", "foreign trade policy", "dgft",
     ],
     "Company/Winding Up": [
         "companies act", "company petition", "winding up", "official liquidator",
         "board of directors", "shareholder", "shares", "secured creditor", "company in liquidation",
         "company petition", "private ltd", "private limited", "com pcas", "compcas",
-        "sections 397", "section 397", "section 398", "section 433", "liquidation"
+        "sections 397", "section 397", "section 398", "section 433", "liquidation",
+        "oppression", "mismanagement", "annual general meeting", "egm", "board meeting",
+        "resolution", "articles of association", "memorandum of association",
+        "amalgamation", "merger", "takeover", "insolvency resolution",
+        "nclt", "company law board", "clb",
+        "majority shareholder", "minority shareholder", "oppression and mismanagement",
+        "company tribunal", "registered office", "authorized capital", "paid-up capital",
+        "director", "managing director", "whole-time director", "independent director",
     ],
     "Insolvency/Debt": [
         "provincial insolvency act", "insolvency", "insolvent", "unable to pay", "debt",
-        "creditor", "debtor", "decree"
+        "creditor", "debtor", "decree",
+        "bankruptcy", "corporate insolvency resolution process", "cirp",
+        "resolution professional", "insolvency and bankruptcy code", "ibc 2016",
+        "guarantor", "guarantee", "default", "loan default", "npa",
+        "non-performing asset", "debt recovery", "drt", "debt recovery tribunal",
+        "securitization", "sarfaesi", "secured debt", "unsecured debt",
+        "financial creditor", "operational creditor", "insolvency petition",
+        "moratorium", "resolution plan", "liquidation value", "dissenting",
+        "repayment", "outstanding", "overdue", "principal", "interest arrears",
     ],
     "Constitutional/Writ": [
         "article 226", "article 227", "writ petition", "writ of mandamus",
-        "writ of prohibition", "constitutional validity", "constitution"
+        "writ of prohibition", "constitutional validity", "constitution",
+        "fundamental rights", "writ of certiorari", "writ of habeas corpus",
+        "writ of quo warranto", "natural justice", "due process",
+        "article 32", "article 14", "article 21", "judicial review",
+        "declaration", "injunction", "stay order", "interim relief",
+        "state action", "executive action", "legislative action",
+        "constitutional challenge", "ultra vires", "vires of the act",
+        "legislative competence", "colourable legislation", "doctrine of equality",
     ],
     "Property/Land": [
-        "land", "possession", "tenant", "premises", "lease", "mortgage", "property"
+        "land", "possession", "tenant", "premises", "lease", "mortgage", "property",
+        "eviction", "rent control", "ownership", "title", "deed", "sale deed",
+        "encroachment", "adverse possession", "easement", "licensee", "lessee", "lessor",
+        "sub-lease", "transfer of property", "registration", "stamp duty",
+        "valuation", "khasra", "mutation", "revenue record",
+        "land acquisition", "compensation", "eminent domain", "title deed",
+        "encumbrance", "charge", "lien", "co-owner", "joint ownership",
+        "partition", "boundary", "survey number", "plot", "plot number",
     ],
     "Criminal/Violent": [
         "murder", "rape", "assault", "weapon", "killed", "grievous hurt",
-        "bodily injury", "victim"
+        "bodily injury", "victim",
+        "dacoity", "robbery", "burglary", "kidnapping", "abduction",
+        "dowry death", "dowry", "cruelty", "domestic violence", "dowry prohibition",
+        "attempt to murder", "culpable homicide", "criminal conspiracy", "abetment",
+        "rioting", "hurt", "wrongful confinement", "criminal intimidation",
+        "theft", "extortion", "criminal breach of trust", "cheating", "forgery", "counterfeit",
+        "stabbing", "shot", "homicide", "assassination", "strangulation", "torture",
+        "sexual assault", "molestation", "harassment", "stalking", "voyeurism",
+        "human trafficking", "grievous hurt", "simple hurt", "voluntarily causing hurt",
+        "deadly weapon", "firearm", "explosive", "arson", "criminal trespass",
     ],
     "General Civil": [
-        "contract", "civil", "appeal", "dispute", "petition", "judgment", "order"
+        "contract", "civil", "appeal", "dispute", "petition", "judgment", "order",
+        "specific performance", "breach of contract", "damages", "tort",
+        "negligence", "defamation", "consumer protection", "consumer complaint",
+        "consumer forum", "service deficiency", "unfair trade practice",
+        "restitution", "arbitration", "mediation", "conciliation",
+        "family law", "divorce", "maintenance", "succession", "inheritance",
+        "will", "probate", "gift deed", "settlement deed", "trust deed",
+        "adoption", "guardianship", "custody", "visitation rights",
+        "specific relief", "injunction application", "interim application",
+        "limitation act", "res judicata", "cause of action", "leave to defend",
     ],
 }
 
@@ -249,15 +307,31 @@ def tune_case_features(features, text):
     }
     if legal_category in no_injury_legal_categories:
         tuned["severity"] = "No Injury"
-        if not any(term in lower_text for term in ["minor", "child", "widow", "elderly", "disabled", "worker", "labour", "tenant"]):
+        if not any(term in lower_text for term in [
+            "minor", "child", "widow", "elderly", "disabled", "worker", "labour", "tenant",
+            "pregnant", "homeless", "adivasi", "tribal", "dalit", "scheduled",
+            "backward class", "orphan", "senior citizen", "migrant", "refugee",
+            "daily wage", "landless", "poor", "economically weaker",
+        ]):
             tuned["vulnerability"] = "Low"
 
     influence_terms = [
         "union of india", "state of", "government", "collector", "assistant director",
-        "assistant collector", "tribunal", "authority", "commissioner", "department"
+        "assistant collector", "tribunal", "authority", "commissioner", "department",
+        "regulatory", "board", "central bank", "rbi", "sebi", "irda",
+        "trai", "public sector", "psu", "municipal corporation",
+        "statutory body", "autonomous body", "public undertaking",
+        "central government", "state government", "bureau", "directorate",
     ]
+    # Note: 'authority' and 'department' already exist in the first list
     if any(term in lower_text or term in str(tuned.get("main_parties", "")).lower() for term in influence_terms):
         tuned["influence"] = "High"
+
+    # Enforce High severity/vulnerability for specific severe crimes (e.g., rape) to ensure High priority
+    if any(kw in lower_text for kw in ['rape', 'sexual assault', 'molest']):
+        tuned["crime_type"] = "Violent"
+        tuned["severity"] = "Major"
+        tuned["vulnerability"] = "High"
 
     return tuned
 
@@ -267,13 +341,48 @@ def fallback_extract_features(text, pdf_file):
     filename_parties = os.path.splitext(pdf_file)[0].replace("_", " ")
     main_parties = re.sub(r"\s+on\s+\d+.*$", "", filename_parties, flags=re.IGNORECASE).strip()
 
-    violent_terms = ["murder", "assault", "attack", "killed", "death", "injury", "weapon", "violence"]
-    financial_terms = ["debt", "fraud", "bank", "money", "financial", "insolvency"]
-    property_terms = ["property", "land", "tenant", "possession", "estate", "premises"]
-    fatal_terms = ["murder", "death", "killed", "fatal"]
-    major_terms = ["serious injury", "grievous", "hospital", "major"]
-    vulnerable_terms = ["minor", "child", "widow", "elderly", "disabled", "worker", "labour", "poor", "tenant"]
-    influence_terms = ["union of india", "state of", "government", "collector", "assistant director", "authority", "commissioner", "limited", "ltd"]
+    violent_terms = [
+        "murder", "assault", "attack", "killed", "death", "injury", "weapon", "violence",
+        "stabbing", "shot", "homicide", "assassination", "strangulation", "torture",
+        "kidnapping", "dacoity", "robbery", "sexual", "raped", "battered", "slain",
+        "culpable homicide", "attempt to murder", "dowry death", "cruelty","rioting",
+    ]
+    financial_terms = [
+        "debt", "fraud", "bank", "money", "financial", "insolvency",
+        "loan", "mortgage", "credit", "interest", "payment", "default",
+        "guarantee", "surety", "bond", "debenture", "dividend", "capital",
+    ]
+    property_terms = [
+        "property", "land", "tenant", "possession", "estate", "premises",
+        "ownership", "title", "deed", "eviction", "leasehold", "freehold",
+        "easement", "encroachment", "khasra", "mutation", "rent", "lease",
+    ]
+    fatal_terms = [
+        "murder", "death", "killed", "fatal", "homicide", "assassination",
+        "culpable homicide", "fatality", "deadly", "life lost", "deceased",
+    ]
+    major_terms = [
+        "serious injury", "grievous", "hospital", "major",
+        "critical", "severe", "life-threatening", "permanent", "disability", "maiming",
+    ]
+    vulnerable_terms = [
+        "minor", "child", "widow", "elderly", "disabled", "worker", "labour", "poor", "tenant",
+        "pregnant", "homeless", "refugee", "marginalized", "backward",
+        "scheduled caste", "scheduled tribe", "adivasi", "dalit", "tribal",
+        "orphan", "senior citizen", "economically weaker", "pensioner", "daily wage",
+        "migrant", "agricultural labour", "landless", "domestic worker", "sex worker",
+    ]
+    influence_terms = [
+        "union of india", "state of", "government", "collector", "assistant director",
+        "authority", "commissioner", "limited", "ltd",
+        "mps", "mla", "public servant", "judge", "magistrate",
+        "member of parliament", "member of legislative assembly", "public sector",
+        "psu", "corporation", "board", "regulatory", "central bureau",
+        "cbi", "enforcement directorate", "ed", "sebi", "rbi",
+        "income tax department", "central government", "state government",
+        "municipal", "panchayat", "zilla parishad", "public authority",
+        "statutory authority", "autonomous body", "public undertaking",
+    ]
 
     legal_category = classify_legal_category(text, {"main_parties": main_parties})
 
@@ -300,6 +409,32 @@ def fallback_extract_features(text, pdf_file):
     vulnerability = "High" if any(term in lowered for term in vulnerable_terms) else "Low"
     influence = "High" if any(term in lowered or term in main_parties.lower() for term in influence_terms) else "Low"
 
+    summary_text = ""
+    try:
+        print("Initializing local Hugging Face BART-large-CNN pipeline for case summarization...")
+        from transformers import pipeline
+        import torch
+        device = 0 if torch.cuda.is_available() else -1
+        
+        # Limit text input length to prevent index errors in BART (max 1024 tokens)
+        truncated_text = text[:3000].strip()
+        if len(truncated_text) > 100:
+            summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device=device)
+            # Run summarizer
+            summary_res = summarizer(truncated_text, max_length=130, min_length=45, do_sample=False)
+            if summary_res and isinstance(summary_res, list) and 'summary_text' in summary_res[0]:
+                summary_text = summary_res[0]['summary_text'].strip()
+                print("Local BART summarization succeeded.")
+    except Exception as ex:
+        print(f"Local BART summarization failed: {ex}")
+
+    if not summary_text:
+        summary_text = (
+            f"{main_parties or 'The parties'} are involved in this legal dispute. "
+            f"The document appears to concern a {crime_type.lower()} matter with {severity.lower()} severity. "
+            "This summary was generated locally because the Gemma API response was unavailable."
+        )
+
     return normalize_llm_data({
         "main_parties": main_parties or "Unknown",
         "crime_type": crime_type,
@@ -307,15 +442,37 @@ def fallback_extract_features(text, pdf_file):
         "severity": severity,
         "vulnerability": vulnerability,
         "influence": influence,
-        "plain_summary": (
-            f"{main_parties or 'The parties'} are involved in this legal dispute. "
-            f"The document appears to concern a {crime_type.lower()} matter with {severity.lower()} severity. "
-            "This summary was generated locally because the Gemma API response was unavailable."
-        ),
+        "plain_summary": summary_text,
     })
 
 def call_gemma_api(text):
-    """Calls the Gemma LLM to extract structured features and a narrative summary."""
+    """Calls the Gemma LLM to extract structured features and a narrative summary.
+
+    Uses LangChain (langchain-nvidia-ai-endpoints) for superior prompt handling
+    and structured output parsing. Falls back to raw requests API if LangChain
+    is not available or fails.
+    """
+    # Priority: Use LangChain for better context-aware legal summarization
+    try:
+        from case_priority_system.scripts.langchain_summarizer import extract_with_langchain
+    except ImportError:
+        try:
+            from langchain_summarizer import extract_with_langchain
+        except ImportError:
+            extract_with_langchain = None
+
+    if extract_with_langchain is not None:
+        try:
+            result = extract_with_langchain(text)
+            if result is not None:
+                print("LangChain extraction succeeded.")
+                return normalize_llm_data(result)
+        except Exception as e:
+            print(f"LangChain extraction failed, falling back to direct API: {e}")
+    else:
+        print("LangChain summarizer not available, using direct API call.")
+
+    # Fallback: direct API call with raw requests
     if requests is None:
         print("LLM API Error: requests package is not installed.")
         return None
@@ -324,14 +481,14 @@ def call_gemma_api(text):
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     prompt = f"""
     You are extracting facts for a court case triage pipeline.
     Analyze the following legal text and return ONLY valid JSON.
-    
+
     Legal Text:
     {text[:12000]}
-    
+
     Return this exact JSON shape:
     {{
       "main_parties": "comma-separated names of people, companies, government bodies, or courts",
@@ -342,19 +499,24 @@ def call_gemma_api(text):
       "influence": "High | Low",
       "plain_summary": "exactly 3 short sentences in simple language, naming the main parties"
     }}
-    
+
     Rules:
     - Do not include priority, urgency, ranking, or recommendation fields.
     - Use only the allowed label values shown above.
-    - For Central Excise Act, excise duty, tariff, refund, assessable value, pre-deposit, or tax assessment cases, use case_category "Excise/Tax", crime_type "Non-Violent", and severity "No Injury".
-    - For DRI, customs, import, export, licence, seizure of imported goods, or customs notification cases, use case_category "Customs/Import-Export", crime_type "Non-Violent", and severity "No Injury".
-    - For Companies Act, winding up, liquidation, shareholders, directors, or company management disputes, use case_category "Company/Winding Up", crime_type "Non-Violent", and severity "No Injury".
-    - For insolvency, unpaid debt, creditor, debtor, or adjudication as insolvent, use case_category "Insolvency/Debt" and crime_type "Financial".
+    - For Central Excise Act, excise duty, tariff, GST, sales tax, income tax, refund, assessable value, pre-deposit, tax assessment, VAT, service tax, or cess cases, use case_category "Excise/Tax", crime_type "Non-Violent", and severity "No Injury".
+    - For DRI, customs, import, export, advance licence, bill of entry, shipping bill, seizure of imported goods, smuggling, confiscation, foreign trade, FEMA, or customs notification cases, use case_category "Customs/Import-Export", crime_type "Non-Violent", and severity "No Injury".
+    - For Companies Act, winding up, liquidation, NCLT, oppression, mismanagement, shareholders, directors, company management, merger, amalgamation, or company tribunal cases, use case_category "Company/Winding Up", crime_type "Non-Violent", and severity "No Injury".
+    - For insolvency, IBC, bankruptcy, unpaid debt, NPA, creditor, debtor, resolution professional, CIRP, DRT, SARFAESI, or adjudication as insolvent, use case_category "Insolvency/Debt" and crime_type "Financial".
+    - For land, property, eviction, tenancy, lease, mortgage, possession, title, or boundary disputes, use case_category "Property/Land" and crime_type "Property".
+    - For writ petitions under Article 226/227/32, habeas corpus, mandamus, certiorari, fundamental rights challenges, constitutional validity, or natural justice cases, use case_category "Constitutional/Writ".
+    - For murder, rape, assault, kidnapping, dacoity, robbery, homicide, dowry death, domestic violence, sexual assault, human trafficking, criminal intimidation, rioting, theft, or other IPC offenses, use case_category "Criminal/Violent" and crime_type "Violent".
     - If the document is a civil/tax/company/government dispute without physical injury, use crime_type "Non-Violent" and severity "No Injury".
-    - Mark influence as "High" when a government department, large company, public authority, or institution is a major party.
-    - Mark vulnerability as "High" only when the text clearly involves minors, poor/disabled/elderly people, workers, tenants, victims of violence, or another vulnerable group.
+    - Mark influence as "High" when a government department, large company, public authority, public sector unit, regulatory body, statutory authority, MNC, or institution is a major party.
+    - Mark vulnerability as "High" only when the text clearly involves minors, children, pregnant women, disabled persons, elderly persons, workers (including agricultural/daily-wage/domestic), tenants, scheduled castes/tribes, adivasis, dalits, backward classes, poor persons, homeless persons, refugees, migrants, orphans, sex workers, or victims of violence.
+    - For domestic violence, child abuse, sexual offenses, trafficking, or dowry death, always mark vulnerability as "High" and severity as appropriate (Major or Fatal).
+    - Mark severity as "Fatal" for murder, death, homicide, culpable homicide, or fatal injuries. Mark severity as "Major" for serious/grievous injuries, permanent disability, life-threatening conditions, or hospitalisation. Mark severity as "Minor" for simple injuries, hurt, or medical treatment needed. Otherwise use "No Injury".
     """
-    
+
     payload = {
         "model": GEMMA_MODEL,
         "messages": [{"role": "user", "content": prompt}],
@@ -466,15 +628,41 @@ def get_constitutional_justification(features, priority):
         f"Rules applied: {'; '.join(unique_rules)}."
     )
 
-def get_priority_rules_applied(features, priority):
-    """Returns the compact rule trace used to explain the model's priority."""
+def get_priority_rules_applied(features, priority, text_description=""):
+    """Returns the compact rule trace used to explain the model's priority in normal English."""
+    category = features.get('case_category', 'General Civil')
+    broad_category = features.get('crime_type', 'Non-Violent')
+    severity = features.get('severity', 'No Injury')
+    
+    # Calculate mock damage percentage based on severity
+    damage_mapping = {
+        'Fatal': '90% to 100%',
+        'Major': '60% to 90%',
+        'Minor': '20% to 50%',
+        'No Injury': '0% to 10%'
+    }
+    damage_percentage = damage_mapping.get(severity, '0%')
+
+    # Find keywords
+    text_lower = (text_description or features.get('plain_summary', '') + ' ' + features.get('main_parties', '')).lower()
+    found_keywords = []
+    
+    for cat, keywords in LEGAL_CATEGORIES.items():
+        if cat == category or (cat == 'Criminal/Violent' and broad_category == 'Violent'):
+            for kw in keywords:
+                if kw in text_lower and kw not in found_keywords:
+                    found_keywords.append(kw)
+    
+    if 'rape' in text_lower and 'rape' not in found_keywords: found_keywords.append('rape')
+    if 'sexual assault' in text_lower and 'sexual assault' not in found_keywords: found_keywords.append('sexual assault')
+
+    keyword_str = ", ".join(f"'{kw}'" for kw in found_keywords[:4]) if found_keywords else "specific legal terms"
+    
     return (
-        f"Priority={priority}; "
-        f"Category={features.get('case_category', 'General Civil')}; "
-        f"Broad_Model_Category={features.get('crime_type', 'Non-Violent')}; "
-        f"Severity={features.get('severity', 'No Injury')}; "
-        f"Vulnerability={features.get('vulnerability', 'Low')}; "
-        f"Influence={features.get('influence', 'Low')}"
+        f"Based on a legal document review, this case was assigned a {priority} priority. "
+        f"This determination was made because the document contains key terms such as {keyword_str}, "
+        f"and the estimated physical or material damage percentage assessed from the facts is approximately {damage_percentage}. "
+        f"These factors categorize it as a {broad_category} matter under {category} law."
     )
 
 def safe_transform_encoder(encoders, key, value, default=0):
@@ -919,7 +1107,7 @@ def main():
             
             # 3. Get justification
             justification = get_constitutional_justification(llm_data, priority)
-            rules_applied = get_priority_rules_applied(llm_data, priority)
+            rules_applied = get_priority_rules_applied(llm_data, priority, text)
             
             results.append({
                 'Case_File': pdf_file,

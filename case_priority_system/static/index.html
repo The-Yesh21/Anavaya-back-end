@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anavaya — Judicial Case Priority Dashboard</title>
+    <!-- Organic Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- D3.js for Decision Tree Rendering -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- MediaPipe Face Mesh & Camera Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <!-- Lucide Icons for Premium UI -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- Global Page Preloader -->
+    <div id="global-preloader" class="preloader-overlay">
+        <div class="preloader-card">
+            <div class="spinner">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h3>Anavaya Triage Dashboard</h3>
+            <p>Initializing Judicial Priority Engine & loading legal cases...</p>
+        </div>
+    </div>
+
+    <!-- Background organic blobs for wabi-sabi atmosphere -->
+    <div class="organic-blob color-1"></div>
+    <div class="organic-blob color-2"></div>
+    <div class="organic-blob color-3"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <div class="logo-icon">
+                    <i data-lucide="scale"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Anavaya</h1>
+                    <span>Judicial Case priority prediction engine</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span class="status-indicator online">System Active</span>
+            </div>
+        </header>
+
+        <!-- Main Stats Row -->
+        <section class="stats-container">
+            <div class="stat-card total">
+                <span class="stat-label">Total Handled</span>
+                <strong id="stat-total-val">0</strong>
+            </div>
+            <div class="stat-card priority-high">
+                <span class="stat-label">High Priority</span>
+                <strong id="stat-high-val">0</strong>
+            </div>
+            <div class="stat-card priority-medium">
+                <span class="stat-label">Medium Priority</span>
+                <strong id="stat-medium-val">0</strong>
+            </div>
+            <div class="stat-card priority-low">
+                <span class="stat-label">Low Priority</span>
+                <strong id="stat-low-val">0</strong>
+            </div>
+        </section>
+
+        <!-- Main Body Grid -->
+        <main class="dashboard-grid">
+            <!-- Sidebar: Case Selector -->
+            <section class="cases-sidebar">
+                <div class="sidebar-header">
+                    <h2>Case Documents</h2>
+                    <div class="search-box">
+                        <input type="text" id="search-input" placeholder="Search parties or files...">
+                    </div>
+                    <div class="filter-row">
+                        <select id="filter-priority">
+                            <option value="all">All Priorities</option>
+                            <option value="High">High Only</option>
+                            <option value="Medium">Medium Only</option>
+                            <option value="Low">Low Only</option>
+                        </select>
+                        <select id="filter-category">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <!-- Upload Case Document Section -->
+                    <div class="upload-section">
+                        <label for="pdf-file-input" class="upload-btn">
+                            <i data-lucide="upload"></i> Upload Case PDF
+                        </label>
+                        <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
+                    </div>
+                </div>
+                <div class="cases-list" id="cases-list-container">
+                    <div class="loader">Loading cases...</div>
+                </div>
+            </section>
+
+            <!-- Main Panel: Case Details & Tree Visualizer -->
+            <section class="details-panel">
+                <!-- Navigation Tabs -->
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="details-tab"><i data-lucide="file-text"></i> Case Details & Justification</button>
+                    <button class="tab-btn" data-tab="tree-tab"><i data-lucide="git-branch"></i> Decision Tree Path</button>
+                    <button class="tab-btn" data-tab="lie-detector-tab"><i data-lucide="eye"></i> Lie Detector (Chakshu)</button>
+                </div>
+
+                <div class="tab-content-container">
+                    <!-- Tab 1: Details -->
+                    <div class="tab-content active" id="details-tab">
+                        <div id="no-case-selected" class="empty-state">
+                            <div class="empty-icon"><i data-lucide="folder-open"></i></div>
+                            <h3>No Case Selected</h3>
+                            <p>Choose a legal case document from the sidebar to inspect its triage results, constitutional reasons, and predicted priority.</p>
+                        </div>
+                        <div id="case-details-content" class="case-detail-layout" style="display: none;">
+                            <div class="case-detail-hero">
+                                <div class="badge-row">
+                                    <span id="case-priority-badge" class="priority-pill">Low Priority</span>
+                                    <span id="case-category-badge" class="category-pill">Excise/Tax</span>
+                                </div>
+                                <h2 id="case-title-name">Case File Name</h2>
+                                <p id="case-parties" class="parties-list"><strong>Parties:</strong> unknown</p>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>Plain Language Summary</h3>
+                                <p id="case-summary" class="summary-text">No summary available.</p>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>Constitutional & Legal Justification</h3>
+                                <div id="case-justification" class="justification-box">
+                                    Justification loading...
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>Reason for Priority / Score</h3>
+                                <div id="case-priority-reason" class="justification-box" style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 15px; border-radius: 8px;">
+                                    Reason loading...
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>Programmatic Priority Parameters</h3>
+                                <div class="parameter-grid">
+                                    <div class="param-card">
+                                        <span>Broad Model Category</span>
+                                        <strong id="param-model-cat">N/A</strong>
+                                    </div>
+                                    <div class="param-card">
+                                        <span>Case Severity</span>
+                                        <strong id="param-severity">N/A</strong>
+                                    </div>
+                                    <div class="param-card">
+                                        <span>Victim Vulnerability</span>
+                                        <strong id="param-vulnerability">N/A</strong>
+                                    </div>
+                                    <div class="param-card">
+                                        <span>Accused Influence</span>
+                                        <strong id="param-influence">N/A</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>Path Trace Steps</h3>
+                                <div id="decision-path-steps" class="timeline-steps">
+                                    <!-- Steps populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Decision Tree Visualizer -->
+                    <div class="tab-content" id="tree-tab">
+                        <div class="tree-controls">
+                            <span class="control-label"><i data-lucide="git-branch" style="display:inline-block; vertical-align:middle; width:18px; height:18px; margin-right:4px; stroke-width: 2.2px;"></i> Interactive Global Decision Tree</span>
+                            <div class="legend">
+                                <span class="legend-item"><span class="color-dot decision"></span> Decision Node</span>
+                                <span class="legend-item"><span class="color-dot high"></span> High Priority Leaf</span>
+                                <span class="legend-item"><span class="color-dot medium"></span> Medium Priority Leaf</span>
+                                <span class="legend-item"><span class="color-dot low"></span> Low Priority Leaf</span>
+                                <span class="legend-item"><span class="color-dot path"></span> Active Traversed Path</span>
+                            </div>
+                        </div>
+                        <div class="tree-canvas-container">
+                            <div id="tree-loading" class="loader">Loading global decision tree...</div>
+                            <div id="tree-legend-case-active" class="active-case-path-banner" style="display: none;">
+                                Active path highlighted for: <strong id="active-path-case-name">None</strong>
+                            </div>
+                            <svg id="tree-svg"></svg>
+                            <div class="tree-tooltip" id="tree-tooltip"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Lie Detector -->
+                    <div class="tab-content" id="lie-detector-tab">
+                        <div class="lie-detector-layout">
+                            <div class="video-panel">
+                                <div class="webcam-container">
+                                    <video id="webcam-feed" autoplay playsinline style="display: none;"></video>
+                                    <canvas id="mesh-overlay-canvas"></canvas>
+                                    <div class="calibration-overlay" id="calibration-overlay" style="display: none;">
+                                        <div class="calibration-crosshair">+</div>
+                                        <p id="calibration-text">Calibrating... Look at the crosshair</p>
+                                    </div>
+                                    <div class="camera-placeholder" id="camera-placeholder">
+                                        <div class="placeholder-icon"><i data-lucide="camera"></i></div>
+                                        <button class="action-btn" id="start-camera-btn"><i data-lucide="video"></i> Initialize Camera Stream</button>
+                                    </div>
+                                </div>
+                                <div class="stream-controls">
+                                    <button class="control-btn" id="start-analysis-btn" disabled><i data-lucide="play"></i> Start Stream Analysis</button>
+                                    <button class="control-btn stop" id="stop-analysis-btn" disabled><i data-lucide="square"></i> Stop & Score Session</button>
+                                    <button class="control-btn reset" id="reset-analysis-btn" disabled><i data-lucide="rotate-ccw"></i> Reset Session</button>
+                                </div>
+                            </div>
+                            
+                            <div class="analytics-panel">
+                                <div class="overall-gauge-card">
+                                    <h3>Cognitive Arousal Index</h3>
+                                    <div class="gauge-ring-container">
+                                        <svg class="gauge-ring" viewBox="0 0 120 120">
+                                            <circle class="gauge-ring-bg" cx="60" cy="60" r="50"></circle>
+                                            <circle class="gauge-ring-fill" id="deception-gauge-fill" cx="60" cy="60" r="50"></circle>
+                                        </svg>
+                                        <div class="gauge-value" id="deception-gauge-value">0%</div>
+                                    </div>
+                                    <div class="status-banner" id="session-status-banner">Ready for Baseline Calibration</div>
+                                </div>
+
+                                <div class="metrics-grid">
+                                    <div class="metric-card">
+                                        <span>Blink Rate (EAR)</span>
+                                        <strong id="metric-blink">0 bpm</strong>
+                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-blink" style="width: 0%;"></div></div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <span>Gaze Deviation (GDI)</span>
+                                        <strong id="metric-gaze">Neutral</strong>
+                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-gaze" style="width: 0%;"></div></div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <span>Micro-Expression Stress (MESI)</span>
+                                        <strong id="metric-stress">Low</strong>
+                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-stress" style="width: 0%;"></div></div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <span>Ocular Micro-Tremors</span>
+                                        <strong id="metric-tremor">0.00 Hz</strong>
+                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-tremor" style="width: 0%;"></div></div>
+                                    </div>
+                                </div>
+
+                                <div class="session-summary-card" id="session-summary-card" style="display: none;">
+                                    <h3>Session Summary Report</h3>
+                                    <div class="summary-details">
+                                        <p><strong>Duration:</strong> <span id="summary-duration">0s</span></p>
+                                        <p><strong>Blinks Counted:</strong> <span id="summary-blinks">0</span></p>
+                                        <p><strong>Gaze Avoidance Events:</strong> <span id="summary-gaze-avoid">0</span></p>
+                                        <p><strong>Micro-Facial Twitches:</strong> <span id="summary-twitches">0</span></p>
+                                        <p><strong>Overall Verdict:</strong> <span id="summary-verdict" class="verdict-pill text-low">Truthful</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <!-- Analysis Loading Overlay -->
+    <div id="upload-loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner-container">
+            <!-- Book Analysis Loader -->
+            <div class="book">
+                <div class="book__pg-shadow"></div>
+                <div class="book__pg"></div>
+                <div class="book__pg book__pg--2"></div>
+                <div class="book__pg book__pg--3"></div>
+                <div class="book__pg book__pg--4"></div>
+                <div class="book__pg book__pg--5"></div>
+            </div>
+            <h3 id="overlay-status-title">Analyzing Case Document...</h3>
+            <p id="overlay-status-desc">Reading PDF contents and running machine learning triage rules.</p>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

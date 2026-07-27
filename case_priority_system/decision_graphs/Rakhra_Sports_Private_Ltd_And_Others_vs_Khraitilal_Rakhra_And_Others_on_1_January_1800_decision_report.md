@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Rakhra_Sports_Private_Ltd_And_Others_vs_Khraitilal_Rakhra_And_Others_on_1_January_1800.PDF</h2>
-  <p>Two family groups in Rakhra Sports Private Ltd. had a dispute over company management and director appointments. The petitioners sought to invalidate certain board meetings and requested the purchase of their shares. The court valued the shares and ordered the respondents to buy out the petitioners.</p>
+  <p>Two family groups in Rakhra Sports Private Ltd. had a dispute over company management and director appointments. The petitioners sought to invalidate certain board meetings and requested the purchase or sale of shares. The court valued the shares and ordered respondents 2 and 3 to buy out the petitioners.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Company/Winding Up</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
@@ -112,7 +112,7 @@ flowchart TD
   N0 --> N1
   N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
   N1 --> N2
-  N3["Final Priority: Medium<br/>1 training samples reached this leaf"]:::leaf
+  N3["Final Priority: Medium<br/>93 training samples reached this leaf"]:::leaf
   N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
@@ -150,7 +150,7 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>1 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>93 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>

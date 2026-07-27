@@ -2,7 +2,7 @@ import pickle
 import pandas as pd
 import numpy as np
 
-def predict_priority(description, crime_type, severity, vulnerability, influence):
+def predict_priority(description, crime_type, severity, vulnerability, influence, case_category="General Civil"):
     # Load model and artifacts
     with open('case_priority_system/models/priority_classifier.pkl', 'rb') as f:
         data = pickle.load(f)
@@ -13,29 +13,35 @@ def predict_priority(description, crime_type, severity, vulnerability, influence
     feature_names = data['feature_names']
     
     # Preprocess inputs
-    crime_enc = encoders['crime'].transform([crime_type])[0]
-    sev_enc = encoders['severity'].transform([severity])[0]
-    vul_enc = encoders['vulnerability'].transform([vulnerability])[0]
-    inf_enc = encoders['influence'].transform([influence])[0]
+    structured_values = {}
+    if 'category' in encoders:
+        structured_values['case_category_enc'] = encoders['category'].transform([case_category])[0]
+    structured_values.update({
+        'crime_type_enc': encoders['crime'].transform([crime_type])[0],
+        'severity_enc': encoders['severity'].transform([severity])[0],
+        'vulnerability_enc': encoders['vulnerability'].transform([vulnerability])[0],
+        'influence_enc': encoders['influence'].transform([influence])[0]
+    })
     
     # NLP Features
     text_feat = tfidf.transform([description]).toarray()
     text_df = pd.DataFrame(text_feat, columns=tfidf.get_feature_names_out())
     
     # Combine
-    structured_data = pd.DataFrame([[crime_enc, sev_enc, vul_enc, inf_enc]], 
-                                   columns=['crime_type_enc', 'severity_enc', 'vulnerability_enc', 'influence_enc'])
+    structured_data = pd.DataFrame([structured_values])
     X = pd.concat([structured_data, text_df], axis=1)
+    
+    # Reorder and align columns to match feature_names seen during fit
+    if feature_names:
+        for column in feature_names:
+            if column not in X.columns:
+                X[column] = 0
+        X = X[feature_names]
     
     # Predict
     pred_idx = clf.predict(X)[0]
     priority = encoders['priority'].inverse_transform([pred_idx])[0]
     
-    # Get Decision Path (Explanation)
-    node_indicator = clf.decision_path(X)
-    leaf_id = clf.apply(X)[0]
-    
-    # For simplicity, just return the priority and class
     return priority
 
 if __name__ == "__main__":

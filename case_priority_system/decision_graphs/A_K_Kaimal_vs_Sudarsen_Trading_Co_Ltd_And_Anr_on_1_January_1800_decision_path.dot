@@ -5,10 +5,8 @@ digraph DecisionPath {
   n0 [label="Node 0\nBroad case type is one of: Cyber, Financial, Non-Violent, Property\nCase value: 1 (Financial)\nDecision: Yes"];
   n1 [label="Node 1\nVulnerability is one of: High\nCase value: 1 (Low)\nDecision: No"];
   n0 -> n1 [label="step 1"];
-  n3 [label="Node 3\nInfluence / power imbalance is one of: High\nCase value: 1 (Low)\nDecision: No"];
+  n3 [label="Node 3\nInfluence / power imbalance is one of: High\nCase value: 0 (High)\nDecision: Yes"];
   n1 -> n3 [label="step 2"];
-  n5 [label="Node 5\nConcerns score <= 0.6800\nCase value: 0.0000\nDecision: Yes"];
-  n3 -> n5 [label="step 3"];
-  n6 [label="Leaf node 6\nPredicted priority: Low\nSamples: 1"];
-  n5 -> n6 [label="step 4"];
+  n4 [label="Leaf node 4\nPredicted priority: Medium\nSamples: 93"];
+  n3 -> n4 [label="step 3"];
 }

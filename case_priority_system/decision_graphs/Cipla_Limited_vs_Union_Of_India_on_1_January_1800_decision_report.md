@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Cipla_Limited_vs_Union_Of_India_on_1_January_1800.PDF</h2>
-  <p>Cipla Limited challenged a tax order claiming that a chemical intermediate called BMS is not a marketable good. The tax authorities argued that BMS is an excisable organic compound regardless of its marketability. The court examined whether the product must be capable of being sold in the market to attract excise duty.</p>
+  <p>Cipla Limited challenged a tax order claiming that a chemical intermediate called BMS is not a marketable good. The Assistant Collector of Central Excise argued that the product is excisable regardless of its marketability. The court examined whether the product must be known to the market to attract excise duty.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
@@ -112,7 +112,7 @@ flowchart TD
   N0 --> N1
   N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
   N1 --> N2
-  N3["Final Priority: Medium<br/>1 training samples reached this leaf"]:::leaf
+  N3["Final Priority: Medium<br/>93 training samples reached this leaf"]:::leaf
   N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
@@ -150,7 +150,7 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>1 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>93 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>

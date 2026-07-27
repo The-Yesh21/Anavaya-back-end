@@ -91,14 +91,14 @@
 
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
-  <h2>State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF</h2>
-  <p>Petition is directed against the orders made under the Central Excise and Salt Act, 1944. The Mysore Government Soap Factory at Bangalore is manufacturing all varieties ofandalwood soap. The sole selling agent,unless it is zonal agent itself, gets only 1/2% discount on the entire sale proceeds. But the petitioner has to allow 6% trade discount out of the fixed sale price.</p>
+  <h2>Fictional_Case_Report_Test.pdf</h2>
+  <p>Two unidentified males committed an armed robbery at a convenience store, stealing $18,500 and merchandise. During the crime, the store manager, Emma Carter, was severely assaulted with a crowbar and hospitalized in the ICU. Law enforcement is currently investigating the case using CCTV footage and forensic evidence to apprehend the suspects.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
-    <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
-    <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
-    <div class="metric"><span>Influence</span><strong>High</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
+    <div class="metric"><span>Severity</span><strong>Major</strong></div>
+    <div class="metric"><span>Vulnerability</span><strong>High</strong></div>
+    <div class="metric"><span>Influence</span><strong>Low</strong></div>
   </div>
 </div>
 
@@ -107,13 +107,11 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
-  N0["Step 1: Broad case type<br/>Broad case type is one of: Cyber, Financial, Non-Violent, Property<br/>Case: Non-Violent<br/>Answer: Yes"]:::decision
-  N1["Step 2: Vulnerability<br/>Vulnerability is one of: High<br/>Case: Low<br/>Answer: No"]:::decision
+  N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
+  N1["Step 2: Severity<br/>Severity is one of: Fatal, Major, Minor<br/>Case: Major<br/>Answer: Yes"]:::decision
   N0 --> N1
-  N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
+  N2["Final Priority: Medium<br/>219 training samples reached this leaf"]:::leaf
   N1 --> N2
-  N3["Final Priority: Medium<br/>93 training samples reached this leaf"]:::leaf
-  N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
 ```
@@ -124,41 +122,33 @@ flowchart TD
 <div class="step-card">
   <div class="step-index">1</div>
   <div class="step-body">
-    <div class="step-title">Step 1: Broad case type</div>
-    <div class="step-condition">Broad case type is one of: Cyber, Financial, Non-Violent, Property</div>
-    <div class="step-meta">Case value: <strong>Non-Violent</strong> | Result: <strong>Yes</strong></div>
+    <div class="step-title">Step 1: Victim</div>
+    <div class="step-condition">Victim score <= 0.0258</div>
+    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">2</div>
   <div class="step-body">
-    <div class="step-title">Step 2: Vulnerability</div>
-    <div class="step-condition">Vulnerability is one of: High</div>
-    <div class="step-meta">Case value: <strong>Low</strong> | Result: <strong>No</strong></div>
+    <div class="step-title">Step 2: Severity</div>
+    <div class="step-condition">Severity is one of: Fatal, Major, Minor</div>
+    <div class="step-meta">Case value: <strong>Major</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">3</div>
   <div class="step-body">
-    <div class="step-title">Step 3: Influence / power imbalance</div>
-    <div class="step-condition">Influence / power imbalance is one of: High</div>
-    <div class="step-meta">Case value: <strong>High</strong> | Result: <strong>Yes</strong></div>
-  </div>
-</div>
-<div class="step-card">
-  <div class="step-index">4</div>
-  <div class="step-body">
     <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>93 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>219 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Broad case type is one of: Cyber, Financial, Non-Violent, Property; case value = Non-Violent; result = Yes -> Node 1: Vulnerability is one of: High; case value = Low; result = No -> Node 3: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 4 => Predicted Priority = Medium
+Node 0: Victim score <= 0.0258; case value = 0.0000; result = Yes -> Node 1: Severity is one of: Fatal, Major, Minor; case value = Major; result = Yes -> Leaf node 2 => Predicted Priority = Medium
 
 ## Raw Graph
 
-Raw DOT file: `case_priority_system/decision_graphs\State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800_decision_path.dot`
+Raw DOT file: `case_priority_system/decision_graphs\Fictional_Case_Report_Test_decision_path.dot`

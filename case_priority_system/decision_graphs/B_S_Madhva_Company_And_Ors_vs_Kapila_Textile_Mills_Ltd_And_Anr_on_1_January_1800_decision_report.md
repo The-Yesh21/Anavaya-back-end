@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>B_S_Madhva_Company_And_Ors_vs_Kapila_Textile_Mills_Ltd_And_Anr_on_1_January_1800.PDF</h2>
-  <p>B.S. Madhva & Company is seeking priority payment for building contract debts from the liquidated Kapila Textile Mills Ltd. The applicants are disputing the priority of their claims against the secured interests of the Bank of Mysore. The court is examining whether the applicants retain title to building materials or have a lien over the structures.</p>
+  <p>B.S. Madhva & Company is seeking priority payment for building contract dues from the liquidated Kapila Textile Mills Ltd. The applicants are disputing the priority of their claims against the secured interests of the Bank of Mysore. The court is examining whether the applicants retain title to building materials or have a lien over the structures.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Company/Winding Up</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
@@ -112,7 +112,7 @@ flowchart TD
   N0 --> N1
   N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
   N1 --> N2
-  N3["Final Priority: Medium<br/>1 training samples reached this leaf"]:::leaf
+  N3["Final Priority: Medium<br/>93 training samples reached this leaf"]:::leaf
   N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
@@ -150,7 +150,7 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>1 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>93 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>

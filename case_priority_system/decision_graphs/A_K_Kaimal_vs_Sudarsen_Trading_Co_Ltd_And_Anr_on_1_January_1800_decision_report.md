@@ -3,8 +3,8 @@
 <style>
 .decision-hero {
   border: 1px solid #CBD5E1;
-  border-left: 8px solid #059669;
-  background: linear-gradient(135deg, #ECFDF5, #FFFFFF);
+  border-left: 8px solid #D97706;
+  background: linear-gradient(135deg, #FFFBEB, #FFFFFF);
   border-radius: 14px;
   padding: 18px 20px;
   margin: 12px 0 18px;
@@ -14,7 +14,7 @@
   display: inline-block;
   padding: 6px 12px;
   border-radius: 999px;
-  background: #059669;
+  background: #D97706;
   color: white;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -66,7 +66,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #059669;
+  background: #D97706;
   color: #FFFFFF;
   font-weight: 800;
 }
@@ -90,15 +90,15 @@
 </style>
 
 <div class="decision-hero">
-  <div class="priority-badge">Low Priority</div>
+  <div class="priority-badge">Medium Priority</div>
   <h2>A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800.PDF</h2>
-  <p>A.K. Kaimal filed a petition to be declared insolvent due to his inability to pay debts to Sudarsen Trading Co. Ltd. and another party. The District Judge initially dismissed the petition because the appellant could not account for his retirement funds. The appellate court overturned this decision, ruling that the court should only check if essential legal conditions for insolvency are met at the start.</p>
+  <p>A K Kaimal vs Sudarsen Trading Co Ltd And Anr are involved in this legal dispute. The document appears to concern a financial matter with no injury severity. This summary was generated locally because the Gemma API response was unavailable.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Insolvency/Debt</strong></div>
     <div class="metric"><span>Model Category</span><strong>Financial</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
-    <div class="metric"><span>Influence</span><strong>Low</strong></div>
+    <div class="metric"><span>Influence</span><strong>High</strong></div>
   </div>
 </div>
 
@@ -110,14 +110,12 @@ flowchart TD
   N0["Step 1: Broad case type<br/>Broad case type is one of: Cyber, Financial, Non-Violent, Property<br/>Case: Financial<br/>Answer: Yes"]:::decision
   N1["Step 2: Vulnerability<br/>Vulnerability is one of: High<br/>Case: Low<br/>Answer: No"]:::decision
   N0 --> N1
-  N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: Low<br/>Answer: No"]:::decision
+  N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
   N1 --> N2
-  N3["Step 4: Concerns<br/>Concerns score <= 0.6800<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
+  N3["Final Priority: Medium<br/>93 training samples reached this leaf"]:::leaf
   N2 --> N3
-  N4["Final Priority: Low<br/>1 training samples reached this leaf"]:::leaf
-  N3 --> N4
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
-  classDef leaf fill:#D1FAE5,stroke:#059669,stroke-width:3px,color:#064E3B;
+  classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
 ```
 
 ## Animated Step View
@@ -144,30 +142,22 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Step 3: Influence / power imbalance</div>
     <div class="step-condition">Influence / power imbalance is one of: High</div>
-    <div class="step-meta">Case value: <strong>Low</strong> | Result: <strong>No</strong></div>
+    <div class="step-meta">Case value: <strong>High</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">4</div>
   <div class="step-body">
-    <div class="step-title">Step 4: Concerns</div>
-    <div class="step-condition">Concerns score <= 0.6800</div>
-    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
-  </div>
-</div>
-<div class="step-card">
-  <div class="step-index">5</div>
-  <div class="step-body">
-    <div class="step-title">Final Priority: Low</div>
+    <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>1 training samples reached this leaf</strong> | Result: <strong>Low</strong></div>
+    <div class="step-meta">Case value: <strong>93 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Broad case type is one of: Cyber, Financial, Non-Violent, Property; case value = Financial; result = Yes -> Node 1: Vulnerability is one of: High; case value = Low; result = No -> Node 3: Influence / power imbalance is one of: High; case value = Low; result = No -> Node 5: Concerns score <= 0.6800; case value = 0.0000; result = Yes -> Leaf node 6 => Predicted Priority = Low
+Node 0: Broad case type is one of: Cyber, Financial, Non-Violent, Property; case value = Financial; result = Yes -> Node 1: Vulnerability is one of: High; case value = Low; result = No -> Node 3: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 4 => Predicted Priority = Medium
 
 ## Raw Graph
 

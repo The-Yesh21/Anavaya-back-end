@@ -80,3 +80,18 @@ python case_priority_system/scripts/inference_pipeline.py
 - **`data/real_report_training_cases.csv`**: Real PDF reports converted into training rows.
 - **Modular Scripts**: For data generation, model training, and inference.
 - **Pickle Artifacts**: Saved model and encoders for easy deployment.
+
+## 9. Interactive Web Dashboard (FastAPI)
+The system includes a premium web interface built with FastAPI, D3.js, and Vanilla CSS glassmorphism, designed to show Excel triage results and interactive decision paths dynamically.
+
+### Key Capabilities:
+- **Case Listing & Filters:** Instantly search through case parties/summaries, and filter by legal categories and predicted priorities.
+- **Interactive Global Decision Tree:** Renders the complete decision tree layout using D3.js. Clicking a case dynamically highlights the exact decision path nodes and connections in glowing neon.
+- **Parametric Case Breakdown:** Inspect case summaries, constitutional justifications, specific severity/vulnerability scores, and step timeline cards.
+
+### Start the Dashboard Server:
+Run the following command from the workspace root:
+```powershell
+python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000
+```
+Then, open your web browser and navigate to `http://127.0.0.1:8000`.

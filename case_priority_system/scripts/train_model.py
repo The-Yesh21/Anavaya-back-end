@@ -25,14 +25,46 @@ MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 TRAINING_REPORT_PATH = 'case_priority_system/models/training_report.txt'
 
 LEGAL_CATEGORY_TO_TEXT = {
-    "Excise/Tax": "central excise tax duty refund tariff assessable value lawful levy",
-    "Customs/Import-Export": "customs import export seizure licence notification goods release",
-    "Company/Winding Up": "company winding up liquidation shareholders directors creditors management",
-    "Insolvency/Debt": "insolvency debt creditor debtor unable to pay decree",
-    "Constitutional/Writ": "writ petition constitutional validity jurisdiction state action",
-    "Property/Land": "property land possession tenancy mortgage premises",
-    "Criminal/Violent": "violent criminal assault murder injury victim weapon",
-    "General Civil": "civil dispute contract petition order judgment",
+    "Excise/Tax": (
+        "central excise excise duty tariff assessable value refund tax "
+        "cenvat modvat gst service tax income tax customs duty penalty "
+        "demand notice show cause adjudication classification exemption rebate"
+    ),
+    "Customs/Import-Export": (
+        "customs import export seizure confiscation smuggling licence "
+        "bill of entry shipping bill foreign trade drawback clearance "
+        "fema foreign exchange prohibited goods contraband"
+    ),
+    "Company/Winding Up": (
+        "company winding up liquidation shareholders directors nclt board "
+        "oppression mismanagement merger amalgamation takeover shares "
+        "articles of association memorandum official liquidator"
+    ),
+    "Insolvency/Debt": (
+        "insolvency debt creditor debtor unable to pay decree bankruptcy "
+        "ibc cirp resolution professional npa default recovery drt sarfaesi "
+        "financial creditor operational creditor moratorium liquidation"
+    ),
+    "Constitutional/Writ": (
+        "writ petition constitutional validity jurisdiction state action "
+        "fundamental rights article 226 habeas corpus mandamus certiorari "
+        "natural justice judicial review interim relief injunction"
+    ),
+    "Property/Land": (
+        "property land possession tenancy mortgage premises eviction lease "
+        "title deed encroachment adverse possession mutation ownership "
+        "land acquisition compensation rent"
+    ),
+    "Criminal/Violent": (
+        "violent criminal assault murder injury victim weapon homicide "
+        "rape dacoity robbery kidnapping abduction dowry death cruelty "
+        "sexual assault domestic violence human trafficking culpable homicide"
+    ),
+    "General Civil": (
+        "civil dispute contract petition order judgment arbitration "
+        "breach of contract damages negligence defamation consumer protection "
+        "specific performance divorce maintenance succession will probate"
+    ),
 }
 
 def infer_priority_label(features):
@@ -42,15 +74,33 @@ def infer_priority_label(features):
     vulnerability = features.get('vulnerability', 'Low')
     influence = features.get('influence', 'Low')
     category = features.get('case_category', 'General Civil')
+    text_content = (features.get('plain_summary', '') + ' ' + features.get('main_parties', '') + ' ' + features.get('description', '')).lower()
 
-    if crime_type == 'Violent' and (severity in ['Fatal', 'Major'] or vulnerability == 'High'):
+    # HIGH priority: life, liberty, severe violence, sexual offenses, fatal harm
+    if any(kw in text_content for kw in [
+        'rape', 'sexual assault', 'molest', 'sexual abuse',
+        'human trafficking', 'child labour', 'child abuse',
+    ]):
+        return 'High'
+
+    if crime_type == 'Violent' and severity in ['Fatal', 'Major']:
         return 'High'
     if severity in ['Fatal', 'Major'] and vulnerability == 'High':
         return 'High'
+    if severity == 'Fatal':
+        return 'High'
+
+    # MEDIUM priority: any violence, high vulnerability, high influence,
+    # or categories with vulnerable victims
     if crime_type == 'Violent' or vulnerability == 'High' or influence == 'High':
         return 'Medium'
     if category in ['Property/Land', 'Insolvency/Debt'] and vulnerability in ['Medium', 'High']:
         return 'Medium'
+    if category == 'Criminal/Violent':
+        return 'Medium'
+    if severity in ['Major', 'Minor']:
+        return 'Medium'
+
     return 'Low'
 
 def build_real_report_training_data(pdf_dir='.'):
@@ -96,24 +146,73 @@ def build_real_report_training_data(pdf_dir='.'):
 def enrich_synthetic_data(df):
     """Adds legal-domain style samples so the tree learns the real report categories."""
     templates = [
+        # Category, crime_type, severity, vulnerability, influence, priority, description
         ("Excise/Tax", "Non-Violent", "No Injury", "Low", "High", "Medium",
-         "A manufacturer challenges central excise duty, tariff classification, refund denial, and assessable value fixed by a public authority."),
+         "A manufacturer challenges central excise duty, tariff classification, cenvat credit denial, refund claim, and assessable value fixed by a public authority."),
+        ("Excise/Tax", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "A taxpayer disputes GST assessment, input tax credit reversal, penalty order, and demand notice issued by the tax department."),
+        ("Excise/Tax", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "An assessee appeals against service tax demand, interest, and penalty for alleged short payment of service tax on taxable services."),
         ("Customs/Import-Export", "Non-Violent", "No Injury", "Low", "High", "Medium",
-         "An importer challenges customs seizure of goods, advance licence conditions, import notification, and release of seized goods by DRI."),
+         "An importer challenges customs seizure of goods, bill of entry rejection, duty drawback denial, and release of seized goods by DRI."),
+        ("Customs/Import-Export", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "A trader appeals against confiscation of imported goods, penalty under Customs Act, and valuation of goods by customs authorities."),
+        ("Customs/Import-Export", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "An exporter claims duty drawback, rebate, and advance authorization benefits for export of goods under foreign trade policy."),
         ("Company/Winding Up", "Non-Violent", "No Injury", "Low", "Low", "Low",
          "A company petition concerns winding up, liquidation, shareholders, directors, creditors, and distribution of company assets."),
         ("Company/Winding Up", "Non-Violent", "No Injury", "Low", "High", "Medium",
          "A company dispute involves a public institution, official liquidator, secured creditor, shareholders, and company management rights."),
+        ("Company/Winding Up", "Non-Violent", "No Injury", "Medium", "High", "Medium",
+         "A petition under sections 397 and 398 Companies Act alleging oppression and mismanagement by majority shareholders against minority."),
+        ("Company/Winding Up", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "An NCLT petition for corporate insolvency resolution process against a corporate debtor by a financial creditor."),
         ("Insolvency/Debt", "Financial", "No Injury", "Low", "Low", "Low",
          "An insolvency petition concerns unpaid debt, creditor claims, debtor inability to pay, and decree enforcement."),
         ("Insolvency/Debt", "Financial", "No Injury", "Medium", "High", "Medium",
          "An insolvency matter involves significant debt, creditors, institutional influence, livelihood pressure, and debtor fairness."),
+        ("Insolvency/Debt", "Financial", "No Injury", "Low", "Low", "Low",
+         "A debt recovery application filed before DRT for recovery of loan amount, interest, and costs against guarantor and borrower."),
+        ("Insolvency/Debt", "Financial", "No Injury", "Low", "Low", "Low",
+         "A SARFAESI proceeding initiated by secured creditor for enforcement of security interest against defaulting borrower's assets."),
         ("Property/Land", "Property", "No Injury", "Medium", "Low", "Medium",
          "A property dispute concerns land possession, tenancy, mortgage, premises, livelihood, and lawful ownership."),
+        ("Property/Land", "Property", "No Injury", "Medium", "High", "Medium",
+         "An eviction petition filed by landlord against tenant for arrears of rent and bonafide requirement of premises."),
+        ("Property/Land", "Property", "No Injury", "High", "Low", "Medium",
+         "A land acquisition matter where poor farmers seek enhanced compensation for acquired agricultural land."),
+        ("Property/Land", "Property", "No Injury", "High", "High", "Medium",
+         "An encroachment dispute involving government land, scheduled tribe families facing eviction from ancestral property."),
         ("Criminal/Violent", "Violent", "Fatal", "High", "Low", "High",
          "A violent criminal case involves assault, murder, fatal injury, vulnerable victim, weapon, and immediate life risk."),
+        ("Criminal/Violent", "Violent", "Fatal", "High", "High", "High",
+         "A murder case involving a politically influential accused, fatal stabbing, vulnerable victim from marginalized community."),
+        ("Criminal/Violent", "Violent", "Major", "High", "Low", "High",
+         "A case involving sexual assault or rape. The victim was subjected to assault without consent. Constitutional rights against exploitation apply."),
+        ("Criminal/Violent", "Violent", "Major", "High", "Low", "High",
+         "A domestic violence case where a woman was subjected to cruelty by husband and in-laws, causing grievous injury and mental trauma."),
+        ("Criminal/Violent", "Violent", "Minor", "Medium", "High", "Medium",
+         "A criminal intimidation and assault case where a powerful person threatened and physically attacked a complainant."),
+        ("Criminal/Violent", "Violent", "Fatal", "High", "Low", "High",
+         "A dacoity and robbery case where armed assailants killed the victim and looted property. Life risk and public safety concern."),
+        ("Criminal/Violent", "Violent", "Major", "High", "Low", "High",
+         "A kidnapping and abduction case. The victim was taken forcibly and held for ransom. Mental trauma and life threat involved."),
+        ("Constitutional/Writ", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "A writ petition under Article 226 challenging the constitutional validity of a government notification affecting fundamental rights."),
+        ("Constitutional/Writ", "Non-Violent", "No Injury", "Low", "High", "Medium",
+         "A habeas corpus petition filed seeking production of a person illegally detained by state authorities."),
+        ("Constitutional/Writ", "Non-Violent", "No Injury", "Medium", "High", "Medium",
+         "A PIL filed in public interest alleging violation of environmental laws affecting health and livelihood of poor communities."),
         ("General Civil", "Non-Violent", "No Injury", "Low", "Low", "Low",
          "An ordinary civil dispute concerns contract interpretation, petition, order, judgment, and no urgent harm."),
+        ("General Civil", "Non-Violent", "No Injury", "Low", "Low", "Low",
+         "A consumer complaint alleging deficiency in service and unfair trade practice against a company."),
+        ("General Civil", "Non-Violent", "No Injury", "Low", "Low", "Low",
+         "A civil suit for specific performance of contract, claiming damages and breach of agreement."),
+        ("General Civil", "Non-Violent", "No Injury", "Low", "Low", "Low",
+         "An arbitration application seeking appointment of arbitrator and enforcement of arbitration agreement between parties."),
+        ("General Civil", "Non-Violent", "No Injury", "Medium", "Low", "Medium",
+         "A family law dispute concerning divorce, child custody, maintenance, and alimony. Vulnerability of spouse and children considered."),
     ]
 
     rows = []
