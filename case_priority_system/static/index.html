@@ -118,6 +118,7 @@
                     <button class="tab-btn active" data-tab="details-tab"><i data-lucide="file-text"></i> Case Details & Justification</button>
                     <button class="tab-btn" data-tab="tree-tab"><i data-lucide="git-branch"></i> Decision Tree Path</button>
                     <button class="tab-btn" data-tab="lie-detector-tab"><i data-lucide="eye"></i> Lie Detector (Chakshu)</button>
+                    <button class="tab-btn" data-tab="courtroom-tab"><i data-lucide="gavel"></i> Live Courtroom</button>
                 </div>
 
                 <div class="tab-content-container">
@@ -308,6 +309,42 @@
                                         <p><strong>Micro-Facial Twitches:</strong> <span id="summary-twitches">0</span></p>
                                         <p><strong>Overall Verdict:</strong> <span id="summary-verdict" class="verdict-pill text-low">Truthful</span></p>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Live Courtroom Lobby -->
+                    <div class="tab-content" id="courtroom-tab">
+                        <div class="courtroom-lobby-layout">
+                            <!-- Create Room -->
+                            <div class="lobby-create-card">
+                                <h3><i data-lucide="plus-circle"></i> Open a New Trial</h3>
+                                <p class="lobby-desc">Create a courtroom session. Share the invite link with the other counsel to join the live trial.</p>
+                                <form id="create-room-form" class="lobby-form">
+                                    <label class="lobby-field">
+                                        <span>Trial title</span>
+                                        <input type="text" id="new-room-title" placeholder="e.g. State vs. Accused — Theft Trial" required maxlength="100" autocomplete="off">
+                                    </label>
+                                    <label class="lobby-field">
+                                        <span>Your name (as Host/Judge)</span>
+                                        <input type="text" id="new-room-host" placeholder="e.g. Justice Rao" required maxlength="60" autocomplete="off">
+                                    </label>
+                                    <button type="submit" class="lobby-create-btn"><i data-lucide="gavel"></i> Create Courtroom</button>
+                                </form>
+                                <div id="lobby-create-success" class="lobby-success" style="display:none;">
+                                    <p><i data-lucide="check-circle"></i> <span id="success-text">Room created!</span></p>
+                                    <button class="lobby-open-btn" id="open-room-btn"><i data-lucide="door-open"></i> Open Trial</button>
+                                    <button class="lobby-copy-btn" id="copy-room-invite-btn"><i data-lucide="link"></i> Copy Invite Link</button>
+                                </div>
+                            </div>
+
+                            <!-- Room List -->
+                            <div class="lobby-list-card">
+                                <h3><i data-lucide="layout-list"></i> Courtroom Sessions</h3>
+                                <button class="lobby-refresh-btn" id="refresh-rooms-btn" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+                                <div id="rooms-list-container" class="rooms-list">
+                                    <div class="loader">Loading trial sessions…</div>
                                 </div>
                             </div>
                         </div>

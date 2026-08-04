@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let d3Zoom = null;
     let svgContainer = null;
     let activePathNodes = [];
+    let courtroomsLoaded = false;
 
     // Elements
     const casesListContainer = document.getElementById("cases-list-container");
@@ -40,6 +41,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (globalTreeData) {
                     drawDecisionTree(globalTreeData);
                 }
+            }
+
+            // Lazy-load courtroom sessions when the Courtroom tab is activated
+            if (tabId === "courtroom-tab" && typeof fetchCourtrooms === "function" && !courtroomsLoaded) {
+                fetchCourtrooms();
             }
 
             // Clean up webcam stream if switching away from Lie Detector
@@ -1130,6 +1136,116 @@ document.addEventListener("DOMContentLoaded", () => {
         
         return formatted;
     }
+
+    // ================================================================
+    // LIVE COURTROOM LOBBY
+    // ================================================================
+    const lobbyCreateForm = document.getElementById("create-room-form");
+    const lobbyCreateBtn = document.querySelector(".lobby-create-btn");
+    const lobbySuccess = document.getElementById("lobby-create-success");
+    const successText = document.getElementById("success-text");
+    const openRoomBtn = document.getElementById("open-room-btn");
+    const copyRoomInviteBtn = document.getElementById("copy-room-invite-btn");
+    const refreshRoomsBtn = document.getElementById("refresh-rooms-btn");
+    const roomsListContainer = document.getElementById("rooms-list-container");
+    const newRoomTitle = document.getElementById("new-room-title");
+    const newRoomHost = document.getElementById("new-room-host");
+
+    let lastCreatedRoomId = null;
+
+    async function fetchCourtrooms() {
+        try {
+            const res = await fetch("/api/court/rooms");
+            if (!res.ok) throw new Error(res.statusText);
+            const rooms = await res.json();
+            renderCourtrooms(rooms);
+            courtroomsLoaded = true;
+        } catch (e) {
+            roomsListContainer.innerHTML = `<div class="loader" style="color:var(--color-high);">Failed to load trial sessions.</div>`;
+        }
+    }
+
+    function renderCourtrooms(rooms) {
+        if (!rooms || rooms.length === 0) {
+            roomsListContainer.innerHTML = `<div class="empty-state" style="padding:30px 0;">
+                <div class="empty-icon"><i data-lucide="gavel"></i></div>
+                <h3>No Trials Yet</h3>
+                <p>Create a courtroom session above to begin a live trial with counsel.</p>
+            </div>`;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+        roomsListContainer.innerHTML = rooms.map(r => {
+            const isActive = r.active;
+            const statusClass = r.phase === "Concluded" ? "priority-low" : "priority-high";
+            const phaseLabel = r.phase || "Opening";
+            const inviteUrl = `${window.location.origin}/court/${r.room_id}`;
+            return `
+            <div class="courtroom-card ${isActive ? "" : "inactive"}">
+                <div class="cc-header">
+                    <span class="cc-title">${escapeHtml(r.case_title)}</span>
+                    <span class="priority-pill ${statusClass}">${phaseLabel}</span>
+                </div>
+                <div class="cc-meta">
+                    <span><i data-lucide="users"></i> ${r.participant_count} participant${r.participant_count !== 1 ? "s" : ""}</span>
+                    <span><i data-lucide="scroll-text"></i> ${r.transcript_entries} entries</span>
+                    <span><i data-lucide="clock"></i> ${new Date(r.created_at).toLocaleDateString()}</span>
+                </div>
+                <div class="cc-actions">
+                    <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
+                    <button class="cc-copy" onclick="navigator.clipboard.writeText('${inviteUrl}');this.innerHTML='<i data-lucide=\\'check\\'></i> Copied';"><i data-lucide="link"></i> Invite Link</button>
+                    <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
+                </div>
+            </div>`;
+        }).join("");
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    lobbyCreateForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        lobbyCreateBtn.disabled = true;
+        lobbyCreateBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Creating…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+
+        try {
+            const res = await fetch("/api/court/rooms", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    case_title: newRoomTitle.value.trim(),
+                    created_by: newRoomHost.value.trim(),
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: res.statusText }));
+                throw new Error(err.detail || "Failed to create room.");
+            }
+            const room = await res.json();
+            lastCreatedRoomId = room.room_id;
+            successText.textContent = `Room ${room.room_id} created — "${room.case_title}"`;
+            lobbyCreateForm.style.display = "none";
+            lobbySuccess.style.display = "block";
+            openRoomBtn.onclick = () => window.open(`/court/${room.room_id}`, "_blank");
+            copyRoomInviteBtn.onclick = () => {
+                navigator.clipboard.writeText(`${window.location.origin}/court/${room.room_id}`);
+                copyRoomInviteBtn.innerHTML = '<i data-lucide="check"></i> Copied';
+            };
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            // Refresh the room list.
+            fetchCourtrooms();
+        } catch (e) {
+            alert("Could not create room: " + e.message);
+        } finally {
+            lobbyCreateBtn.disabled = false;
+            lobbyCreateBtn.innerHTML = '<i data-lucide="gavel"></i> Create Courtroom';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    refreshRoomsBtn.addEventListener("click", () => {
+        roomsListContainer.innerHTML = '<div class="loader">Refreshing…</div>';
+        fetchCourtrooms();
+    });
 
     // Run Initialization
     init();

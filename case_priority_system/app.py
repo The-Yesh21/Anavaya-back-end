@@ -5,8 +5,8 @@ import json
 import shutil
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI, HTTPException, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # Paths
@@ -43,6 +43,16 @@ except ImportError:
     except ImportError:
         CONSTITUTIONAL_ANALYSIS_AVAILABLE = False
         print("Warning: constitutional_analysis module not found. Enhanced analysis will be unavailable.")
+
+# Import the courtroom (multi-role trial) manager
+try:
+    from case_priority_system.scripts.courtroom_manager import manager as courtroom_manager
+except ImportError:
+    try:
+        from scripts.courtroom_manager import manager as courtroom_manager
+    except ImportError:
+        courtroom_manager = None
+        print("Warning: courtroom_manager module not found. Trial feature will be unavailable.")
 
 
 def display_feature_name(feature_name):
@@ -417,6 +427,250 @@ def get_case_decision_path(case_file: str):
 
 # Mount static files (will serve index.html by default at root)
 os.makedirs(STATIC_DIR, exist_ok=True)
+
+# =====================================================================
+# COURTROOM (multi-role trial) feature
+# Endpoints must be declared BEFORE the catch-all `app.mount("/", ...)`
+# below, otherwise the static mount would shadow /court/{room_id}.
+# =====================================================================
+
+COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
+
+
+@app.get("/court/{room_id}")
+def serve_courtroom(room_id: str):
+    """Serve the trial page. The room id is read by the client, not the route."""
+    if not os.path.exists(COURTROOM_HTML):
+        raise HTTPException(status_code=404, detail="courtroom.html is missing from static/.")
+    return FileResponse(COURTROOM_HTML)
+
+
+@app.post("/api/court/rooms")
+def create_courtroom(payload: dict):
+    """Create a new trial room. Body: { case_title, created_by }."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    case_title = str(payload.get("case_title", "")).strip()
+    created_by = str(payload.get("created_by", "")).strip()
+    if not case_title:
+        raise HTTPException(status_code=400, detail="case_title is required.")
+    room = courtroom_manager.create_room(case_title=case_title, created_by=created_by)
+    return room.to_dict()
+
+
+@app.get("/api/court/rooms")
+def list_courtrooms():
+    """List all trial rooms (active + persisted)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    return courtroom_manager.list_rooms()
+
+
+@app.get("/api/court/rooms/{room_id}")
+def get_courtroom(room_id: str):
+    """Public state of one room (roster + transcript)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    return room.public_state()
+
+
+@app.get("/api/court/rooms/{room_id}/transcript")
+def download_transcript(room_id: str):
+    """Download the room transcript as a Markdown file."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    md = courtroom_manager.export_markdown(room_id)
+    safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
+    filename = f"{safe_title.strip()}_{room_id}_transcript.md"
+    return Response(
+        content=md,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.websocket("/ws/court/{room_id}")
+async def courtroom_socket(websocket: WebSocket, room_id: str):
+    """Signaling + state relay for a trial room.
+
+    Each client identifies itself on connect by sending {type:'join', ...}.
+    The server then relays WebRTC signaling (sdp_offer / sdp_answer /
+    ice_candidate) peer-to-peer between participants, and broadcasts
+    transcript + roster events to the whole room.
+    """
+    if courtroom_manager is None:
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "detail": "Courtroom manager not available."})
+        await websocket.close()
+        return
+
+    await websocket.accept()
+
+    # Track the participant this socket claimed to be, so we can clean up.
+    bound_participant_id: str | None = None
+
+    # Live sockets in THIS room, indexed by participant id.
+    # Shared on the manager instance so all connections see the same map.
+    sockets = courtroom_manager._room_sockets.setdefault(room_id, {})  # type: ignore[attr-defined]
+
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                await websocket.send_json({"type": "error", "detail": "Invalid JSON."})
+                continue
+
+            mtype = msg.get("type")
+
+            # --- join: register a participant ----------------------------------
+            if mtype == "join":
+                name = str(msg.get("name", "")).strip() or "Anonymous"
+                role = str(msg.get("role", "")).strip()
+                try:
+                    room, participant, display_role = courtroom_manager.join_room(
+                        room_id, name, role
+                    )
+                except ValueError as e:
+                    await websocket.send_json({"type": "error", "detail": str(e)})
+                    continue
+
+                bound_participant_id = participant.participant_id
+                sockets[participant.participant_id] = websocket
+
+                # Tell this client its own identity + the full room snapshot.
+                await websocket.send_json({
+                    "type": "room_state",
+                    "me": {
+                        "participant_id": participant.participant_id,
+                        "name": participant.name,
+                        "role": participant.role,
+                        "display_role": display_role,
+                    },
+                    "room": room.public_state(),
+                })
+
+                # Tell everyone else a participant joined (so they initiate
+                # a WebRTC offer toward the newcomer after seeing them).
+                await _broadcast(sockets, {
+                    "type": "participant_joined",
+                    "participant": participant.to_dict(),
+                    "display_role": display_role,
+                    "transcript_entry": room.transcript[-1].to_dict(),
+                }, exclude=participant.participant_id)
+                continue
+
+            # Everything below requires an identified participant.
+            if bound_participant_id is None:
+                await websocket.send_json({
+                    "type": "error",
+                    "detail": "You must join before sending other messages."
+                })
+                continue
+
+            # --- WebRTC signaling relay (targeted, not broadcast) ------------
+            if mtype in ("sdp_offer", "sdp_answer", "ice_candidate"):
+                target = msg.get("target_participant_id")
+                target_ws = sockets.get(target)
+                if target_ws is not None:
+                    await target_ws.send_json({
+                        "type": mtype,
+                        "from_participant_id": bound_participant_id,
+                        "data": msg.get("data"),
+                    })
+                continue
+
+            # --- transcript: statement ---------------------------------------
+            if mtype == "statement":
+                entry = courtroom_manager.record_statement(
+                    room_id, bound_participant_id, msg.get("text", "")
+                )
+                if entry is not None:
+                    await _broadcast(sockets, {
+                        "type": "transcript_entry",
+                        "entry": entry.to_dict(),
+                    })
+                continue
+
+            # --- transcript: structured action (objection/ruling/examine) ----
+            if mtype == "action":
+                entry = courtroom_manager.record_action(
+                    room_id, bound_participant_id, msg.get("text", "")
+                )
+                if entry is not None:
+                    await _broadcast(sockets, {
+                        "type": "transcript_entry",
+                        "entry": entry.to_dict(),
+                    })
+                continue
+
+            # --- phase change (judge only) -----------------------------------
+            if mtype == "set_phase":
+                room = courtroom_manager.get_room(room_id)
+                me = room.get_participant(bound_participant_id) if room else None
+                if me is None or me.role != "Judge":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": "Only the Judge may change the phase."
+                    })
+                    continue
+                entry = courtroom_manager.set_phase(room_id, msg.get("phase", ""))
+                if entry is not None:
+                    await _broadcast(sockets, {
+                        "type": "phase_changed",
+                        "phase": msg.get("phase"),
+                        "transcript_entry": entry.to_dict(),
+                    })
+                continue
+
+            await websocket.send_json({"type": "error", "detail": f"Unknown message type '{mtype}'."})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"Courtroom socket error: {e}")
+    finally:
+        # Clean up: remove the socket and (optionally) the participant.
+        if bound_participant_id is not None:
+            sockets.pop(bound_participant_id, None)
+            if courtroom_manager is not None:
+                courtroom_manager.leave_room(room_id, bound_participant_id)
+            # Notify the room of the departure + refreshed roster.
+            room = courtroom_manager.get_room(room_id) if courtroom_manager else None
+            if room is not None:
+                await _broadcast(sockets, {
+                    "type": "participant_left",
+                    "participant_id": bound_participant_id,
+                    "room": room.public_state(),
+                })
+
+
+async def _broadcast(sockets: dict, message: dict, exclude: str | None = None) -> None:
+    """Send a message to every socket in a room, optionally skipping one."""
+    dead = []
+    for pid, ws in list(sockets.items()):
+        if pid == exclude:
+            continue
+        try:
+            await ws.send_json(message)
+        except Exception:
+            dead.append(pid)
+    for pid in dead:
+        sockets.pop(pid, None)
+
+
+# A place to keep the per-room live socket maps. Attached to the manager so the
+# endpoint closure above can reach it without globals.
+if courtroom_manager is not None and not hasattr(courtroom_manager, "_room_sockets"):
+    courtroom_manager._room_sockets = {}  # type: ignore[attr-defined]
+
 
 @app.get("/")
 def read_index():
