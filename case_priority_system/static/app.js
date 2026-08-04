@@ -275,8 +275,100 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("case-title-name").textContent = c.Case_File.replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
         document.getElementById("case-parties").innerHTML = `<strong>Parties:</strong> ${c.Main_Parties || "Unknown"}`;
         document.getElementById("case-summary").textContent = c.Plain_Language_Summary || "Summary unavailable.";
-        document.getElementById("case-justification").textContent = c.Constitutional_Justification || "Justification unavailable.";
-        document.getElementById("case-priority-reason").textContent = c.Priority_Rules_Applied || "Reason unavailable.";
+        
+        // Enhanced Constitutional Analysis
+        // 1. Constitutional Rights Engaged
+        const rightsContainer = document.getElementById("case-constitutional-rights");
+        if (c.Constitutional_Rights_Engaged && Array.isArray(c.Constitutional_Rights_Engaged) && c.Constitutional_Rights_Engaged.length > 0) {
+            let rightsHtml = '<div class="rights-cards">';
+            c.Constitutional_Rights_Engaged.forEach(right => {
+                const primaryClass = right.primary ? 'primary' : 'secondary';
+                const tagText = right.primary ? 'PRIMARY' : 'SECONDARY';
+                rightsHtml += `
+                    <div class="rights-card ${primaryClass}">
+                        <div class="rights-article-tag">${tagText}</div>
+                        <strong class="rights-article">${right.article}</strong>
+                        <span class="rights-title">${right.title}</span>
+                    </div>
+                `;
+            });
+            rightsHtml += '</div>';
+            rightsContainer.innerHTML = rightsHtml;
+        } else if (typeof c.Constitutional_Rights_Engaged === 'string' && c.Constitutional_Rights_Engaged) {
+            // Handle legacy string format
+            rightsContainer.innerHTML = `<p class="rights-text">${c.Constitutional_Rights_Engaged}</p>`;
+        } else {
+            rightsContainer.innerHTML = `<p class="rights-text">Article 14 — Equality Before Law (General application). Specific constitutional rights analysis not available for this case.</p>`;
+        }
+
+        // 2. State Duty Analysis
+        const stateDutyEl = document.getElementById("case-state-duty");
+        if (c.State_Duty_Analysis) {
+            stateDutyEl.innerHTML = formatConstitutionalText(c.State_Duty_Analysis);
+        } else {
+            stateDutyEl.innerHTML = '<p>The State has a general duty under Article 14 to ensure equality before law and under Article 21 to protect life and personal liberty. Specific duty analysis not available for this case.</p>';
+        }
+
+        // 3. Rights Balancing Analysis
+        const balancingEl = document.getElementById("case-balancing");
+        if (c.Rights_Balancing_Analysis) {
+            balancingEl.innerHTML = formatConstitutionalText(c.Rights_Balancing_Analysis);
+        } else {
+            balancingEl.innerHTML = '<p>Balancing analysis not available for this case.</p>';
+        }
+
+        // 4. Applicable Doctrines
+        const doctrinesContainer = document.getElementById("case-doctrines");
+        if (c.Applicable_Doctrines && Array.isArray(c.Applicable_Doctrines) && c.Applicable_Doctrines.length > 0) {
+            let doctrinesHtml = '<div class="doctrines-grid">';
+            c.Applicable_Doctrines.forEach(doc => {
+                doctrinesHtml += `
+                    <div class="doctrine-card">
+                        <strong class="doctrine-name">${doc.name}</strong>
+                        <p class="doctrine-desc">${doc.description}</p>
+                        <p class="doctrine-app"><strong>Application:</strong> ${doc.application}</p>
+                    </div>
+                `;
+            });
+            doctrinesHtml += '</div>';
+            doctrinesContainer.innerHTML = doctrinesHtml;
+        } else if (typeof c.Applicable_Doctrines === 'string' && c.Applicable_Doctrines) {
+            doctrinesContainer.innerHTML = `<p class="doctrines-text">${c.Applicable_Doctrines}</p>`;
+        } else {
+            doctrinesContainer.innerHTML = '<p class="doctrines-text">General principles of constitutional interpretation apply. Specific doctrines not identified for this case.</p>';
+        }
+
+        // 5. Full Constitutional Opinion (State's Perspective)
+        const opinionEl = document.getElementById("case-justification");
+        if (c.Constitutional_Justification) {
+            opinionEl.innerHTML = formatConstitutionalText(c.Constitutional_Justification);
+        } else {
+            opinionEl.innerHTML = '<p>Constitutional justification not available.</p>';
+        }
+
+        // 6. Priority Rules Applied
+        const rulesEl = document.getElementById("case-priority-reason");
+        if (c.Priority_Rules_Applied) {
+            rulesEl.innerHTML = formatConstitutionalText(c.Priority_Rules_Applied);
+        } else {
+            rulesEl.innerHTML = '<p>Priority rules not available.</p>';
+        }
+
+        // Urgency badge based on severity
+        const urgencyBadge = document.getElementById("case-urgency-badge");
+        if (c.Severity === "Fatal") {
+            urgencyBadge.className = "urgency-pill highest";
+            urgencyBadge.textContent = "Urgent — Highest";
+        } else if (c.Severity === "Major") {
+            urgencyBadge.className = "urgency-pill high";
+            urgencyBadge.textContent = "Urgent — High";
+        } else if (c.Severity === "Minor") {
+            urgencyBadge.className = "urgency-pill moderate";
+            urgencyBadge.textContent = "Urgent — Moderate";
+        } else {
+            urgencyBadge.className = "urgency-pill standard";
+            urgencyBadge.textContent = "Urgency — Standard";
+        }
         
         // Badge styles
         const badgePriority = document.getElementById("case-priority-badge");
@@ -1002,6 +1094,41 @@ document.addEventListener("DOMContentLoaded", () => {
         overlayCtx.moveTo(landmarks[300].x * overlayCanvas.width, landmarks[300].y * overlayCanvas.height);
         overlayCtx.lineTo(landmarks[336].x * overlayCanvas.width, landmarks[336].y * overlayCanvas.height);
         overlayCtx.stroke();
+    }
+
+    // Helper: Format constitutional analysis text — handles markdown-like formatting
+    function formatConstitutionalText(text) {
+        if (!text) return '';
+        
+        // Convert markdown bold to HTML bold
+        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Convert markdown headings to HTML headings
+        formatted = formatted.replace(/^### (.*?)$/gm, '<h4 class="constitutional-h4">$1</h4>');
+        formatted = formatted.replace(/^## (.*?)$/gm, '<h3 class="constitutional-h3">$1</h3>');
+        
+        // Convert markdown bullet points to HTML list items
+        formatted = formatted.replace(/^- (.*?)$/gm, '<li>$1</li>');
+        
+        // Wrap consecutive list items
+        formatted = formatted.replace(/(<li>.*?<\/li>\n?)+/g, '<ul class="constitutional-ul">$&</ul>');
+        
+        // Convert double newlines to paragraph breaks
+        formatted = formatted.replace(/\n\n/g, '</p><p class="constitutional-p">');
+        
+        // Convert single newlines to line breaks
+        formatted = formatted.replace(/\n/g, '<br>');
+        
+        // Wrap in paragraph if not already wrapped
+        if (!formatted.startsWith('<')) {
+            formatted = '<p class="constitutional-p">' + formatted + '</p>';
+        }
+        
+        // Fix any nested <p> tags
+        formatted = formatted.replace(/<p class="constitutional-p">\s*<p class="constitutional-p">/g, '<p class="constitutional-p">');
+        formatted = formatted.replace(/<\/p>\s*<\/p>/g, '</p>');
+        
+        return formatted;
     }
 
     // Run Initialization

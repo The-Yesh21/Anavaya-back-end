@@ -823,6 +823,259 @@ body::before {
     font-weight: 750;
 }
 
+/* ────────────────────────────────────────── */
+/* ENHANCED CONSTITUTIONAL ANALYSIS STYLES */
+/* ────────────────────────────────────────── */
+
+/* Urgency Badge */
+.urgency-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 99px;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.urgency-pill.highest {
+    background: #7F1D1D;
+    box-shadow: 0 4px 15px rgba(127, 29, 29, 0.3);
+}
+
+.urgency-pill.high {
+    background: #A85448;
+    box-shadow: 0 4px 15px rgba(168, 84, 72, 0.3);
+}
+
+.urgency-pill.moderate {
+    background: #C18C5D;
+    box-shadow: 0 4px 15px rgba(193, 140, 93, 0.3);
+}
+
+.urgency-pill.standard {
+    background: #78786C;
+    box-shadow: 0 4px 15px rgba(120, 120, 108, 0.3);
+}
+
+/* Constitutional Rights Grid */
+.constitutional-rights-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rights-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.rights-card {
+    padding: 16px;
+    border: 2px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.2rem 1.6rem 1rem 1.4rem;
+    background: rgba(254, 254, 250, 0.85);
+}
+
+.rights-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-soft);
+}
+
+.rights-card.primary {
+    border-left: 5px solid var(--color-high);
+    background: linear-gradient(135deg, rgba(168, 84, 72, 0.05), rgba(254, 254, 250, 0.95));
+}
+
+.rights-card.secondary {
+    border-left: 5px solid var(--color-primary);
+    background: linear-gradient(135deg, rgba(93, 112, 82, 0.05), rgba(254, 254, 250, 0.95));
+}
+
+.rights-article-tag {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    align-self: flex-start;
+}
+
+.rights-card.primary .rights-article-tag {
+    background: var(--color-high-bg);
+    color: var(--color-high);
+}
+
+.rights-card.secondary .rights-article-tag {
+    background: var(--color-low-bg);
+    color: var(--color-low);
+}
+
+.rights-article {
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.rights-title {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.rights-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 12px;
+    background: rgba(240, 235, 229, 0.35);
+    border-radius: 1.2rem;
+}
+
+/* State Duty & Balancing Boxes */
+.balancing-box {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.8;
+    background: linear-gradient(135deg, rgba(193, 140, 93, 0.04), rgba(254, 254, 250, 0.95));
+    border: 1.5px solid rgba(193, 140, 93, 0.2);
+    padding: 22px;
+    border-radius: 1.8rem;
+    border-left: 6px solid var(--color-medium);
+    box-shadow: var(--shadow-soft);
+}
+
+/* Opinion Box (Full State's Perspective) */
+.opinion-box {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.8;
+    background: linear-gradient(135deg, rgba(93, 112, 82, 0.04), #FEFEFA);
+    border: 1.5px solid var(--color-primary);
+    padding: 24px;
+    border-radius: 1.8rem;
+    border-left: 6px solid var(--color-primary);
+    box-shadow: var(--shadow-soft);
+}
+
+/* Rules Box (Priority Rules Applied) */
+.rules-box {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.8;
+    background: rgba(254, 254, 250, 0.9);
+    border: 1.5px solid var(--border-color);
+    padding: 22px;
+    border-radius: 1.8rem;
+    box-shadow: var(--shadow-soft);
+}
+
+/* Constitutional text formatting */
+.constitutional-h3 {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 750;
+    color: var(--text-primary);
+    margin: 18px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1.5px solid rgba(74, 74, 64, 0.12);
+}
+
+.constitutional-h4 {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 14px 0 8px;
+}
+
+.constitutional-p {
+    margin: 8px 0;
+    line-height: 1.7;
+}
+
+.constitutional-ul {
+    margin: 8px 0;
+    padding-left: 24px;
+    list-style-type: disc;
+}
+
+.constitutional-ul li {
+    margin: 4px 0;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+/* Doctrines Grid */
+.doctrines-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.doctrines-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.doctrine-card {
+    padding: 16px;
+    background: rgba(254, 254, 250, 0.85);
+    border: 1.5px solid var(--border-color);
+    border-radius: 1.4rem 1.2rem 1.1rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all 0.35s ease;
+    box-shadow: 0 2px 8px rgba(74, 74, 64, 0.04);
+}
+
+.doctrine-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-color-glow);
+    box-shadow: var(--shadow-soft);
+}
+
+.doctrine-name {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 750;
+    color: var(--color-primary);
+}
+
+.doctrine-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.doctrine-app {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.doctrines-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 12px;
+    background: rgba(240, 235, 229, 0.35);
+    border-radius: 1.2rem;
+}
+
 /* Path Trace Timeline */
 .timeline-steps {
     position: relative;

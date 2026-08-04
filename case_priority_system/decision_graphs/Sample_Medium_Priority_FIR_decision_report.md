@@ -91,8 +91,8 @@
 
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
-  <h2>Asha_Rubber_Industries_Bangalore_vs_Collector_Of_Central_Excise_Bangalore_on_1_January_1800.PDF</h2>
-  <p>Asha Rubber Industries, Bangalore vs Collector Of Central Excise, Bangalore on 1 January, 1800. Equivalent citations: 1988(15)ECC250, 1988(34)ELT528(KAR), 1987(3)KARLJ188.</p>
+  <h2>Sample_Medium_Priority_FIR.pdf</h2>
+  <p>A parked motorcycle was broken into. A backpack containing personal documents, a laptop, and accessories was stolen. Two nearby shopkeepers observed a suspicious individual leaving the area. CCTV footage from nearby stores may contain relevant footage. No physical injuries were reported.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
@@ -161,4 +161,4 @@ Node 0: Victim score <= 0.0258; case value = 0.0000; result = Yes -> Node 1: Sev
 
 ## Raw Graph
 
-Raw DOT file: `case_priority_system/decision_graphs\Asha_Rubber_Industries_Bangalore_vs_Collector_Of_Central_Excise_Bangalore_on_1_January_1800_decision_path.dot`
+Raw DOT file: `case_priority_system/decision_graphs\Sample_Medium_Priority_FIR_decision_path.dot`

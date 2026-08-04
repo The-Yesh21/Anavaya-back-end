@@ -28,6 +28,23 @@ if os.path.exists(MODEL_PATH):
 else:
     print(f"Model file not found at {MODEL_PATH}")
 
+# Import comprehensive constitutional analysis module
+try:
+    from case_priority_system.scripts.constitutional_analysis import (
+        get_comprehensive_constitutional_analysis,
+    )
+    CONSTITUTIONAL_ANALYSIS_AVAILABLE = True
+except ImportError:
+    try:
+        from scripts.constitutional_analysis import (
+            get_comprehensive_constitutional_analysis,
+        )
+        CONSTITUTIONAL_ANALYSIS_AVAILABLE = True
+    except ImportError:
+        CONSTITUTIONAL_ANALYSIS_AVAILABLE = False
+        print("Warning: constitutional_analysis module not found. Enhanced analysis will be unavailable.")
+
+
 def display_feature_name(feature_name):
     labels = {
         'case_category_enc': 'Legal Category',
@@ -177,11 +194,24 @@ async def upload_case(file: UploadFile = File(...)):
             model_data, llm_data, model_text, filename, priority
         )
         
-        # 6. Get justification and rules
-        justification = get_constitutional_justification(llm_data, priority)
-        rules_applied = get_priority_rules_applied(llm_data, priority)
+        # 6. Get comprehensive constitutional analysis (State's Perspective)
+        if CONSTITUTIONAL_ANALYSIS_AVAILABLE:
+            constitutional_analysis = get_comprehensive_constitutional_analysis(llm_data, priority)
+            justification = constitutional_analysis["state_perspective_opinion"]
+            rules_applied = constitutional_analysis["priority_rules_detailed"]
+            balancing_analysis = constitutional_analysis["balancing_analysis"]
+            constitutional_rights = constitutional_analysis["constitutional_rights_engaged"]
+            state_duty = constitutional_analysis["state_duty_analysis"]
+            applicable_doctrines = constitutional_analysis["applicable_doctrines"]
+        else:
+            justification = get_constitutional_justification(llm_data, priority)
+            rules_applied = get_priority_rules_applied(llm_data, priority)
+            balancing_analysis = ""
+            constitutional_rights = []
+            state_duty = ""
+            applicable_doctrines = []
         
-        # 7. Create new case record
+        # 7. Create new case record with enhanced constitutional analysis
         new_case = {
             'Case_File': filename,
             'Main_Parties': llm_data.get('main_parties', 'Unknown'),
@@ -195,7 +225,11 @@ async def upload_case(file: UploadFile = File(...)):
             'Broad_Model_Category': llm_data.get('crime_type', 'N/A'),
             'Severity': llm_data.get('severity', 'N/A'),
             'Vulnerability': llm_data.get('vulnerability', 'N/A'),
-            'Influence': llm_data.get('influence', 'N/A')
+            'Influence': llm_data.get('influence', 'N/A'),
+            'State_Duty_Analysis': state_duty,
+            'Rights_Balancing_Analysis': balancing_analysis,
+            'Constitutional_Rights_Engaged': constitutional_rights,
+            'Applicable_Doctrines': applicable_doctrines,
         }
         
         # 8. Append to EXCEL_PATH

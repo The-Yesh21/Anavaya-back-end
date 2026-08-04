@@ -133,6 +133,7 @@
                                 <div class="badge-row">
                                     <span id="case-priority-badge" class="priority-pill">Low Priority</span>
                                     <span id="case-category-badge" class="category-pill">Excise/Tax</span>
+                                    <span id="case-urgency-badge" class="urgency-pill">Standard</span>
                                 </div>
                                 <h2 id="case-title-name">Case File Name</h2>
                                 <p id="case-parties" class="parties-list"><strong>Parties:</strong> unknown</p>
@@ -143,22 +144,51 @@
                                 <p id="case-summary" class="summary-text">No summary available.</p>
                             </div>
 
+                            <!-- Enhanced Constitutional Analysis Section -->
                             <div class="detail-section">
-                                <h3>Constitutional & Legal Justification</h3>
-                                <div id="case-justification" class="justification-box">
+                                <h3><i data-lucide="shield" style="width:16px;height:16px;vertical-align:middle;"></i> Constitutional Rights Engaged</h3>
+                                <div id="case-constitutional-rights" class="constitutional-rights-grid">
+                                    Loading rights analysis...
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> State's Duty Under the Constitution</h3>
+                                <div id="case-state-duty" class="justification-box">
+                                    Loading state duty analysis...
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> Rights Balancing & Proportionality Analysis</h3>
+                                <div id="case-balancing" class="balancing-box">
+                                    Loading balancing analysis...
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3><i data-lucide="book-open" style="width:16px;height:16px;vertical-align:middle;"></i> Applicable Constitutional Doctrines</h3>
+                                <div id="case-doctrines" class="doctrines-list">
+                                    Loading doctrines...
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3><i data-lucide="file-text" style="width:16px;height:16px;vertical-align:middle;"></i> State's Perspective — Full Constitutional Opinion</h3>
+                                <div id="case-justification" class="opinion-box">
                                     Justification loading...
                                 </div>
                             </div>
 
                             <div class="detail-section">
-                                <h3>Reason for Priority / Score</h3>
-                                <div id="case-priority-reason" class="justification-box" style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 15px; border-radius: 8px;">
+                                <h3><i data-lucide="clipboard-list" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Rules Applied</h3>
+                                <div id="case-priority-reason" class="rules-box">
                                     Reason loading...
                                 </div>
                             </div>
 
                             <div class="detail-section">
-                                <h3>Programmatic Priority Parameters</h3>
+                                <h3><i data-lucide="sliders" style="width:16px;height:16px;vertical-align:middle;"></i> Programmatic Priority Parameters</h3>
                                 <div class="parameter-grid">
                                     <div class="param-card">
                                         <span>Broad Model Category</span>
@@ -180,7 +210,7 @@
                             </div>
 
                             <div class="detail-section">
-                                <h3>Path Trace Steps</h3>
+                                <h3><i data-lucide="git-commit" style="width:16px;height:16px;vertical-align:middle;"></i> Decision Tree Path Trace Steps</h3>
                                 <div id="decision-path-steps" class="timeline-steps">
                                     <!-- Steps populated dynamically -->
                                 </div>

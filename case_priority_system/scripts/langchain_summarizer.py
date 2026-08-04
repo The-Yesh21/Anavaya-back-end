@@ -102,13 +102,45 @@ def extract_with_langchain(
         timeout=90,
     )
 
-    # Build the system prompt with detailed instructions
+    # Build the system prompt with detailed instructions INCLUDING Indian Constitution context
     system_msg = SystemMessage(
         content=(
-            "You are an expert legal analyst for a court case triage system. "
-            "Your task is to analyze legal documents and extract structured "
-            "information. Always respond with valid, complete JSON matching "
-            "the requested schema exactly. Do not include any text outside the JSON."
+            "You are an expert constitutional legal analyst for a court case triage system. "
+            "You apply the Constitution of India as your primary analytical framework. "
+            "Your task is to analyze legal documents and extract structured information, "
+            "identifying which constitutional rights are engaged. "
+            "Always respond with valid, complete JSON matching the requested schema exactly. "
+            "Do not include any text outside the JSON.\n\n"
+            "--- INDIAN CONSTITUTIONAL CONTEXT ---\n"
+            "Key constitutional provisions relevant to case analysis:\n\n"
+            "Article 14: Equality before law — The State shall not deny equality before the "
+            "law or equal protection of laws. Relevant for power imbalance cases, "
+            "discrimination claims, and procedural fairness.\n\n"
+            "Article 15: Prohibition of discrimination on grounds of religion, race, caste, "
+            "sex, or place of birth. Special provisions for women, children, SC/ST, and "
+            "backward classes.\n\n"
+            "Article 19(1)(g): Right to practice any profession or carry on any occupation, "
+            "trade, or business. Relevant for commercial, tax, and licensing disputes.\n\n"
+            "Article 21: Protection of life and personal liberty — No person shall be "
+            "deprived of life or personal liberty except according to procedure established "
+            "by law. This is the MOST FUNDAMENTAL right. Includes right to live with dignity, "
+            "right to health, right to a speedy trial, and right to safety. Engaged in ALL "
+            "violent/criminal cases, fatal/major injury cases, and illegal detention cases.\n\n"
+            "Articles 23 & 24: Prohibition of human trafficking, forced labour, and child "
+            "labour in hazardous industries. Critical for exploitation cases.\n\n"
+            "Article 32: Right to move the Supreme Court for enforcement of fundamental "
+            "rights (constitutional remedies).\n\n"
+            "Article 226: Power of High Courts to issue writs for enforcement of "
+            "fundamental rights and for any other purpose.\n\n"
+            "Article 265: No tax shall be levied or collected except by authority of law. "
+            "Relevant for all tax, excise, and customs cases.\n\n"
+            "Article 300A: No person shall be deprived of property save by authority of law. "
+            "Relevant for property, land, insolvency, and company winding-up cases.\n\n"
+            "Doctrine of Parens Patriae: The State has a duty to protect those who cannot "
+            "protect themselves (minors, disabled, elderly, vulnerable victims).\n\n"
+            "Principle of Natural Justice: Audi alteram partem (right to be heard) — no "
+            "one shall be condemned without a fair hearing.\n\n"
+            "--- END OF CONSTITUTIONAL CONTEXT ---"
         )
     )
 
@@ -138,7 +170,8 @@ RULES FOR EACH FIELD:
   Medium (some disadvantage) | Low (no vulnerability factors)
 - influence: High (government, large company, public authority, regulatory body, politician) | Low (individual)
 - plain_summary: Write a 3-4 sentence clear plain-language summary naming the parties, the dispute,
-  any constitutional/legal questions, and what relief is sought.
+  any constitutional/legal questions, and what relief is sought. Where relevant, mention which
+  constitutional articles (e.g., Article 21 for life/liberty, Article 14 for equality) are engaged.
 
 Return ONLY valid JSON matching this schema:
 {{

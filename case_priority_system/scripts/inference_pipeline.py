@@ -25,6 +25,16 @@ except ImportError:
     def tqdm(iterable):
         return iterable
 
+# Import comprehensive constitutional analysis module (with fallback path)
+try:
+    from case_priority_system.scripts.constitutional_analysis import (
+        get_comprehensive_constitutional_analysis,
+    )
+except ImportError:
+    from constitutional_analysis import (  # type: ignore
+        get_comprehensive_constitutional_analysis,
+    )
+
 # Constants
 MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 DATA_DIR = '.'  # Root directory where PDFs are located
@@ -483,8 +493,23 @@ def call_gemma_api(text):
     }
 
     prompt = f"""
-    You are extracting facts for a court case triage pipeline.
+    You are an expert constitutional legal analyst extracting facts for a court case triage pipeline.
+    You apply the Constitution of India as your primary analytical framework.
     Analyze the following legal text and return ONLY valid JSON.
+
+    --- INDIAN CONSTITUTIONAL CONTEXT ---
+    Key constitutional provisions for your analysis:
+    - Article 14: Equality before law — relevant for power imbalance, discrimination, and procedural fairness
+    - Article 15: Non-discrimination — special protection for women, children, SC/ST, backward classes
+    - Article 19(1)(g): Right to practice any profession/trade/business — relevant for commercial disputes
+    - Article 21: Protection of life and personal liberty — THE MOST FUNDAMENTAL right. Includes right to live with dignity, health, speedy trial. Engaged in ALL violent/criminal cases and fatal/major injury cases.
+    - Articles 23 & 24: Prohibition of trafficking, forced labour, child labour
+    - Article 32/226: Constitutional remedies — writ jurisdiction of Supreme Court/High Courts
+    - Article 265: No tax without authority of law — relevant for all tax/excise/customs cases
+    - Article 300A: No deprivation of property without authority of law — relevant for property, land, insolvency, company winding-up
+    - Doctrine of Parens Patriae: State must protect those who cannot protect themselves
+    - Principle of Natural Justice: Right to be heard before adverse decision
+    --- END OF CONSTITUTIONAL CONTEXT ---
 
     Legal Text:
     {text[:12000]}
@@ -497,7 +522,7 @@ def call_gemma_api(text):
       "severity": "Fatal | Major | Minor | No Injury",
       "vulnerability": "High | Medium | Low",
       "influence": "High | Low",
-      "plain_summary": "exactly 3 short sentences in simple language, naming the main parties"
+      "plain_summary": "exactly 3 short sentences in simple language, naming the main parties and any constitutional articles engaged"
     }}
 
     Rules:
@@ -1105,9 +1130,20 @@ def main():
                 model_data, llm_data, model_text, pdf_file, priority
             )
             
-            # 3. Get justification
-            justification = get_constitutional_justification(llm_data, priority)
-            rules_applied = get_priority_rules_applied(llm_data, priority, text)
+            # 3. Get comprehensive constitutional analysis (State's Perspective)
+            constitutional_analysis = get_comprehensive_constitutional_analysis(llm_data, priority)
+            justification = constitutional_analysis["state_perspective_opinion"]
+            rules_applied = constitutional_analysis["priority_rules_detailed"]
+            balancing_analysis = constitutional_analysis["balancing_analysis"]
+            constitutional_rights = constitutional_analysis["constitutional_rights_engaged"]
+            state_duty = constitutional_analysis["state_duty_analysis"]
+            applicable_doctrines = constitutional_analysis["applicable_doctrines"]
+            
+            # Format doctrines list for Excel column
+            doctrines_str = "; ".join([d['name'] for d in applicable_doctrines]) if applicable_doctrines else "None"
+            
+            # Format rights list for Excel column
+            rights_str = ", ".join([r['article'] + (' (Primary)' if r['primary'] else ' (Secondary)') for r in constitutional_rights]) if constitutional_rights else "General application of Article 14"
             
             results.append({
                 'Case_File': pdf_file,
@@ -1122,7 +1158,11 @@ def main():
                 'Broad_Model_Category': llm_data.get('crime_type', 'N/A'),
                 'Severity': llm_data.get('severity', 'N/A'),
                 'Vulnerability': llm_data.get('vulnerability', 'N/A'),
-                'Influence': llm_data.get('influence', 'N/A')
+                'Influence': llm_data.get('influence', 'N/A'),
+                'Constitutional_Rights_Engaged': rights_str,
+                'State_Duty_Analysis': state_duty,
+                'Applicable_Doctrines': doctrines_str,
+                'Rights_Balancing_Analysis': balancing_analysis,
             })
         except Exception as e:
             print(f"Error processing {pdf_file}: {e}")

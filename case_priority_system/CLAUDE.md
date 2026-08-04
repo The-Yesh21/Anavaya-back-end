@@ -65,6 +65,7 @@ PDF files (root dir) → extract_text_from_pdf() → call_gemma_api()
 | `scripts/generate_data.py` | Creates synthetic training cases (1000 rows by default) with rule-based priority labels |
 | `scripts/nlp_dl_model.py` | Optional PyTorch classifier (not part of the main pipeline) |
 | `scripts/predict.py` | Standalone demo using the saved Decision Tree model |
+| `scripts/constitutional_analysis.py` | **NEW** Comprehensive constitutional analysis module providing an unbiased 'State's Perspective' on case priority based on the Constitution of India. Generates: rights engagement analysis, state duty analysis, balancing/proportionality analysis, applicable doctrines, full narrative opinion, and detailed priority rules. |
 | `models/priority_classifier.pkl` | Pickle bundle: `{model, tfidf, encoders, feature_names}` |
 | `data/synthetic_cases.csv` | 1000 synthetic training cases |
 | `data/real_report_training_cases.csv` | Training rows extracted from real PDF reports |

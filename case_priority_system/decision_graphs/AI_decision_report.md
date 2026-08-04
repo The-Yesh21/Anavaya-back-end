@@ -91,13 +91,13 @@
 
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
-  <h2>Asha_Rubber_Industries_Bangalore_vs_Collector_Of_Central_Excise_Bangalore_on_1_January_1800.PDF</h2>
-  <p>Asha Rubber Industries, Bangalore vs Collector Of Central Excise, Bangalore on 1 January, 1800. Equivalent citations: 1988(15)ECC250, 1988(34)ELT528(KAR), 1987(3)KARLJ188.</p>
+  <h2>AI.pdf</h2>
+  <p>The rapid accumulation of pending cases in judicial systems worldwide, particularly in India, poses a significant threat to the timely delivery of justice. This paper presents an AI-Powered Case Priority Prediction System to assist judicial authorities in triaging and prioritizing cases. The system is built on a robust, modern technology stack ensuring scalability, speed, and intuitive user experience.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
-    <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
-    <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
+    <div class="metric"><span>Severity</span><strong>Major</strong></div>
+    <div class="metric"><span>Vulnerability</span><strong>High</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>
   </div>
 </div>
@@ -108,12 +108,10 @@
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
   N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
-  N1["Step 2: Severity<br/>Severity is one of: Fatal, Major, Minor<br/>Case: No Injury<br/>Answer: No"]:::decision
+  N1["Step 2: Severity<br/>Severity is one of: Fatal, Major, Minor<br/>Case: Major<br/>Answer: Yes"]:::decision
   N0 --> N1
-  N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
+  N2["Final Priority: Medium<br/>219 training samples reached this leaf"]:::leaf
   N1 --> N2
-  N3["Final Priority: Medium<br/>133 training samples reached this leaf"]:::leaf
-  N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
 ```
@@ -134,31 +132,23 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Step 2: Severity</div>
     <div class="step-condition">Severity is one of: Fatal, Major, Minor</div>
-    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
+    <div class="step-meta">Case value: <strong>Major</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">3</div>
   <div class="step-body">
-    <div class="step-title">Step 3: Influence / power imbalance</div>
-    <div class="step-condition">Influence / power imbalance is one of: High</div>
-    <div class="step-meta">Case value: <strong>High</strong> | Result: <strong>Yes</strong></div>
-  </div>
-</div>
-<div class="step-card">
-  <div class="step-index">4</div>
-  <div class="step-body">
     <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>133 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>219 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Victim score <= 0.0258; case value = 0.0000; result = Yes -> Node 1: Severity is one of: Fatal, Major, Minor; case value = No Injury; result = No -> Node 3: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 4 => Predicted Priority = Medium
+Node 0: Victim score <= 0.0258; case value = 0.0000; result = Yes -> Node 1: Severity is one of: Fatal, Major, Minor; case value = Major; result = Yes -> Leaf node 2 => Predicted Priority = Medium
 
 ## Raw Graph
 
-Raw DOT file: `case_priority_system/decision_graphs\Asha_Rubber_Industries_Bangalore_vs_Collector_Of_Central_Excise_Bangalore_on_1_January_1800_decision_path.dot`
+Raw DOT file: `case_priority_system/decision_graphs\AI_decision_path.dot`
