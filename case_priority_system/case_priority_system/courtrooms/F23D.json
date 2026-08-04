@@ -1,0 +1,91 @@
+{
+  "room_id": "F23D",
+  "case_title": "State vs. Rakesh Sharma — Armed Robbery",
+  "created_at": "2026-08-04T23:16:22",
+  "created_by": "Justice Mehta",
+  "phase": "Opening",
+  "participants": [
+    {
+      "participant_id": "p_783eaade",
+      "name": "Justice Mehta",
+      "role": "Judge",
+      "joined_at": "2026-08-04T23:16:22"
+    },
+    {
+      "participant_id": "p_2390e6a9",
+      "name": "Adv. Priya Sharma",
+      "role": "Defence",
+      "joined_at": "2026-08-04T23:16:30"
+    },
+    {
+      "participant_id": "p_9da5ac1b",
+      "name": "Adv. Suresh Rao",
+      "role": "Prosecution",
+      "joined_at": "2026-08-04T23:16:38"
+    },
+    {
+      "participant_id": "p_dab27ba6",
+      "name": "Ramu the Witness",
+      "role": "Witness",
+      "joined_at": "2026-08-04T23:16:46"
+    }
+  ],
+  "transcript": [
+    {
+      "timestamp": "2026-08-04T23:16:22",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'State vs. Rakesh Sharma — Armed Robbery' opened by Justice Mehta."
+    },
+    {
+      "timestamp": "2026-08-04T23:16:22",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) joined the court."
+    },
+    {
+      "timestamp": "2026-08-04T23:16:30",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "system",
+      "text": "Adv. Priya Sharma (Defence Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-04T23:16:38",
+      "actor": "Adv. Suresh Rao",
+      "role": "Prosecution Counsel",
+      "kind": "system",
+      "text": "Adv. Suresh Rao (Prosecution Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-04T23:16:46",
+      "actor": "Ramu the Witness",
+      "role": "Witness 1",
+      "kind": "system",
+      "text": "Ramu the Witness (Witness 1) joined the court."
+    },
+    {
+      "timestamp": "2026-08-04T23:16:55",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "statement",
+      "text": "Order in the court. This trial is now in session. Prosecution may present the opening statement."
+    },
+    {
+      "timestamp": "2026-08-04T23:17:27",
+      "actor": "Adv. Suresh Rao",
+      "role": "Prosecution Counsel",
+      "kind": "statement",
+      "text": "Your Honour, the State alleges that on the night of March 15, the accused Rakesh Sharma committed armed robbery at the State Bank of India, Ashok Nagar branch, threatening the cashier with a firearm and fleeing with Rs. 24 lakhs."
+    },
+    {
+      "timestamp": "2026-08-04T23:17:59",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "statement",
+      "text": "My client pleads not guilty. The evidence is circumstantial and relies on a single eyewitness identification under poor lighting conditions."
+    }
+  ]
+}
