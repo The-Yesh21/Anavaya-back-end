@@ -1,115 +1,87 @@
 {
-  "room_id": "1203",
-  "case_title": "Debug Repro Trial",
-  "created_at": "2026-08-05T11:46:07",
-  "created_by": "Debugger",
+  "room_id": "4F28",
+  "case_title": "Probe Trial",
+  "created_at": "2026-08-05T11:52:09",
+  "created_by": "Prober",
   "phase": "Examination",
   "participants": [],
   "transcript": [
     {
-      "timestamp": "2026-08-05T11:46:07",
+      "timestamp": "2026-08-05T11:52:09",
       "actor": "System",
       "role": "system",
       "kind": "system",
-      "text": "Trial 'Debug Repro Trial' opened by Debugger."
+      "text": "Trial 'Probe Trial' opened by Prober."
     },
     {
-      "timestamp": "2026-08-05T11:46:07",
+      "timestamp": "2026-08-05T11:52:09",
       "actor": "Justice Mehta",
       "role": "Presiding Judge",
       "kind": "system",
       "text": "Justice Mehta (Presiding Judge) joined the court."
     },
     {
-      "timestamp": "2026-08-05T11:46:11",
+      "timestamp": "2026-08-05T11:52:10",
       "actor": "Adv. Priya Sharma",
       "role": "Defence Counsel",
       "kind": "system",
       "text": "Adv. Priya Sharma (Defence Counsel) joined the court."
     },
     {
-      "timestamp": "2026-08-05T11:46:19",
+      "timestamp": "2026-08-05T11:52:13",
       "actor": "Adv. Suresh Rao",
       "role": "Prosecution Counsel",
       "kind": "system",
       "text": "Adv. Suresh Rao (Prosecution Counsel) joined the court."
     },
     {
-      "timestamp": "2026-08-05T11:46:31",
+      "timestamp": "2026-08-05T11:52:18",
       "actor": "Ramu the Witness",
       "role": "Witness 1",
       "kind": "system",
       "text": "Ramu the Witness (Witness 1) joined the court."
     },
     {
-      "timestamp": "2026-08-05T11:46:47",
-      "actor": "Justice Mehta",
-      "role": "Presiding Judge",
-      "kind": "statement",
-      "text": "Order in the court. Trial in session."
-    },
-    {
-      "timestamp": "2026-08-05T11:47:07",
-      "actor": "Adv. Suresh Rao",
-      "role": "Prosecution Counsel",
-      "kind": "statement",
-      "text": "The State alleges armed robbery on March 15."
-    },
-    {
-      "timestamp": "2026-08-05T11:47:28",
-      "actor": "Adv. Priya Sharma",
-      "role": "Defence Counsel",
-      "kind": "statement",
-      "text": "My client pleads not guilty."
-    },
-    {
-      "timestamp": "2026-08-05T11:47:48",
+      "timestamp": "2026-08-05T11:52:24",
       "actor": "Court",
       "role": "system",
       "kind": "phase",
       "text": "Proceedings moved to the Examination phase."
     },
     {
-      "timestamp": "2026-08-05T11:47:48",
+      "timestamp": "2026-08-05T11:52:30",
       "actor": "Adv. Priya Sharma",
       "role": "Defence Counsel",
       "kind": "action",
       "text": "Objection - leading question."
     },
     {
-      "timestamp": "2026-08-05T11:48:08",
+      "timestamp": "2026-08-05T11:52:37",
       "actor": "Justice Mehta",
       "role": "Presiding Judge",
-      "kind": "action",
-      "text": "Objection sustained. Rephrase, Prosecution."
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) left the court."
     },
     {
-      "timestamp": "2026-08-05T11:48:09",
+      "timestamp": "2026-08-05T11:52:37",
       "actor": "Adv. Priya Sharma",
       "role": "Defence Counsel",
       "kind": "system",
       "text": "Adv. Priya Sharma (Defence Counsel) left the court."
     },
     {
-      "timestamp": "2026-08-05T11:48:09",
+      "timestamp": "2026-08-05T11:52:37",
       "actor": "Adv. Suresh Rao",
       "role": "Prosecution Counsel",
       "kind": "system",
       "text": "Adv. Suresh Rao (Prosecution Counsel) left the court."
     },
     {
-      "timestamp": "2026-08-05T11:48:09",
+      "timestamp": "2026-08-05T11:52:37",
       "actor": "Ramu the Witness",
       "role": "Witness",
       "kind": "system",
       "text": "Ramu the Witness (Witness) left the court."
-    },
-    {
-      "timestamp": "2026-08-05T11:48:09",
-      "actor": "Justice Mehta",
-      "role": "Presiding Judge",
-      "kind": "system",
-      "text": "Justice Mehta (Presiding Judge) left the court."
     }
   ]
 }

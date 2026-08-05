@@ -1,0 +1,115 @@
+{
+  "room_id": "2300",
+  "case_title": "State vs. Rakesh Sharma — Armed Robbery",
+  "created_at": "2026-08-05T12:01:44",
+  "created_by": "Justice Mehta",
+  "phase": "Examination",
+  "participants": [],
+  "transcript": [
+    {
+      "timestamp": "2026-08-05T12:01:44",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'State vs. Rakesh Sharma — Armed Robbery' opened by Justice Mehta."
+    },
+    {
+      "timestamp": "2026-08-05T12:01:44",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:01:52",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "system",
+      "text": "Adv. Priya Sharma (Defence Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:02:00",
+      "actor": "Adv. Suresh Rao",
+      "role": "Prosecution Counsel",
+      "kind": "system",
+      "text": "Adv. Suresh Rao (Prosecution Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:02:08",
+      "actor": "Ramu the Witness",
+      "role": "Witness 1",
+      "kind": "system",
+      "text": "Ramu the Witness (Witness 1) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:02:16",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "statement",
+      "text": "Order in the court. This trial is now in session. Prosecution may present the opening statement."
+    },
+    {
+      "timestamp": "2026-08-05T12:02:49",
+      "actor": "Adv. Suresh Rao",
+      "role": "Prosecution Counsel",
+      "kind": "statement",
+      "text": "Your Honour, the State alleges that on the night of March 15, the accused Rakesh Sharma committed armed robbery at the State Bank of India, Ashok Nagar branch, threatening the cashier with a firearm and fleeing with Rs. 24 lakhs."
+    },
+    {
+      "timestamp": "2026-08-05T12:03:21",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "statement",
+      "text": "My client pleads not guilty. The evidence is circumstantial and relies on a single eyewitness identification under poor lighting conditions."
+    },
+    {
+      "timestamp": "2026-08-05T12:03:53",
+      "actor": "Court",
+      "role": "system",
+      "kind": "phase",
+      "text": "Proceedings moved to the Examination phase."
+    },
+    {
+      "timestamp": "2026-08-05T12:03:53",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "action",
+      "text": "Objection — leading question."
+    },
+    {
+      "timestamp": "2026-08-05T12:04:26",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "action",
+      "text": "Objection sustained. Rephrase the question, Prosecution."
+    },
+    {
+      "timestamp": "2026-08-05T12:04:34",
+      "actor": "Ramu the Witness",
+      "role": "Witness",
+      "kind": "system",
+      "text": "Ramu the Witness (Witness) left the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:04:34",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) left the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:04:34",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "system",
+      "text": "Adv. Priya Sharma (Defence Counsel) left the court."
+    },
+    {
+      "timestamp": "2026-08-05T12:04:34",
+      "actor": "Adv. Suresh Rao",
+      "role": "Prosecution Counsel",
+      "kind": "system",
+      "text": "Adv. Suresh Rao (Prosecution Counsel) left the court."
+    }
+  ]
+}

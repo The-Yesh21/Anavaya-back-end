@@ -3,6 +3,7 @@ import pickle
 import re
 import json
 import shutil
+import traceback
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException, File, UploadFile, WebSocket, WebSocketDisconnect
@@ -433,6 +434,13 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 # Endpoints must be declared BEFORE the catch-all `app.mount("/", ...)`
 # below, otherwise the static mount would shadow /court/{room_id}.
 # =====================================================================
+#
+# IMPORTANT: this server must be started with `--ws-ping-interval 0`.
+# Uvicorn's default 20s ping interval + 20s pong timeout silently kills
+# any WebSocket that doesn't answer a ping within 40s (e.g. a participant
+# who goes quiet for a moment, or scripted clients that read in bursts),
+# which manifests as sudden disconnects in the live courtroom. Disabling
+# pings keeps trial connections stable. See both READMEs for the command.
 
 COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
 
@@ -636,6 +644,7 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
         pass
     except Exception as e:
         print(f"Courtroom socket error: {e}")
+        traceback.print_exc()
     finally:
         # Clean up: remove the socket and (optionally) the participant.
         if bound_participant_id is not None:
@@ -645,11 +654,15 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
             # Notify the room of the departure + refreshed roster.
             room = courtroom_manager.get_room(room_id) if courtroom_manager else None
             if room is not None:
-                await _broadcast(sockets, {
-                    "type": "participant_left",
-                    "participant_id": bound_participant_id,
-                    "room": room.public_state(),
-                })
+                try:
+                    await _broadcast(sockets, {
+                        "type": "participant_left",
+                        "participant_id": bound_participant_id,
+                        "room": room.public_state(),
+                    })
+                except Exception as e:
+                    print(f"Courtroom finalize broadcast error: {e}")
+                    traceback.print_exc()
 
 
 async def _broadcast(sockets: dict, message: dict, exclude: str | None = None) -> None:

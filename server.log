@@ -1,0 +1,10 @@
+INFO:     Started server process [23052]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+Model data loaded successfully.
+INFO:     127.0.0.1:57473 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62651 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64762 - "GET /api/tree HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62651 - "GET /api/cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52703 - "GET / HTTP/1.1" 200 OK

@@ -92,6 +92,11 @@ The system includes a premium web interface built with FastAPI, D3.js, and Vanil
 ### Start the Dashboard Server:
 Run the following command from the workspace root:
 ```powershell
-python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000
+python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000 --ws-ping-interval 0
 ```
 Then, open your web browser and navigate to `http://127.0.0.1:8000`.
+
+> **Note:** `--ws-ping-interval 0` is **required** for the Live Courtroom feature.
+> Uvicorn's default 20s ping interval + 20s pong timeout silently closes WebSocket
+> connections that don't respond within 40s, which would drop courtroom participants.
+> `0` disables pings entirely.

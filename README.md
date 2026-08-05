@@ -11,8 +11,12 @@ To launch the system and inspect the court priority classifications:
 ### 1. Start the FastAPI Web Dashboard
 Run this command from the root directory:
 ```powershell
-python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000
+python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000 --ws-ping-interval 0
 ```
+> **Why `--ws-ping-interval 0`?** The Live Courtroom uses WebSockets. Uvicorn's default 20s
+> ping interval + 20s pong timeout silently kills any connection that doesn't answer a ping
+> within 40s — which drops courtroom participants that go quiet for a moment. `0` disables
+> pings so live-trial connections stay up.
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your web browser to explore:
 - **Interactive Case Board:** Filter and search cases processed from the Excel sheet.
 - **Dynamic Decision Tree Graph:** Inspect the global decision structure and highlight active decision paths in glowing neon.
