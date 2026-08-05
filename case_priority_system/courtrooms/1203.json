@@ -1,0 +1,70 @@
+{
+  "room_id": "1203",
+  "case_title": "Debug Repro Trial",
+  "created_at": "2026-08-05T11:46:07",
+  "created_by": "Debugger",
+  "phase": "Opening",
+  "participants": [
+    {
+      "participant_id": "p_24f3cf3b",
+      "name": "Justice Mehta",
+      "role": "Judge",
+      "joined_at": "2026-08-05T11:46:07"
+    },
+    {
+      "participant_id": "p_8fbb6071",
+      "name": "Adv. Priya Sharma",
+      "role": "Defence",
+      "joined_at": "2026-08-05T11:46:11"
+    },
+    {
+      "participant_id": "p_3ccff9d6",
+      "name": "Adv. Suresh Rao",
+      "role": "Prosecution",
+      "joined_at": "2026-08-05T11:46:19"
+    },
+    {
+      "participant_id": "p_d27d4e3d",
+      "name": "Ramu the Witness",
+      "role": "Witness",
+      "joined_at": "2026-08-05T11:46:31"
+    }
+  ],
+  "transcript": [
+    {
+      "timestamp": "2026-08-05T11:46:07",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'Debug Repro Trial' opened by Debugger."
+    },
+    {
+      "timestamp": "2026-08-05T11:46:07",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T11:46:11",
+      "actor": "Adv. Priya Sharma",
+      "role": "Defence Counsel",
+      "kind": "system",
+      "text": "Adv. Priya Sharma (Defence Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T11:46:19",
+      "actor": "Adv. Suresh Rao",
+      "role": "Prosecution Counsel",
+      "kind": "system",
+      "text": "Adv. Suresh Rao (Prosecution Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-05T11:46:31",
+      "actor": "Ramu the Witness",
+      "role": "Witness 1",
+      "kind": "system",
+      "text": "Ramu the Witness (Witness 1) joined the court."
+    }
+  ]
+}
