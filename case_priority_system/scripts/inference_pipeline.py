@@ -40,12 +40,9 @@ MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 DATA_DIR = '.'  # Root directory where PDFs are located
 OUTPUT_EXCEL = 'case_priority_system/case_results.xlsx'
 DECISION_GRAPH_DIR = 'case_priority_system/decision_graphs'
-API_KEY = os.getenv(
-    "NVIDIA_API_KEY",
-    "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"
-)
-API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-GEMMA_MODEL = "google/gemma-4-31b-it"
+# Local Ollama LLM configuration (override via env vars)
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-r1:8b")
 
 ALLOWED_FEATURES = {
     "crime_type": ["Violent", "Financial", "Property", "Non-Violent"],
@@ -208,7 +205,7 @@ def extract_text_from_pdf(pdf_path):
     return text
 
 def normalize_llm_data(raw_data):
-    """Normalizes Gemma output so the local priority model receives known labels."""
+    """Normalizes the LLM output so the local priority model receives known labels."""
     normalized = FEATURE_DEFAULTS.copy()
     if not isinstance(raw_data, dict):
         return normalized
@@ -236,8 +233,8 @@ def normalize_llm_data(raw_data):
     normalized["plain_summary"] = str(normalized.get("plain_summary", "")).strip() or FEATURE_DEFAULTS["plain_summary"]
     return normalized
 
-def parse_gemma_json(content):
-    """Parses Gemma JSON, repairing common malformed response fragments when possible."""
+def parse_llm_json(content):
+    """Parses LLM JSON, repairing common malformed response fragments when possible."""
     json_match = re.search(r'\{.*\}', content, re.DOTALL)
     json_text = json_match.group() if json_match else content
     json_text = json_text.strip()
@@ -259,7 +256,7 @@ def parse_gemma_json(content):
         except json.JSONDecodeError as e:
             last_error = e
 
-    raise last_error or ValueError("Gemma response did not contain valid JSON")
+    raise last_error or ValueError("LLM response did not contain valid JSON")
 
 def classify_legal_category(text, features=None):
     """Classifies the legal domain with keyword scores tuned for Indian case PDFs."""
@@ -300,7 +297,7 @@ def classify_legal_category(text, features=None):
     return "General Civil"
 
 def tune_case_features(features, text):
-    """Tunes Gemma's extracted labels into consistent legal categories for the report and model."""
+    """Tunes the LLM's extracted labels into consistent legal categories for the report and model."""
     tuned = normalize_llm_data(features)
     legal_category = classify_legal_category(text, tuned)
     tuned["case_category"] = legal_category
@@ -442,7 +439,7 @@ def fallback_extract_features(text, pdf_file):
         summary_text = (
             f"{main_parties or 'The parties'} are involved in this legal dispute. "
             f"The document appears to concern a {crime_type.lower()} matter with {severity.lower()} severity. "
-            "This summary was generated locally because the Gemma API response was unavailable."
+            "This summary was generated locally because the local LLM (Ollama) response was unavailable."
         )
 
     return normalize_llm_data({
@@ -455,109 +452,75 @@ def fallback_extract_features(text, pdf_file):
         "plain_summary": summary_text,
     })
 
-def call_gemma_api(text):
-    """Calls the Gemma LLM to extract structured features and a narrative summary.
+def call_ollama_api(text):
+    """Calls the locally installed Ollama LLM to extract structured features and a narrative summary.
 
-    Uses LangChain (langchain-nvidia-ai-endpoints) for superior prompt handling
-    and structured output parsing. Falls back to raw requests API if LangChain
-    is not available or fails.
+    Uses the Ollama summarizer module (langchain_summarizer.py) for the full
+    constitutional prompt and JSON repair. Falls back to a direct Ollama API
+    call if that module is unavailable.
     """
-    # Priority: Use LangChain for better context-aware legal summarization
     try:
-        from case_priority_system.scripts.langchain_summarizer import extract_with_langchain
+        from case_priority_system.scripts.langchain_summarizer import (
+            extract_with_ollama,
+            SYSTEM_PROMPT,
+            USER_PROMPT_TEMPLATE,
+        )
     except ImportError:
         try:
-            from langchain_summarizer import extract_with_langchain
+            from langchain_summarizer import (
+                extract_with_ollama,
+                SYSTEM_PROMPT,
+                USER_PROMPT_TEMPLATE,
+            )
         except ImportError:
-            extract_with_langchain = None
+            extract_with_ollama = None
+            SYSTEM_PROMPT = None
+            USER_PROMPT_TEMPLATE = None
 
-    if extract_with_langchain is not None:
+    if extract_with_ollama is not None:
         try:
-            result = extract_with_langchain(text)
+            result = extract_with_ollama(text)
             if result is not None:
-                print("LangChain extraction succeeded.")
+                print("Ollama extraction succeeded.")
                 return normalize_llm_data(result)
         except Exception as e:
-            print(f"LangChain extraction failed, falling back to direct API: {e}")
+            print(f"Ollama summarizer failed, falling back to direct API: {e}")
     else:
-        print("LangChain summarizer not available, using direct API call.")
+        print("Ollama summarizer not available, using direct API call.")
 
-    # Fallback: direct API call with raw requests
+    # Fallback: direct call to the local Ollama API
     if requests is None:
         print("LLM API Error: requests package is not installed.")
         return None
 
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    prompt = f"""
-    You are an expert constitutional legal analyst extracting facts for a court case triage pipeline.
-    You apply the Constitution of India as your primary analytical framework.
-    Analyze the following legal text and return ONLY valid JSON.
-
-    --- INDIAN CONSTITUTIONAL CONTEXT ---
-    Key constitutional provisions for your analysis:
-    - Article 14: Equality before law — relevant for power imbalance, discrimination, and procedural fairness
-    - Article 15: Non-discrimination — special protection for women, children, SC/ST, backward classes
-    - Article 19(1)(g): Right to practice any profession/trade/business — relevant for commercial disputes
-    - Article 21: Protection of life and personal liberty — THE MOST FUNDAMENTAL right. Includes right to live with dignity, health, speedy trial. Engaged in ALL violent/criminal cases and fatal/major injury cases.
-    - Articles 23 & 24: Prohibition of trafficking, forced labour, child labour
-    - Article 32/226: Constitutional remedies — writ jurisdiction of Supreme Court/High Courts
-    - Article 265: No tax without authority of law — relevant for all tax/excise/customs cases
-    - Article 300A: No deprivation of property without authority of law — relevant for property, land, insolvency, company winding-up
-    - Doctrine of Parens Patriae: State must protect those who cannot protect themselves
-    - Principle of Natural Justice: Right to be heard before adverse decision
-    --- END OF CONSTITUTIONAL CONTEXT ---
-
-    Legal Text:
-    {text[:12000]}
-
-    Return this exact JSON shape:
-    {{
-      "main_parties": "comma-separated names of people, companies, government bodies, or courts",
-      "case_category": "Excise/Tax | Customs/Import-Export | Company/Winding Up | Insolvency/Debt | Constitutional/Writ | Property/Land | Criminal/Violent | General Civil",
-      "crime_type": "Violent | Financial | Property | Non-Violent",
-      "severity": "Fatal | Major | Minor | No Injury",
-      "vulnerability": "High | Medium | Low",
-      "influence": "High | Low",
-      "plain_summary": "exactly 3 short sentences in simple language, naming the main parties and any constitutional articles engaged"
-    }}
-
-    Rules:
-    - Do not include priority, urgency, ranking, or recommendation fields.
-    - Use only the allowed label values shown above.
-    - For Central Excise Act, excise duty, tariff, GST, sales tax, income tax, refund, assessable value, pre-deposit, tax assessment, VAT, service tax, or cess cases, use case_category "Excise/Tax", crime_type "Non-Violent", and severity "No Injury".
-    - For DRI, customs, import, export, advance licence, bill of entry, shipping bill, seizure of imported goods, smuggling, confiscation, foreign trade, FEMA, or customs notification cases, use case_category "Customs/Import-Export", crime_type "Non-Violent", and severity "No Injury".
-    - For Companies Act, winding up, liquidation, NCLT, oppression, mismanagement, shareholders, directors, company management, merger, amalgamation, or company tribunal cases, use case_category "Company/Winding Up", crime_type "Non-Violent", and severity "No Injury".
-    - For insolvency, IBC, bankruptcy, unpaid debt, NPA, creditor, debtor, resolution professional, CIRP, DRT, SARFAESI, or adjudication as insolvent, use case_category "Insolvency/Debt" and crime_type "Financial".
-    - For land, property, eviction, tenancy, lease, mortgage, possession, title, or boundary disputes, use case_category "Property/Land" and crime_type "Property".
-    - For writ petitions under Article 226/227/32, habeas corpus, mandamus, certiorari, fundamental rights challenges, constitutional validity, or natural justice cases, use case_category "Constitutional/Writ".
-    - For murder, rape, assault, kidnapping, dacoity, robbery, homicide, dowry death, domestic violence, sexual assault, human trafficking, criminal intimidation, rioting, theft, or other IPC offenses, use case_category "Criminal/Violent" and crime_type "Violent".
-    - If the document is a civil/tax/company/government dispute without physical injury, use crime_type "Non-Violent" and severity "No Injury".
-    - Mark influence as "High" when a government department, large company, public authority, public sector unit, regulatory body, statutory authority, MNC, or institution is a major party.
-    - Mark vulnerability as "High" only when the text clearly involves minors, children, pregnant women, disabled persons, elderly persons, workers (including agricultural/daily-wage/domestic), tenants, scheduled castes/tribes, adivasis, dalits, backward classes, poor persons, homeless persons, refugees, migrants, orphans, sex workers, or victims of violence.
-    - For domestic violence, child abuse, sexual offenses, trafficking, or dowry death, always mark vulnerability as "High" and severity as appropriate (Major or Fatal).
-    - Mark severity as "Fatal" for murder, death, homicide, culpable homicide, or fatal injuries. Mark severity as "Major" for serious/grievous injuries, permanent disability, life-threatening conditions, or hospitalisation. Mark severity as "Minor" for simple injuries, hurt, or medical treatment needed. Otherwise use "No Injury".
-    """
+    if SYSTEM_PROMPT is None or USER_PROMPT_TEMPLATE is None:
+        print("Ollama prompts unavailable; cannot call direct API.")
+        return None
 
     payload = {
-        "model": GEMMA_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0,
-        "max_tokens": 900
+        "model": OLLAMA_MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": USER_PROMPT_TEMPLATE.format(text=text[:12000])},
+        ],
+        "stream": False,
+        "think": False,
+        "options": {"temperature": 0, "num_predict": 4096},
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        response = requests.post(f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload, timeout=300)
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"].strip()
-        return normalize_llm_data(parse_gemma_json(content))
+        data = response.json()
+        content = (data.get("message") or {}).get("content", "").strip()
+        if not content:
+            print("Ollama returned empty content.")
+            return None
+        return normalize_llm_data(parse_llm_json(content))
     except Exception as e:
-        print(f"LLM API Error with {GEMMA_MODEL}: {e}")
+        print(f"Ollama API Error with {OLLAMA_MODEL}: {e}")
         if "response" in locals() and getattr(response, "text", ""):
-            print(f"LLM API response: {response.text[:500]}")
+            print(f"Ollama API response: {response.text[:500]}")
 
     return None
 
@@ -1105,7 +1068,7 @@ def main():
         return
 
     pdf_files = [f for f in os.listdir(DATA_DIR) if f.lower().endswith('.pdf')]
-    print(f"Processing {len(pdf_files)} files using Gemma LLM and Decision Tree...")
+    print(f"Processing {len(pdf_files)} files using local Ollama LLM and Decision Tree...")
     
     results = []
     
@@ -1114,8 +1077,8 @@ def main():
             pdf_path = os.path.join(DATA_DIR, pdf_file)
             text = extract_text_from_pdf(pdf_path)
             
-            # 1. Extract high-quality features and summary using Gemma LLM.
-            llm_data = call_gemma_api(text)
+            # 1. Extract high-quality features and summary using the local Ollama LLM.
+            llm_data = call_ollama_api(text)
 
             if not llm_data:
                 print(f"Using local fallback extraction for {pdf_file}.")
@@ -1123,7 +1086,7 @@ def main():
 
             llm_data = tune_case_features(llm_data, text)
                 
-            # 2. Predict priority using the LOCAL model only. Gemma does not assign priority.
+            # 2. Predict priority using the LOCAL model only. The LLM does not assign priority.
             model_text = f"{llm_data.get('plain_summary', '')} {llm_data.get('main_parties', '')}"
             priority = predict_priority(model_data, llm_data, model_text)
             decision_graph_path, decision_path = build_decision_path_graph(

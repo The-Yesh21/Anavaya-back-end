@@ -8,3 +8,25 @@ INFO:     127.0.0.1:62651 - "GET / HTTP/1.1" 200 OK
 INFO:     127.0.0.1:64762 - "GET /api/tree HTTP/1.1" 200 OK
 INFO:     127.0.0.1:62651 - "GET /api/cases HTTP/1.1" 200 OK
 INFO:     127.0.0.1:52703 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52704 - "POST /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52705 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 52706) - "WebSocket /ws/court/FCD7" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:53270 - "GET /api/cases/State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF/decision-path HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:54426 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61296 - "GET /api/tree HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54426 - "GET /api/cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64823 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64823 - "GET /api/cases/Sample_Medium_Priority_FIR.pdf/decision-path HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64823 - "GET /api/cases/Sample_Medium_Priority_FIR.pdf/decision-path HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59247 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56179 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56179 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65390 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65390 - "GET /style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:49404 - "GET /app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:65390 - "GET /api/tree HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49404 - "GET /api/cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57025 - "GET /api/cases/State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF/decision-path HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54866 - "GET /api/court/rooms HTTP/1.1" 200 OK

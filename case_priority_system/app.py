@@ -159,7 +159,7 @@ async def upload_case(file: UploadFile = File(...)):
         try:
             from case_priority_system.scripts.inference_pipeline import (
                 extract_text_from_pdf,
-                call_gemma_api,
+                call_ollama_api,
                 fallback_extract_features,
                 tune_case_features,
                 predict_priority,
@@ -170,7 +170,7 @@ async def upload_case(file: UploadFile = File(...)):
         except ImportError:
             from scripts.inference_pipeline import (
                 extract_text_from_pdf,
-                call_gemma_api,
+                call_ollama_api,
                 fallback_extract_features,
                 tune_case_features,
                 predict_priority,
@@ -184,10 +184,10 @@ async def upload_case(file: UploadFile = File(...)):
         if not text.strip():
             raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
             
-        # 2. Extract features via Gemma (or fallback)
-        llm_data = call_gemma_api(text)
+        # 2. Extract features via the local Ollama LLM (or fallback)
+        llm_data = call_ollama_api(text)
         if not llm_data:
-            print("Gemma API unavailable or failed. Using fallback heuristics.")
+            print("Ollama LLM unavailable or failed. Using fallback heuristics.")
             llm_data = fallback_extract_features(text, filename)
             
         # 3. Tune features

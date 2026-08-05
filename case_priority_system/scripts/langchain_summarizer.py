@@ -1,17 +1,28 @@
 """
-LangChain-powered legal case summarizer and feature extractor.
+Ollama-powered legal case summarizer and feature extractor.
 
-Uses LangChain with NVIDIA NIM (Gemma) to produce structured case features
-and a high-quality legal summary in a single call, eliminating JSON parsing issues.
+Calls a locally installed Ollama model (default: deepseek-r1:8b) to produce
+structured case features and a high-quality legal summary in a single call,
+eliminating JSON parsing issues. No cloud API keys required — everything
+runs on your machine.
 """
 
 import os
+import re
+import json
 import logging
 from typing import Optional, Literal
 
 from pydantic import BaseModel, Field
 
+import requests
+
 logger = logging.getLogger(__name__)
+
+# ---------- Ollama configuration (override via env vars) ----------
+
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-r1:8b")
 
 # ---------- Pydantic model for structured output ----------
 
@@ -52,101 +63,48 @@ class CaseFeatures(BaseModel):
     )
 
 
-# ---------- LangChain extraction function ----------
+# ---------- Prompts (shared with the direct-API fallback) ----------
 
-def extract_with_langchain(
-    text: str,
-    model_name: str = "google/gemma-4-31b-it",
-    api_key: Optional[str] = None,
-    temperature: float = 0.0,
-    max_tokens: int = 1000,
-) -> Optional[dict]:
-    """
-    Extract structured case features and a legal summary using LangChain
-    with NVIDIA's Gemma model. Returns a dict or None on failure.
+SYSTEM_PROMPT = (
+    "You are an expert constitutional legal analyst for a court case triage system. "
+    "You apply the Constitution of India as your primary analytical framework. "
+    "Your task is to analyze legal documents and extract structured information, "
+    "identifying which constitutional rights are engaged. "
+    "Always respond with valid, complete JSON matching the requested schema exactly. "
+    "Do not include any text outside the JSON.\n\n"
+    "--- INDIAN CONSTITUTIONAL CONTEXT ---\n"
+    "Key constitutional provisions relevant to case analysis:\n\n"
+    "Article 14: Equality before law — The State shall not deny equality before the "
+    "law or equal protection of laws. Relevant for power imbalance cases, "
+    "discrimination claims, and procedural fairness.\n\n"
+    "Article 15: Prohibition of discrimination on grounds of religion, race, caste, "
+    "sex, or place of birth. Special provisions for women, children, SC/ST, and "
+    "backward classes.\n\n"
+    "Article 19(1)(g): Right to practice any profession or carry on any occupation, "
+    "trade, or business. Relevant for commercial, tax, and licensing disputes.\n\n"
+    "Article 21: Protection of life and personal liberty — No person shall be "
+    "deprived of life or personal liberty except according to procedure established "
+    "by law. This is the MOST FUNDAMENTAL right. Includes right to live with dignity, "
+    "right to health, right to a speedy trial, and right to safety. Engaged in ALL "
+    "violent/criminal cases, fatal/major injury cases, and illegal detention cases.\n\n"
+    "Articles 23 & 24: Prohibition of human trafficking, forced labour, and child "
+    "labour in hazardous industries. Critical for exploitation cases.\n\n"
+    "Article 32: Right to move the Supreme Court for enforcement of fundamental "
+    "rights (constitutional remedies).\n\n"
+    "Article 226: Power of High Courts to issue writs for enforcement of "
+    "fundamental rights and for any other purpose.\n\n"
+    "Article 265: No tax shall be levied or collected except by authority of law. "
+    "Relevant for all tax, excise, and customs cases.\n\n"
+    "Article 300A: No person shall be deprived of property save by authority of law. "
+    "Relevant for property, land, insolvency, and company winding-up cases.\n\n"
+    "Doctrine of Parens Patriae: The State has a duty to protect those who cannot "
+    "protect themselves (minors, disabled, elderly, vulnerable victims).\n\n"
+    "Principle of Natural Justice: Audi alteram partem (right to be heard) — no "
+    "one shall be condemned without a fair hearing.\n\n"
+    "--- END OF CONSTITUTIONAL CONTEXT ---"
+)
 
-    Args:
-        text: The full text extracted from the PDF/case document.
-        model_name: NVIDIA NIM model ID (default: google/gemma-4-31b-it).
-        api_key: NVIDIA API key. Falls back to NVIDIA_API_KEY env var.
-        temperature: LLM temperature (0 = deterministic).
-        max_tokens: Maximum tokens in the response.
-
-    Returns:
-        dict with keys: main_parties, case_category, crime_type, severity,
-        vulnerability, influence, plain_summary. Returns None if extraction fails.
-    """
-    DEFAULT_KEY = "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"
-    key = api_key or os.getenv("NVIDIA_API_KEY", DEFAULT_KEY)
-    if not key or key == DEFAULT_KEY:
-        logger.warning("Using hardcoded NVIDIA API key. Set NVIDIA_API_KEY env var for production.")
-
-    try:
-        from langchain_nvidia_ai_endpoints import ChatNVIDIA
-        from langchain_core.prompts import PromptTemplate
-        from langchain_core.messages import HumanMessage, SystemMessage
-    except ImportError:
-        logger.error("langchain-nvidia-ai-endpoints not installed. Run: pip install langchain-nvidia-ai-endpoints")
-        return None
-
-    # Truncate text to avoid token limits (Gemma-4-31b has ~128k context, but we keep it reasonable)
-    max_chars = 12000
-    truncated = text[:max_chars] if len(text) > max_chars else text
-
-    # Initialize the LangChain NVIDIA chat model
-    llm = ChatNVIDIA(
-        model=model_name,
-        api_key=key,
-        temperature=temperature,
-        max_completion_tokens=max_tokens,
-        timeout=90,
-    )
-
-    # Build the system prompt with detailed instructions INCLUDING Indian Constitution context
-    system_msg = SystemMessage(
-        content=(
-            "You are an expert constitutional legal analyst for a court case triage system. "
-            "You apply the Constitution of India as your primary analytical framework. "
-            "Your task is to analyze legal documents and extract structured information, "
-            "identifying which constitutional rights are engaged. "
-            "Always respond with valid, complete JSON matching the requested schema exactly. "
-            "Do not include any text outside the JSON.\n\n"
-            "--- INDIAN CONSTITUTIONAL CONTEXT ---\n"
-            "Key constitutional provisions relevant to case analysis:\n\n"
-            "Article 14: Equality before law — The State shall not deny equality before the "
-            "law or equal protection of laws. Relevant for power imbalance cases, "
-            "discrimination claims, and procedural fairness.\n\n"
-            "Article 15: Prohibition of discrimination on grounds of religion, race, caste, "
-            "sex, or place of birth. Special provisions for women, children, SC/ST, and "
-            "backward classes.\n\n"
-            "Article 19(1)(g): Right to practice any profession or carry on any occupation, "
-            "trade, or business. Relevant for commercial, tax, and licensing disputes.\n\n"
-            "Article 21: Protection of life and personal liberty — No person shall be "
-            "deprived of life or personal liberty except according to procedure established "
-            "by law. This is the MOST FUNDAMENTAL right. Includes right to live with dignity, "
-            "right to health, right to a speedy trial, and right to safety. Engaged in ALL "
-            "violent/criminal cases, fatal/major injury cases, and illegal detention cases.\n\n"
-            "Articles 23 & 24: Prohibition of human trafficking, forced labour, and child "
-            "labour in hazardous industries. Critical for exploitation cases.\n\n"
-            "Article 32: Right to move the Supreme Court for enforcement of fundamental "
-            "rights (constitutional remedies).\n\n"
-            "Article 226: Power of High Courts to issue writs for enforcement of "
-            "fundamental rights and for any other purpose.\n\n"
-            "Article 265: No tax shall be levied or collected except by authority of law. "
-            "Relevant for all tax, excise, and customs cases.\n\n"
-            "Article 300A: No person shall be deprived of property save by authority of law. "
-            "Relevant for property, land, insolvency, and company winding-up cases.\n\n"
-            "Doctrine of Parens Patriae: The State has a duty to protect those who cannot "
-            "protect themselves (minors, disabled, elderly, vulnerable victims).\n\n"
-            "Principle of Natural Justice: Audi alteram partem (right to be heard) — no "
-            "one shall be condemned without a fair hearing.\n\n"
-            "--- END OF CONSTITUTIONAL CONTEXT ---"
-        )
-    )
-
-    # Build the user prompt
-    user_prompt = PromptTemplate.from_template(
-        """Analyze the following legal case text and extract case features.
+USER_PROMPT_TEMPLATE = """Analyze the following legal case text and extract case features.
 
 LEGAL TEXT:
 {text}
@@ -184,53 +142,118 @@ Return ONLY valid JSON matching this schema:
   "plain_summary": "..."
 }}
 """
-    )
 
-    formatted_prompt = user_prompt.format(text=truncated)
+
+# ---------- JSON repair helpers ----------
+
+def _parse_json_content(content: str) -> dict:
+    """Extracts and repairs the JSON object embedded in the LLM response."""
+    json_match = re.search(r"\{.*\}", content, re.DOTALL)
+    if not json_match:
+        raise ValueError("No JSON found in LLM response.")
+
+    json_text = json_match.group()
+
+    # Handle duplicate keys (reasoning models sometimes duplicate a key)
+    seen = set()
+    lines = json_text.split("\n")
+    unique_lines = []
+    for line in lines:
+        key_m = re.match(r'\s*("[^"]+")\s*:', line)
+        if key_m and key_m.group(1) in seen:
+            continue
+        if key_m:
+            seen.add(key_m.group(1))
+        unique_lines.append(line)
+
+    return json.loads("\n".join(unique_lines))
+
+
+# ---------- Ollama extraction function ----------
+
+def extract_with_ollama(
+    text: str,
+    model_name: Optional[str] = None,
+    ollama_url: Optional[str] = None,
+    temperature: float = 0.0,
+    max_tokens: int = 4096,
+    timeout: int = 300,
+) -> Optional[dict]:
+    """
+    Extract structured case features and a legal summary using a local Ollama model.
+
+    Args:
+        text: The full text extracted from the PDF/case document.
+        model_name: Ollama model ID (default: OLLAMA_MODEL / deepseek-r1:8b).
+        ollama_url: Ollama server URL (default: OLLAMA_URL / http://localhost:11434).
+        temperature: LLM temperature (0 = deterministic).
+        max_tokens: Maximum tokens for the response. deepseek-r1 is a reasoning
+            model, so keep this generous — chain-of-thought consumes tokens
+            before the final JSON answer is produced.
+        timeout: Request timeout in seconds (local 8B models can be slow).
+
+    Returns:
+        dict with keys: main_parties, case_category, crime_type, severity,
+        vulnerability, influence, plain_summary. Returns None if extraction fails.
+    """
+    url = (ollama_url or OLLAMA_URL).rstrip("/")
+    model = model_name or OLLAMA_MODEL
+
+    if requests is None:
+        logger.error("requests package is not installed.")
+        return None
+
+    # Truncate text to keep prompt sizes reasonable for a local model
+    max_chars = 12000
+    truncated = text[:max_chars] if len(text) > max_chars else text
+
+    user_prompt = USER_PROMPT_TEMPLATE.format(text=truncated)
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ],
+        "stream": False,
+        # DeepSeek-R1 is a reasoning model. 'think': False asks Ollama to skip
+        # the chain-of-thought block when the model supports it, which speeds
+        # up extraction. It is ignored gracefully if unsupported.
+        "think": False,
+        "options": {
+            "temperature": temperature,
+            "num_predict": max_tokens,
+        },
+    }
 
     try:
-        # Try with_structured_output first (requires model support)
-        try:
-            structured_llm = llm.with_structured_output(CaseFeatures)
-            result = structured_llm.invoke([system_msg, HumanMessage(content=formatted_prompt)])
-            if isinstance(result, CaseFeatures):
-                logger.info("LangChain structured extraction succeeded.")
-                return result.model_dump()
-        except (NotImplementedError, AttributeError, TypeError) as e:
-            logger.warning(f"with_structured_output not supported, falling back to prompt: {e}")
+        response = requests.post(f"{url}/api/chat", json=payload, timeout=timeout)
+        response.raise_for_status()
+        data = response.json()
+        content = (data.get("message") or {}).get("content", "").strip()
 
-        # Fallback: use standard invoke and parse manually
-        response = llm.invoke([system_msg, HumanMessage(content=formatted_prompt)])
-        content = response.content.strip()
-
-        # Extract JSON from the response
-        import re, json
-        json_match = re.search(r"\{.*\}", content, re.DOTALL)
-        if not json_match:
-            logger.error("No JSON found in LangChain response.")
+        if not content:
+            logger.error("Ollama returned empty content. Is the server running?")
             return None
 
-        json_text = json_match.group()
+        parsed = _parse_json_content(content)
+        logger.info("Ollama extraction succeeded (JSON parsed).")
 
-        # Handle duplicate keys (Gemma sometimes duplicates a key)
-        seen = set()
-        lines = json_text.split("\n")
-        unique_lines = []
-        for line in lines:
-            key_m = re.match(r'\s*("[^"]+")\s*:', line)
-            if key_m and key_m.group(1) in seen:
-                continue
-            if key_m:
-                seen.add(key_m.group(1))
-            unique_lines.append(line)
-
-        parsed = json.loads("\n".join(unique_lines))
-        logger.info("LangChain extraction succeeded (manual JSON parse).")
-        return parsed
+        # Validate against the schema when every field is present
+        try:
+            features = CaseFeatures(**parsed)
+            return features.model_dump()
+        except Exception as e:
+            logger.warning(f"Ollama output failed schema validation ({e}); returning raw dict.")
+            return parsed
 
     except Exception as e:
-        logger.error(f"LangChain extraction failed: {e}")
+        logger.error(f"Ollama extraction failed: {e}")
         return None
+
+
+# Backward-compatible alias (the module was previously LangChain/NVIDIA-based)
+extract_with_langchain = extract_with_ollama
 
 
 # ---------- Standalone test ----------
@@ -247,7 +270,7 @@ if __name__ == "__main__":
         "compensation for losses."
     )
 
-    result = extract_with_langchain(sample_text)
+    result = extract_with_ollama(sample_text)
     if result:
         import json as j
         print("=== EXTRACTION RESULT ===")
