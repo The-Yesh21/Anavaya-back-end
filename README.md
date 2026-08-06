@@ -68,7 +68,7 @@ F:\major_project
 
 If you want to re-run parts of the pipeline:
 
-- **Re-run the PDF Triage Pipeline (queries Gemma + updates Excel/reports):**
+- **Re-run the PDF Triage Pipeline (queries local Ollama + updates Excel/reports):**
   ```powershell
   python case_priority_system/scripts/inference_pipeline.py
   ```

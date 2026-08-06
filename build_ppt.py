@@ -285,7 +285,7 @@ colw = Inches(5.9); colh = Inches(4.6); top = Inches(2.0)
 # left card (LLM)
 card(s, Inches(0.6), top, colw, colh, fill=NAVY_SOFT, line=GOLD, line_w=1.0)
 add_text(s, Inches(0.95), top+Inches(0.35), Inches(5), Inches(0.4),
-         "✦  LLM (Gemma)", size=16, color=GOLD_LIGHT, bold=True)
+         "✦  LLM (Ollama)", size=16, color=GOLD_LIGHT, bold=True)
 add_text(s, Inches(0.95), top+Inches(0.78), Inches(5.2), Inches(0.5),
          "Perception layer only", size=13, color=SLATE)
 add_bullets(s, Inches(0.95), top+Inches(1.45), Inches(5.2), Inches(3.0), [
@@ -325,7 +325,7 @@ dark_header(s, "Architecture", "End-to-End Pipeline")
 # pipeline row
 nodes = [
     ("PDF", "raw legal\ndocument", NAVY),
-    ("LLM\nGemma", "extract\nfeatures", RGBColor(0x2D,0x5A,0x8C)),
+    ("LLM\nOllama", "extract\nfeatures", RGBColor(0x2D,0x5A,0x8C)),
     ("Tune", "normalize\n+ rules", RGBColor(0x3A,0x7C,0xA5)),
     ("Decision\nTree", "assign\npriority", GOLD),
     ("Report", "Excel +\ngraph + MD", RGBColor(0x4E,0x9B,0x6E)),
@@ -393,7 +393,7 @@ algos = [
     ("3", "CART Decision Tree", "Supervised ML · PRIMARY", "scikit-learn DecisionTreeClassifier (Gini). Depth 8, balanced classes. The only priority decider.", GOLD),
     ("4", "Feedforward Neural Net", "Deep learning · OPTIONAL", "2-layer MLP (Linear→ReLU→Linear), Adam + CrossEntropy. Demo only — not in production.", RGBColor(0x8B,0x5C,0xA6)),
     ("5", "Rule-Based Heuristics", "Expert system", "Keyword scoring & policy rules for legal categorization, fallback extraction & labelling.", RGBColor(0x4E,0x9B,0x6E)),
-    ("6", "LLM Extraction", "Generative AI", "NVIDIA Gemma via LangChain. Extracts structured features + summary. Never decides priority.", RGBColor(0xC0,0x6C,0x4E)),
+    ("6", "LLM Extraction", "Generative AI", "Local Ollama (deepseek-r1:8b). Extracts structured features + summary. Never decides priority.", RGBColor(0xC0,0x6C,0x4E)),
 ]
 cw = Inches(4.0); ch = Inches(2.5); gap_x = Inches(0.13); gap_y = Inches(0.18)
 x0 = Inches(0.6); y0 = Inches(1.55)
@@ -498,9 +498,9 @@ card(s, Inches(6.95), Inches(1.55), Inches(5.8), Inches(5.1))
 add_text(s, Inches(7.25), Inches(1.8), Inches(5.2), Inches(0.4),
          "HOW IT'S DONE", size=12, color=GOLD, bold=True)
 stack = [
-    ("1", "LangChain + ChatNVIDIA", "with_structured_output() + Pydantic schema for clean JSON."),
+    ("1", "Ollama /api/chat", "Structured prompt + Pydantic schema for clean JSON."),
     ("2", "Pydantic CaseFeatures", "Constrained Literal types force valid label values."),
-    ("3", "Fallback: raw requests", "Direct NVIDIA API + JSON repair if LangChain unavailable."),
+    ("3", "Fallback: raw requests", "Direct Ollama API + JSON repair if summarizer module unavailable."),
     ("4", "tune_case_features()", "Keyword rules normalize & override LLM output to known labels."),
     ("5", "classify_legal_category()", "Weighted keyword scoring maps text → legal domain."),
 ]
@@ -536,7 +536,7 @@ rows_data = [
     ("Decision Tree Classifier", "Supervised ML · CART", "models/priority_classifier.pkl", "Yes", GREEN),
     ("Feedforward Neural Network", "Deep learning · 2-layer MLP", "models/priority_dl_model.pth", "No (demo)", RED_SOFT),
     ("TF-IDF Vectorizer", "Statistical NLP", "bundled in pickle", "Yes", GREEN),
-    ("LLM Feature Extractor", "Generative AI · Gemma", "external NVIDIA NIM API", "Yes", GREEN),
+    ("LLM Feature Extractor", "Generative AI · Ollama", "local Ollama API", "Yes", GREEN),
     ("Rule-Based Legal Engine", "Deterministic expert system", "constitutional_analysis.py", "Yes", GREEN),
 ]
 ry = ty + rh
@@ -726,7 +726,7 @@ dark_header(s, "Interface", "Tech Stack & Dashboard")
 groups = [
     ("Backend",   ["Python", "FastAPI", "Uvicorn"], RGBColor(0x2D,0x5A,0x8C)),
     ("ML / NLP",  ["scikit-learn", "PyTorch", "TF-IDF", "pandas"], GOLD),
-    ("LLM",       ["NVIDIA Gemma", "LangChain", "Pydantic"], RGBColor(0x8B,0x5C,0xA6)),
+    ("LLM",       ["Ollama", "deepseek-r1:8b", "Pydantic"], RGBColor(0x8B,0x5C,0xA6)),
     ("Frontend",  ["D3.js", "Vanilla CSS", "Glassmorphism"], RGBColor(0x4E,0x9B,0x6E)),
     ("Data / IO", ["openpyxl", "PyMuPDF / pypdf", "Graphviz DOT"], RGBColor(0xC0,0x6C,0x4E)),
 ]
@@ -781,7 +781,7 @@ add_text(s, Inches(0.9), Inches(1.5), Inches(11.5), Inches(0.9),
 add_rect(s, Inches(0.92), Inches(2.45), Inches(0.6), Pt(3), fill=GOLD)
 
 points = [
-    ("Hybrid by design.  ", "An LLM (Gemma) perceives facts; a Decision Tree decides priority."),
+    ("Hybrid by design.  ", "An LLM (Ollama) perceives facts; a Decision Tree decides priority."),
     ("Interpretable by construction.  ", "Every decision path is explicit and exportable."),
     ("Constitutional by grounding.  ", "Each priority is justified against the Constitution of India."),
     ("Advisory, never authoritative.  ", "Judicial sovereignty is preserved — the judge has the final word."),

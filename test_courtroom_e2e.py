@@ -25,19 +25,31 @@ def get(path):
     return json.loads(urllib.request.urlopen(BASE_HTTP + path).read())
 
 def send_and_collect(clients, sender_idx, mtype, text):
-    """Send a message from one client, collect transcript_entry broadcasts from all."""
+    """Send a message from one client, collect transcript_entry broadcasts from all.
+
+    Robust against closed sockets and non-JSON frames (which can happen when the
+    server closes a connection during the drain).
+    """
     clients[sender_idx]["ws"].send(
         json.dumps({"type": mtype, "text": text})
     )
-    time.sleep(0.25)
+    time.sleep(0.3)
     entries = []
     for c in clients:
         try:
             while True:
-                m = json.loads(c["ws"].recv())
+                raw = c["ws"].recv()
+                if not raw:  # connection closed
+                    break
+                try:
+                    m = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    continue
                 if m.get("type") == "transcript_entry":
                     entries.append(m["entry"]["text"])
         except websocket.WebSocketTimeoutException:
+            pass
+        except websocket.WebSocketConnectionClosedException:
             pass
     return entries
 

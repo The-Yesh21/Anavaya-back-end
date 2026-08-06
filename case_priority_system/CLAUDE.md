@@ -29,7 +29,7 @@ python case_priority_system/scripts/nlp_dl_model.py
 
 ## Dependencies
 
-No `requirements.txt` exists. Key packages: `pandas`, `numpy`, `scikit-learn`, `torch`, `PyMuPDF` (fitz) or `pypdf`, `requests`, `tqdm`, `openpyxl`. The inference pipeline requires an NVIDIA API key for the Gemma LLM (defaults to a hardcoded key if `NVIDIA_API_KEY` env var is not set).
+No `requirements.txt` exists. Key packages: `pandas`, `numpy`, `scikit-learn`, `torch`, `PyMuPDF` (fitz) or `pypdf`, `requests`, `tqdm`, `openpyxl`. The inference pipeline calls a locally installed Ollama server (default `http://localhost:11434`, model `deepseek-r1:8b`) for LLM feature extraction and summarization. Override with the `OLLAMA_URL` / `OLLAMA_MODEL` env vars.
 
 ## Architecture
 
@@ -39,18 +39,18 @@ No `requirements.txt` exists. Key packages: `pandas`, `numpy`, `scikit-learn`, `
 
 **Inference pipeline** (`scripts/inference_pipeline.py`):
 1. PDF text extraction via PyMuPDF or pypdf (first 6 pages)
-2. Feature extraction via NVIDIA Gemma API (`google/gemma-4-31b-it`) — returns structured JSON with parties, crime_type, severity, vulnerability, influence, and a 3-sentence summary
+2. Feature extraction via the local Ollama LLM (`deepseek-r1:8b`) — returns structured JSON with parties, crime_type, severity, vulnerability, influence, and a 3-sentence summary
 3. Fallback: `fallback_extract_features()` uses keyword matching when the LLM is unavailable
 4. `tune_case_features()` normalizes LLM output against allowed label sets and applies legal-domain keyword classification (`classify_legal_category()`) to map cases to 8 legal categories, then to 4 broad model categories via `LEGAL_TO_MODEL_CATEGORY`
 5. `predict_priority()` runs the local Decision Tree only — the LLM never decides priority
 6. Output: Excel report + per-case Markdown decision reports with Mermaid flowcharts + DOT files
 
-**Key architectural invariant:** The LLM (Gemma) only extracts factual features and summaries. The Decision Tree model alone assigns the final priority. This separation ensures priority decisions are deterministic and explainable.
+**Key architectural invariant:** The LLM (Ollama) only extracts factual features and summaries. The Decision Tree model alone assigns the final priority. This separation ensures priority decisions are deterministic and explainable.
 
 ## Data Flow
 
 ```
-PDF files (root dir) → extract_text_from_pdf() → call_gemma_api()
+PDF files (root dir) → extract_text_from_pdf() → call_ollama_api()
   → normalize_llm_data() → tune_case_features() → predict_priority()
   → get_constitutional_justification() → build_decision_path_graph()
   → case_results.xlsx + decision_graphs/*.md + decision_graphs/*.dot
@@ -61,7 +61,7 @@ PDF files (root dir) → extract_text_from_pdf() → call_gemma_api()
 | File | Purpose |
 |---|---|
 | `scripts/train_model.py` | Trains Decision Tree on synthetic + real PDF data; saves model, TF-IDF vectorizer, and LabelEncoders as a pickle bundle |
-| `scripts/inference_pipeline.py` | Main pipeline: PDF processing, Gemma API integration, feature tuning, priority prediction, report generation |
+| `scripts/inference_pipeline.py` | Main pipeline: PDF processing, Ollama integration, feature tuning, priority prediction, report generation |
 | `scripts/generate_data.py` | Creates synthetic training cases (1000 rows by default) with rule-based priority labels |
 | `scripts/nlp_dl_model.py` | Optional PyTorch classifier (not part of the main pipeline) |
 | `scripts/predict.py` | Standalone demo using the saved Decision Tree model |

@@ -47,9 +47,9 @@ The system includes an automated pipeline (`scripts/inference_pipeline.py`) to p
 
 ### Key Capabilities:
 - **Batch Processing:** Reads all PDF files from the root directory.
-- **Gemma-based Summarization:** Uses NVIDIA Integrate with `google/gemma-4-31b-it` to generate simple 3-sentence case summaries.
+- **Ollama-based Summarization:** Uses a locally installed Ollama model (`deepseek-r1:8b`) to generate simple 3-sentence case summaries — no cloud API keys required.
 - **Tuned Legal Categorization:** Classifies cases into legal domains such as `Excise/Tax`, `Customs/Import-Export`, `Company/Winding Up`, and `Insolvency/Debt`, then maps them to broad model categories.
-- **Gemma-based Feature Extraction:** Extracts parties, broad crime type, severity, vulnerability, and influence as normalized structured labels.
+- **Ollama-based Feature Extraction:** Extracts parties, broad crime type, severity, vulnerability, and influence as normalized structured labels.
 - **Local Priority Prediction:** Applies the trained Decision Tree model to assign the final priority level. The LLM does not decide the priority.
 - **Decision Path Reports:** Generates one polished Markdown report per case with a Mermaid flowchart, colored priority badge, animated step cards, and the exact Decision Tree conditions that led to the priority.
 - **Constitutional Justification:** Explains each priority using extracted factors, legal category, constitutional basis, and applied prioritization rules.
