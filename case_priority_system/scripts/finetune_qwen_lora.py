@@ -1,23 +1,20 @@
 import os
+import sys
 import pandas as pd
 import torch
 from datasets import Dataset
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, BitsAndBytesConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 
 # We'll use the base model corresponding to qwen2.5:3b
 MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 OUTPUT_DIR = "case_priority_system/models/qwen2.5-3b-legal-lora"
 
-import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 # Import our exact prompts so the fine-tuned model matches the pipeline exactly
-try:
-    from case_priority_system.scripts.langchain_summarizer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
-except ImportError:
-    from case_priority_system.scripts.langchain_summarizer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+from case_priority_system.scripts.langchain_summarizer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 
 def format_training_data(row):
     """
@@ -25,7 +22,7 @@ def format_training_data(row):
     We inject the system prompt, user prompt, and the expected JSON output.
     """
     text = str(row['description'])
-    
+
     # Expected output JSON matching what the pipeline expects
     expected_output = f"""{{
   "main_parties": "{row.get('main_parties', 'Unknown')}",
@@ -38,10 +35,14 @@ def format_training_data(row):
 }}"""
 
     user_msg = USER_PROMPT_TEMPLATE.format(text=text[:12000])
-    
-    # Qwen chat template approximation
-    chat_prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_msg}<|im_end|>\n<|im_start|>assistant\n{expected_output}<|im_end|>"
-    
+
+    # Qwen chat template
+    chat_prompt = (
+        f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
+        f"<|im_start|>user\n{user_msg}<|im_end|>\n"
+        f"<|im_start|>assistant\n{expected_output}<|im_end|>"
+    )
+
     return {"text": chat_prompt}
 
 def main():
@@ -49,11 +50,11 @@ def main():
     # Load synthetic and real cases
     df_real = pd.read_csv("case_priority_system/data/real_report_training_cases.csv")
     df_synth = pd.read_csv("case_priority_system/data/synthetic_cases.csv")
-    
+
     # Combine and drop NaNs in description
     df_combined = pd.concat([df_real, df_synth]).dropna(subset=['description'])
-    df_combined = df_combined.sample(frac=1).reset_index(drop=True) # Shuffle
-    
+    df_combined = df_combined.sample(frac=1).reset_index(drop=True)  # Shuffle
+
     # Take a subset if the dataset is too large for quick fine-tuning
     if len(df_combined) > 2000:
         print(f"Subsampling dataset from {len(df_combined)} to 2000 rows for faster training.")
@@ -67,22 +68,22 @@ def main():
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
     )
 
     print(f"Loading tokenizer and model {MODEL_ID}...")
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
-    
+
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
         quantization_config=bnb_config,
         device_map="auto",
-        trust_remote_code=True
+        trust_remote_code=True,
     )
-    
+
     model = prepare_model_for_kbit_training(model)
-    
+
     print("Applying LoRA configuration...")
     lora_config = LoraConfig(
         r=16,
@@ -90,17 +91,17 @@ def main():
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         lora_dropout=0.05,
         bias="none",
-        task_type="CAUSAL_LM"
+        task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
 
     print("Setting up Trainer...")
-    training_args = TrainingArguments(
+    training_args = SFTConfig(
         output_dir=OUTPUT_DIR,
         per_device_train_batch_size=1,
         gradient_accumulation_steps=4,
         warmup_steps=100,
-        max_steps=500, # Set to higher if you want a full epoch
+        max_steps=500,
         learning_rate=2e-4,
         fp16=not torch.cuda.is_bf16_supported(),
         bf16=torch.cuda.is_bf16_supported(),
@@ -108,25 +109,27 @@ def main():
         optim="adamw_8bit",
         save_strategy="steps",
         save_steps=100,
+        dataset_text_field="text",
+        max_seq_length=2048,
     )
 
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
         peft_config=lora_config,
-        dataset_text_field="text",
-        max_seq_length=2048, # Truncate to fit in 16GB RAM GPU
         tokenizer=tokenizer,
         args=training_args,
     )
 
     print("Starting fine-tuning...")
     trainer.train()
-    
+
     print(f"Saving final adapter to {OUTPUT_DIR}...")
     trainer.model.save_pretrained(OUTPUT_DIR)
     tokenizer.save_pretrained(OUTPUT_DIR)
-    print("Fine-tuning complete. To use in Ollama, you must merge this adapter with the base model and convert to GGUF using llama.cpp.")
+    print("Fine-tuning complete. To use in Ollama, you must merge this adapter "
+          "with the base model and convert to GGUF using llama.cpp.")
+
 
 if __name__ == "__main__":
     # Ensure dependencies are installed
@@ -135,7 +138,8 @@ if __name__ == "__main__":
         import trl
         import bitsandbytes
     except ImportError:
-        print("Please install required libraries: pip install torch transformers datasets peft trl bitsandbytes accelerate")
+        print("Please install required libraries: "
+              "pip install torch transformers datasets peft trl bitsandbytes accelerate")
         exit(1)
-        
+
     main()
