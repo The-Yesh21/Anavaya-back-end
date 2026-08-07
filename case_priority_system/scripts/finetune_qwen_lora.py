@@ -10,11 +10,14 @@ from trl import SFTTrainer
 MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 OUTPUT_DIR = "case_priority_system/models/qwen2.5-3b-legal-lora"
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 # Import our exact prompts so the fine-tuned model matches the pipeline exactly
 try:
     from case_priority_system.scripts.langchain_summarizer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 except ImportError:
-    from scripts.langchain_summarizer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+    from case_priority_system.scripts.langchain_summarizer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 
 def format_training_data(row):
     """
