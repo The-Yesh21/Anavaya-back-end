@@ -110,15 +110,15 @@ def main():
         save_strategy="steps",
         save_steps=100,
         dataset_text_field="text",
-        max_seq_length=2048,
     )
 
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
         peft_config=lora_config,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         args=training_args,
+        max_seq_length=2048,
     )
 
     print("Starting fine-tuning...")
