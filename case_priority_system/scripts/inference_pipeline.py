@@ -9,6 +9,8 @@ try:
 except ImportError:
     PdfReader = None
 import pandas as pd
+import subprocess
+
 import numpy as np
 import pickle
 import re
@@ -42,7 +44,14 @@ OUTPUT_EXCEL = 'case_priority_system/case_results.xlsx'
 DECISION_GRAPH_DIR = 'case_priority_system/decision_graphs'
 # Local Ollama LLM configuration (override via env vars)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-r1:8b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+
+# Ensure the required Ollama model is available
+try:
+    subprocess.run(["ollama", "list"], capture_output=True, check=True)
+except Exception:
+    # If ollama is not reachable or model list fails, attempt to pull the model
+    subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=False)
 
 ALLOWED_FEATURES = {
     "crime_type": ["Violent", "Financial", "Property", "Non-Violent"],
@@ -453,6 +462,12 @@ def fallback_extract_features(text, pdf_file):
     })
 
 def call_ollama_api(text):
+    # Ensure model is available before making request
+    try:
+        subprocess.run(["ollama", "list"], capture_output=True, check=True)
+    except Exception:
+        subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=False)
+
     """Calls the locally installed Ollama LLM to extract structured features and a narrative summary.
 
     Uses the Ollama summarizer module (langchain_summarizer.py) for the full
@@ -1130,10 +1145,33 @@ def main():
         except Exception as e:
             print(f"Error processing {pdf_file}: {e}")
         
-    df = pd.DataFrame(results)
-    df.to_excel(OUTPUT_EXCEL, index=False)
-    print(f"\nFinal prioritized list saved to {OUTPUT_EXCEL}")
-    print(df[['Main_Parties', 'Predicted_Priority']].to_string())
+    # ── Merge with preserved rows ─────────────────────────────────────
+    # Some previously-analyzed cases have no source PDF on disk anymore. To avoid
+    # silently dropping them when the pipeline re-runs over the current PDF set,
+    # we keep their existing Excel rows and only OVERWRITE rows for PDFs we just
+    # re-analyzed. (See PROJECT_CONTEXT.md §1 — nothing should be lost on re-run.)
+    new_files = {r['Case_File'] for r in results}
+    preserved_rows = []
+    if os.path.exists(OUTPUT_EXCEL):
+        try:
+            old_df = pd.read_excel(OUTPUT_EXCEL)
+            preserved_rows = [
+                row for _, row in old_df.iterrows()
+                if row.get('Case_File') not in new_files
+            ]
+            if preserved_rows:
+                print(f"\nPreserving {len(preserved_rows)} existing case(s) not re-analyzed "
+                      f"(no source PDF on disk): "
+                      f"{[r['Case_File'] for r in preserved_rows]}")
+        except Exception as e:
+            print(f"Could not read existing {OUTPUT_EXCEL} for merge ({e}); overwriting.")
+
+    final_df = pd.DataFrame(preserved_rows + results) if preserved_rows else pd.DataFrame(results)
+    final_df = final_df.reset_index(drop=True)
+    final_df.to_excel(OUTPUT_EXCEL, index=False)
+    print(f"\nFinal prioritized list saved to {OUTPUT_EXCEL} "
+          f"({len(final_df)} rows: {len(results)} re-analyzed + {len(preserved_rows)} preserved)")
+    print(final_df[['Main_Parties', 'Predicted_Priority']].to_string())
 
 if __name__ == "__main__":
     main()
