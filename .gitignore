@@ -1,0 +1,60 @@
+# ============================================================
+# Anavaya / Case Priority System — .gitignore
+# ============================================================
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.so
+
+# ---------- Virtual environments ----------
+.venv/
+venv/
+env/
+ENV/
+
+# ---------- Logs & runtime artifacts ----------
+*.log
+*.tmp
+*.swp
+_s3_*.log
+_server.log
+_stage2_*
+
+# ---------- Model artifacts (large binaries, retrainable) ----------
+# LoRA adapters + checkpoints contain optimizer states (61MB+ each)
+case_priority_system/models/qwen2.5-3b-legal-lora/
+case_priority_system/models/qwen2.5-3b-legal-lora-v2/
+case_priority_system/models/_backup/
+case_priority_system/models/*/checkpoint-*/
+# Keep the small runtime models (priority classifier + DL model) tracked:
+!case_priority_system/models/priority_classifier.pkl
+!case_priority_system/models/priority_dl_model.pth
+!case_priority_system/models/training_report.txt
+
+# ---------- Backups & generated data ----------
+*.backup.xlsx
+*.bak
+case_priority_system/case_results.backup.xlsx
+
+# ---------- Editor / OS ----------
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Misc stray files ----------
+0.46.1
+.zcode/
+
+# ---------- Env / secrets ----------
+.env
+.env.*
+!.env.example

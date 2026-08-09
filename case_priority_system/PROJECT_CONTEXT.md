@@ -65,6 +65,12 @@ inputs the downstream Decision Tree sees. **The quality of your extraction direc
 quality of the priority decision.** Mislabeling `severity` or `crime_type` propagates into a wrong
 priority for a real court case.
 
+**Classification reasoning:** the `plain_summary` must end with one sentence explaining *why* the
+case was placed in its `case_category` — citing the concrete facts (e.g., "the document mentions
+seizure of imported goods and a bill of entry, so this is a Customs/Import-Export matter"). The
+classification itself is always re-verified by the deterministic rule-based classifier downstream,
+so the reasoning makes the choice defensible without the LLM ever deciding priority.
+
 ## 4. The 8 legal categories (`case_category`)
 
 | Category | Use for |

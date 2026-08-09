@@ -92,13 +92,13 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>Fictional_Case_Report_Test.pdf</h2>
-  <p>This document is entirely fictional and intended only for testing a case priority system. Fictional Case Report (Testing Document) Fictional case is about a robbery in Riverside, California. The victim sustained severe head injuries and was transported to the hospital.</p>
+  <p>The parties, Fictional Case Report Test, are involved in a legal dispute. The document indicates assault, weapon, victim, robbery. This case is classified as Criminal/Violent because the record matches assault, weapon, victim, robbery. Under the Constitution of India, the primary rights engaged are Article 21, Article 22, Article 20.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>Major</strong></div>
-    <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
-    <div class="metric"><span>Influence</span><strong>High</strong></div>
+    <div class="metric"><span>Vulnerability</span><strong>High</strong></div>
+    <div class="metric"><span>Influence</span><strong>Low</strong></div>
   </div>
 </div>
 
@@ -107,7 +107,7 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
-  N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.1862<br/>Answer: No"]:::decision
+  N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.2503<br/>Answer: No"]:::decision
   N1["Final Priority: High<br/>430 training samples reached this leaf"]:::leaf
   N0 --> N1
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
@@ -122,7 +122,7 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Step 1: Victim</div>
     <div class="step-condition">Victim score <= 0.0258</div>
-    <div class="step-meta">Case value: <strong>0.1862</strong> | Result: <strong>No</strong></div>
+    <div class="step-meta">Case value: <strong>0.2503</strong> | Result: <strong>No</strong></div>
   </div>
 </div>
 <div class="step-card">
@@ -137,7 +137,7 @@ flowchart TD
 
 ## Decision Trace
 
-Node 0: Victim score <= 0.0258; case value = 0.1862; result = No -> Leaf node 12 => Predicted Priority = High
+Node 0: Victim score <= 0.0258; case value = 0.2503; result = No -> Leaf node 12 => Predicted Priority = High
 
 ## Raw Graph
 

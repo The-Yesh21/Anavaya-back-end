@@ -461,6 +461,93 @@ def fallback_extract_features(text, pdf_file):
         "plain_summary": summary_text,
     })
 
+def fast_extract_features(text, pdf_file):
+    """Instant, fully-deterministic rule-based feature extraction.
+
+    This is the fast path used by the web app so priority is returned in ~2s
+    without any LLM call. It mirrors `fallback_extract_features` but skips the
+    BART summarization model entirely and builds a template plain_summary that
+    still names the parties, the category, matched keywords, and the primary
+    constitutional articles (so the Decision Tree's TF-IDF text features stay
+    informative).
+    """
+    lowered = text.lower()
+    filename_parties = os.path.splitext(pdf_file)[0].replace("_", " ")
+    main_parties = re.sub(r"\s+on\s+\d+.*$", "", filename_parties, flags=re.IGNORECASE).strip()
+
+    legal_category = classify_legal_category(text, {"main_parties": main_parties})
+
+    if legal_category in LEGAL_TO_MODEL_CATEGORY:
+        crime_type = LEGAL_TO_MODEL_CATEGORY[legal_category]
+    else:
+        crime_type = "Non-Violent"
+
+    # Severity
+    fatal_terms = ["murder", "death", "killed", "fatal", "homicide", "assassination",
+                   "culpable homicide", "fatality", "deadly", "life lost", "deceased"]
+    major_terms = ["serious injury", "grievous", "hospital", "major", "critical",
+                   "severe", "life-threatening", "permanent", "disability", "maiming"]
+    if any(t in lowered for t in fatal_terms):
+        severity = "Fatal"
+    elif any(t in lowered for t in major_terms):
+        severity = "Major"
+    elif "injury" in lowered or "harm" in lowered:
+        severity = "Minor"
+    else:
+        severity = "No Injury"
+
+    # Vulnerability + influence
+    vulnerable_terms = ["minor", "child", "widow", "elderly", "disabled", "worker", "labour", "poor",
+                        "tenant", "pregnant", "homeless", "refugee", "marginalized", "backward",
+                        "scheduled caste", "scheduled tribe", "adivasi", "dalit", "tribal", "orphan",
+                        "senior citizen", "economically weaker", "pensioner", "daily wage", "migrant",
+                        "agricultural labour", "landless", "domestic worker", "sex worker", "victim",
+                        "rape", "sexual assault", "molest", "assaulted"]
+    influence_terms = ["union of india", "state of", "government", "collector", "assistant director",
+                       "assistant collector", "authority", "commissioner", "department", "tribunal",
+                       "central government", "state government", "regulatory", "board", "central bank",
+                       "rbi", "sebi", "income tax department", "municipal", "psu", "public sector",
+                       "limited", "ltd", "corporation"]
+    vulnerability = "High" if any(t in lowered or t in main_parties.lower() for t in vulnerable_terms) else "Low"
+    influence = "High" if any(t in lowered or t in main_parties.lower() for t in influence_terms) else "Low"
+
+    # Enforce high severity/vulnerability for severe crimes (matches tune_case_features)
+    if any(kw in lowered for kw in ['rape', 'sexual assault', 'molest']):
+        crime_type = "Violent"
+        severity = "Major"
+        vulnerability = "High"
+
+    # Template summary naming parties, category, keywords + constitutional articles
+    matched = [kw for kw in LEGAL_CATEGORIES.get(legal_category, []) if kw in lowered][:5]
+    kw_phrase = ", ".join(matched) if matched else "the facts of the dispute"
+    try:
+        from case_priority_system.scripts.constitutional_analysis import (
+            CATEGORY_CONSTITUTIONAL_MAP,
+        )
+    except ImportError:
+        from constitutional_analysis import CATEGORY_CONSTITUTIONAL_MAP  # type: ignore
+    articles = ", ".join(
+        CATEGORY_CONSTITUTIONAL_MAP.get(legal_category, {})
+        .get("primary_articles", ["Article 14"])
+    )
+    plain_summary = (
+        f"The parties, {main_parties or 'unknown'}, are involved in a legal dispute. "
+        f"The document indicates {kw_phrase}. This case is classified as {legal_category} "
+        f"because the record matches {kw_phrase}. Under the Constitution of India, the "
+        f"primary rights engaged are {articles}."
+    )
+
+    return normalize_llm_data({
+        "main_parties": main_parties or "Unknown",
+        "crime_type": crime_type,
+        "case_category": legal_category,
+        "severity": severity,
+        "vulnerability": vulnerability,
+        "influence": influence,
+        "plain_summary": plain_summary,
+    })
+
+
 def call_ollama_api(text):
     # Ensure model is available before making request
     try:
@@ -520,7 +607,7 @@ def call_ollama_api(text):
         ],
         "stream": False,
         "think": False,
-        "options": {"temperature": 0, "num_predict": 4096},
+        "options": {"temperature": 0, "num_predict": 4096, "seed": 42},
     }
 
     try:

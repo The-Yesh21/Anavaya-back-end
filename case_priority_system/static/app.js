@@ -72,6 +72,16 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // Escape user-derived strings before injecting into innerHTML (XSS guard)
+    function escHtml(str) {
+        return String(str == null ? "" : str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     // Fetch and Initialize App Data
     async function init() {
         try {
@@ -107,6 +117,19 @@ document.addEventListener("DOMContentLoaded", () => {
             casesListContainer.innerHTML = `<div class="loader" style="color: #A85448">Error loading cases. Make sure the backend is running.</div>`;
             throw err;
         }
+    }
+
+    // Download the generated PDF report for the selected case
+    const downloadReportBtn = document.getElementById("download-report-btn");
+    if (downloadReportBtn) {
+        downloadReportBtn.addEventListener("click", (e) => {
+            if (!selectedCase) {
+                e.preventDefault();
+                return;
+            }
+            // Allow the browser to download; href is set on selection.
+            window.setTimeout(() => lucide.createIcons(), 0);
+        });
     }
 
     async function fetchTree() {
@@ -161,29 +184,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
         casesListContainer.innerHTML = "";
         if (filtered.length === 0) {
-            casesListContainer.innerHTML = `<div class="loader">No matching cases.</div>`;
+            casesListContainer.innerHTML = `<div class="empty-cases">
+                <i data-lucide="scale" style="width:28px;height:28px;color:#9AA3B2;"></i>
+                <p>No cases yet. Upload a case PDF above to get an instant priority and report.</p>
+            </div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
         }
 
         filtered.forEach(c => {
-            const cleanTitle = c.Case_File.replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+            const cleanTitle = (c.Case_File || "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
             const item = document.createElement("div");
             item.className = `case-item ${selectedCase && selectedCase.Case_File === c.Case_File ? "active" : ""}`;
-            item.setAttribute("data-case-file", c.Case_File);
+            item.setAttribute("data-case-file", c.Case_File || "");
             item.innerHTML = `
                 <div class="case-item-align">
                     <span class="dot-red"></span>
                     <span class="dot-yellow"></span>
                     <span class="dot-green"></span>
                 </div>
-                <div class="case-item-title">${cleanTitle || "Unknown Case"}</div>
+                <div class="case-item-title">${escHtml(cleanTitle) || "Unknown Case"}</div>
                 <div class="case-item-details-expanded">
-                    <div class="case-item-desc">${c.Main_Parties || "Unknown Parties"}</div>
+                    <div class="case-item-desc">${escHtml(c.Main_Parties) || "Unknown Parties"}</div>
                     <div class="case-item-meta">
-                        <span class="badge-priority ${c.Predicted_Priority.toLowerCase()}">${c.Predicted_Priority}</span>
-                        <span class="case-item-category">${c.Category || "General Civil"}</span>
+                        <span class="badge-priority ${String(c.Predicted_Priority || "medium").toLowerCase()}">${escHtml(c.Predicted_Priority)}</span>
+                        <span class="case-item-category">${escHtml(c.Category) || "General Civil"}</span>
                     </div>
-                    <div class="case-item-summary-preview">${c.Plain_Language_Summary || "No summary available."}</div>
+                    <div class="case-item-summary-preview">${escHtml(c.Plain_Language_Summary) || "No summary available."}</div>
                 </div>
             `;
             item.addEventListener("click", () => selectCase(c));
@@ -278,9 +305,17 @@ document.addEventListener("DOMContentLoaded", () => {
         caseDetailsContentEl.style.display = "flex";
 
         // Set Details Values
-        document.getElementById("case-title-name").textContent = c.Case_File.replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
-        document.getElementById("case-parties").innerHTML = `<strong>Parties:</strong> ${c.Main_Parties || "Unknown"}`;
+        document.getElementById("case-title-name").textContent = (c.Case_File || "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+        document.getElementById("case-parties").innerHTML = `<strong>Parties:</strong> ${escHtml(c.Main_Parties) || "Unknown"}`;
         document.getElementById("case-summary").textContent = c.Plain_Language_Summary || "Summary unavailable.";
+        
+        // Enable PDF report download link
+        const reportBtn = document.getElementById("download-report-btn");
+        if (reportBtn) {
+            const encoded = encodeURIComponent(c.Case_File);
+            reportBtn.href = `/api/cases/${encoded}/report.pdf`;
+            reportBtn.style.display = "inline-flex";
+        }
         
         // Enhanced Constitutional Analysis
         // 1. Constitutional Rights Engaged
@@ -293,8 +328,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 rightsHtml += `
                     <div class="rights-card ${primaryClass}">
                         <div class="rights-article-tag">${tagText}</div>
-                        <strong class="rights-article">${right.article}</strong>
-                        <span class="rights-title">${right.title}</span>
+                        <strong class="rights-article">${escHtml(right.article)}</strong>
+                        <span class="rights-title">${escHtml(right.title)}</span>
                     </div>
                 `;
             });
@@ -330,9 +365,9 @@ document.addEventListener("DOMContentLoaded", () => {
             c.Applicable_Doctrines.forEach(doc => {
                 doctrinesHtml += `
                     <div class="doctrine-card">
-                        <strong class="doctrine-name">${doc.name}</strong>
-                        <p class="doctrine-desc">${doc.description}</p>
-                        <p class="doctrine-app"><strong>Application:</strong> ${doc.application}</p>
+                        <strong class="doctrine-name">${escHtml(doc.name)}</strong>
+                        <p class="doctrine-desc">${escHtml(doc.description)}</p>
+                        <p class="doctrine-app"><strong>Application:</strong> ${escHtml(doc.application)}</p>
                     </div>
                 `;
             });

@@ -104,6 +104,7 @@
                             <i data-lucide="upload"></i> Upload Case PDF
                         </label>
                         <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
+                        <p class="upload-hint">Upload a case file — priority is computed instantly and a full PDF report is generated.</p>
                     </div>
                 </div>
                 <div class="cases-list" id="cases-list-container">
@@ -138,6 +139,11 @@
                                 </div>
                                 <h2 id="case-title-name">Case File Name</h2>
                                 <p id="case-parties" class="parties-list"><strong>Parties:</strong> unknown</p>
+                                <div class="report-actions">
+                                    <a id="download-report-btn" class="report-download-btn" href="#" download style="display: none;">
+                                        <i data-lucide="file-down"></i> Download PDF Report
+                                    </a>
+                                </div>
                             </div>
 
                             <div class="detail-section">
@@ -366,7 +372,7 @@
                 <div class="book__pg book__pg--5"></div>
             </div>
             <h3 id="overlay-status-title">Analyzing Case Document...</h3>
-            <p id="overlay-status-desc">Reading PDF contents and running machine learning triage rules.</p>
+            <p id="overlay-status-desc">Reading PDF contents, computing priority, and generating the legal report.</p>
         </div>
     </div>
     <script src="app.js"></script>

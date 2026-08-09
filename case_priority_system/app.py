@@ -14,6 +14,11 @@ from fastapi.staticfiles import StaticFiles
 EXCEL_PATH = 'case_priority_system/case_results.xlsx'
 MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 STATIC_DIR = 'case_priority_system/static'
+REPORTS_DIR = 'case_priority_system/reports'
+
+# Fast path: use the deterministic rule-based extractor (no LLM) so uploads
+# return priority in ~2s. Set ANAVAYA_USE_LLM=1 to go back to Ollama extraction.
+USE_LLM_EXTRACTION = os.getenv("ANAVAYA_USE_LLM", "0") == "1"
 
 app = FastAPI(title="Anavaya Judicial Case Priority Dashboard API")
 
@@ -133,6 +138,22 @@ def serialize_tree_node(clf, encoders, feature_names, node_id=0):
             ]
         }
 
+def _parse_list_cell(value):
+    """Excel round-trips Python lists as string reprs; parse them back to lists."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            return json.loads(value)
+        except Exception:
+            try:
+                import ast
+                return ast.literal_eval(value)
+            except Exception:
+                return []
+    return []
+
+
 def safe_transform_encoder(encoders, key, value, default=0):
     encoder = encoders.get(key)
     if encoder is None:
@@ -146,7 +167,11 @@ async def upload_case(file: UploadFile = File(...)):
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
     
-    filename = file.filename
+    # Validate the filename BEFORE touching the filesystem (path traversal /
+    # script-injection guard). os.path.basename blocks directory escape.
+    filename = os.path.basename(file.filename or "upload.pdf")
+    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", filename, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf only.")
     temp_pdf_path = os.path.join(".", filename)
     
     try:
@@ -159,6 +184,7 @@ async def upload_case(file: UploadFile = File(...)):
         try:
             from case_priority_system.scripts.inference_pipeline import (
                 extract_text_from_pdf,
+                fast_extract_features,
                 call_ollama_api,
                 fallback_extract_features,
                 tune_case_features,
@@ -170,6 +196,7 @@ async def upload_case(file: UploadFile = File(...)):
         except ImportError:
             from scripts.inference_pipeline import (
                 extract_text_from_pdf,
+                fast_extract_features,
                 call_ollama_api,
                 fallback_extract_features,
                 tune_case_features,
@@ -183,12 +210,16 @@ async def upload_case(file: UploadFile = File(...)):
         text = extract_text_from_pdf(temp_pdf_path)
         if not text.strip():
             raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
-            
-        # 2. Extract features via the local Ollama LLM (or fallback)
-        llm_data = call_ollama_api(text)
-        if not llm_data:
-            print("Ollama LLM unavailable or failed. Using fallback heuristics.")
-            llm_data = fallback_extract_features(text, filename)
+
+        # 2. Extract features. Default = instant deterministic rules (~2s total).
+        # Optional ANAVAYA_USE_LLM=1 uses the Ollama model for richer summaries.
+        if USE_LLM_EXTRACTION:
+            llm_data = call_ollama_api(text)
+            if not llm_data:
+                print("Ollama LLM unavailable or failed. Using fast rule-based extraction.")
+                llm_data = fast_extract_features(text, filename)
+        else:
+            llm_data = fast_extract_features(text, filename)
             
         # 3. Tune features
         llm_data = tune_case_features(llm_data, text)
@@ -221,6 +252,15 @@ async def upload_case(file: UploadFile = File(...)):
             constitutional_rights = []
             state_duty = ""
             applicable_doctrines = []
+            constitutional_analysis = {
+                "constitutional_rights_engaged": [],
+                "state_duty_analysis": state_duty,
+                "priority_rules_detailed": rules_applied,
+                "state_perspective_opinion": justification,
+                "applicable_doctrines": [],
+                "balancing_analysis": "",
+                "priority_rationale": "",
+            }
         
         # 7. Create new case record with enhanced constitutional analysis
         new_case = {
@@ -241,7 +281,19 @@ async def upload_case(file: UploadFile = File(...)):
             'Rights_Balancing_Analysis': balancing_analysis,
             'Constitutional_Rights_Engaged': constitutional_rights,
             'Applicable_Doctrines': applicable_doctrines,
+            'Report_PDF': '',
         }
+
+        # 7b. Generate the PDF report (fast, no LLM) so the user gets it immediately
+        try:
+            from case_priority_system.scripts.generate_case_report import save_case_report
+            report_pdf = save_case_report(
+                filename, llm_data, priority, constitutional_analysis
+            )
+            new_case['Report_PDF'] = report_pdf
+        except Exception as e:
+            print(f"PDF report generation failed (non-fatal): {e}")
+            new_case['Report_PDF'] = ''
         
         # 8. Append to EXCEL_PATH
         if os.path.exists(EXCEL_PATH):
@@ -254,7 +306,14 @@ async def upload_case(file: UploadFile = File(...)):
         new_row_df = pd.DataFrame([new_case])
         excel_df = pd.concat([excel_df, new_row_df], ignore_index=True)
         excel_df.to_excel(EXCEL_PATH, index=False)
-        
+
+        # Clean up the uploaded temp file (keep the repo root tidy)
+        if os.path.exists(temp_pdf_path):
+            try:
+                os.remove(temp_pdf_path)
+            except Exception:
+                pass
+
         return new_case
         
     except Exception as e:
@@ -264,6 +323,55 @@ async def upload_case(file: UploadFile = File(...)):
             except Exception:
                 pass
         raise HTTPException(status_code=500, detail=f"Error analyzing case document: {str(e)}")
+
+@app.get("/api/cases/{case_file}/report.pdf")
+def get_case_report_pdf(case_file: str):
+    """Serve the generated PDF report for a case (generate on demand if missing)."""
+    case_file = os.path.basename(case_file)  # block path traversal
+    if not case_file.lower().endswith(".pdf"):
+        case_file = f"{case_file}.pdf"
+    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", case_file, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid case file name.")
+    base_name = os.path.splitext(case_file)[0]
+    report_path = os.path.join(REPORTS_DIR, f"{base_name}_report.pdf")
+
+    if not os.path.exists(report_path):
+        # Rebuild from stored case data if the PDF is missing
+        try:
+            df = pd.read_excel(EXCEL_PATH)
+            rows = df[df['Case_File'] == case_file]
+            if rows.empty:
+                raise HTTPException(status_code=404, detail="Case not found.")
+            row = rows.iloc[0]
+            features = {
+                'main_parties': row.get('Main_Parties', 'Unknown'),
+                'case_category': row.get('Category', 'General Civil'),
+                'crime_type': row.get('Broad_Model_Category', 'Non-Violent'),
+                'severity': row.get('Severity', 'No Injury'),
+                'vulnerability': row.get('Vulnerability', 'Low'),
+                'influence': row.get('Influence', 'Low'),
+                'plain_summary': row.get('Plain_Language_Summary', ''),
+            }
+            priority = str(row.get('Predicted_Priority', 'Medium'))
+            analysis = {
+                'constitutional_rights_engaged': _parse_list_cell(row.get('Constitutional_Rights_Engaged', [])),
+                'state_duty_analysis': row.get('State_Duty_Analysis', ''),
+                'priority_rules_detailed': row.get('Priority_Rules_Applied', ''),
+                'state_perspective_opinion': row.get('Constitutional_Justification', ''),
+                'applicable_doctrines': _parse_list_cell(row.get('Applicable_Doctrines', [])),
+                'balancing_analysis': row.get('Rights_Balancing_Analysis', ''),
+                'priority_rationale': '',
+            }
+            from case_priority_system.scripts.generate_case_report import save_case_report
+            report_path = save_case_report(case_file, features, priority, analysis)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Could not generate report: {str(e)}")
+
+    return FileResponse(report_path, media_type="application/pdf",
+                        filename=os.path.basename(report_path))
+
 
 @app.get("/api/cases")
 def get_cases():

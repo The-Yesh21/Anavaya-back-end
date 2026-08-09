@@ -123,6 +123,17 @@ SYSTEM_PROMPT = (
     "Doctrine of Parens Patriae: the State protects those who cannot protect "
     "themselves (minors, disabled, elderly, vulnerable victims).\n\n"
     "Principle of Natural Justice: Audi alteram partem — no one condemned unheard.\n\n"
+    "--- CLASSIFICATION REASONING (CRITICAL) ---\n"
+    "Your case_category choice must be defensible. In plain_summary, after the "
+    "plain-language description, add ONE sentence explaining WHY the case falls "
+    "in the chosen case_category — cite the concrete facts from the legal text "
+    "(e.g., mention of customs duty, seizure or import/export → Customs/Import-Export; "
+    "excise duty or assessment → Excise/Tax; violence, weapons or assault → "
+    "Criminal/Violent; writ petition, Article 226 or fundamental rights → "
+    "Constitutional/Writ; eviction, tenancy or possession → Property/Land; "
+    "winding up, oppression or liquidation → Company/Winding Up; insolvency, "
+    "debt recovery or creditor → Insolvency/Debt; contract, consumer or family "
+    "dispute → General Civil).\n\n"
     "--- OUTPUT CONTRACT (CRITICAL) ---\n"
     "Return ONLY one valid JSON object matching the requested schema. No prose, no "
     "markdown fences, nothing before or after the JSON. The parser takes the first "
@@ -157,6 +168,8 @@ RULES FOR EACH FIELD:
 - plain_summary: Write a 3-4 sentence clear plain-language summary naming the parties, the dispute,
   any constitutional/legal questions, and what relief is sought. Where relevant, mention which
   constitutional articles (e.g., Article 21 for life/liberty, Article 14 for equality) are engaged.
+  End with ONE sentence explaining why the case falls in the chosen case_category, citing the
+  specific facts from the legal text that support the classification.
 
 Return ONLY valid JSON matching this schema:
 {{
@@ -205,6 +218,7 @@ def extract_with_ollama(
     temperature: float = 0.0,
     max_tokens: int = 4096,
     timeout: int = 300,
+    seed: int = 42,
 ) -> Optional[dict]:
     """
     Extract structured case features and a legal summary using a local Ollama model.
@@ -218,6 +232,8 @@ def extract_with_ollama(
             model, so keep this generous — chain-of-thought consumes tokens
             before the final JSON answer is produced.
         timeout: Request timeout in seconds (local 8B models can be slow).
+        seed: Fixed sampling seed so extraction is reproducible across runs
+            (set to None for random sampling).
 
     Returns:
         dict with keys: main_parties, case_category, crime_type, severity,
@@ -250,6 +266,7 @@ def extract_with_ollama(
         "options": {
             "temperature": temperature,
             "num_predict": max_tokens,
+            "seed": seed,
         },
     }
 

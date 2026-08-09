@@ -2,7 +2,7 @@ digraph DecisionPath {
   rankdir=TB;
   node [shape=box, style="rounded,filled", fillcolor="#F7FBFF", color="#4B5563", fontname="Arial"];
   edge [color="#6B7280", fontname="Arial"];
-  n0 [label="Node 0\nVictim score <= 0.0258\nCase value: 0.1862\nDecision: No"];
+  n0 [label="Node 0\nVictim score <= 0.0258\nCase value: 0.2503\nDecision: No"];
   n12 [label="Leaf node 12\nPredicted priority: High\nSamples: 430"];
   n0 -> n12 [label="step 1"];
 }

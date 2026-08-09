@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Cipla_Limited_vs_Union_Of_India_on_1_January_1800.PDF</h2>
-  <p>Cipla Limited vs Union Of India on 1 January, 1800. Equivalent citations: 1990(25)ECC444, 1990(46)ELT240(KAR)ORDER: Cipla Ltd vs Union of India. The petitioner-company is a manufacturer of patent or proprietary medicines.</p>
+  <p>The parties, Cipla Limited vs Union Of India, are involved in a legal dispute. The document indicates central excise, excise duty, collector of central excise, classification list, elt. This case is classified as Excise/Tax because the record matches central excise, excise duty, collector of central excise, classification list, elt. Under the Constitution of India, the primary rights engaged are Article 265, Article 14, Article 19(1)(g).</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>

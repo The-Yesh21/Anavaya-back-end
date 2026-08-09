@@ -92,10 +92,10 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Sample_Medium_Priority_FIR.pdf</h2>
-  <p>A parked motorcycle was broken into. A backpack containing personal documents, a laptop, and accessories was stolen. Two nearby shopkeepers observed a suspicious individual leaving the area. CCTV footage from nearby stores may contain relevant footage. No physical injuries were reported.</p>
+  <p>The parties, Sample Medium Priority FIR, are involved in a legal dispute. The document indicates property, charge. This case is classified as Property/Land because the record matches property, charge. Under the Constitution of India, the primary rights engaged are Article 300A, Article 14, Article 21.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Property/Land</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Property</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>

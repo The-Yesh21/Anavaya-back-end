@@ -128,6 +128,325 @@ CONSTITUTIONAL_ARTICLES = {
             "Right not to be dispossessed without legal authority",
         ],
     },
+    "Article 16": {
+        "title": "Equality of Opportunity in Matters of Public Employment",
+        "text": "There shall be equality of opportunity for all citizens in matters relating to employment or appointment to any office under the State. No citizen shall be discriminated against on grounds only of religion, race, caste, sex, descent, place of birth, or residence.",
+        "type": "fundamental_right",
+        "category": "equality",
+        "key_principles": [
+            "Equal opportunity in public employment",
+            "No discrimination in State service",
+            "Reservations for backward classes under clause (4)",
+        ],
+    },
+    "Article 17": {
+        "title": "Abolition of Untouchability",
+        "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+        "type": "fundamental_right",
+        "category": "equality",
+        "key_principles": [
+            "Abolition of untouchability",
+            "Enforcement of disabilities is an offence",
+            "Protection of SC/ST communities",
+        ],
+    },
+    "Article 18": {
+        "title": "Abolition of Titles",
+        "text": "No title, not being a military or academic distinction, shall be conferred by the State. No citizen of India shall accept any title from any foreign State.",
+        "type": "fundamental_right",
+        "category": "equality",
+        "key_principles": [
+            "No titles except military/academic",
+            "No acceptance of foreign titles by citizens",
+        ],
+    },
+    "Article 19(1)(g)": {
+        "title": "Right to Practise Any Profession or Carry On Occupation, Trade or Business",
+        "text": "All citizens shall have the right to practise any profession, or to carry on any occupation, trade or business, subject to reasonable restrictions in the interests of the general public.",
+        "type": "fundamental_right",
+        "category": "liberty",
+        "key_principles": [
+            "Right to trade, occupation and profession",
+            "Reasonable restrictions in public interest",
+            "Licensing and regulatory controls",
+        ],
+    },
+    "Article 20": {
+        "title": "Protection in Respect of Conviction for Offences",
+        "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+        "type": "fundamental_right",
+        "category": "criminal",
+        "key_principles": [
+            "No ex post facto criminal law",
+            "No double jeopardy",
+            "Protection against self-incrimination",
+        ],
+    },
+    "Article 21A": {
+        "title": "Right to Education",
+        "text": "The State shall provide free and compulsory education to all children of the age of six to fourteen years in such manner as the State may, by law, determine.",
+        "type": "fundamental_right",
+        "category": "education",
+        "key_principles": [
+            "Free and compulsory education for ages 6-14",
+            "Right to elementary education",
+        ],
+    },
+    "Article 22": {
+        "title": "Protection Against Arrest and Detention",
+        "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+        "type": "fundamental_right",
+        "category": "criminal",
+        "key_principles": [
+            "Right to be informed of grounds of arrest",
+            "Right to consult a lawyer",
+            "Safeguards against arbitrary detention",
+            "Preventive detention procedural safeguards",
+        ],
+    },
+    "Article 23": {
+        "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+        "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+        "type": "fundamental_right",
+        "category": "exploitation",
+        "key_principles": [
+            "Prohibition of human trafficking",
+            "Prohibition of forced labour and begar",
+        ],
+    },
+    "Article 24": {
+        "title": "Prohibition of Employment of Children in Factories",
+        "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+        "type": "fundamental_right",
+        "category": "exploitation",
+        "key_principles": [
+            "No child labour below 14 in hazardous work",
+            "Protection of children from exploitation",
+        ],
+    },
+    "Article 25": {
+        "title": "Freedom of Conscience and Free Profession, Practice and Propagation of Religion",
+        "text": "Subject to public order, morality and health, all persons are equally entitled to freedom of conscience and the right freely to profess, practise and propagate religion.",
+        "type": "fundamental_right",
+        "category": "religion",
+        "key_principles": [
+            "Freedom of conscience",
+            "Freedom to profess, practise, propagate religion",
+            "Reasonable restrictions: public order, morality, health",
+        ],
+    },
+    "Article 26": {
+        "title": "Freedom to Manage Religious Affairs",
+        "text": "Subject to public order, morality and health, every religious denomination shall have the right to manage its own affairs in matters of religion, and to own and acquire movable and immovable property.",
+        "type": "fundamental_right",
+        "category": "religion",
+        "key_principles": [
+            "Religious denominations manage own affairs",
+            "Right to own religious property",
+        ],
+    },
+    "Article 29": {
+        "title": "Protection of Interests of Minorities",
+        "text": "Any section of the citizens residing in India having a distinct language, script or culture of its own shall have the right to conserve the same. No citizen shall be denied admission into any educational institution maintained by the State on grounds only of religion, race, caste, language or any of them.",
+        "type": "fundamental_right",
+        "category": "minorities",
+        "key_principles": [
+            "Right of minorities to conserve language, script, culture",
+            "No denial of admission on discriminatory grounds",
+        ],
+    },
+    "Article 30": {
+        "title": "Right of Minorities to Establish Educational Institutions",
+        "text": "All minorities, whether based on religion or language, shall have the right to establish and administer educational institutions of their choice.",
+        "type": "fundamental_right",
+        "category": "minorities",
+        "key_principles": [
+            "Minorities may establish and administer educational institutions",
+            "Protection from discrimination in aid",
+        ],
+    },
+    "Article 38": {
+        "title": "State to Secure a Social Order for the Promotion of Welfare",
+        "text": "The State shall strive to promote the welfare of the people by securing and protecting a social order in which justice, social, economic and political, shall inform all the institutions of the national life.",
+        "type": "directive_principle",
+        "category": "social_welfare",
+        "key_principles": [
+            "Social, economic and political justice",
+            "Minimise inequalities of income and status",
+        ],
+    },
+    "Article 39": {
+        "title": "Certain Principles of Policy to be Followed by the State",
+        "text": "The State shall direct its policy towards securing equal rights to an adequate means of livelihood, and that the ownership and control of material resources are so distributed as best to subserve the common good.",
+        "type": "directive_principle",
+        "category": "social_welfare",
+        "key_principles": [
+            "Adequate means of livelihood",
+            "Distribution of material resources for common good",
+            "Prevention of concentration of wealth",
+            "Protection of workers, children and women",
+        ],
+    },
+    "Article 39A": {
+        "title": "Equal Justice and Free Legal Aid",
+        "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+        "type": "directive_principle",
+        "category": "access_to_justice",
+        "key_principles": [
+            "Free legal aid",
+            "Equal opportunity in the legal system",
+            "Justice for the economically disadvantaged",
+        ],
+    },
+    "Article 41": {
+        "title": "Right to Work, to Education and to Public Assistance",
+        "text": "The State shall, within the limits of its economic capacity and development, make effective provision for securing the right to work, to education and to public assistance in cases of unemployment, old age, sickness and disablement.",
+        "type": "directive_principle",
+        "category": "social_welfare",
+        "key_principles": [
+            "Right to work and education",
+            "Public assistance for unemployment, old age, sickness",
+        ],
+    },
+    "Article 42": {
+        "title": "Just and Humane Conditions of Work and Maternity Relief",
+        "text": "The State shall make provision for securing just and humane conditions of work and for maternity relief.",
+        "type": "directive_principle",
+        "category": "labour",
+        "key_principles": [
+            "Just and humane working conditions",
+            "Maternity relief",
+        ],
+    },
+    "Article 43": {
+        "title": "Living Wage for Workers",
+        "text": "The State shall endeavour to secure to all workers a living wage, conditions of work ensuring a decent standard of life, and full enjoyment of leisure and social and cultural opportunities.",
+        "type": "directive_principle",
+        "category": "labour",
+        "key_principles": [
+            "Living wage for workers",
+            "Decent standard of life",
+        ],
+    },
+    "Article 44": {
+        "title": "Uniform Civil Code",
+        "text": "The State shall endeavour to secure for the citizens a uniform civil code throughout the territory of India.",
+        "type": "directive_principle",
+        "category": "civil",
+        "key_principles": [
+            "Uniform civil code for citizens",
+        ],
+    },
+    "Article 45": {
+        "title": "Provision for Early Childhood Care and Education",
+        "text": "The State shall endeavour to provide early childhood care and education for all children until they complete the age of six years.",
+        "type": "directive_principle",
+        "category": "education",
+        "key_principles": [
+            "Early childhood care and education",
+        ],
+    },
+    "Article 46": {
+        "title": "Promotion of Educational and Economic Interests of Weaker Sections",
+        "text": "The State shall promote with special care the educational and economic interests of the weaker sections of the people, and in particular of the Scheduled Castes and Scheduled Tribes, and shall protect them from social injustice and all forms of exploitation.",
+        "type": "directive_principle",
+        "category": "social_welfare",
+        "key_principles": [
+            "Special care for weaker sections",
+            "Protection of SC/ST from social injustice and exploitation",
+        ],
+    },
+    "Article 47": {
+        "title": "Duty of the State to Raise the Level of Nutrition and Public Health",
+        "text": "The State shall regard the raising of the level of nutrition and the standard of living of its people and the improvement of public health as among its primary duties.",
+        "type": "directive_principle",
+        "category": "health",
+        "key_principles": [
+            "Improvement of public health",
+            "Raising nutrition and standard of living",
+        ],
+    },
+    "Article 48A": {
+        "title": "Protection and Improvement of Environment",
+        "text": "The State shall endeavour to protect and improve the environment and to safeguard the forests and wild life of the country.",
+        "type": "directive_principle",
+        "category": "environment",
+        "key_principles": [
+            "Protection of the environment",
+            "Safeguarding forests and wildlife",
+        ],
+    },
+    "Article 49": {
+        "title": "Protection of Monuments and Places of Artistic or Historic Interest",
+        "text": "The State shall protect every monument or place or object of artistic or historic interest, declared to be of national importance, from spoliation, disfigurement, destruction, removal, disposal or export.",
+        "type": "directive_principle",
+        "category": "heritage",
+        "key_principles": [
+            "Protection of national monuments",
+            "Prevention of export of national treasures",
+        ],
+    },
+    "Article 50": {
+        "title": "Separation of Judiciary from Executive",
+        "text": "The State shall take steps to separate the judiciary from the executive in the public services of the State.",
+        "type": "directive_principle",
+        "category": "governance",
+        "key_principles": [
+            "Separation of judiciary from executive",
+            "Independence of the judiciary",
+        ],
+    },
+    "Article 51A": {
+        "title": "Fundamental Duties",
+        "text": "It shall be the duty of every citizen of India to abide by the Constitution and respect its ideals and institutions, to uphold and protect the sovereignty, unity and integrity of India, and to promote harmony and the spirit of common brotherhood.",
+        "type": "fundamental_duty",
+        "category": "duties",
+        "key_principles": [
+            "Respect for the Constitution and its institutions",
+            "Promotion of harmony and common brotherhood",
+            "Protection of public property",
+        ],
+    },
+    "Article 227": {
+        "title": "Power of Superintendence of High Courts",
+        "text": "Every High Court shall have superintendence over all courts and tribunals within its jurisdiction, and may call for returns, make rules, and settle forms to secure the proper administration of justice.",
+        "type": "constitutional_remedy",
+        "category": "remedial",
+        "key_principles": [
+            "Superintendence over subordinate courts and tribunals",
+            "Administration of justice",
+        ],
+    },
+    "Article 243G": {
+        "title": "Powers and Responsibilities of Panchayats",
+        "text": "The State legislature may endow Panchayats with such powers and authority as may be necessary to enable them to function as institutions of self-government, including in matters of land, water, agriculture and rural development.",
+        "type": "local_governance",
+        "category": "governance",
+        "key_principles": [
+            "Local self-government",
+            "Panchayat powers over land, water, agriculture",
+        ],
+    },
+    "Article 301": {
+        "title": "Freedom of Trade, Commerce and Intercourse",
+        "text": "Subject to the other provisions of this Part, trade, commerce and intercourse throughout the territory of India shall be free.",
+        "type": "constitutional_principle",
+        "category": "trade",
+        "key_principles": [
+            "Free trade and commerce across India",
+            "No barriers to inter-state trade",
+        ],
+    },
+    "Article 323A": {
+        "title": "Administrative Tribunals",
+        "text": "Parliament may by law provide for the adjudication or trial by administrative tribunals of disputes relating to recruitment and conditions of service of persons appointed to public services and posts under the State.",
+        "type": "constitutional_principle",
+        "category": "tribunals",
+        "key_principles": [
+            "Administrative tribunals for service disputes",
+            "Expeditious adjudication",
+        ],
+    },
 }
 
 # Landmark constitutional doctrines and their descriptions
@@ -168,16 +487,55 @@ DOCTRINES = {
         "description": "'The thing speaks for itself.' In certain cases, negligence is presumed from the nature of the accident.",
         "application": "Applicable in personal injury and medical negligence cases where direct evidence is unavailable.",
     },
+    "Doctrine of Legitimate Expectation": {
+        "description": "A person who has a legitimate expectation based on a promise, practice or policy of the State is entitled to procedural fairness before that expectation is defeated.",
+        "application": "Applicable where administrative decisions frustrate settled practices, licences, or policies.",
+    },
+    "Doctrine of Pith and Substance": {
+        "description": "Legislation is judged by its true nature and purpose rather than its incidental encroachment on another sphere.",
+        "application": "Used in federal disputes over legislative competence between Union and State laws.",
+    },
+    "Doctrine of Colourable Legislation": {
+        "description": "If the legislature lacks the competence to enact a law directly, it cannot do indirectly what it cannot do directly — such camouflage is struck down.",
+        "application": "Applicable where a statute purports to do one thing but in substance does another outside legislative competence.",
+    },
+    "Doctrine of Harmonious Construction": {
+        "description": "Where two constitutional provisions conflict, they should be interpreted so that both are given effect rather than one nullifying the other.",
+        "application": "Used when Articles or statutory provisions appear to overlap or clash.",
+    },
+    "Doctrine of Prospective Overruling": {
+        "description": "A court may declare a new legal principle to operate only prospectively so that past transactions are not disturbed.",
+        "application": "Relevant where a change in law would unfairly unsettle completed actions.",
+    },
+    "Principle of Audi Alteram Partem": {
+        "description": "The heart of natural justice: no one shall be judged without a fair hearing. Both sides must be heard before a decision affecting rights is made.",
+        "application": "Applies to all adjudicatory, quasi-judicial and administrative decisions affecting rights.",
+    },
+    "Rule of Law": {
+        "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+        "application": "Foundational principle engaged in every challenge to executive or legislative action.",
+    },
+    "Doctrine of Strict Responsibility / Absolute Liability": {
+        "description": "An enterprise engaged in hazardous or inherently dangerous activity is absolutely liable to compensate victims, regardless of fault.",
+        "application": "Applied in industrial accidents, environmental harm and public nuisance cases.",
+    },
+    "Doctrine of Reasonable Classification": {
+        "description": "Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.",
+        "application": "Used to test whether differential treatment of litigants or groups is constitutional.",
+    },
 }
 
 # Type of case → which Articles & Doctrines apply
 CATEGORY_CONSTITUTIONAL_MAP = {
     "Criminal/Violent": {
-        "primary_articles": ["Article 21"],
-        "secondary_articles": ["Article 14", "Article 22"],
+        "primary_articles": ["Article 21", "Article 22", "Article 20"],
+        "secondary_articles": [
+            "Article 14", "Article 17", "Article 23", "Article 24", "Article 39A",
+        ],
         "doctrines": [
             "Doctrine of Proportionality",
             "Doctrine of Parens Patriae",
+            "Rule of Law",
         ],
         "state_duty": (
             "The State has a non-derogable duty under Article 21 to protect the "
@@ -196,11 +554,12 @@ CATEGORY_CONSTITUTIONAL_MAP = {
         ),
     },
     "Insolvency/Debt": {
-        "primary_articles": ["Article 14", "Article 300A"],
-        "secondary_articles": ["Article 19(1)(g)", "Article 21"],
+        "primary_articles": ["Article 14", "Article 300A", "Article 19(1)(g)"],
+        "secondary_articles": ["Article 21", "Article 39", "Article 39A"],
         "doctrines": [
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Doctrine of Legitimate Expectation",
         ],
         "state_duty": (
             "The State must ensure that insolvency and debt proceedings are "
@@ -221,11 +580,13 @@ CATEGORY_CONSTITUTIONAL_MAP = {
         ),
     },
     "Excise/Tax": {
-        "primary_articles": ["Article 265", "Article 14"],
-        "secondary_articles": ["Article 19(1)(g)", "Article 300A"],
+        "primary_articles": ["Article 265", "Article 14", "Article 19(1)(g)"],
+        "secondary_articles": ["Article 300A", "Article 301", "Article 21"],
         "doctrines": [
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Rule of Law",
+            "Doctrine of Reasonable Classification",
         ],
         "state_duty": (
             "Under Article 265, the State cannot levy or collect tax without the "
@@ -247,10 +608,11 @@ CATEGORY_CONSTITUTIONAL_MAP = {
     },
     "Customs/Import-Export": {
         "primary_articles": ["Article 14", "Article 19(1)(g)", "Article 300A"],
-        "secondary_articles": ["Article 265", "Article 21"],
+        "secondary_articles": ["Article 265", "Article 301", "Article 21"],
         "doctrines": [
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Doctrine of Legitimate Expectation",
         ],
         "state_duty": (
             "The State must ensure that customs and import-export regulations are "
@@ -270,11 +632,12 @@ CATEGORY_CONSTITUTIONAL_MAP = {
         ),
     },
     "Company/Winding Up": {
-        "primary_articles": ["Article 14", "Article 300A"],
-        "secondary_articles": ["Article 19(1)(g)", "Article 21"],
+        "primary_articles": ["Article 14", "Article 300A", "Article 19(1)(g)"],
+        "secondary_articles": ["Article 21", "Article 39", "Article 39A"],
         "doctrines": [
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Rule of Law",
         ],
         "state_duty": (
             "The State must ensure that company disputes and winding-up proceedings "
@@ -295,11 +658,14 @@ CATEGORY_CONSTITUTIONAL_MAP = {
     },
     "Constitutional/Writ": {
         "primary_articles": ["Article 32", "Article 226", "Article 14", "Article 21"],
-        "secondary_articles": ["Article 227"],
+        "secondary_articles": ["Article 227", "Article 22", "Article 20", "Article 51A"],
         "doctrines": [
             "Doctrine of Basic Structure",
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Rule of Law",
+            "Doctrine of Colourable Legislation",
+            "Doctrine of Harmonious Construction",
         ],
         "state_duty": (
             "The State, through the judiciary, is the ultimate guardian of "
@@ -320,11 +686,13 @@ CATEGORY_CONSTITUTIONAL_MAP = {
         ),
     },
     "Property/Land": {
-        "primary_articles": ["Article 300A", "Article 14"],
-        "secondary_articles": ["Article 21"],
+        "primary_articles": ["Article 300A", "Article 14", "Article 21"],
+        "secondary_articles": ["Article 39", "Article 46", "Article 243G"],
         "doctrines": [
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Doctrine of Legitimate Expectation",
+            "Rule of Law",
         ],
         "state_duty": (
             "Under Article 300A, no person shall be deprived of property except "
@@ -343,11 +711,12 @@ CATEGORY_CONSTITUTIONAL_MAP = {
         ),
     },
     "General Civil": {
-        "primary_articles": ["Article 14"],
-        "secondary_articles": ["Article 21"],
+        "primary_articles": ["Article 14", "Article 21"],
+        "secondary_articles": ["Article 39A", "Article 44", "Article 51A"],
         "doctrines": [
             "Doctrine of Proportionality",
             "Principle of Natural Justice — Audi Alteram Partem",
+            "Rule of Law",
         ],
         "state_duty": (
             "The State must ensure that all civil disputes are adjudicated fairly, "
