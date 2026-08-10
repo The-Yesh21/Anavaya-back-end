@@ -3,8 +3,8 @@
 <style>
 .decision-hero {
   border: 1px solid #CBD5E1;
-  border-left: 8px solid #DC2626;
-  background: linear-gradient(135deg, #FEF2F2, #FFFFFF);
+  border-left: 8px solid #D97706;
+  background: linear-gradient(135deg, #FFFBEB, #FFFFFF);
   border-radius: 14px;
   padding: 18px 20px;
   margin: 12px 0 18px;
@@ -14,7 +14,7 @@
   display: inline-block;
   padding: 6px 12px;
   border-radius: 999px;
-  background: #DC2626;
+  background: #D97706;
   color: white;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -66,7 +66,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #DC2626;
+  background: #D97706;
   color: #FFFFFF;
   font-weight: 800;
 }
@@ -90,14 +90,14 @@
 </style>
 
 <div class="decision-hero">
-  <div class="priority-badge">High Priority</div>
-  <h2>AI.pdf</h2>
-  <p>The parties, AI, are involved in a legal dispute. The document indicates assault, victim, sexual assault, human trafficking. This case is classified as Criminal/Violent because the record matches assault, victim, sexual assault, human trafficking. Under the Constitution of India, the primary rights engaged are Article 21, Article 22, Article 20.</p>
+  <div class="priority-badge">Medium Priority</div>
+  <h2>_upload_test.pdf</h2>
+  <p>The parties, Cipla Limited vs Union Of India, are involved in a legal dispute. The document indicates central excise, excise duty, collector of central excise, classification list, elt. This case is classified as Excise/Tax because the record matches central excise, excise duty, collector of central excise, classification list, elt. Under the Constitution of India, the primary rights engaged are Article 265, Article 14, Article 19(1)(g).</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
-    <div class="metric"><span>Severity</span><strong>Major</strong></div>
-    <div class="metric"><span>Vulnerability</span><strong>High</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
+    <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
+    <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>
   </div>
 </div>
@@ -107,13 +107,13 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
-  N0["Step 1: Severity<br/>Severity is one of: Fatal, Major<br/>Case: Major<br/>Answer: Yes"]:::decision
-  N1["Step 2: Shri<br/>Shri score <= 0.0720<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
+  N0["Step 1: Severity<br/>Severity is one of: Fatal, Major<br/>Case: No Injury<br/>Answer: No"]:::decision
+  N1["Step 2: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
   N0 --> N1
-  N2["Final Priority: High<br/>898 training samples reached this leaf"]:::leaf
+  N2["Final Priority: Medium<br/>435 training samples reached this leaf"]:::leaf
   N1 --> N2
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
-  classDef leaf fill:#FEE2E2,stroke:#DC2626,stroke-width:3px,color:#7F1D1D;
+  classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
 ```
 
 ## Animated Step View
@@ -124,31 +124,31 @@ flowchart TD
   <div class="step-body">
     <div class="step-title">Step 1: Severity</div>
     <div class="step-condition">Severity is one of: Fatal, Major</div>
-    <div class="step-meta">Case value: <strong>Major</strong> | Result: <strong>Yes</strong></div>
+    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">2</div>
   <div class="step-body">
-    <div class="step-title">Step 2: Shri</div>
-    <div class="step-condition">Shri score <= 0.0720</div>
-    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
+    <div class="step-title">Step 2: Influence / power imbalance</div>
+    <div class="step-condition">Influence / power imbalance is one of: High</div>
+    <div class="step-meta">Case value: <strong>High</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">3</div>
   <div class="step-body">
-    <div class="step-title">Final Priority: High</div>
+    <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>898 training samples reached this leaf</strong> | Result: <strong>High</strong></div>
+    <div class="step-meta">Case value: <strong>435 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Severity is one of: Fatal, Major; case value = Major; result = Yes -> Node 1: Shri score <= 0.0720; case value = 0.0000; result = Yes -> Leaf node 2 => Predicted Priority = High
+Node 0: Severity is one of: Fatal, Major; case value = No Injury; result = No -> Node 4: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 5 => Predicted Priority = Medium
 
 ## Raw Graph
 
-Raw DOT file: `case_priority_system/decision_graphs\AI_decision_path.dot`
+Raw DOT file: `case_priority_system/decision_graphs\upload_test_decision_path.dot`

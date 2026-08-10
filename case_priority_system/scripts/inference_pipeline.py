@@ -349,13 +349,39 @@ def tune_case_features(features, text):
         tuned["severity"] = "Major"
         tuned["vulnerability"] = "High"
 
-    return tuned
+    return tuned# Module-level cache: attempt BART initialization at most ONCE per process.
+# Torch/BART is heavy (~1GB) and on some machines (e.g. Windows DLL init
+# failures) it fails outright; caching the outcome prevents re-attempting the
+# expensive load on every PDF/case.
+_bart_summarizer = None
+_bart_attempted = False
+
+
+def _get_bart_summarizer():
+    """Returns a lazily-initialized BART summarizer, or None if unavailable.
+    Only attempts initialization once per process (success or failure)."""
+    global _bart_summarizer, _bart_attempted
+    if _bart_attempted:
+        return _bart_summarizer
+    _bart_attempted = True
+    try:
+        from transformers import pipeline
+        import torch
+        device = 0 if torch.cuda.is_available() else -1
+        _bart_summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device=device)
+        print("Local BART summarization pipeline ready.")
+    except Exception as ex:
+        print(f"Local BART summarization unavailable (will not retry this session): {ex}")
+        _bart_summarizer = None
+    return _bart_summarizer
+
 
 def fallback_extract_features(text, pdf_file):
     """Creates a basic result when the LLM is unavailable so Excel output is never empty."""
     lowered = text.lower()
     filename_parties = os.path.splitext(pdf_file)[0].replace("_", " ")
-    main_parties = re.sub(r"\s+on\s+\d+.*$", "", filename_parties, flags=re.IGNORECASE).strip()
+    fallback_parties = re.sub(r"\s+on\s+\d+.*$", "", filename_parties, flags=re.IGNORECASE).strip()
+    main_parties = extract_parties_from_text(text, fallback_parties) or "Unknown"
 
     violent_terms = [
         "murder", "assault", "attack", "killed", "death", "injury", "weapon", "violence",
@@ -426,23 +452,19 @@ def fallback_extract_features(text, pdf_file):
     influence = "High" if any(term in lowered or term in main_parties.lower() for term in influence_terms) else "Low"
 
     summary_text = ""
-    try:
-        print("Initializing local Hugging Face BART-large-CNN pipeline for case summarization...")
-        from transformers import pipeline
-        import torch
-        device = 0 if torch.cuda.is_available() else -1
-        
-        # Limit text input length to prevent index errors in BART (max 1024 tokens)
-        truncated_text = text[:3000].strip()
-        if len(truncated_text) > 100:
-            summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device=device)
-            # Run summarizer
-            summary_res = summarizer(truncated_text, max_length=130, min_length=45, do_sample=False)
-            if summary_res and isinstance(summary_res, list) and 'summary_text' in summary_res[0]:
-                summary_text = summary_res[0]['summary_text'].strip()
-                print("Local BART summarization succeeded.")
-    except Exception as ex:
-        print(f"Local BART summarization failed: {ex}")
+    summarizer = _get_bart_summarizer()
+    if summarizer is not None:
+        try:
+            # Limit text input length to prevent index errors in BART (max 1024 tokens)
+            truncated_text = text[:3000].strip()
+            if len(truncated_text) > 100:
+                # Run summarizer
+                summary_res = summarizer(truncated_text, max_length=130, min_length=45, do_sample=False)
+                if summary_res and isinstance(summary_res, list) and 'summary_text' in summary_res[0]:
+                    summary_text = summary_res[0]['summary_text'].strip()
+                    print("Local BART summarization succeeded.")
+        except Exception as ex:
+            print(f"Local BART summarization failed: {ex}")
 
     if not summary_text:
         summary_text = (
@@ -461,6 +483,121 @@ def fallback_extract_features(text, pdf_file):
         "plain_summary": summary_text,
     })
 
+# ── Rule-based party extraction ────────────────────────────────────────
+_PLACEHOLDER_RE = re.compile(
+    r"\[|^if\s+known$|^unknown$|^n/?a$|^not\s+provided$|^not\s+applicable$"
+    r"|^none$|^to\s+be\s+filled$|^\[.*\]$",
+    re.IGNORECASE,
+)
+_RELATION_RE = re.compile(
+    r"\b(?:son|daughter|wife|widow|husband)\s+of\b|\b[swdw]/?o\b|\bresident\s+of\b"
+    r"|\bthrough\b|\bc/o\b|\bsince\b|\bage\s*:\s*\d+",
+    re.IGNORECASE,
+)
+
+
+def _clean_party_name(name):
+    """Normalizes a raw party line; returns None for placeholders/junk."""
+    if not name:
+        return None
+    name = re.sub(r"\s+", " ", name).strip(" .,;\t")
+    # Drop trailing dot-separators and 'through ...' clauses
+    name = re.split(r"\.{3,}", name)[0].strip()
+    name = re.sub(r"\s+through\b.*$", "", name, flags=re.IGNORECASE)
+    # Leading numbering: "1. " / "(i) "
+    name = re.sub(r"^\s*(?:\(\w+\)|\d+[.)])\s*", "", name)
+    name = name.strip(" .,;")
+    if not name or len(name) < 3:
+        return None
+    if _PLACEHOLDER_RE.search(name):
+        return None
+    return name
+
+
+def _truncate_relations(name):
+    """Cuts a party line at relation markers: 'Sanjay Kumar Son of X' -> 'Sanjay Kumar'."""
+    if not name:
+        return name
+    split = _RELATION_RE.split(name, maxsplit=1)
+    return (split[0] or name).strip(" .,;")
+
+
+def extract_parties_from_text(text, fallback=""):
+    """Deterministic, rule-based party extraction from legal document text.
+
+    Tries, in order:
+      1. FIR/complaint labeled forms   (Complainant/Victim/Accused ... Name: X)
+      2. Court caption                 (NAME ... Petitioner/s Versus ... Respondent/s)
+      3. Judgment title headers        ('<A> vs <B> on <date>')
+    Falls back to the provided filename-derived value.
+    """
+    if not text:
+        return fallback or "Unknown"
+
+    # 1) Labeled forms (FIRs, complaints, case reports)
+    labeled = []
+    for role in ("Complainant", "Victim", "Accused"):
+        m = re.search(
+            rf"{role}\s*(?:Details)?\s*Name\s*:?\s*([^\n]+)", text, re.IGNORECASE
+        )
+        if m:
+            name = _clean_party_name(m.group(1))
+            if name:
+                labeled.append(f"{role}: {name}")
+    if labeled:
+        return "; ".join(labeled)
+
+    # 2) Court caption: petitioner block before 'Versus', first respondent after.
+    #    'Versus' usually sits inline ("... Petitioner/s Versus") so split on the
+    #    word; validate it was a caption by looking for Respondent/Opposite Party.
+    parts = re.split(r"(?i)\bversus\b", text, maxsplit=1)
+    if len(parts) >= 2 and re.search(r"(?i)respondent|opposite\s+party", parts[1][:500]):
+        pre, post = parts[0], parts[1]
+        skip_re = re.compile(
+            r"\bNo\.?\s*\d|case\s+no|high\s+court|district\s+court|court\s+of"
+            r"|jurisdiction|in\s+the|arising\s+out|before|coram|misc\.?"
+            r"|criminal\s+miscellaneous|civil\s+writ|writ\s+(?:petition|jurisdiction)",
+            re.IGNORECASE,
+        )
+        pet = None
+        for line in pre.splitlines():
+            if not line.strip() or skip_re.search(line):
+                continue
+            name = _truncate_relations(_clean_party_name(line))
+            if name:
+                pet = name
+                break
+        resp = None
+        for line in post.splitlines():
+            if not line.strip() or skip_re.search(line):
+                continue
+            name = _truncate_relations(_clean_party_name(line))
+            if name:
+                resp = name
+                break
+        if pet and resp:
+            return f"{pet} vs {resp}"
+        if pet:
+            return pet
+
+    # 3) Judgment title header: 'X vs Y on 1 January, 1800'
+    head = text[:800]
+    m = re.search(
+        r"^([^\n]{2,90}?)\s+vs\.?\s+([^\n]{2,90}?)\s+on\s+\d", head, re.IGNORECASE
+    )
+    if m:
+        a = _clean_party_name(m.group(1))
+        b = _clean_party_name(m.group(2))
+        if b:
+            b = re.sub(r"\s+and\s+ors\.?$", "", b, flags=re.IGNORECASE).strip()
+        if a and b and a.lower() != b.lower():
+            return f"{a} vs {b}"
+        if a:
+            return a
+
+    return fallback or "Unknown"
+
+
 def fast_extract_features(text, pdf_file):
     """Instant, fully-deterministic rule-based feature extraction.
 
@@ -473,7 +610,8 @@ def fast_extract_features(text, pdf_file):
     """
     lowered = text.lower()
     filename_parties = os.path.splitext(pdf_file)[0].replace("_", " ")
-    main_parties = re.sub(r"\s+on\s+\d+.*$", "", filename_parties, flags=re.IGNORECASE).strip()
+    fallback_parties = re.sub(r"\s+on\s+\d+.*$", "", filename_parties, flags=re.IGNORECASE).strip()
+    main_parties = extract_parties_from_text(text, fallback_parties) or "Unknown"
 
     legal_category = classify_legal_category(text, {"main_parties": main_parties})
 

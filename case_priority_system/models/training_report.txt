@@ -1,35 +1,61 @@
-Training rows: 1616
-Real report rows: 12
-Accuracy: 0.9938
+Training rows: 3377
+  synthetic + legal templates: 1580
+  constitutional training rows: 1532
+  real judgment rows: 265 (root PDFs + downloaded High Court judgments)
 
-Classification Report:
+===== HONEST EVALUATION: out-of-domain real-judgment holdout =====
+Holdout rows: 265 | Accuracy: 0.9925
               precision    recall  f1-score   support
 
-        High       1.00      0.98      0.99       110
-         Low       1.00      1.00      1.00        66
-      Medium       0.99      1.00      0.99       148
+        High       0.89      1.00      0.94        17
+         Low       1.00      1.00      1.00        21
+      Medium       1.00      0.99      1.00       227
 
-    accuracy                           0.99       324
-   macro avg       1.00      0.99      0.99       324
-weighted avg       0.99      0.99      0.99       324
+    accuracy                           0.99       265
+   macro avg       0.96      1.00      0.98       265
+weighted avg       0.99      0.99      0.99       265
 
-Decision Tree Rules:
-|--- victim <= 0.03
-|   |--- severity_enc <= 2.50
+
+===== HONEST EVALUATION: 5-fold stratified CV =====
+CV per-fold accuracy: ['1.0000', '0.9970', '0.9970', '0.9985', '1.0000']
+CV mean accuracy: 0.9985
+
+===== In-distribution split (for continuity) =====
+Accuracy: 0.9985
+              precision    recall  f1-score   support
+
+        High       1.00      1.00      1.00       218
+         Low       1.00      1.00      1.00       127
+      Medium       1.00      1.00      1.00       331
+
+    accuracy                           1.00       676
+   macro avg       1.00      1.00      1.00       676
+weighted avg       1.00      1.00      1.00       676
+
+
+===== Decision Tree Rules =====
+|--- severity_enc <= 1.50
+|   |--- shri <= 0.07
+|   |   |--- class: 0
+|   |--- shri >  0.07
+|   |   |--- class: 0
+|--- severity_enc >  1.50
+|   |--- influence_enc <= 0.50
 |   |   |--- class: 2
-|   |--- severity_enc >  2.50
-|   |   |--- influence_enc <= 0.50
+|   |--- influence_enc >  0.50
+|   |   |--- severity_enc <= 2.50
 |   |   |   |--- class: 2
-|   |   |--- influence_enc >  0.50
+|   |   |--- severity_enc >  2.50
 |   |   |   |--- vulnerability_enc <= 0.50
 |   |   |   |   |--- class: 2
 |   |   |   |--- vulnerability_enc >  0.50
-|   |   |   |   |--- tenancy <= 0.34
-|   |   |   |   |   |--- concerning <= 0.21
+|   |   |   |   |--- case_category_enc <= 5.50
+|   |   |   |   |   |--- dispute concerning <= 0.21
 |   |   |   |   |   |   |--- class: 1
-|   |   |   |   |   |--- concerning >  0.21
+|   |   |   |   |   |--- dispute concerning >  0.21
 |   |   |   |   |   |   |--- class: 1
-|   |   |   |   |--- tenancy >  0.34
-|   |   |   |   |   |--- class: 1
-|--- victim >  0.03
-|   |--- class: 0
+|   |   |   |   |--- case_category_enc >  5.50
+|   |   |   |   |   |--- vulnerability_enc <= 1.50
+|   |   |   |   |   |   |--- class: 1
+|   |   |   |   |   |--- vulnerability_enc >  1.50
+|   |   |   |   |   |   |--- class: 2

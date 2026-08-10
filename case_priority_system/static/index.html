@@ -44,6 +44,9 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
+            <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle case list" title="Toggle case list">
+                <i data-lucide="panel-left"></i>
+            </button>
             <div class="header-logo">
                 <div class="logo-icon">
                     <i data-lucide="scale"></i>
@@ -54,37 +57,62 @@
                 </div>
             </div>
             <div class="header-actions">
+                <span class="kbd-hint"><kbd>Ctrl</kbd><kbd>K</kbd> search</span>
                 <span class="status-indicator online">System Active</span>
             </div>
         </header>
 
-        <!-- Main Stats Row -->
+        <!-- Triage Summary Row -->
         <section class="stats-container">
             <div class="stat-card total">
                 <span class="stat-label">Total Handled</span>
                 <strong id="stat-total-val">0</strong>
+                <span class="stat-sub">prioritized cases</span>
             </div>
-            <div class="stat-card priority-high">
-                <span class="stat-label">High Priority</span>
-                <strong id="stat-high-val">0</strong>
+            <div class="stat-card triage-donut-card">
+                <div class="donut-wrap">
+                    <svg class="donut-chart" id="priority-donut-svg" viewBox="0 0 120 120" aria-label="Priority distribution">
+                        <circle class="donut-track" cx="60" cy="60" r="50"></circle>
+                        <circle class="donut-arc arc-high" id="arc-high" cx="60" cy="60" r="50"></circle>
+                        <circle class="donut-arc arc-medium" id="arc-medium" cx="60" cy="60" r="50"></circle>
+                        <circle class="donut-arc arc-low" id="arc-low" cx="60" cy="60" r="50"></circle>
+                    </svg>
+                    <div class="donut-center">
+                        <strong id="donut-total-val">0</strong>
+                        <span>cases</span>
+                    </div>
+                </div>
+                <div class="triage-legend">
+                    <button class="triage-legend-item" data-priority="High" title="Filter case list by High priority">
+                        <span class="legend-swatch swatch-high"></span>High <strong id="stat-high-val">0</strong>
+                    </button>
+                    <button class="triage-legend-item" data-priority="Medium" title="Filter case list by Medium priority">
+                        <span class="legend-swatch swatch-medium"></span>Medium <strong id="stat-medium-val">0</strong>
+                    </button>
+                    <button class="triage-legend-item" data-priority="Low" title="Filter case list by Low priority">
+                        <span class="legend-swatch swatch-low"></span>Low <strong id="stat-low-val">0</strong>
+                    </button>
+                </div>
             </div>
-            <div class="stat-card priority-medium">
-                <span class="stat-label">Medium Priority</span>
-                <strong id="stat-medium-val">0</strong>
-            </div>
-            <div class="stat-card priority-low">
-                <span class="stat-label">Low Priority</span>
-                <strong id="stat-low-val">0</strong>
+            <div class="stat-card category-card">
+                <span class="stat-label">By Category</span>
+                <div id="category-bars" class="category-bars">
+                    <div class="loader">Computing…</div>
+                </div>
             </div>
         </section>
 
         <!-- Main Body Grid -->
         <main class="dashboard-grid">
             <!-- Sidebar: Case Selector -->
-            <section class="cases-sidebar">
+            <section class="cases-sidebar" id="cases-sidebar">
                 <div class="sidebar-header">
-                    <h2>Case Documents</h2>
+                    <div class="sidebar-title-row">
+                        <h2>Case Documents</h2>
+                        <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close case list"><i data-lucide="x"></i></button>
+                    </div>
                     <div class="search-box">
+                        <i data-lucide="search" class="search-icon"></i>
                         <input type="text" id="search-input" placeholder="Search parties or files...">
                     </div>
                     <div class="filter-row">
@@ -98,32 +126,40 @@
                             <option value="all">All Categories</option>
                         </select>
                     </div>
-                    <!-- Upload Case Document Section -->
-                    <div class="upload-section">
+                    <!-- Upload Case Document Section (drag & drop zone) -->
+                    <div class="upload-section" id="upload-zone">
                         <label for="pdf-file-input" class="upload-btn">
                             <i data-lucide="upload"></i> Upload Case PDF
                         </label>
                         <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
-                        <p class="upload-hint">Upload a case file — priority is computed instantly and a full PDF report is generated.</p>
+                        <p class="upload-hint">Drop a case file here or click to upload — priority is computed instantly and a full PDF report is generated.</p>
                     </div>
                 </div>
                 <div class="cases-list" id="cases-list-container">
-                    <div class="loader">Loading cases...</div>
+                    <div class="cases-skeleton" id="cases-skeleton" aria-hidden="true">
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                    </div>
                 </div>
             </section>
+            <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
             <!-- Main Panel: Case Details & Tree Visualizer -->
             <section class="details-panel">
                 <!-- Navigation Tabs -->
-                <div class="tab-header">
-                    <button class="tab-btn active" data-tab="details-tab"><i data-lucide="file-text"></i> Case Details & Justification</button>
-                    <button class="tab-btn" data-tab="tree-tab"><i data-lucide="git-branch"></i> Decision Tree Path</button>
-                    <button class="tab-btn" data-tab="lie-detector-tab"><i data-lucide="eye"></i> Lie Detector (Chakshu)</button>
-                    <button class="tab-btn" data-tab="courtroom-tab"><i data-lucide="gavel"></i> Live Courtroom</button>
+                <div class="tab-header" role="tablist">
+                    <button class="tab-btn active" data-tab="details-tab" role="tab"><i data-lucide="file-text"></i> Analysis</button>
+                    <button class="tab-btn" data-tab="tree-tab" role="tab"><i data-lucide="git-branch"></i> Decision Tree</button>
+                    <button class="tab-btn" data-tab="lie-detector-tab" role="tab"><i data-lucide="eye"></i> Chakshu</button>
+                    <button class="tab-btn" data-tab="courtroom-tab" role="tab"><i data-lucide="gavel"></i> Courtroom</button>
                 </div>
 
                 <div class="tab-content-container">
-                    <!-- Tab 1: Details -->
+                    <!-- Tab 1: Analysis -->
                     <div class="tab-content active" id="details-tab">
                         <div id="no-case-selected" class="empty-state">
                             <div class="empty-icon"><i data-lucide="folder-open"></i></div>
@@ -146,80 +182,77 @@
                                 </div>
                             </div>
 
-                            <div class="detail-section">
-                                <h3>Plain Language Summary</h3>
-                                <p id="case-summary" class="summary-text">No summary available.</p>
-                            </div>
-
-                            <!-- Enhanced Constitutional Analysis Section -->
-                            <div class="detail-section">
-                                <h3><i data-lucide="shield" style="width:16px;height:16px;vertical-align:middle;"></i> Constitutional Rights Engaged</h3>
-                                <div id="case-constitutional-rights" class="constitutional-rights-grid">
-                                    Loading rights analysis...
-                                </div>
-                            </div>
-
-                            <div class="detail-section">
-                                <h3><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> State's Duty Under the Constitution</h3>
-                                <div id="case-state-duty" class="justification-box">
-                                    Loading state duty analysis...
-                                </div>
-                            </div>
-
-                            <div class="detail-section">
-                                <h3><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> Rights Balancing & Proportionality Analysis</h3>
-                                <div id="case-balancing" class="balancing-box">
-                                    Loading balancing analysis...
-                                </div>
-                            </div>
-
-                            <div class="detail-section">
-                                <h3><i data-lucide="book-open" style="width:16px;height:16px;vertical-align:middle;"></i> Applicable Constitutional Doctrines</h3>
-                                <div id="case-doctrines" class="doctrines-list">
-                                    Loading doctrines...
-                                </div>
-                            </div>
-
-                            <div class="detail-section">
-                                <h3><i data-lucide="file-text" style="width:16px;height:16px;vertical-align:middle;"></i> State's Perspective — Full Constitutional Opinion</h3>
-                                <div id="case-justification" class="opinion-box">
-                                    Justification loading...
-                                </div>
-                            </div>
-
-                            <div class="detail-section">
-                                <h3><i data-lucide="clipboard-list" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Rules Applied</h3>
-                                <div id="case-priority-reason" class="rules-box">
-                                    Reason loading...
-                                </div>
-                            </div>
-
-                            <div class="detail-section">
-                                <h3><i data-lucide="sliders" style="width:16px;height:16px;vertical-align:middle;"></i> Programmatic Priority Parameters</h3>
-                                <div class="parameter-grid">
-                                    <div class="param-card">
-                                        <span>Broad Model Category</span>
-                                        <strong id="param-model-cat">N/A</strong>
+                            <div class="case-detail-columns">
+                                <!-- LEFT: Facts -->
+                                <div class="case-detail-left">
+                                    <div class="detail-section">
+                                        <h3>Plain Language Summary</h3>
+                                        <p id="case-summary" class="summary-text">No summary available.</p>
                                     </div>
-                                    <div class="param-card">
-                                        <span>Case Severity</span>
-                                        <strong id="param-severity">N/A</strong>
-                                    </div>
-                                    <div class="param-card">
-                                        <span>Victim Vulnerability</span>
-                                        <strong id="param-vulnerability">N/A</strong>
-                                    </div>
-                                    <div class="param-card">
-                                        <span>Accused Influence</span>
-                                        <strong id="param-influence">N/A</strong>
+
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="sliders" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Parameters</h3>
+                                        <div class="param-chips">
+                                            <span class="param-chip"><span>Model Category</span><strong id="param-model-cat">N/A</strong></span>
+                                            <span class="param-chip"><span>Severity</span><strong id="param-severity">N/A</strong></span>
+                                            <span class="param-chip"><span>Vulnerability</span><strong id="param-vulnerability">N/A</strong></span>
+                                            <span class="param-chip"><span>Influence</span><strong id="param-influence">N/A</strong></span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="detail-section">
-                                <h3><i data-lucide="git-commit" style="width:16px;height:16px;vertical-align:middle;"></i> Decision Tree Path Trace Steps</h3>
-                                <div id="decision-path-steps" class="timeline-steps">
-                                    <!-- Steps populated dynamically -->
+                                <!-- RIGHT: Constitutional analysis -->
+                                <div class="case-detail-right">
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="shield" style="width:16px;height:16px;vertical-align:middle;"></i> Constitutional Rights Engaged</h3>
+                                        <div id="case-constitutional-rights" class="constitutional-rights-grid">
+                                            Loading rights analysis...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> State's Duty Under the Constitution</h3>
+                                        <div id="case-state-duty" class="justification-box">
+                                            Loading state duty analysis...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section collapsible">
+                                        <button class="collapsible-toggle" aria-expanded="false" aria-controls="case-balancing">
+                                            <span><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> Rights Balancing & Proportionality Analysis</span>
+                                            <i data-lucide="chevron-down" class="collapse-chevron"></i>
+                                        </button>
+                                        <div class="collapsible-body balancing-box" id="case-balancing">
+                                            Loading balancing analysis...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="book-open" style="width:16px;height:16px;vertical-align:middle;"></i> Applicable Constitutional Doctrines</h3>
+                                        <div id="case-doctrines" class="doctrines-list">
+                                            Loading doctrines...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section collapsible">
+                                        <button class="collapsible-toggle" aria-expanded="false" aria-controls="case-justification">
+                                            <span><i data-lucide="file-text" style="width:16px;height:16px;vertical-align:middle;"></i> State's Perspective — Full Constitutional Opinion</span>
+                                            <i data-lucide="chevron-down" class="collapse-chevron"></i>
+                                        </button>
+                                        <div class="collapsible-body opinion-box" id="case-justification">
+                                            Justification loading...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section collapsible">
+                                        <button class="collapsible-toggle" aria-expanded="false" aria-controls="case-priority-reason">
+                                            <span><i data-lucide="clipboard-list" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Rules Applied</span>
+                                            <i data-lucide="chevron-down" class="collapse-chevron"></i>
+                                        </button>
+                                        <div class="collapsible-body rules-box" id="case-priority-reason">
+                                            Reason loading...
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -229,25 +262,47 @@
                     <div class="tab-content" id="tree-tab">
                         <div class="tree-controls">
                             <span class="control-label"><i data-lucide="git-branch" style="display:inline-block; vertical-align:middle; width:18px; height:18px; margin-right:4px; stroke-width: 2.2px;"></i> Interactive Global Decision Tree</span>
-                            <div class="legend">
-                                <span class="legend-item"><span class="color-dot decision"></span> Decision Node</span>
-                                <span class="legend-item"><span class="color-dot high"></span> High Priority Leaf</span>
-                                <span class="legend-item"><span class="color-dot medium"></span> Medium Priority Leaf</span>
-                                <span class="legend-item"><span class="color-dot low"></span> Low Priority Leaf</span>
-                                <span class="legend-item"><span class="color-dot path"></span> Active Traversed Path</span>
+                            <div class="tree-actions">
+                                <button class="tree-action-btn" id="tree-zoom-in" title="Zoom in"><i data-lucide="zoom-in"></i></button>
+                                <button class="tree-action-btn" id="tree-zoom-out" title="Zoom out"><i data-lucide="zoom-out"></i></button>
+                                <button class="tree-action-btn" id="tree-fit" title="Fit to view"><i data-lucide="maximize"></i></button>
+                                <button class="tree-action-btn" id="tree-path-only" title="Show only the active case path">Path only</button>
                             </div>
                         </div>
-                        <div class="tree-canvas-container">
-                            <div id="tree-loading" class="loader">Loading global decision tree...</div>
-                            <div id="tree-legend-case-active" class="active-case-path-banner" style="display: none;">
-                                Active path highlighted for: <strong id="active-path-case-name">None</strong>
+                        <div class="legend">
+                            <span class="legend-item"><span class="color-dot decision"></span> Decision Node</span>
+                            <span class="legend-item"><span class="color-dot high"></span> High Priority Leaf</span>
+                            <span class="legend-item"><span class="color-dot medium"></span> Medium Priority Leaf</span>
+                            <span class="legend-item"><span class="color-dot low"></span> Low Priority Leaf</span>
+                            <span class="legend-item"><span class="color-dot path"></span> Active Traversed Path</span>
+                        </div>
+                        <div id="path-trace-wrap" class="path-trace-wrap" style="display: none;">
+                            <div class="path-trace-header">
+                                <span class="path-trace-label"><i data-lucide="route"></i> Decision Path</span>
+                                <button class="path-trace-toggle" id="path-trace-toggle"><i data-lucide="chevron-down" class="collapse-chevron"></i></button>
                             </div>
-                            <svg id="tree-svg"></svg>
-                            <div class="tree-tooltip" id="tree-tooltip"></div>
+                            <div class="path-breadcrumb" id="path-breadcrumb"></div>
+                            <div class="timeline-steps" id="decision-path-steps"></div>
+                        </div>
+                        <div class="tree-layout">
+                            <div class="tree-canvas-container" id="tree-canvas-container">
+                                <div id="tree-loading" class="loader">Loading global decision tree...</div>
+                                <div id="tree-legend-case-active" class="active-case-path-banner" style="display: none;">
+                                    Active path highlighted for: <strong id="active-path-case-name">None</strong>
+                                </div>
+                                <svg id="tree-svg"></svg>
+                                <div class="tree-tooltip" id="tree-tooltip"></div>
+                            </div>
+                            <aside class="tree-node-panel" id="tree-node-panel">
+                                <div class="node-panel-empty">
+                                    <i data-lucide="mouse-pointer-click"></i>
+                                    <p>Click a node to inspect its decision rule in plain English.</p>
+                                </div>
+                            </aside>
                         </div>
                     </div>
 
-                    <!-- Tab 3: Lie Detector -->
+                    <!-- Tab 3: Lie Detector (Chakshu) -->
                     <div class="tab-content" id="lie-detector-tab">
                         <div class="lie-detector-layout">
                             <div class="video-panel">

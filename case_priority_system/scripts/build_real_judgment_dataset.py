@@ -1,15 +1,18 @@
 """
 Build a REAL-JUDGMENT training corpus from the public KanoonGPT/indian-case-laws
-HuggingFace dataset (Indian High Court judgments, CC-BY-4.0 licensed, sourced
-from the AWS Open Data mirror).
+HuggingFace dataset (Indian High Court judgments; text sourced from the public
+AWS Open Data mirror, CC-BY-4.0).
 
-For every usable judgment we:
-  1. take the `indexable_text` (full judgment text),
-  2. extract features with the SAME deterministic pipeline the production app
+The dataset rows carry metadata only, but each exposes a public S3 `pdf_link`
+with the actual judgment PDF. For every usable judgment we:
+
+  1. download the PDF from the public AWS S3 bucket over plain HTTPS,
+  2. extract text with PyMuPDF (same reader as the production pipeline),
+  3. extract features with the SAME deterministic pipeline the production app
      uses (`fast_extract_features` + `tune_case_features` — no LLM needed),
-  3. label priority with the SAME policy used for PDF-derived rows
+  4. label priority with the SAME policy used for PDF-derived rows
      (`infer_priority_label`),
-  4. append the row to `data/real_report_training_cases.csv` (merged with the
+  5. append the row to `data/real_report_training_cases.csv` (merged with the
      existing PDF-derived rows, deduplicated on `source_file`).
 
 This gives the Decision Tree real out-of-domain legal language to learn from
@@ -18,7 +21,8 @@ only synthetic templates.
 
 Usage (from repo root):
     python case_priority_system/scripts/build_real_judgment_dataset.py \
-        --scan 600 --out case_priority_system/data/real_report_training_cases.csv
+        --scan 120 --max-rows 60 \
+        --out case_priority_system/data/real_report_training_cases.csv
 """
 import argparse
 import itertools
@@ -33,8 +37,6 @@ import pandas as pd
 from case_priority_system.scripts.inference_pipeline import (
     fast_extract_features,
     tune_case_features,
-    classify_legal_category,
-    LEGAL_CATEGORIES,
 )
 from case_priority_system.scripts.train_model import (
     infer_priority_label,
@@ -42,32 +44,47 @@ from case_priority_system.scripts.train_model import (
     REAL_TRAINING_DATA_PATH,
 )
 
+try:
+    import requests
+except ImportError:
+    requests = None
+
 DEFAULT_OUT = REAL_TRAINING_DATA_PATH
 HF_DATASET = "KanoonGPT/indian-case-laws"
-
-# A judgment needs enough prose to be worth a training row. Orders/short
-# registrations (a big fraction of the HC corpus) are skipped.
-MIN_TEXT_CHARS = 1500
-# Truncate the text stored per row so TF-IDF stays fast while keeping the
-# essential facts (matching how PDF rows store ~2500 chars).
+S3_BASE = "https://indian-high-court-judgments.s3.ap-south-1.amazonaws.com"
+# How much of the judgment text to store per row (matches the PDF-row builder
+# which stores ~2500 chars).
 STORE_CHARS = 2500
+MIN_TEXT_CHARS = 1200
 
 
 def usable_judgment(text: str) -> bool:
     if not text or len(text) < MIN_TEXT_CHARS:
         return False
-    # Require a fragment of actual judicial language (not just a docket line).
     lowered = text.lower()
     judicial_markers = [
-        "judgment", "judgement", "court", "petition", "appeal", "the state",
-        "versus", "v.", "respondent", "petitioner", "allowed", "dismissed",
-        "order", "held", "observed",
+        "judgment", "judgement", "court", "petition", "appeal",
+        "respondent", "petitioner", "allowed", "dismissed", "order",
+        "held", "versus", "v.",
     ]
     hits = sum(1 for m in judicial_markers if m in lowered)
-    return hits >= 3
+    return hits >= 4
 
 
-def build_row(text: str, source: str, idx: int) -> dict | None:
+def download_pdf(url: str, timeout: int = 40):
+    """Returns PDF bytes, or None on failure."""
+    if requests is None:
+        return None
+    try:
+        resp = requests.get(url, timeout=timeout)
+        if resp.status_code == 200 and resp.content[:4] == b"%PDF":
+            return resp.content
+    except Exception as e:
+        print(f"  download failed: {e}")
+    return None
+
+
+def build_row_from_text(text: str, source: str, idx: int) -> dict | None:
     """One training row from a real judgment, mirroring the PDF-row builder."""
     try:
         features = tune_case_features(
@@ -101,9 +118,9 @@ def build_row(text: str, source: str, idx: int) -> dict | None:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scan", type=int, default=600,
+    ap.add_argument("--scan", type=int, default=120,
                     help="how many dataset rows to scan before stopping")
-    ap.add_argument("--max-rows", type=int, default=0,
+    ap.add_argument("--max-rows", type=int, default=60,
                     help="hard cap on usable rows kept (0 = unlimited)")
     ap.add_argument("--out", default=DEFAULT_OUT, help="output CSV path")
     args = ap.parse_args()
@@ -118,42 +135,73 @@ def main():
 
     rows, seen_sources = [], set()
     scanned = 0
+
+    def persist(pending):
+        """Merge + write accumulated rows so a long/interrupted run never loses work."""
+        new_df = pd.DataFrame(pending)
+        if new_df.empty:
+            return
+        existing = pd.DataFrame()
+        if os.path.exists(args.out):
+            existing = pd.read_csv(args.out)
+        combined = pd.concat([existing, new_df], ignore_index=True)
+        combined = combined.drop_duplicates(subset=["source_file"], keep="last")
+        combined = combined.reset_index(drop=True)
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        combined.to_csv(args.out, index=False)
+
+    pending = []
     for item in itertools.islice(iter(ds), args.scan):
         scanned += 1
-        text = str(item.get("indexable_text") or "").strip()
-        source = str(item.get("source_filename") or f"kno_{scanned:05d}.json")
-        if not usable_judgment(text):
+        source = str(item.get("source_filename") or f"kno_{scanned:05d}.pdf")
+        pdf_url = str(item.get("source_pdf_s3_url") or "").strip()
+        if not pdf_url:
             continue
-        row = build_row(text, source, len(rows))
+
+        pdf_bytes = download_pdf(pdf_url)
+        if pdf_bytes is None:
+            continue
+
+        # extract text the same way the inference pipeline does
+        import fitz
+        try:
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            text = "".join(doc[i].get_text() for i in range(min(6, len(doc))))
+            doc.close()
+        except Exception as e:
+            print(f"  extract failed for {source}: {e}")
+            continue
+
+        if not usable_judgment(text):
+            print(f"  {source}: only {len(text)} chars — skipping (order/order fragment)")
+            continue
+
+        row = build_row_from_text(text, source, len(rows))
         if row is None:
             continue
         if source in seen_sources:
             continue
         seen_sources.add(source)
         rows.append(row)
+        pending.append(row)
+        print(f"  [{len(rows):3d}] {source} ({len(text)} chars) -> {row['priority']} | {row['case_category']}")
+        if len(pending) >= 15:
+            persist(pending)
+            pending = []
         if args.max_rows and len(rows) >= args.max_rows:
             break
 
+    persist(pending)
     print(f"Scanned {scanned} dataset rows -> {len(rows)} usable judgments.")
 
-    new_df = pd.DataFrame(rows)
-    if new_df.empty:
-        print("Nothing to merge; existing file left untouched.")
+    combined = pd.DataFrame()
+    if os.path.exists(args.out):
+        combined = pd.read_csv(args.out)
+    if combined.empty:
+        print("No rows merged; output untouched.")
         return
 
-    # Merge with existing rows (PDF-derived + any previous run), dedupe by source.
-    existing = pd.DataFrame()
-    if os.path.exists(args.out):
-        existing = pd.read_csv(args.out)
-    combined = pd.concat([existing, new_df], ignore_index=True)
-    combined = combined.drop_duplicates(subset=["source_file"], keep="last")
-    combined = combined.reset_index(drop=True)
-
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    combined.to_csv(args.out, index=False)
-
-    print(f"Merged into {args.out}: {len(existing)} existing + {len(new_df)} new "
-          f"= {len(combined)} total rows.")
+    print(f"Final {args.out}: {len(combined)} total rows.")
     print("\nPriority distribution:")
     print(combined["priority"].value_counts().to_string())
     print("\nCategory distribution:")

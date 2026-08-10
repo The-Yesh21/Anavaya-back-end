@@ -72,6 +72,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // Tolerant parser for backend Python-style list-of-dict reprs, e.g.
+    //   "[{'article': 'Article 21', 'title': 'Right to Life', 'primary': True}, ...]"
+    function parseListRepr(str) {
+        if (!str || typeof str !== "string" || !str.trim().startsWith("[")) return [];
+        const results = [];
+        const dictRe = /\{[^{}]*\}/g;
+        // Values may be single-quoted ('x'), double-quoted ("x") — Python's
+        // repr switches to double quotes when a string contains an apostrophe.
+        const fieldRe = /'([^']+)'\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|True|False|\d+)/g;
+        let m;
+        while ((m = dictRe.exec(str)) !== null) {
+            const obj = {};
+            const fr = new RegExp(fieldRe.source, "g");
+            let f;
+            while ((f = fr.exec(m[0])) !== null) {
+                const key = f[1];
+                const val = f[2];
+                if (val === "True" || val === "False") obj[key] = val === "True";
+                else if (/^\d+$/.test(val)) obj[key] = parseInt(val, 10);
+                else if (val.startsWith('"')) obj[key] = val.slice(1, -1).replace(/\\"/g, '"');
+                else obj[key] = val.slice(1, -1).replace(/\\'/g, "'");
+            }
+            if (Object.keys(obj).length) results.push(obj);
+        }
+        return results;
+    }
+
     // Escape user-derived strings before injecting into innerHTML (XSS guard)
     function escHtml(str) {
         return String(str == null ? "" : str)
@@ -144,12 +171,71 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Stats calculations
+    // Stats calculations — counts, donut, category bars
+    const donutTotalVal = document.getElementById("donut-total-val");
+    const arcHigh = document.getElementById("arc-high");
+    const arcMedium = document.getElementById("arc-medium");
+    const arcLow = document.getElementById("arc-low");
+    const categoryBarsEl = document.getElementById("category-bars");
+
     function updateStats(cases) {
-        statTotalVal.textContent = cases.length;
-        statHighVal.textContent = cases.filter(c => c.Predicted_Priority === "High").length;
-        statMediumVal.textContent = cases.filter(c => c.Predicted_Priority === "Medium").length;
-        statLowVal.textContent = cases.filter(c => c.Predicted_Priority === "Low").length;
+        const total = cases.length;
+        const high = cases.filter(c => c.Predicted_Priority === "High").length;
+        const medium = cases.filter(c => c.Predicted_Priority === "Medium").length;
+        const low = cases.filter(c => c.Predicted_Priority === "Low").length;
+
+        statTotalVal.textContent = total;
+        if (donutTotalVal) donutTotalVal.textContent = total;
+        statHighVal.textContent = high;
+        statMediumVal.textContent = medium;
+        statLowVal.textContent = low;
+
+        renderDonut(high, medium, low, total);
+        renderCategoryBars(cases);
+    }
+
+    function renderDonut(high, medium, low, total) {
+        const arcs = [arcHigh, arcMedium, arcLow];
+        if (!arcs[0] || total === 0) return;
+        const C = 2 * Math.PI * 50;
+        const counts = [high, medium, low];
+        let offset = 0;
+        counts.forEach((n, i) => {
+            const frac = total > 0 ? n / total : 0;
+            arcs[i].style.strokeDasharray = `${frac * C} ${C}`;
+            arcs[i].style.strokeDashoffset = `${-offset * C}`;
+            // Round caps render dots on zero-length segments; use butt caps there.
+            arcs[i].style.strokeLinecap = frac === 0 ? "butt" : "round";
+            offset += frac;
+        });
+    }
+
+    function renderCategoryBars(cases) {
+        if (!categoryBarsEl) return;
+        const counts = {};
+        cases.forEach(c => {
+            const cat = c.Category || "General Civil";
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        if (sorted.length === 0) {
+            categoryBarsEl.innerHTML = `<div class="loader">No cases yet.</div>`;
+            return;
+        }
+        const max = sorted[0][1];
+        categoryBarsEl.innerHTML = sorted.map(([cat, n]) => `
+            <div class="cat-bar-row" title="${escHtml(cat)}">
+                <span class="cat-bar-name">${escHtml(cat)}</span>
+                <div class="cat-bar-track"><div class="cat-bar-fill" data-w="${Math.max(4, Math.round((n / max) * 100))}" style="width:0%"></div></div>
+                <span class="cat-bar-count">${n}</span>
+            </div>
+        `).join("");
+        // Animate bar widths after paint
+        requestAnimationFrame(() => {
+            categoryBarsEl.querySelectorAll(".cat-bar-fill").forEach(f => {
+                f.style.width = f.getAttribute("data-w") + "%";
+            });
+        });
     }
 
     // Dropdown filters population
@@ -197,31 +283,118 @@ document.addEventListener("DOMContentLoaded", () => {
             const item = document.createElement("div");
             item.className = `case-item ${selectedCase && selectedCase.Case_File === c.Case_File ? "active" : ""}`;
             item.setAttribute("data-case-file", c.Case_File || "");
+            item.setAttribute("tabindex", "0");
+            item.setAttribute("role", "button");
+            item.setAttribute("aria-label", `Select case ${cleanTitle}`);
             item.innerHTML = `
-                <div class="case-item-align">
-                    <span class="dot-red"></span>
-                    <span class="dot-yellow"></span>
-                    <span class="dot-green"></span>
-                </div>
                 <div class="case-item-title">${escHtml(cleanTitle) || "Unknown Case"}</div>
+                <div class="case-item-desc">${escHtml(c.Main_Parties) || "Unknown Parties"}</div>
                 <div class="case-item-details-expanded">
-                    <div class="case-item-desc">${escHtml(c.Main_Parties) || "Unknown Parties"}</div>
                     <div class="case-item-meta">
                         <span class="badge-priority ${String(c.Predicted_Priority || "medium").toLowerCase()}">${escHtml(c.Predicted_Priority)}</span>
                         <span class="case-item-category">${escHtml(c.Category) || "General Civil"}</span>
                     </div>
-                    <div class="case-item-summary-preview">${escHtml(c.Plain_Language_Summary) || "No summary available."}</div>
                 </div>
             `;
-            item.addEventListener("click", () => selectCase(c));
+            item.addEventListener("click", () => { selectCase(c); closeSidebar(); });
+            item.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectCase(c);
+                    closeSidebar();
+                }
+            });
             casesListContainer.appendChild(item);
         });
     }
 
-    // Search and Filter Listeners
-    searchInput.addEventListener("input", () => renderCasesList(casesData));
+    // Search and Filter Listeners (debounced search)
+    let searchDebounceTimer = null;
+    searchInput.addEventListener("input", () => {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => renderCasesList(casesData), 150);
+    });
     filterPriority.addEventListener("change", () => renderCasesList(casesData));
     filterCategory.addEventListener("change", () => renderCasesList(casesData));
+
+    // Ctrl/Cmd+K focuses search
+    document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            searchInput.focus();
+            searchInput.select();
+        }
+    });
+
+    // Triage legend → click to filter the case list by priority
+    document.querySelectorAll(".triage-legend-item").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const p = btn.getAttribute("data-priority");
+            filterPriority.value = (filterPriority.value === p) ? "all" : p;
+            renderCasesList(casesData);
+        });
+    });
+
+    // Arrow-key navigation through the case list
+    casesListContainer.addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+        e.preventDefault();
+        const items = [...casesListContainer.querySelectorAll(".case-item")];
+        if (items.length === 0) return;
+        const idx = items.indexOf(document.activeElement);
+        const next = e.key === "ArrowDown" ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
+        if (idx === -1) items[0].focus();
+        else if (items[next]) items[next].focus();
+    });
+
+    // Mobile sidebar drawer
+    const sidebarEl = document.getElementById("cases-sidebar");
+    const sidebarToggleBtn = document.getElementById("sidebar-toggle-btn");
+    const sidebarCloseBtn = document.getElementById("sidebar-close-btn");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+
+    function openSidebar() {
+        if (sidebarEl) sidebarEl.classList.add("open");
+        if (sidebarBackdrop) sidebarBackdrop.classList.add("show");
+    }
+    function closeSidebar() {
+        if (sidebarEl) sidebarEl.classList.remove("open");
+        if (sidebarBackdrop) sidebarBackdrop.classList.remove("show");
+    }
+    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener("click", openSidebar);
+    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener("click", closeSidebar);
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
+
+    // Drag & drop upload
+    const uploadZone = document.getElementById("upload-zone");
+    if (uploadZone) {
+        ["dragenter", "dragover"].forEach(evt => uploadZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            uploadZone.classList.add("drag-over");
+        }));
+        ["dragleave", "drop"].forEach(evt => uploadZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove("drag-over");
+        }));
+        uploadZone.addEventListener("drop", (e) => {
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file && fileInput) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+                fileInput.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    // Collapsible analysis sections
+    document.querySelectorAll(".collapsible-toggle").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const section = btn.closest(".collapsible");
+            const isOpen = section.classList.toggle("open");
+            btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        });
+    });
 
     // File upload handler
     const fileInput = document.getElementById("pdf-file-input");
@@ -336,8 +509,26 @@ document.addEventListener("DOMContentLoaded", () => {
             rightsHtml += '</div>';
             rightsContainer.innerHTML = rightsHtml;
         } else if (typeof c.Constitutional_Rights_Engaged === 'string' && c.Constitutional_Rights_Engaged) {
-            // Handle legacy string format
-            rightsContainer.innerHTML = `<p class="rights-text">${c.Constitutional_Rights_Engaged}</p>`;
+            // Handle legacy string format (may embed a Python list-of-dict repr)
+            const parsedRights = parseListRepr(c.Constitutional_Rights_Engaged);
+            if (parsedRights.length) {
+                let rightsHtml = '<div class="rights-cards">';
+                parsedRights.forEach(right => {
+                    const primaryClass = right.primary ? 'primary' : 'secondary';
+                    const tagText = right.primary ? 'PRIMARY' : 'SECONDARY';
+                    rightsHtml += `
+                        <div class="rights-card ${primaryClass}">
+                            <div class="rights-article-tag">${tagText}</div>
+                            <strong class="rights-article">${escHtml(right.article)}</strong>
+                            <span class="rights-title">${escHtml(right.title)}</span>
+                        </div>
+                    `;
+                });
+                rightsHtml += '</div>';
+                rightsContainer.innerHTML = rightsHtml;
+            } else {
+                rightsContainer.innerHTML = `<p class="rights-text">${escHtml(c.Constitutional_Rights_Engaged)}</p>`;
+            }
         } else {
             rightsContainer.innerHTML = `<p class="rights-text">Article 14 — Equality Before Law (General application). Specific constitutional rights analysis not available for this case.</p>`;
         }
@@ -374,7 +565,23 @@ document.addEventListener("DOMContentLoaded", () => {
             doctrinesHtml += '</div>';
             doctrinesContainer.innerHTML = doctrinesHtml;
         } else if (typeof c.Applicable_Doctrines === 'string' && c.Applicable_Doctrines) {
-            doctrinesContainer.innerHTML = `<p class="doctrines-text">${c.Applicable_Doctrines}</p>`;
+            const parsedDoctrines = parseListRepr(c.Applicable_Doctrines);
+            if (parsedDoctrines.length) {
+                let doctrinesHtml = '<div class="doctrines-grid">';
+                parsedDoctrines.forEach(doc => {
+                    doctrinesHtml += `
+                        <div class="doctrine-card">
+                            <strong class="doctrine-name">${escHtml(doc.name)}</strong>
+                            <p class="doctrine-desc">${escHtml(doc.description)}</p>
+                            <p class="doctrine-app"><strong>Application:</strong> ${escHtml(doc.application)}</p>
+                        </div>
+                    `;
+                });
+                doctrinesHtml += '</div>';
+                doctrinesContainer.innerHTML = doctrinesHtml;
+            } else {
+                doctrinesContainer.innerHTML = `<p class="doctrines-text">${escHtml(c.Applicable_Doctrines)}</p>`;
+            }
         } else {
             doctrinesContainer.innerHTML = '<p class="doctrines-text">General principles of constitutional interpretation apply. Specific doctrines not identified for this case.</p>';
         }
@@ -435,6 +642,9 @@ document.addEventListener("DOMContentLoaded", () => {
             
             activePathNodes = pathInfo.path_node_ids || [];
             renderPathTimeline(pathInfo.steps);
+            renderBreadcrumb(pathInfo.steps);
+            const traceWrap = document.getElementById("path-trace-wrap");
+            if (traceWrap) traceWrap.style.display = "block";
 
             // If we are currently on the tree tab, update tree highlighting immediately
             const activeTab = document.querySelector(".tab-btn.active").getAttribute("data-tab");
@@ -446,6 +656,71 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error(err);
         }
     }
+
+    // Textual breadcrumb of the active case's path (readable in one line)
+    function renderBreadcrumb(steps) {
+        const bc = document.getElementById("path-breadcrumb");
+        if (!bc) return;
+        if (!steps || steps.length === 0) { bc.innerHTML = ""; return; }
+        const parts = steps.map((step) => {
+            if (step.type === "leaf") {
+                const cls = String(step.result || "medium").toLowerCase();
+                return `<span class="breadcrumb-step leaf-step ${cls}">${escHtml(step.result)} Priority</span>`;
+            }
+            return `<span class="breadcrumb-step">${escHtml(step.title)}</span>`;
+        });
+        bc.innerHTML = parts.map((p, i) => i > 0 ? `<span class="breadcrumb-sep">→</span>${p}` : p).join("");
+    }
+
+    // Side panel: explain one node in plain English
+    function showNodePanel(d) {
+        const panel = document.getElementById("tree-node-panel");
+        if (!panel) return;
+        const isLeaf = d.type === "leaf";
+        let html = `<div class="node-panel-title">Node ${d.id}${isLeaf ? " — Final Verdict" : ""}</div>`;
+        html += `<div class="node-panel-type">${isLeaf ? "Leaf node" : "Decision split"}</div>`;
+        if (isLeaf) {
+            html += `<div class="node-panel-row"><strong>Predicted Priority</strong><span class="panel-priority" style="color:${getPriorityColor(d.predicted_class)}">${escHtml(d.predicted_class)}</span></div>`;
+            html += `<div class="node-panel-row"><strong>Samples at leaf</strong>${d.samples}</div>`;
+        } else {
+            html += `<div class="node-panel-row"><strong>Split rule</strong>${escHtml(d.name)}</div>`;
+            html += `<div class="node-panel-row"><strong>Feature</strong>${escHtml(d.feature_clean || "—")}</div>`;
+            html += `<div class="node-panel-row"><strong>Samples</strong>${d.samples}</div>`;
+        }
+        html += `<div class="node-panel-row"><strong>Class distribution</strong>${Object.entries(d.class_counts || {}).map(([k, v]) => `${escHtml(k)}: ${v}`).join(" · ")}</div>`;
+        panel.innerHTML = html;
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // Tree control bar (zoom / fit / path-only)
+    const zoomInBtn = document.getElementById("tree-zoom-in");
+    const zoomOutBtn = document.getElementById("tree-zoom-out");
+    const fitBtn = document.getElementById("tree-fit");
+    const pathOnlyBtn = document.getElementById("tree-path-only");
+    const treeCanvasEl = document.getElementById("tree-canvas-container");
+    const pathTraceToggle = document.getElementById("path-trace-toggle");
+
+    function treeZoomBy(factor) {
+        const svgEl = document.getElementById("tree-svg");
+        if (svgEl && d3Zoom) d3.select(svgEl).transition().duration(250).call(d3Zoom.scaleBy, factor);
+    }
+    if (zoomInBtn) zoomInBtn.addEventListener("click", () => treeZoomBy(1.3));
+    if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => treeZoomBy(0.75));
+    if (fitBtn) fitBtn.addEventListener("click", () => {
+        const svgEl = document.getElementById("tree-svg");
+        if (svgEl && d3Zoom) d3.select(svgEl).transition().duration(300).call(d3Zoom.transform, d3.zoomIdentity.translate(20, 20).scale(0.85));
+    });
+    if (pathOnlyBtn) pathOnlyBtn.addEventListener("click", () => {
+        if (!treeCanvasEl) return;
+        if (!activePathNodes.length) return; // nothing to isolate without a selected case
+        const isPathOnly = treeCanvasEl.classList.toggle("path-only");
+        pathOnlyBtn.classList.toggle("active", isPathOnly);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    });
+    if (pathTraceToggle) pathTraceToggle.addEventListener("click", () => {
+        const wrap = document.getElementById("path-trace-wrap");
+        if (wrap) wrap.classList.toggle("collapsed");
+    });
 
     function renderPathTimeline(steps) {
         const stepsContainer = document.getElementById("decision-path-steps");
@@ -590,7 +865,8 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .on("mouseout", () => {
                 tooltip.transition().duration(200).style("opacity", 0);
-            });
+            })
+            .on("click", (event, d) => showNodePanel(d.data));
 
         // Node Visual representation
         node.append("circle")
@@ -617,6 +893,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return "#5D7052"; // Moss Green
             });
+
+        // Invisible hit area so nodes are easy to click
+        node.append("circle")
+            .attr("r", 15)
+            .attr("class", "tree-hit-circle")
+            .style("fill", "transparent")
+            .style("stroke", "none");
 
         // Add text labels
         node.append("text")
