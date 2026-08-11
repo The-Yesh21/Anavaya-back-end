@@ -3,10 +3,11 @@ import pickle
 import re
 import json
 import shutil
+import tempfile
 import traceback
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI, HTTPException, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -59,6 +60,18 @@ except ImportError:
     except ImportError:
         courtroom_manager = None
         print("Warning: courtroom_manager module not found. Trial feature will be unavailable.")
+
+# Import the case-centric registry (Create New Case workflow)
+try:
+    from case_priority_system.scripts.case_manager import CaseManager
+    case_manager = CaseManager()
+except ImportError:
+    try:
+        from scripts.case_manager import CaseManager
+        case_manager = CaseManager()
+    except ImportError:
+        case_manager = None
+        print("Warning: case_manager module not found. Case workflow will be unavailable.")
 
 
 def display_feature_name(feature_name):
@@ -172,12 +185,18 @@ async def upload_case(file: UploadFile = File(...)):
     filename = os.path.basename(file.filename or "upload.pdf")
     if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", filename, re.IGNORECASE):
         raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf only.")
-    temp_pdf_path = os.path.join(".", filename)
-    
+    # Save the upload to the OS temp dir (never the repo root), so a filename
+    # collision can never overwrite or delete an existing project file.
+    fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", prefix="anavaya_upload_")
+    os.close(fd)
     try:
         with open(temp_pdf_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
+        try:
+            os.remove(temp_pdf_path)
+        except Exception:
+            pass
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
         
     try:
@@ -294,6 +313,31 @@ async def upload_case(file: UploadFile = File(...)):
         except Exception as e:
             print(f"PDF report generation failed (non-fatal): {e}")
             new_case['Report_PDF'] = ''
+
+        # 7c. Register the upload in the case registry so the same PDF can later
+        #     host Chakshu sessions and evidence fact-checking (multi-document
+        #     workflow stays consistent with single uploads).
+        new_case['Case_ID'] = ''
+        new_case['Document_Type'] = 'Single Upload'
+        if case_manager is not None:
+            try:
+                with open(temp_pdf_path, 'rb') as fh:
+                    reg_case = case_manager.create_case(title=filename, created_by='', source='AUTO_ID')
+                    reg_doc = case_manager.add_document(reg_case.case_id, fh, doc_type='FIR', filename=filename)
+                case_manager.attach_analysis(
+                    reg_case.case_id, reg_doc.doc_id,
+                    analysis=llm_data,
+                    priority=priority,
+                    decision_report=decision_graph_path,
+                    text_excerpt=text,
+                    constitutional=constitutional_analysis,
+                    report_pdf=report_pdf,
+                )
+                case_manager.refresh_aggregate(reg_case)
+                new_case['Case_ID'] = reg_case.case_id
+                new_case['Document_Type'] = 'FIR'
+            except Exception as e:
+                print(f"Case registry registration failed (non-fatal): {e}")
         
         # 8. Append to EXCEL_PATH
         if os.path.exists(EXCEL_PATH):
@@ -533,6 +577,226 @@ def get_case_decision_path(case_file: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error tracing decision path: {str(e)}")
+
+# =====================================================================
+# CASE WORKFLOW (Create New Case: multi-document cases, Chakshu
+# sessions and evidence fact-checking). Endpoints must be declared
+# BEFORE the catch-all static mount below.
+# =====================================================================
+
+
+def _append_case_documents_to_excel(case, case_id: str) -> None:
+    """Append every analysed document of a case to case_results.xlsx.
+
+    One row per document, tagged with Case_ID and Document_Type, so the
+    existing dashboard keeps working unchanged.
+    """
+    rows = []
+    for doc in case.documents:
+        if not doc.analysis:
+            continue
+        f = doc.analysis
+        con = f.get("_constitutional", {})
+        rows.append({
+            'Case_File': doc.filename,
+            'Case_ID': case_id,
+            'Document_Type': doc.doc_type,
+            'Main_Parties': f.get('main_parties', 'Unknown'),
+            'Plain_Language_Summary': f.get('plain_summary', 'N/A'),
+            'Constitutional_Justification': con.get('state_perspective_opinion', ''),
+            'Priority_Rules_Applied': con.get('priority_rules_detailed', ''),
+            'Decision_Report': doc.decision_report,
+            'Decision_Path': doc.decision_report,
+            'Predicted_Priority': doc.priority,
+            'Category': f.get('case_category', 'N/A'),
+            'Broad_Model_Category': f.get('crime_type', 'N/A'),
+            'Severity': f.get('severity', 'N/A'),
+            'Vulnerability': f.get('vulnerability', 'N/A'),
+            'Influence': f.get('influence', 'N/A'),
+            'State_Duty_Analysis': con.get('state_duty_analysis', ''),
+            'Rights_Balancing_Analysis': con.get('balancing_analysis', ''),
+            'Constitutional_Rights_Engaged': con.get('constitutional_rights_engaged', []),
+            'Applicable_Doctrines': con.get('applicable_doctrines', []),
+            'Report_PDF': f.get('report_pdf', ''),
+        })
+    if not rows:
+        return
+    if os.path.exists(EXCEL_PATH):
+        excel_df = pd.read_excel(EXCEL_PATH)
+    else:
+        excel_df = pd.DataFrame(columns=list(rows[0].keys()))
+    stale_files = {r['Case_File'] for r in rows}
+    if 'Case_File' in excel_df.columns and not excel_df.empty:
+        excel_df = excel_df[~excel_df['Case_File'].isin(stale_files)]
+    new_df = pd.DataFrame(rows)
+    excel_df = pd.concat([excel_df, new_df], ignore_index=True)
+    excel_df.to_excel(EXCEL_PATH, index=False)
+
+
+def _get_case_or_404(case_id: str):
+    """Validate the case id format and return the case, or raise 404."""
+    if case_manager is None:
+        raise HTTPException(status_code=503, detail="Case manager not available.")
+    if not case_manager.valid_case_id(case_id):
+        raise HTTPException(status_code=404, detail="Case not found.")
+    case = case_manager.get_case(case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    return case
+
+
+@app.post("/api/cases")
+async def create_case(case_title: str = Form(""), created_by: str = Form(""),
+                      fir_file: UploadFile = File(None)):
+    """Create a new case. Optionally attach the FIR document immediately.
+
+    The case id (ANV-YYYY-NNNN) is always assigned by the system, whether or
+    not a title / FIR was supplied.
+    """
+    if case_manager is None:
+        raise HTTPException(status_code=503, detail="Case manager not available.")
+    fir_name = os.path.basename(fir_file.filename) if fir_file and fir_file.filename else ""
+    if fir_name and not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", fir_name, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid FIR file name. Use letters, numbers, spaces, dashes and .pdf only.")
+    source = "FIR_UPLOADED" if fir_name else "AUTO_ID"
+    case = case_manager.create_case(title=case_title, created_by=created_by, source=source)
+    if fir_file:
+        try:
+            doc = case_manager.add_document(case.case_id, fir_file.file, doc_type="FIR", filename=fir_name)
+            case_manager.analyze_document(case, doc, model_data)
+            case_manager.refresh_aggregate(case)
+            _append_case_documents_to_excel(case, case.case_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to analyse FIR: {str(e)}")
+    return case.to_dict()
+
+
+@app.post("/api/cases/{case_id}/documents")
+async def add_case_document(case_id: str, file: UploadFile = File(...),
+                            doc_type: str = Form("Other")):
+    """Attach an evidence document (FIR, report, statement, ...) to a case."""
+    _get_case_or_404(case_id)
+    filename = os.path.basename(file.filename or "document.pdf")
+    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", filename, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf only.")
+    try:
+        doc = case_manager.add_document(case_id, file.file, doc_type=doc_type, filename=filename)
+    except ValueError as e:
+        msg = str(e)
+        status = 404 if "not found" in msg else 400
+        raise HTTPException(status_code=status, detail=msg)
+    return doc.to_dict()
+
+
+@app.post("/api/cases/{case_id}/analyze")
+def analyze_case(case_id: str):
+    """Analyse every unanalysed document and refresh the aggregate priority."""
+    case = _get_case_or_404(case_id)
+    errors = []
+    for doc in list(case.documents):
+        if not doc.priority:
+            try:
+                case_manager.analyze_document(case, doc, model_data)
+            except Exception as e:
+                errors.append(f"{doc.filename}: {str(e)}")
+    case_manager.refresh_aggregate(case)
+    _append_case_documents_to_excel(case, case_id)
+    payload = case.to_dict()
+    if errors:
+        payload["analysis_errors"] = errors
+    return payload
+
+
+@app.get("/api/cases/{case_id}")
+def get_case(case_id: str):
+    """Full case detail: documents, per-document analysis, sessions."""
+    return _get_case_or_404(case_id).to_dict()
+
+
+@app.get("/api/case-registry")
+def list_case_registry():
+    """Summaries of all case entities (newest first)."""
+    if case_manager is None:
+        raise HTTPException(status_code=503, detail="Case manager not available.")
+    return case_manager.list_cases()
+
+
+@app.get("/api/cases/{case_id}/documents/{doc_id}/download")
+def download_case_document(case_id: str, doc_id: str):
+    """Serve the stored PDF of a case document."""
+    case = _get_case_or_404(case_id)
+    doc = case.get_document(doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if not os.path.exists(doc.path):
+        raise HTTPException(status_code=404, detail="Document file missing on disk.")
+    return FileResponse(doc.path, media_type="application/pdf",
+                        filename=os.path.basename(doc.filename))
+
+
+@app.post("/api/cases/{case_id}/sessions")
+def save_case_session(case_id: str, payload: dict):
+    """Save a completed Chakshu session (physio summary + transcript)."""
+    case = _get_case_or_404(case_id)
+    try:
+        session = case_manager.save_session(
+            case_id,
+            physio=payload.get("physio"),
+            transcript=payload.get("transcript"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return session.to_dict()
+
+
+@app.post("/api/cases/{case_id}/fact-check")
+def run_case_fact_check(case_id: str, payload: dict = None):
+    """Run the hybrid fact-check of a session transcript against the documents."""
+    case = _get_case_or_404(case_id)
+    session_id = (payload or {}).get("session_id")
+    session = None
+    if session_id:
+        session = next((s for s in case.sessions if s.session_id == session_id), None)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found.")
+    else:
+        session = case.sessions[-1] if case.sessions else None
+        if session is None:
+            raise HTTPException(status_code=400, detail="No lie-detection session saved yet for this case.")
+    try:
+        from case_priority_system.scripts.fact_checker import run_fact_check
+    except ImportError:
+        from scripts.fact_checker import run_fact_check  # type: ignore
+    report = run_fact_check(case, session)
+    case_manager.set_fact_check(case_id, session.session_id, report)
+    return report
+
+
+@app.get("/api/cases/{case_id}/fact-check")
+def get_case_fact_check(case_id: str):
+    """The most recent fact-check report for the latest session of a case."""
+    case = _get_case_or_404(case_id)
+    if not case.sessions:
+        raise HTTPException(status_code=404, detail="No sessions for this case.")
+    report = case.sessions[-1].fact_check
+    if not report:
+        raise HTTPException(status_code=404, detail="No fact-check has been run yet.")
+    return report
+
+
+@app.get("/api/cases/{case_id}/dossier")
+def get_case_dossier(case_id: str):
+    """Download the full case dossier (documents + sessions + fact-check) as Markdown."""
+    _get_case_or_404(case_id)
+    md = case_manager.export_markdown(case_id)
+    if md is None:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    return Response(
+        content=md,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{case_id}_dossier.md"'},
+    )
+
 
 # Mount static files (will serve index.html by default at root)
 os.makedirs(STATIC_DIR, exist_ok=True)

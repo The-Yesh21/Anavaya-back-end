@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>Sample_FIR_Case_Report_Sexual_Assault.pdf</h2>
-  <p>The parties, Sample FIR Case Report Sexual Assault, are involved in a legal dispute. The document indicates assault, victim, sexual assault. This case is classified as Criminal/Violent because the record matches assault, victim, sexual assault. Under the Constitution of India, the primary rights engaged are Article 21, Article 22, Article 20.</p>
+  <p>The parties, Accused, Complainant, Victim — names not disclosed, are involved in a legal dispute. The document indicates assault, victim, sexual assault. This case is classified as Criminal/Violent because the record matches assault, victim, sexual assault. Under the Constitution of India, the primary rights engaged are Article 21, Article 22, Article 20.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>

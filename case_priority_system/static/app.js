@@ -8,6 +8,38 @@ document.addEventListener("DOMContentLoaded", () => {
     let activePathNodes = [];
     let courtroomsLoaded = false;
 
+    // Bridge so the separately-loaded case-workflow module (wizard, Chakshu
+    // transcript + fact-check) can interact with the dashboard state without
+    // being inside this closure.
+    let currentCaseId = null;
+    window.AnavayaUI = {
+        getSelectedCase: () => selectedCase,
+        getCasesData: () => casesData,
+        setCurrentCaseId: (id) => { currentCaseId = id || null; },
+        getCurrentCaseId: () => currentCaseId,
+        refreshCases: () => fetchCases(),
+        refreshStats: () => { updateStats(casesData); populateFilters(casesData); renderCasesList(casesData); },
+        selectCaseFn: (c) => selectCase(c),
+        escHtml: escHtml,
+        onSessionStopped: null,
+        onSessionReset: null,
+        getSessionSummary: () => {
+            const scores = (sessionStats && sessionStats.scores) || [];
+            const score = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+            let verdict = "Truthful (Stable)";
+            if (score >= 60) verdict = "Deceptive Patterns Detected";
+            else if (score >= 30) verdict = "Elevated Stress / Suspicious";
+            return {
+                score,
+                verdict,
+                blinks: (sessionStats && sessionStats.blinks) || 0,
+                gazeAvoidance: (sessionStats && sessionStats.gazeAvoidance) || 0,
+                twitches: (sessionStats && sessionStats.twitches) || 0,
+                duration: (sessionStats && sessionStats.duration) || 0,
+            };
+        },
+    };
+
     // Elements
     const casesListContainer = document.getElementById("cases-list-container");
     const searchInput = document.getElementById("search-input");
@@ -463,6 +495,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Case Selection
     async function selectCase(c) {
         selectedCase = c;
+        // The Excel row now carries Case_ID for documents belonging to a case
+        // registry entity — used by the Chakshu transcript + fact-check.
+        if (c && c.Case_ID) {
+            window.AnavayaUI.setCurrentCaseId(c.Case_ID);
+        }
         
         // Highlight active sidebar item
         document.querySelectorAll(".case-item").forEach(item => {
@@ -1129,6 +1166,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         sessionStatusBanner.textContent = `Analysis Completed. Session Score: ${avgScore}%`;
+
+        // Notify the case-workflow module so it can save the transcript + physio
+        // and enable the evidence fact-check.
+        if (window.AnavayaUI && typeof window.AnavayaUI.onSessionStopped === "function") {
+            window.AnavayaUI.onSessionStopped();
+        }
     });
 
     // Reset Session
@@ -1151,6 +1194,11 @@ document.addEventListener("DOMContentLoaded", () => {
         fillGazeEl.style.width = "0%";
         fillStressEl.style.width = "0%";
         fillTremorEl.style.width = "0%";
+
+        // Notify the case-workflow module so it clears its transcript state.
+        if (window.AnavayaUI && typeof window.AnavayaUI.onSessionReset === "function") {
+            window.AnavayaUI.onSessionReset();
+        }
     });
 
     function getLandmarkDist(p1, p2) {

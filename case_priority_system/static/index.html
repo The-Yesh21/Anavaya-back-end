@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="case-workflow.css">
     <!-- D3.js for Decision Tree Rendering -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!-- MediaPipe Face Mesh & Camera Tracking -->
@@ -126,13 +127,27 @@
                             <option value="all">All Categories</option>
                         </select>
                     </div>
+                    <!-- Cases Registry (Create New Case workflow) -->
+                    <div class="sidebar-cases-block">
+                        <div class="sidebar-cases-header">
+                            <h3><i data-lucide="folder-kanban"></i> Cases</h3>
+                            <button class="icon-btn" id="refresh-cases-btn" title="Refresh cases" aria-label="Refresh cases"><i data-lucide="refresh-cw"></i></button>
+                        </div>
+                        <div id="cases-registry-list" class="cases-registry-list">
+                            <div class="loader">Loading cases…</div>
+                        </div>
+                    </div>
+
                     <!-- Upload Case Document Section (drag & drop zone) -->
                     <div class="upload-section" id="upload-zone">
+                        <button class="create-case-btn" id="create-case-btn">
+                            <i data-lucide="folder-plus"></i> Create New Case
+                        </button>
                         <label for="pdf-file-input" class="upload-btn">
                             <i data-lucide="upload"></i> Upload Case PDF
                         </label>
                         <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
-                        <p class="upload-hint">Drop a case file here or click to upload — priority is computed instantly and a full PDF report is generated.</p>
+                        <p class="upload-hint">Create a case to attach multiple documents (FIR, reports…), then run lie-detection fact-checking against them.</p>
                     </div>
                 </div>
                 <div class="cases-list" id="cases-list-container">
@@ -373,6 +388,40 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Session Transcript (speech-to-text) -->
+                        <div class="session-transcript card">
+                            <div class="panel-header">
+                                <h2><i data-lucide="mic"></i> Session Transcript</h2>
+                                <span class="roster-count" id="transcript-case-badge" style="display:none;"></span>
+                            </div>
+                            <div class="transcript-toolbar">
+                                <input type="text" id="examiner-question" placeholder="Type the question you asked the subject… e.g. Did you travel on 12 June 2026?" maxlength="300" autocomplete="off">
+                                <button class="control-btn" id="ask-question-btn"><i data-lucide="message-circle-question"></i> Ask</button>
+                                <button class="control-btn stop" id="toggle-listening-btn" disabled><i data-lucide="mic"></i> <span id="listening-label">Start Listening</span></button>
+                            </div>
+                            <div class="transcript-typed-row">
+                                <input type="text" id="typed-statement-input" placeholder="Speech unavailable? Type the subject's statement here…" maxlength="300" autocomplete="off">
+                                <button class="control-btn" id="add-typed-statement-btn"><i data-lucide="type"></i> Add</button>
+                            </div>
+                            <div id="chakshu-transcript" class="chakshu-transcript">
+                                <div class="transcript-empty">Start a session, ask a question, and the subject's spoken answer will appear here.</div>
+                            </div>
+                            <p class="speech-status" id="speech-status">Speech-to-text idle — Chrome recommended.</p>
+                        </div>
+
+                        <!-- Evidence Fact-Check Panel -->
+                        <div class="factcheck-panel card" id="factcheck-panel" style="display: none;">
+                            <div class="panel-header">
+                                <h2><i data-lucide="badge-check"></i> Evidence Fact-Check</h2>
+                                <button class="link-btn" id="download-dossier-btn" style="display:none;"><i data-lucide="download"></i> Dossier</button>
+                            </div>
+                            <div class="factcheck-summary" id="factcheck-summary"></div>
+                            <div id="factcheck-verdicts" class="factcheck-verdicts"></div>
+                            <button class="control-btn" id="run-factcheck-btn" disabled>
+                                <i data-lucide="search-check"></i> Run Fact-Check Against Documents
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Tab 4: Live Courtroom Lobby -->
@@ -414,6 +463,73 @@
             </section>
         </main>
     </div>
+    <!-- Create New Case Wizard Modal -->
+    <div id="case-wizard-modal" class="wizard-modal" style="display: none;">
+        <div class="wizard-card">
+            <div class="wizard-header">
+                <h2><i data-lucide="folder-plus"></i> Create New Case</h2>
+                <button class="wizard-close" id="wizard-close-btn" aria-label="Close"><i data-lucide="x"></i></button>
+            </div>
+            <div class="wizard-steps">
+                <div class="wizard-step-indicators">
+                    <span class="wstep active" data-wstep="1">1. Create</span>
+                    <span class="wstep" data-wstep="2">2. Evidence</span>
+                    <span class="wstep" data-wstep="3">3. Analyze</span>
+                </div>
+
+                <!-- Step 1: Create -->
+                <div class="wizard-step-pane active" data-wstep-pane="1">
+                    <label class="lobby-field">
+                        <span>Case title (optional)</span>
+                        <input type="text" id="wizard-title" placeholder="e.g. State vs. X — Theft Trial" maxlength="120" autocomplete="off">
+                    </label>
+                    <label class="lobby-field">
+                        <span>FIR document (optional — if none, a case ID is auto-assigned)</span>
+                        <input type="file" id="wizard-fir-input" accept=".pdf">
+                    </label>
+                    <label class="lobby-field">
+                        <span>Officer / creator name (optional)</span>
+                        <input type="text" id="wizard-officer" placeholder="e.g. Officer Rao" maxlength="60" autocomplete="off">
+                    </label>
+                    <button class="lobby-create-btn" id="wizard-create-btn"><i data-lucide="plus-circle"></i> Create Case</button>
+                    <div id="wizard-created" class="wizard-created" style="display:none;">
+                        <p><i data-lucide="check-circle"></i> Case created — ID: <strong id="wizard-case-id"></strong></p>
+                        <button class="lobby-open-btn" id="wizard-next-btn"><i data-lucide="arrow-right"></i> Add Evidence →</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Evidence -->
+                <div class="wizard-step-pane" data-wstep-pane="2">
+                    <p class="wizard-hint">Attach all evidence for this case — FIR, police reports, medical records, statements…</p>
+                    <div class="wizard-dropzone" id="wizard-doc-drop">
+                        <i data-lucide="cloud-upload"></i>
+                        <p>Drop PDF files here or click to browse</p>
+                    </div>
+                    <input type="file" id="wizard-doc-input" accept=".pdf" multiple style="display:none;">
+                    <label class="lobby-field">
+                        <span>Document type for new uploads</span>
+                        <select id="wizard-doc-type">
+                            <option value="FIR">FIR</option>
+                            <option value="Police Report">Police Report</option>
+                            <option value="Medical">Medical</option>
+                            <option value="Statement">Statement</option>
+                            <option value="Other" selected>Other</option>
+                        </select>
+                    </label>
+                    <ul id="wizard-doc-list" class="wizard-doc-list"></ul>
+                    <button class="lobby-create-btn" id="wizard-upload-btn" disabled><i data-lucide="upload"></i> Upload &amp; Analyze All</button>
+                </div>
+
+                <!-- Step 3: Analyze -->
+                <div class="wizard-step-pane" data-wstep-pane="3">
+                    <div id="wizard-progress" class="wizard-progress"></div>
+                    <div id="wizard-results" class="wizard-results"></div>
+                    <button class="lobby-open-btn" id="wizard-done-btn" style="display:none;"><i data-lucide="check"></i> Done — View Case</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Analysis Loading Overlay -->
     <div id="upload-loading-overlay" class="loading-overlay" style="display: none;">
         <div class="loading-spinner-container">
@@ -431,5 +547,6 @@
         </div>
     </div>
     <script src="app.js"></script>
+    <script src="case-workflow.js"></script>
 </body>
 </html>

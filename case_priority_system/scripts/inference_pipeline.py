@@ -486,7 +486,13 @@ def fallback_extract_features(text, pdf_file):
 # ── Rule-based party extraction ────────────────────────────────────────
 _PLACEHOLDER_RE = re.compile(
     r"\[|^if\s+known$|^unknown$|^n/?a$|^not\s+provided$|^not\s+applicable$"
-    r"|^none$|^to\s+be\s+filled$|^\[.*\]$",
+    r"|^none$|^to\s+be\s+filled$",
+    re.IGNORECASE,
+)
+_CAPTION_SKIP_RE = re.compile(
+    r"\bNo\.?\s*\d|case\s+no|high\s+court|district\s+court|court\s+of"
+    r"|jurisdiction|in\s+the|arising\s+out|before|coram|misc\.?"
+    r"|criminal\s+miscellaneous|civil\s+writ|writ\s+(?:petition|jurisdiction)",
     re.IGNORECASE,
 )
 _RELATION_RE = re.compile(
@@ -534,18 +540,48 @@ def extract_parties_from_text(text, fallback=""):
     if not text:
         return fallback or "Unknown"
 
-    # 1) Labeled forms (FIRs, complaints, case reports)
+    # 1) Labeled forms (FIRs, complaints, case reports). Line-anchored so body
+    #    sentences like "the complainant's name is X" can't false-match.
+    #    Supports both layouts seen in real documents:
+    #      same-line : '1. Complainant Details Name: X' (extracted/flattened text)
+    #      next-line : '1. Complainant Details' then 'Name: X' (page layout text)
+    # Flattened text (no line breaks) gets a newline before numbered role
+    # headings so the line-anchored matcher below can see them.
+    text = re.sub(
+        r"(?i)(?<=[ \t])(\d+[.)]\s*)(complainant|victim|accused)"
+        r"(?=\s+(?:details\s+)?name\s*:)",
+        r"\n\1\2",
+        text,
+    )
+    # Optional leading bullet tolerated before the label; capture is bounded by
+    # the next field label, the next role heading, or the end of the line so
+    # 'Name: Meena Devi Address: ...' does not swallow the address.
+    field_sep = r"\s+[\u2022\u00b7*\-]?\s*(?:address|age|contact|gender|date|location|statement|name)\s*:"
+    label_re = (
+        r"[\u2022\u00b7*\-]?\s*name\s*:\s*(.+?)"
+        r"(?=" + field_sep + r"|\s*\d+[.)]\s*(?:complainant|victim|accused)\b|\s*$)"
+    )
+    labeled_re = re.compile(
+        r"(?im)^\s*(?:\d+[.)]\s*)?(complainant|victim|accused)\s*(?:details)?"
+        r"(?:\s*" + label_re + r"|\s*$" + label_re + r")"
+    )
     labeled = []
-    for role in ("Complainant", "Victim", "Accused"):
-        m = re.search(
-            rf"{role}\s*(?:Details)?\s*Name\s*:?\s*([^\n]+)", text, re.IGNORECASE
-        )
-        if m:
-            name = _clean_party_name(m.group(1))
-            if name:
-                labeled.append(f"{role}: {name}")
+    seen_roles = set()
+    placeholder_roles = set()
+    for m in labeled_re.finditer(text):
+        role = m.group(1).lower()
+        if role in seen_roles:
+            continue
+        seen_roles.add(role)
+        name = _clean_party_name(m.group(2) or m.group(3))
+        if name:
+            labeled.append(f"{role.capitalize()}: {name}")
+        else:
+            placeholder_roles.add(role.capitalize())
     if labeled:
-        return "; ".join(labeled)
+        return "; ".join(sorted(labeled, key=str.lower))
+    if placeholder_roles:
+        return ", ".join(sorted(placeholder_roles)) + " — names not disclosed"
 
     # 2) Court caption: petitioner block before 'Versus', first respondent after.
     #    'Versus' usually sits inline ("... Petitioner/s Versus") so split on the
@@ -553,15 +589,9 @@ def extract_parties_from_text(text, fallback=""):
     parts = re.split(r"(?i)\bversus\b", text, maxsplit=1)
     if len(parts) >= 2 and re.search(r"(?i)respondent|opposite\s+party", parts[1][:500]):
         pre, post = parts[0], parts[1]
-        skip_re = re.compile(
-            r"\bNo\.?\s*\d|case\s+no|high\s+court|district\s+court|court\s+of"
-            r"|jurisdiction|in\s+the|arising\s+out|before|coram|misc\.?"
-            r"|criminal\s+miscellaneous|civil\s+writ|writ\s+(?:petition|jurisdiction)",
-            re.IGNORECASE,
-        )
         pet = None
         for line in pre.splitlines():
-            if not line.strip() or skip_re.search(line):
+            if not line.strip() or _CAPTION_SKIP_RE.search(line):
                 continue
             name = _truncate_relations(_clean_party_name(line))
             if name:
@@ -569,7 +599,7 @@ def extract_parties_from_text(text, fallback=""):
                 break
         resp = None
         for line in post.splitlines():
-            if not line.strip() or skip_re.search(line):
+            if not line.strip() or _CAPTION_SKIP_RE.search(line):
                 continue
             name = _truncate_relations(_clean_party_name(line))
             if name:
@@ -580,10 +610,10 @@ def extract_parties_from_text(text, fallback=""):
         if pet:
             return pet
 
-    # 3) Judgment title header: 'X vs Y on 1 January, 1800'
+    # 3) Judgment title header: 'X vs Y on 1 January, 1800' or 'X v. Y on ...'
     head = text[:800]
     m = re.search(
-        r"^([^\n]{2,90}?)\s+vs\.?\s+([^\n]{2,90}?)\s+on\s+\d", head, re.IGNORECASE
+        r"^([^\n]{2,90}?)\s+(?:vs\.?|v\.)\s+([^\n]{2,90}?)\s+on\s+\d", head, re.IGNORECASE
     )
     if m:
         a = _clean_party_name(m.group(1))
