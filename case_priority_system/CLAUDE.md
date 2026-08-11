@@ -29,7 +29,9 @@ python case_priority_system/scripts/nlp_dl_model.py
 
 ## Dependencies
 
-No `requirements.txt` exists. Key packages: `pandas`, `numpy`, `scikit-learn`, `torch`, `PyMuPDF` (fitz) or `pypdf`, `requests`, `tqdm`, `openpyxl`. The inference pipeline calls a locally installed Ollama server (default `http://localhost:11434`, model `deepseek-r1:8b`) for LLM feature extraction and summarization. Override with the `OLLAMA_URL` / `OLLAMA_MODEL` env vars.
+No `requirements.txt` exists. Key packages: `pandas`, `numpy`, `scikit-learn`, `torch`, `PyMuPDF` (fitz) or `pypdf`, `requests`, `tqdm`, `openpyxl`. The inference pipeline calls a locally installed Ollama server (default `http://localhost:11434`, model `qwen2.5:3b`) for LLM feature extraction and summarization. Override with the `OLLAMA_URL` / `OLLAMA_MODEL` env vars.
+
+**GPU acceleration:** When an NVIDIA GPU is present (check `nvidia-smi`), the local Ollama LLM runs on it (`ollama ps` shows `100% GPU`) and the web app auto-enables LLM feature extraction via `inference_pipeline.llm_extraction_enabled()` (force on/off with `ANAVAYA_USE_LLM=1`/`0`). `qwen2.5:3b` (~2 GB) fits fully in 4 GB VRAM; larger models partially offload to CPU. The optional PyTorch model (`scripts/nlp_dl_model.py`) trains on CUDA automatically.
 
 ## Architecture
 
@@ -39,7 +41,7 @@ No `requirements.txt` exists. Key packages: `pandas`, `numpy`, `scikit-learn`, `
 
 **Inference pipeline** (`scripts/inference_pipeline.py`):
 1. PDF text extraction via PyMuPDF or pypdf (first 6 pages)
-2. Feature extraction via the local Ollama LLM (`deepseek-r1:8b`) — returns structured JSON with parties, crime_type, severity, vulnerability, influence, and a 3-sentence summary
+2. Feature extraction via the local Ollama LLM (`qwen2.5:3b`, GPU-accelerated when an NVIDIA GPU is present) — returns structured JSON with parties, crime_type, severity, vulnerability, influence, and a 3-sentence summary
 3. Fallback: `fallback_extract_features()` uses keyword matching when the LLM is unavailable
 4. `tune_case_features()` normalizes LLM output against allowed label sets and applies legal-domain keyword classification (`classify_legal_category()`) to map cases to 8 legal categories, then to 4 broad model categories via `LEGAL_TO_MODEL_CATEGORY`
 5. `predict_priority()` runs the local Decision Tree only — the LLM never decides priority

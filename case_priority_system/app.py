@@ -17,9 +17,11 @@ MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 STATIC_DIR = 'case_priority_system/static'
 REPORTS_DIR = 'case_priority_system/reports'
 
-# Fast path: use the deterministic rule-based extractor (no LLM) so uploads
-# return priority in ~2s. Set ANAVAYA_USE_LLM=1 to go back to Ollama extraction.
-USE_LLM_EXTRACTION = os.getenv("ANAVAYA_USE_LLM", "0") == "1"
+# LLM feature extraction mode. Resolved lazily on the first upload via
+# inference_pipeline.llm_extraction_enabled(): it is enabled when an NVIDIA
+# GPU is present AND the local Ollama server is reachable (so the LLM actually
+# runs on the GPU), or forced via ANAVAYA_USE_LLM=1/0. When disabled, uploads
+# use the deterministic rule-based extractor and return priority in ~2s.
 
 app = FastAPI(title="Anavaya Judicial Case Priority Dashboard API")
 
@@ -211,6 +213,7 @@ async def upload_case(file: UploadFile = File(...)):
                 get_constitutional_justification,
                 get_priority_rules_applied,
                 build_decision_path_graph,
+                llm_extraction_enabled,
             )
         except ImportError:
             from scripts.inference_pipeline import (
@@ -223,6 +226,7 @@ async def upload_case(file: UploadFile = File(...)):
                 get_constitutional_justification,
                 get_priority_rules_applied,
                 build_decision_path_graph,
+                llm_extraction_enabled,
             )
             
         # 1. Extract text
@@ -230,9 +234,10 @@ async def upload_case(file: UploadFile = File(...)):
         if not text.strip():
             raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
 
-        # 2. Extract features. Default = instant deterministic rules (~2s total).
-        # Optional ANAVAYA_USE_LLM=1 uses the Ollama model for richer summaries.
-        if USE_LLM_EXTRACTION:
+        # 2. Extract features. With an NVIDIA GPU present (or ANAVAYA_USE_LLM=1)
+        # the local Ollama LLM runs on the GPU for richer extraction; otherwise
+        # the deterministic rule-based path returns in ~2s.
+        if llm_extraction_enabled():
             llm_data = call_ollama_api(text)
             if not llm_data:
                 print("Ollama LLM unavailable or failed. Using fast rule-based extraction.")
@@ -719,6 +724,59 @@ def list_case_registry():
     if case_manager is None:
         raise HTTPException(status_code=503, detail="Case manager not available.")
     return case_manager.list_cases()
+
+
+# CUDA device info is queried lazily and cached after the first call, so the
+# status endpoint stays cheap even though it can be hit on every page load.
+_gpu_status_cache = None  # {"gpu": str | None, "gpu_vram_mb": int | None}
+
+
+def _cached_gpu_info():
+    global _gpu_status_cache
+    if _gpu_status_cache is None:
+        gpu_name = ""
+        vram_total_mb = 0
+        try:
+            import torch
+            if torch.cuda.is_available():
+                gpu_name = torch.cuda.get_device_name(0)
+                vram_total_mb = int(
+                    torch.cuda.get_device_properties(0).total_memory // (1024 * 1024)
+                )
+        except Exception:
+            pass
+        _gpu_status_cache = {"gpu": gpu_name or None, "gpu_vram_mb": vram_total_mb or None}
+    return _gpu_status_cache
+
+
+@app.get("/api/gpu-status")
+def get_gpu_status():
+    """GPU / LLM status for the dashboard header badge.
+
+    The CUDA query is cached after the first call; the LLM-mode flag follows
+    the resolver's own caching (in auto mode it re-probes while disabled, so
+    a badge fetch may add a sub-second localhost check when Ollama is down).
+    """
+    try:
+        from case_priority_system.scripts.inference_pipeline import (
+            llm_extraction_enabled,
+            OLLAMA_MODEL,
+            OLLAMA_URL,
+        )
+    except ImportError:
+        from scripts.inference_pipeline import (  # type: ignore
+            llm_extraction_enabled,
+            OLLAMA_MODEL,
+            OLLAMA_URL,
+        )
+    info = _cached_gpu_info()
+    return {
+        "llm_mode": "enabled" if llm_extraction_enabled() else "disabled",
+        "gpu": info["gpu"],
+        "gpu_vram_mb": info["gpu_vram_mb"],
+        "model": OLLAMA_MODEL,
+        "ollama_url": OLLAMA_URL,
+    }
 
 
 @app.get("/api/cases/{case_id}/documents/{doc_id}/download")

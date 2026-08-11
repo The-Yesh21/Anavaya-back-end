@@ -1,7 +1,7 @@
 """
 Ollama-powered legal case summarizer and feature extractor.
 
-Calls a locally installed Ollama model (default: deepseek-r1:8b) to produce
+Calls a locally installed Ollama model (default: qwen2.5:3b) to produce
 structured case features and a high-quality legal summary in a single call,
 eliminating JSON parsing issues. No cloud API keys required — everything
 runs on your machine.
@@ -225,7 +225,7 @@ def extract_with_ollama(
 
     Args:
         text: The full text extracted from the PDF/case document.
-        model_name: Ollama model ID (default: OLLAMA_MODEL / deepseek-r1:8b).
+        model_name: Ollama model ID (default: OLLAMA_MODEL / qwen2.5:3b).
         ollama_url: Ollama server URL (default: OLLAMA_URL / http://localhost:11434).
         temperature: LLM temperature (0 = deterministic).
         max_tokens: Maximum tokens for the response. deepseek-r1 is a reasoning

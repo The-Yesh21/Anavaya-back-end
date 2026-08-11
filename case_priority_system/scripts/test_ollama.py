@@ -12,7 +12,7 @@ import os
 import requests
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-MODEL = os.getenv("OLLAMA_MODEL", "deepseek-r1:8b")
+MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
 payload = {
     "model": MODEL,

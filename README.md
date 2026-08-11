@@ -17,6 +17,10 @@ python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000 --ws
 > ping interval + 20s pong timeout silently kills any connection that doesn't answer a ping
 > within 40s — which drops courtroom participants that go quiet for a moment. `0` disables
 > pings so live-trial connections stay up.
+> **NVIDIA GPU:** When an NVIDIA GPU is present (e.g. RTX 2050), the app auto-enables
+> GPU-accelerated LLM feature extraction via local Ollama (`qwen2.5:3b`). Force off/on with
+> `ANAVAYA_USE_LLM=0` / `1`. Verify the GPU is in use with `ollama ps` (should show `100% GPU`).
+
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your web browser to explore:
 - **Interactive Case Board:** Filter and search cases processed from the Excel sheet.
 - **Dynamic Decision Tree Graph:** Inspect the global decision structure and highlight active decision paths in glowing neon.

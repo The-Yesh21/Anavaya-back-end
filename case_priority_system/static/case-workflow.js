@@ -618,8 +618,33 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // =================================================================
+    // 5. GPU STATUS BADGE (header)
+    // =================================================================
+    async function loadGpuBadge() {
+        const badge = $("gpu-badge");
+        const textEl = $("gpu-badge-text");
+        if (!badge || !textEl) return;
+        try {
+            const res = await fetch("/api/gpu-status");
+            if (!res.ok) throw new Error("status fetch failed");
+            const st = await res.json();
+            if (!st.gpu) { badge.hidden = true; return; }
+            const gpuShort = String(st.gpu)
+                .replace(/^NVIDIA GeForce /, "")
+                .replace(/^NVIDIA /, "");
+            textEl.textContent = `${gpuShort} · ${st.model || "LLM"} · `
+                + (st.llm_mode === "enabled" ? "GPU inference" : "rule-based");
+            badge.classList.toggle("gpu-on", st.llm_mode === "enabled");
+            badge.hidden = false;
+        } catch (e) {
+            badge.hidden = true;
+        }
+    }
+
+    // =================================================================
     // INIT
     // =================================================================
     fetchRegistry();
     updateTranscriptCaseBadge();
+    loadGpuBadge();
 });

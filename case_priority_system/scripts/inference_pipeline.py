@@ -53,6 +53,83 @@ except Exception:
     # If ollama is not reachable or model list fails, attempt to pull the model
     subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=False)
 
+# ---- GPU / LLM mode detection ----------------------------------------
+# The web app can either use the local Ollama LLM (which Ollama runs on the
+# NVIDIA GPU when one is present) or the deterministic rule-based extractor.
+# Forced env values are cached permanently; auto mode re-probes while it is
+# still disabled, so starting Ollama after the app is picked up on the next
+# call (a re-probe is cheap: connection refused when Ollama is down).
+_llm_mode_cache: "bool | None" = None   # True once auto mode succeeded
+_llm_mode_reported = False              # startup banner printed once
+
+
+def _gpu_available() -> bool:
+    """True when a CUDA-capable NVIDIA GPU is present."""
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:
+        # torch not importable: fall back to the NVIDIA driver presence.
+        try:
+            import shutil
+            return shutil.which("nvidia-smi") is not None
+        except Exception:
+            return False
+
+
+def _ollama_reachable() -> bool:
+    """True when the local Ollama server answers on /api/tags."""
+    if requests is None:
+        return False
+    try:
+        return (
+            requests.get(f"{OLLAMA_URL.rstrip('/')}/api/tags", timeout=2).status_code
+            == 200
+        )
+    except Exception:
+        return False
+
+
+def llm_extraction_enabled() -> bool:
+    """Whether LLM (Ollama) feature extraction should be used.
+
+    Resolution order:
+      ANAVAYA_USE_LLM=1 / true  -> enabled (forced)
+      ANAVAYA_USE_LLM=0 / false -> disabled (forced; rule-based ~2s path)
+      unset / auto              -> enabled only when an NVIDIA GPU is present
+                                   AND the local Ollama is reachable, so the
+                                   GPU is actually used for inference.
+
+    Notes:
+      - This flag gates *feature extraction* only. The evidence fact-checker
+        (fact_checker.py) always uses Ollama for semantic verdicts.
+      - LLM-mode uploads take longer per document than the rule-based path
+        (roughly 10-60s on a 4 GB laptop GPU vs ~2s).
+    """
+    global _llm_mode_cache, _llm_mode_reported
+    env = os.getenv("ANAVAYA_USE_LLM", "").strip().lower()
+    if env in ("1", "true", "yes", "on"):
+        enabled = True
+    elif env in ("0", "false", "no", "off"):
+        enabled = False
+    elif _llm_mode_cache is True:
+        enabled = True
+    else:
+        # Auto mode, not yet enabled: re-probe so a later-started Ollama is
+        # picked up. Cheap when Ollama is down (connection refused).
+        enabled = _gpu_available() and _ollama_reachable()
+        if enabled:
+            _llm_mode_cache = True
+    if not _llm_mode_reported:
+        _llm_mode_reported = True
+        source = "forced by ANAVAYA_USE_LLM" if env else "auto-detect"
+        print(
+            f"[Anavaya] LLM feature extraction {'ENABLED' if enabled else 'disabled'}"
+            f" ({source}, model {OLLAMA_MODEL}). ANAVAYA_USE_LLM=0 forces the ~2s "
+            f"rule-based path."
+        )
+    return enabled
+
 ALLOWED_FEATURES = {
     "crime_type": ["Violent", "Financial", "Property", "Non-Violent"],
     "severity": ["Fatal", "Major", "Minor", "No Injury"],

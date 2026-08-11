@@ -254,6 +254,8 @@ class CaseManager:
         from case_priority_system.scripts.inference_pipeline import (
             extract_text_from_pdf,
             fast_extract_features,
+            call_ollama_api,
+            llm_extraction_enabled,
             tune_case_features,
             predict_priority,
             build_decision_path_graph,
@@ -267,7 +269,16 @@ class CaseManager:
         if not text.strip():
             raise ValueError(f"'{doc.filename}' contains no extractable text. Please upload a searchable PDF.")
 
-        features = tune_case_features(fast_extract_features(text, doc.filename), text)
+        # Same GPU/LLM mode as the web upload path: when an NVIDIA GPU is
+        # present (or ANAVAYA_USE_LLM=1), extract features with the local
+        # Ollama LLM running on the GPU; otherwise fall back to the fast
+        # deterministic rule-based extractor.
+        features = None
+        if llm_extraction_enabled():
+            features = call_ollama_api(text)
+        if not features:
+            features = fast_extract_features(text, doc.filename)
+        features = tune_case_features(features, text)
         if model_data is None:
             model_data = load_model()
 

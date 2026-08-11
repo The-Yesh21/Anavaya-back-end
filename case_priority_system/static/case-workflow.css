@@ -485,3 +485,34 @@
 /* Spin animation for busy buttons */
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- GPU inference badge (header) ---- */
+.gpu-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 99px;
+    border: 1px solid rgba(164, 124, 77, 0.35);
+    background: linear-gradient(135deg, rgba(164, 124, 77, 0.12), rgba(164, 124, 77, 0.04));
+    color: var(--text-secondary, #6b7280);
+    font-family: var(--font-heading, "Fraunces", serif);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Author `display` rules override the UA [hidden] rule, so re-assert it:
+   the badge must stay invisible until JS has confirmed a GPU is present. */
+.gpu-badge[hidden] { display: none; }
+.gpu-badge i { width: 14px; height: 14px; }
+.gpu-badge.gpu-on {
+    border-color: rgba(5, 150, 105, 0.45);
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.14), rgba(5, 150, 105, 0.05));
+    color: #047857;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.18);
+}
+@media (max-width: 860px) {
+    .gpu-badge { display: none; }
+}

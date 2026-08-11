@@ -21,7 +21,26 @@ class CasePriorityNN(nn.Module):
         out = self.fc2(out)
         return out
 
-def train_dl_model():
+
+# Prefer the NVIDIA GPU when PyTorch can see one (CUDA); otherwise fall back
+# to CPU. All tensors and the model are moved onto this device below.
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def _describe_device(device: torch.device) -> str:
+    if device.type == "cuda":
+        return f"NVIDIA GPU: {torch.cuda.get_device_name(device)}"
+    return "CPU (no CUDA GPU detected)"
+
+
+def train_dl_model(device: torch.device | None = None, num_epochs: int = 50):
+    """Train the CasePriorityNN on the synthetic corpus.
+
+    device: torch device to train on (default: CUDA GPU when available).
+    """
+    device = device or DEVICE
+    print(f"Training deep learning model on {_describe_device(device)}...")
+
     # Load data
     df = pd.read_csv('case_priority_system/data/synthetic_cases.csv')
     
@@ -33,19 +52,18 @@ def train_dl_model():
     le = LabelEncoder()
     y = le.fit_transform(df['priority'])
     
-    # Convert to Tensors
-    X_tensor = torch.tensor(X_text, dtype=torch.float32)
-    y_tensor = torch.tensor(y, dtype=torch.long)
+    # Convert to Tensors (moved onto the training device)
+    X_tensor = torch.tensor(X_text, dtype=torch.float32, device=device)
+    y_tensor = torch.tensor(y, dtype=torch.long, device=device)
     
     # Hyperparameters
     input_size = X_text.shape[1]
     hidden_size = 64
     num_classes = len(le.classes_)
     learning_rate = 0.001
-    num_epochs = 50
     
-    # Model, Loss, Optimizer
-    model = CasePriorityNN(input_size, hidden_size, num_classes)
+    # Model, Loss, Optimizer (model lives on the device too)
+    model = CasePriorityNN(input_size, hidden_size, num_classes).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
@@ -64,16 +82,18 @@ def train_dl_model():
         if (epoch+1) % 10 == 0:
             print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
             
-    # Save Model
+    # Save Model (state_dict is device-agnostic; record the device used)
     torch.save({
         'model_state_dict': model.state_dict(),
         'tfidf': tfidf,
         'label_encoder': le,
         'input_size': input_size,
         'hidden_size': hidden_size,
-        'num_classes': num_classes
+        'num_classes': num_classes,
+        'device': str(device),
     }, 'case_priority_system/models/priority_dl_model.pth')
-    print("Deep Learning model saved.")
+    print(f"Deep Learning model saved (trained on {device}).")
+
 
 if __name__ == "__main__":
     train_dl_model()

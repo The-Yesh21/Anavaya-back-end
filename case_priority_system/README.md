@@ -47,7 +47,7 @@ The system includes an automated pipeline (`scripts/inference_pipeline.py`) to p
 
 ### Key Capabilities:
 - **Batch Processing:** Reads all PDF files from the root directory.
-- **Ollama-based Summarization:** Uses a locally installed Ollama model (`deepseek-r1:8b`) to generate simple 3-sentence case summaries — no cloud API keys required.
+- **Ollama-based Summarization:** Uses a locally installed Ollama model (`qwen2.5:3b`) to generate simple 3-sentence case summaries — no cloud API keys required.
 - **Tuned Legal Categorization:** Classifies cases into legal domains such as `Excise/Tax`, `Customs/Import-Export`, `Company/Winding Up`, and `Insolvency/Debt`, then maps them to broad model categories.
 - **Ollama-based Feature Extraction:** Extracts parties, broad crime type, severity, vulnerability, and influence as normalized structured labels.
 - **Local Priority Prediction:** Applies the trained Decision Tree model to assign the final priority level. The LLM does not decide the priority.
@@ -100,3 +100,13 @@ Then, open your web browser and navigate to `http://127.0.0.1:8000`.
 > Uvicorn's default 20s ping interval + 20s pong timeout silently closes WebSocket
 > connections that don't respond within 40s, which would drop courtroom participants.
 > `0` disables pings entirely.
+
+## 10. NVIDIA GPU Acceleration
+
+The heavy compute (local Ollama LLM inference for feature extraction, fact-checking, and the optional PyTorch DL model) runs on the NVIDIA GPU automatically when a CUDA-capable GPU is present.
+
+- **Auto-detect:** The app enables LLM feature extraction whenever an NVIDIA GPU is found **and** the local Ollama server is reachable (`inference_pipeline.llm_extraction_enabled()`); auto mode re-checks while disabled, so starting Ollama after the app is picked up on the next upload. Verify with `ollama ps` (should show `100% GPU`) and `nvidia-smi`.
+- **Override:** Set `ANAVAYA_USE_LLM=0` to force the fast rule-based extractor (~2s uploads), or `ANAVAYA_USE_LLM=1` to force the LLM path on any machine. Note the flag gates *feature extraction* only — the evidence fact-checker always uses Ollama for semantic verdicts.
+- **Latency:** LLM-mode uploads take longer than the rule-based path (roughly 10–60s per document on a 4 GB laptop GPU, vs ~2s) because the GPU runs the full extraction + summary generation.
+- **Model:** Default `OLLAMA_MODEL=qwen2.5:3b` (~2 GB) fits fully in 4 GB VRAM. Larger models (e.g. `deepseek-r1:8b`) will not fit fully on a 4 GB GPU and will partially offload to CPU.
+- **PyTorch DL model:** `scripts/nlp_dl_model.py` trains on CUDA automatically when available (`DEVICE = cuda`); it falls back to CPU otherwise.

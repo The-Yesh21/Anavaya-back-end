@@ -24,7 +24,7 @@ The priority decision must be **deterministic and explainable** — a judge must
 The system deliberately separates *understanding the document* from *deciding priority*:
 
 ```
-PDF text ──► [LLM: Ollama, deepseek-r1:8b] ──► structured features + plain summary
+PDF text ──► [LLM: Ollama, qwen2.5:3b, NVIDIA GPU] ──► structured features + plain summary
                                                           │
                                                           ▼
                               [Decision Tree (CART)] ──► High / Medium / Low priority
