@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }).join("");
         if (typeof lucide !== "undefined") lucide.createIcons();
 
-        // Head click → expand / select case
+        // Head click → expand + open the case workspace
         registryList.querySelectorAll(".registry-case-head").forEach((head) => {
             head.addEventListener("click", (e) => {
                 const card = head.closest(".registry-case");
@@ -90,6 +90,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 UI.setCurrentCaseId(caseId);
                 renderRegistry();
                 updateTranscriptCaseBadge();
+                // Open the case site for this case.
+                openCaseWorkspace(caseId);
+                const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
+                if (caseTabBtn) caseTabBtn.click();
             });
         });
         // Doc click → select the matching Excel row if present
@@ -127,36 +131,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =================================================================
-    // 2. CREATE NEW CASE WIZARD
+    // 2. CREATE NEW CASE (single step: name OR FIR OR auto-assigned ID)
+    //    + CASE WORKSPACE (open the case, upload evidence any time)
     // =================================================================
     const modal = $("case-wizard-modal");
     const createBtn = $("create-case-btn");
-    let wizardCaseId = null;
-    let pendingDocs = [];
-
-    function showStep(n) {
-        document.querySelectorAll(".wstep").forEach((s) =>
-            s.classList.toggle("active", Number(s.getAttribute("data-wstep")) === n));
-        document.querySelectorAll(".wizard-step-pane").forEach((p) =>
-            p.classList.toggle("active", Number(p.getAttribute("data-wstep-pane")) === n));
-    }
+    let currentWorkspaceCaseId = null;
 
     function openWizard() {
-        wizardCaseId = null;
-        pendingDocs = [];
-        $("wizard-created").style.display = "none";
-        $("wizard-upload-btn").disabled = true;
-        renderPendingDocs();
-        showStep(1);
+        $("wizard-title").value = "";
+        $("wizard-fir-input").value = "";
         modal.style.display = "flex";
+        setTimeout(() => $("wizard-title").focus(), 60);
     }
     function closeWizard() { modal.style.display = "none"; }
 
     if (createBtn) createBtn.addEventListener("click", openWizard);
+    const wsNewCaseBtn = $("workspace-new-case-btn");
+    if (wsNewCaseBtn) wsNewCaseBtn.addEventListener("click", openWizard);
     $("wizard-close-btn").addEventListener("click", closeWizard);
     modal.addEventListener("click", (e) => { if (e.target === modal) closeWizard(); });
+    $("wizard-title").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); $("wizard-create-btn").click(); }
+    });
 
-    // Step 1: create the case
+    // Create the case, then open its workspace immediately.
     $("wizard-create-btn").addEventListener("click", async () => {
         const btn = $("wizard-create-btn");
         btn.disabled = true;
@@ -164,13 +163,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof lucide !== "undefined") lucide.createIcons();
         try {
             const title = $("wizard-title").value.trim();
-            const officer = $("wizard-officer").value.trim();
             const firInput = $("wizard-fir-input");
             const firFile = firInput.files && firInput.files[0];
 
             const fd = new FormData();
             if (title) fd.append("case_title", title);
-            if (officer) fd.append("created_by", officer);
             if (firFile) fd.append("fir_file", firFile);
 
             const res = await fetch("/api/cases", { method: "POST", body: fd });
@@ -179,58 +176,120 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(err.detail || "Case creation failed");
             }
             const caseData = await res.json();
-            wizardCaseId = caseData.case_id;
-            UI.setCurrentCaseId(wizardCaseId);
 
-            $("wizard-case-id").textContent = wizardCaseId;
-            $("wizard-created").style.display = "block";
-            $("wizard-upload-btn").disabled = false;
-            updateTranscriptCaseBadge();
+            closeWizard();
+            // Open the case site: switch to the Case tab and render it.
+            const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
+            if (caseTabBtn) caseTabBtn.click();
+            await openCaseWorkspace(caseData.case_id);
+            // Refresh the sidebar registry + Excel-backed list.
+            try { await UI.refreshCases(); } catch (e) { /* non-fatal */ }
+            fetchRegistry();
         } catch (err) {
             alert("Error: " + err.message);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="plus-circle"></i> Create Case';
+            btn.innerHTML = '<i data-lucide="folder-plus"></i> Create &amp; Open Case';
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
     });
 
-    $("wizard-next-btn").addEventListener("click", () => showStep(2));
+    // ---- Case workspace ---------------------------------------------
 
-    // Step 2: evidence uploads
-    const dropZone = $("wizard-doc-drop");
-    const docInput = $("wizard-doc-input");
+    async function fetchCaseDetail(caseId) {
+        const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Failed to load case");
+        }
+        return res.json();
+    }
 
-    dropZone.addEventListener("click", () => docInput.click());
-    ["dragenter", "dragover"].forEach((evt) => dropZone.addEventListener(evt, (e) => {
+    async function openCaseWorkspace(caseId) {
+        currentWorkspaceCaseId = caseId;
+        UI.setCurrentCaseId(caseId);
+        updateTranscriptCaseBadge();
+        $("case-workspace-empty").style.display = "none";
+        $("case-workspace").style.display = "block";
+        try {
+            const c = await fetchCaseDetail(caseId);
+            renderCaseWorkspace(c);
+        } catch (err) {
+            $("case-workspace").innerHTML =
+                `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
+        }
+    }
+
+    function renderCaseWorkspace(c) {
+        $("workspace-title").textContent = c.title || c.case_id;
+        $("workspace-case-id").textContent = c.case_id;
+        $("workspace-source").textContent = c.source === "FIR_UPLOADED" ? "FIR attached" : "Auto-created";
+        const prioEl = $("workspace-priority-badge");
+        const prio = c.aggregate_priority;
+        prioEl.className = `priority-pill ${prioClass(prio)}`;
+        prioEl.textContent = prio ? `${prio} Priority` : "Not Analysed";
+        const docs = c.documents || [];
+        $("workspace-rationale").textContent = c.aggregate_rationale || (docs.length
+            ? "Documents uploaded — run “Analyze All Documents” to compute the case priority."
+            : "No documents yet — upload evidence to get a priority assessment.");
+        $("workspace-doc-count").textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
+        const docListEl = $("workspace-doc-list");
+        if (!docs.length) {
+            docListEl.innerHTML = `<div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>`;
+        } else {
+            docListEl.innerHTML = docs.map((d) => `
+                <div class="ws-doc-item ${d.priority ? "" : "pending"}">
+                    <div class="ws-doc-main">
+                        <i data-lucide="file-text"></i>
+                        <div class="ws-doc-info">
+                            <strong>${esc(d.filename)}</strong>
+                            <span class="ws-doc-meta">${esc(d.doc_type)} · ${esc((d.uploaded_at || "").replace("T", " ").slice(0, 16))}</span>
+                        </div>
+                    </div>
+                    <div class="ws-doc-side">
+                        ${d.priority ? prioBadge(d.priority) : `<span class="ws-doc-pending">Analysis pending</span>`}
+                        <a class="ws-doc-download" href="/api/cases/${encodeURIComponent(c.case_id)}/documents/${encodeURIComponent(d.doc_id)}/download" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
+                    </div>
+                </div>`).join("");
+        }
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // ---- Evidence upload (from inside the case workspace) -----------
+    const wsDrop = $("workspace-doc-drop");
+    const wsInput = $("workspace-doc-input");
+    let wsPending = [];
+
+    wsDrop.addEventListener("click", () => wsInput.click());
+    ["dragenter", "dragover"].forEach((evt) => wsDrop.addEventListener(evt, (e) => {
         e.preventDefault();
-        dropZone.classList.add("drag-over");
+        wsDrop.classList.add("drag-over");
     }));
-    ["dragleave", "drop"].forEach((evt) => dropZone.addEventListener(evt, (e) => {
+    ["dragleave", "drop"].forEach((evt) => wsDrop.addEventListener(evt, (e) => {
         e.preventDefault();
-        dropZone.classList.remove("drag-over");
+        wsDrop.classList.remove("drag-over");
     }));
-    dropZone.addEventListener("drop", (e) => {
-        const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
-        files.forEach(addPendingDoc);
+    wsDrop.addEventListener("drop", (e) => {
+        Array.from((e.dataTransfer && e.dataTransfer.files) || []).forEach(addWsFile);
     });
-    docInput.addEventListener("change", () => {
-        Array.from(docInput.files || []).forEach(addPendingDoc);
-        docInput.value = "";
+    wsInput.addEventListener("change", () => {
+        Array.from(wsInput.files || []).forEach(addWsFile);
+        wsInput.value = "";
     });
 
-    function addPendingDoc(file) {
+    function addWsFile(file) {
         if (!file.name.toLowerCase().endsWith(".pdf")) {
             alert(`Only PDF files are supported (${file.name}).`);
             return;
         }
-        pendingDocs.push({ file, type: $("wizard-doc-type").value });
-        renderPendingDocs();
+        wsPending.push({ file, type: $("workspace-doc-type").value });
+        renderWsPending();
     }
 
-    function renderPendingDocs() {
-        const list = $("wizard-doc-list");
-        list.innerHTML = pendingDocs.map((pd, i) => `
+    function renderWsPending() {
+        const list = $("workspace-pending-list");
+        const uploadBtn = $("workspace-upload-btn");
+        list.innerHTML = wsPending.map((pd, i) => `
             <li class="wizard-doc-item">
                 <i data-lucide="file-text"></i>
                 <span class="wizard-doc-name">${esc(pd.file.name)}</span>
@@ -240,27 +299,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button class="wizard-doc-remove" data-i="${i}" aria-label="Remove"><i data-lucide="x"></i></button>
             </li>`).join("");
         list.querySelectorAll(".wizard-doc-type").forEach((sel) =>
-            sel.addEventListener("change", () => { pendingDocs[Number(sel.getAttribute("data-i"))].type = sel.value; }));
+            sel.addEventListener("change", () => { wsPending[Number(sel.getAttribute("data-i"))].type = sel.value; }));
         list.querySelectorAll(".wizard-doc-remove").forEach((b) =>
-            b.addEventListener("click", () => { pendingDocs.splice(Number(b.getAttribute("data-i")), 1); renderPendingDocs(); }));
+            b.addEventListener("click", () => { wsPending.splice(Number(b.getAttribute("data-i")), 1); renderWsPending(); }));
+        uploadBtn.disabled = wsPending.length === 0;
         if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
-    // Upload all pending docs, then analyse the whole case
-    $("wizard-upload-btn").addEventListener("click", async () => {
-        if (!wizardCaseId) { alert("Create the case first."); return; }
-        const btn = $("wizard-upload-btn");
+    $("workspace-upload-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        const btn = $("workspace-upload-btn");
         btn.disabled = true;
-        const progress = $("wizard-progress");
-        progress.innerHTML = '<div class="loader">Uploading documents…</div>';
-
+        const status = $("workspace-upload-status");
         try {
-            for (const pd of pendingDocs) {
-                progress.innerHTML = `<div class="loader">Uploading ${esc(pd.file.name)}…</div>`;
+            for (const pd of wsPending) {
+                status.innerHTML = `<div class="loader">Uploading ${esc(pd.file.name)}…</div>`;
                 const fd = new FormData();
                 fd.append("file", pd.file);
                 fd.append("doc_type", pd.type);
-                const res = await fetch(`/api/cases/${encodeURIComponent(wizardCaseId)}/documents`, {
+                const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}/documents`, {
                     method: "POST", body: fd,
                 });
                 if (!res.ok) {
@@ -268,73 +325,42 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error(err.detail || `Upload of ${pd.file.name} failed`);
                 }
             }
-            pendingDocs = [];
-
-            progress.innerHTML = '<div class="loader">Running priority analysis (per document + aggregate)…</div>';
-            const res = await fetch(`/api/cases/${encodeURIComponent(wizardCaseId)}/analyze`, { method: "POST" });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.detail || "Analysis failed");
-            }
-            const caseData = await res.json();
-            renderWizardResults(caseData);
-            showStep(3);
-            progress.innerHTML = "";
+            wsPending = [];
+            renderWsPending();
+            status.innerHTML = "";
+            // Refresh the workspace + registry so the new evidence shows up.
+            await openCaseWorkspace(currentWorkspaceCaseId);
+            fetchRegistry();
         } catch (err) {
-            progress.innerHTML = `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
+            status.innerHTML = `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="upload"></i> Upload &amp; Analyze All';
+            btn.innerHTML = '<i data-lucide="upload"></i> Upload Evidence';
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
     });
 
-    // Step 3: per-document + aggregate results
-    function renderWizardResults(caseData) {
-        const results = $("wizard-results");
-        const agg = caseData.aggregate_priority;
-        const docs = caseData.documents || [];
-        results.innerHTML = `
-            <div class="wizard-aggregate">
-                <span class="wizard-aggregate-label">Aggregate Case Priority</span>
-                ${prioBadge(agg)}
-                <p class="wizard-rationale">${esc(caseData.aggregate_rationale || "")}</p>
-            </div>
-            <div class="wizard-doc-cards">
-                ${docs.map((d) => `
-                    <div class="wizard-doc-card">
-                        <div class="wizard-doc-card-head">
-                            <strong>${esc(d.filename)}</strong>
-                            <span class="wizard-doc-type-tag">${esc(d.doc_type)}</span>
-                        </div>
-                        ${d.priority ? `
-                        <div class="wizard-doc-card-meta">
-                            ${prioBadge(d.priority)}
-                            <span>${esc((d.analysis || {}).case_category || "N/A")}</span>
-                            <span>${esc((d.analysis || {}).severity || "N/A")}</span>
-                            <span>${esc((d.analysis || {}).vulnerability || "N/A")}</span>
-                            <span>${esc((d.analysis || {}).influence || "N/A")}</span>
-                        </div>` : `<div class="wizard-doc-card-meta"><span class="text-muted">Analysis pending / failed</span></div>`}
-                    </div>`).join("")}
-            </div>`;
-        $("wizard-done-btn").style.display = "inline-flex";
+    // Analyze every document of the open case, then refresh the workspace.
+    $("workspace-analyze-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        const btn = $("workspace-analyze-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Analyzing…';
         if (typeof lucide !== "undefined") lucide.createIcons();
-    }
-
-    $("wizard-done-btn").addEventListener("click", async () => {
-        closeWizard();
-        if (wizardCaseId) {
-            UI.setCurrentCaseId(wizardCaseId);
-            updateTranscriptCaseBadge();
-        }
-        // Refresh Excel-backed list + registry, then select the FIR doc.
-        try { await UI.refreshCases(); } catch (e) { /* non-fatal */ }
-        await fetchRegistry();
-        const caseRec = registryCases.find((c) => c.case_id === wizardCaseId);
-        if (caseRec && caseRec.documents && caseRec.documents.length) {
-            const first = caseRec.documents[0];
-            const row = UI.getCasesData().find((r) => r.Case_File === first.filename);
-            if (row) UI.selectCaseFn(row);
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}/analyze`, { method: "POST" });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Analysis failed");
+            }
+            await openCaseWorkspace(currentWorkspaceCaseId);
+            fetchRegistry();
+        } catch (err) {
+            alert("Analysis failed: " + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="sparkles"></i> Analyze All Documents';
+            if (typeof lucide !== "undefined") lucide.createIcons();
         }
     });
 

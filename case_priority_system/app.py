@@ -664,6 +664,10 @@ async def create_case(case_title: str = Form(""), created_by: str = Form(""),
     if fir_name and not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", fir_name, re.IGNORECASE):
         raise HTTPException(status_code=400, detail="Invalid FIR file name. Use letters, numbers, spaces, dashes and .pdf only.")
     source = "FIR_UPLOADED" if fir_name else "AUTO_ID"
+    # No title typed? Name the case after the FIR document so the officer
+    # only ever has to give the case a name OR drop in the FIR.
+    if not (case_title or "").strip() and fir_name:
+        case_title = os.path.splitext(fir_name)[0].replace("_", " ").strip()
     case = case_manager.create_case(title=case_title, created_by=created_by, source=source)
     if fir_file:
         try:

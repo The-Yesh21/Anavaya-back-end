@@ -308,6 +308,114 @@
 .wizard-doc-card-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; color: var(--text-muted); }
 .wizard-doc-card-meta .badge-priority { font-size: 9px; }
 
+/* ---- Case workspace (create → open → upload evidence anytime) ---- */
+.case-workspace { animation: slideIn 320ms ease both; }
+.case-workspace-hero {
+    position: relative;
+    padding: 26px 28px;
+    border-radius: 2.2rem 2rem 2.4rem 1.8rem / 2rem 2.4rem 1.8rem 2.2rem;
+    border: 1.5px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(254, 254, 250, 0.95), rgba(240, 235, 229, 0.55));
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 18px;
+}
+.case-workspace-hero h2 {
+    font-family: var(--font-heading);
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 10px 0 6px;
+    line-height: 1.2;
+}
+.workspace-case-id {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--color-primary);
+    background: var(--color-low-bg);
+    border: 1px solid var(--color-low-border);
+    padding: 4px 12px;
+    border-radius: 99px;
+}
+.workspace-source {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 99px;
+}
+.workspace-rationale {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 720px;
+}
+.workspace-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.workspace-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+@media (max-width: 980px) {
+    .workspace-columns { grid-template-columns: 1fr; }
+}
+.workspace-card { padding: 20px; }
+.workspace-card .wizard-dropzone { margin-bottom: 12px; }
+.workspace-card .lobby-field { margin-bottom: 12px; }
+
+.workspace-doc-list { display: flex; flex-direction: column; gap: 10px; }
+.ws-doc-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 1.2rem 1rem 1.3rem 1.1rem;
+    background: rgba(254, 254, 250, 0.9);
+    transition: all 0.25s ease;
+}
+.ws-doc-item:hover { border-color: var(--border-color-glow); box-shadow: 0 3px 12px rgba(74, 74, 64, 0.06); }
+.ws-doc-item.pending { border-style: dashed; background: rgba(240, 235, 229, 0.4); }
+.ws-doc-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ws-doc-main > i { width: 18px; height: 18px; color: var(--color-primary); flex-shrink: 0; }
+.ws-doc-info { display: flex; flex-direction: column; min-width: 0; }
+.ws-doc-info strong {
+    font-size: 12.5px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ws-doc-meta { font-size: 10.5px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.02em; }
+.ws-doc-side { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.ws-doc-side .badge-priority { font-size: 9.5px; }
+.ws-doc-pending {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: rgba(240, 235, 229, 0.7);
+    border: 1px solid var(--border-color);
+    padding: 3px 10px;
+    border-radius: 99px;
+}
+.ws-doc-download {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 99px;
+    color: var(--text-muted);
+    transition: all 0.25s ease;
+}
+.ws-doc-download:hover { color: var(--color-primary); border-color: var(--color-primary); }
+.ws-doc-download svg { width: 13px; height: 13px; }
+
 /* ---- Chakshu session transcript ---- */
 .session-transcript { margin-top: 24px; }
 .card {

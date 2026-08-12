@@ -171,15 +171,77 @@
             <section class="details-panel">
                 <!-- Navigation Tabs -->
                 <div class="tab-header" role="tablist">
-                    <button class="tab-btn active" data-tab="details-tab" role="tab"><i data-lucide="file-text"></i> Analysis</button>
+                    <button class="tab-btn active" data-tab="case-tab" role="tab"><i data-lucide="folder-kanban"></i> Case</button>
+                    <button class="tab-btn" data-tab="details-tab" role="tab"><i data-lucide="file-text"></i> Analysis</button>
                     <button class="tab-btn" data-tab="tree-tab" role="tab"><i data-lucide="git-branch"></i> Decision Tree</button>
                     <button class="tab-btn" data-tab="lie-detector-tab" role="tab"><i data-lucide="eye"></i> Chakshu</button>
                     <button class="tab-btn" data-tab="courtroom-tab" role="tab"><i data-lucide="gavel"></i> Courtroom</button>
                 </div>
 
                 <div class="tab-content-container">
+                    <!-- Tab 0: Case Workspace (create → open → upload evidence anytime) -->
+                    <div class="tab-content active" id="case-tab">
+                        <div id="case-workspace-empty" class="empty-state">
+                            <div class="empty-icon"><i data-lucide="folder-kanban"></i></div>
+                            <h3>No Case Open</h3>
+                            <p>Create a new case — a name or an FIR report is all you need — or pick one from the Cases list on the left to open its workspace.</p>
+                            <button class="create-case-btn" id="workspace-new-case-btn" style="width:auto; padding:10px 24px; margin:14px auto 0;">
+                                <i data-lucide="folder-plus"></i> Create New Case
+                            </button>
+                        </div>
+                        <div id="case-workspace" class="case-workspace" style="display:none;">
+                            <div class="case-workspace-hero">
+                                <div class="badge-row">
+                                    <span id="workspace-priority-badge" class="priority-pill">Not Analysed</span>
+                                    <span id="workspace-case-id" class="workspace-case-id"></span>
+                                    <span id="workspace-source" class="workspace-source"></span>
+                                </div>
+                                <h2 id="workspace-title">Case</h2>
+                                <p id="workspace-rationale" class="workspace-rationale"></p>
+                                <div class="workspace-actions">
+                                    <button class="lobby-create-btn" id="workspace-analyze-btn" style="width:auto;"><i data-lucide="sparkles"></i> Analyze All Documents</button>
+                                </div>
+                            </div>
+                            <div class="workspace-columns">
+                                <div class="workspace-card card">
+                                    <div class="panel-header">
+                                        <h2><i data-lucide="folder-open"></i> Documents &amp; Evidence</h2>
+                                        <span id="workspace-doc-count" class="roster-count">0 docs</span>
+                                    </div>
+                                    <div id="workspace-doc-list" class="workspace-doc-list">
+                                        <div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>
+                                    </div>
+                                </div>
+                                <div class="workspace-card card">
+                                    <div class="panel-header">
+                                        <h2><i data-lucide="cloud-upload"></i> Upload Evidence</h2>
+                                    </div>
+                                    <div class="wizard-dropzone" id="workspace-doc-drop">
+                                        <i data-lucide="file-plus-2"></i>
+                                        <p>Drop PDF files here or click to browse</p>
+                                    </div>
+                                    <input type="file" id="workspace-doc-input" accept=".pdf" multiple style="display:none;">
+                                    <label class="lobby-field">
+                                        <span>Document type</span>
+                                        <select id="workspace-doc-type">
+                                            <option value="FIR">FIR</option>
+                                            <option value="Police Report">Police Report</option>
+                                            <option value="Medical">Medical</option>
+                                            <option value="Statement">Statement</option>
+                                            <option value="Other" selected>Other</option>
+                                        </select>
+                                    </label>
+                                    <ul id="workspace-pending-list" class="wizard-doc-list"></ul>
+                                    <button class="lobby-create-btn" id="workspace-upload-btn" style="width:100%;" disabled><i data-lucide="upload"></i> Upload Evidence</button>
+                                    <div id="workspace-upload-status" class="wizard-progress"></div>
+                                    <p class="wizard-hint">Add evidence to this case any time — it stays here until you click “Analyze All Documents” to run the priority pipeline. For lie-detection fact-checking against these documents, use the Chakshu tab.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Tab 1: Analysis -->
-                    <div class="tab-content active" id="details-tab">
+                    <div class="tab-content" id="details-tab">
                         <div id="no-case-selected" class="empty-state">
                             <div class="empty-icon"><i data-lucide="folder-open"></i></div>
                             <h3>No Case Selected</h3>
@@ -475,61 +537,16 @@
                 <button class="wizard-close" id="wizard-close-btn" aria-label="Close"><i data-lucide="x"></i></button>
             </div>
             <div class="wizard-steps">
-                <div class="wizard-step-indicators">
-                    <span class="wstep active" data-wstep="1">1. Create</span>
-                    <span class="wstep" data-wstep="2">2. Evidence</span>
-                    <span class="wstep" data-wstep="3">3. Analyze</span>
-                </div>
-
-                <!-- Step 1: Create -->
-                <div class="wizard-step-pane active" data-wstep-pane="1">
-                    <label class="lobby-field">
-                        <span>Case title (optional)</span>
-                        <input type="text" id="wizard-title" placeholder="e.g. State vs. X — Theft Trial" maxlength="120" autocomplete="off">
-                    </label>
-                    <label class="lobby-field">
-                        <span>FIR document (optional — if none, a case ID is auto-assigned)</span>
-                        <input type="file" id="wizard-fir-input" accept=".pdf">
-                    </label>
-                    <label class="lobby-field">
-                        <span>Officer / creator name (optional)</span>
-                        <input type="text" id="wizard-officer" placeholder="e.g. Officer Rao" maxlength="60" autocomplete="off">
-                    </label>
-                    <button class="lobby-create-btn" id="wizard-create-btn"><i data-lucide="plus-circle"></i> Create Case</button>
-                    <div id="wizard-created" class="wizard-created" style="display:none;">
-                        <p><i data-lucide="check-circle"></i> Case created — ID: <strong id="wizard-case-id"></strong></p>
-                        <button class="lobby-open-btn" id="wizard-next-btn"><i data-lucide="arrow-right"></i> Add Evidence →</button>
-                    </div>
-                </div>
-
-                <!-- Step 2: Evidence -->
-                <div class="wizard-step-pane" data-wstep-pane="2">
-                    <p class="wizard-hint">Attach all evidence for this case — FIR, police reports, medical records, statements…</p>
-                    <div class="wizard-dropzone" id="wizard-doc-drop">
-                        <i data-lucide="cloud-upload"></i>
-                        <p>Drop PDF files here or click to browse</p>
-                    </div>
-                    <input type="file" id="wizard-doc-input" accept=".pdf" multiple style="display:none;">
-                    <label class="lobby-field">
-                        <span>Document type for new uploads</span>
-                        <select id="wizard-doc-type">
-                            <option value="FIR">FIR</option>
-                            <option value="Police Report">Police Report</option>
-                            <option value="Medical">Medical</option>
-                            <option value="Statement">Statement</option>
-                            <option value="Other" selected>Other</option>
-                        </select>
-                    </label>
-                    <ul id="wizard-doc-list" class="wizard-doc-list"></ul>
-                    <button class="lobby-create-btn" id="wizard-upload-btn" disabled><i data-lucide="upload"></i> Upload &amp; Analyze All</button>
-                </div>
-
-                <!-- Step 3: Analyze -->
-                <div class="wizard-step-pane" data-wstep-pane="3">
-                    <div id="wizard-progress" class="wizard-progress"></div>
-                    <div id="wizard-results" class="wizard-results"></div>
-                    <button class="lobby-open-btn" id="wizard-done-btn" style="display:none;"><i data-lucide="check"></i> Done — View Case</button>
-                </div>
+                <p class="wizard-hint">All you need is a name or an FIR report — or nothing at all, and a case ID will be auto-assigned. Evidence can be added later, from inside the case.</p>
+                <label class="lobby-field">
+                    <span>Case name (optional)</span>
+                    <input type="text" id="wizard-title" placeholder="e.g. State vs. X — Theft Trial" maxlength="120" autocomplete="off">
+                </label>
+                <label class="lobby-field">
+                    <span>FIR report (optional — the case is named after it when no name is given)</span>
+                    <input type="file" id="wizard-fir-input" accept=".pdf">
+                </label>
+                <button class="lobby-create-btn" id="wizard-create-btn"><i data-lucide="folder-plus"></i> Create &amp; Open Case</button>
             </div>
         </div>
     </div>
