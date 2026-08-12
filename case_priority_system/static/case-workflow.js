@@ -106,8 +106,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     UI.selectCaseFn(row);
                 } else {
                     UI.setCurrentCaseId(li.getAttribute("data-case"));
-                    alert("This document has not been analysed yet — run “Analyze” from the wizard.");
+                    alert("This document has not been analysed yet — open the case and run “Analyze All Documents” from the Case tab.");
                 }
+                // Keep the Case workspace + Chakshu badge on the same case.
+                const docCaseId = li.getAttribute("data-case");
+                if (docCaseId) openCaseWorkspace(docCaseId);
                 updateTranscriptCaseBadge();
             });
         });
@@ -213,10 +216,16 @@ document.addEventListener("DOMContentLoaded", () => {
         $("case-workspace").style.display = "block";
         try {
             const c = await fetchCaseDetail(caseId);
+            // Stale-response guard: ignore a slower fetch for a case the
+            // officer has already navigated away from.
+            if (currentWorkspaceCaseId !== caseId) return;
             renderCaseWorkspace(c);
         } catch (err) {
-            $("case-workspace").innerHTML =
-                `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
+            if (currentWorkspaceCaseId !== caseId) return;
+            const docListEl = $("workspace-doc-list");
+            if (docListEl) {
+                docListEl.innerHTML = `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
+            }
         }
     }
 
@@ -334,7 +343,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
             status.innerHTML = `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
         } finally {
-            btn.disabled = false;
+            // Re-enable only when files are still queued (empty batch = done).
+            btn.disabled = wsPending.length > 0;
             btn.innerHTML = '<i data-lucide="upload"></i> Upload Evidence';
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
