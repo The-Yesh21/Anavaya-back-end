@@ -15,7 +15,7 @@ def drain(clients, label):
         got = []
         while True:
             try:
-                raw = c["ws"].recv
+                raw = c["ws"].recv()
             except websocket.WebSocketTimeoutException:
                 break
             if raw == "":
