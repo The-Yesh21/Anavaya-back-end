@@ -1,0 +1,101 @@
+/* =====================================================================
+   ANAVAYA DESIGN TOKENS — "White & Gold"
+   Single source of truth for the light theme across Dashboard,
+   Case Workflow and Courtroom. Import FIRST in every stylesheet:
+       @import url("tokens.css");
+   ===================================================================== */
+
+:root {
+    /* Surfaces — white & warm ivory */
+    --bg-app: #FBF8F1;                /* warm ivory page */
+    --bg-card: #FFFFFF;               /* pure white cards */
+    --bg-card-hover: #FDF9EF;         /* soft gold-tinted hover */
+    --bg-well: #F6F1E6;               /* recessed areas (sidebar header, tree canvas) */
+    --border-color: rgba(160, 140, 90, 0.28);
+    --border-color-glow: rgba(168, 126, 47, 0.4);
+
+    /* Gold scale */
+    --gold-50:  #FBF6EA;
+    --gold-100: #F7EFDC;
+    --gold-300: #E3C877;
+    --gold-500: #C9A24B;              /* bright accent (decorative) */
+    --gold-600: #A87E2F;              /* primary fill / large headings */
+    --gold-700: #8A6A1F;              /* TEXT-SAFE gold (contrast ≥ 4.5:1 on white) */
+    --gold-800: #6B5016;
+
+    /* Text */
+    --text-primary: #23211C;          /* warm charcoal */
+    --text-secondary: #55503F;
+    --text-muted: #8B8471;
+
+    /* Brand roles (values re-skin every component automatically) */
+    --color-primary: var(--gold-600);      /* buttons, active tabs, accents */
+    --color-primary-dark: var(--gold-700); /* hovers + small gold text */
+    --color-primary-fg: #FFFFFF;
+    --color-secondary: #C25606;            /* amber — secondary fills, Medium urgency */
+    --color-secondary-fg: #FFFFFF;
+    --color-accent: var(--gold-100);       /* soft gold wash */
+    --color-accent-fg: var(--gold-800);
+    --color-muted: var(--bg-well);
+    --color-muted-fg: var(--text-muted);
+
+    /* Priority semantics (crimson / amber / sage) — always paired with icons */
+    --color-high: #B3402E;
+    --color-high-bg: rgba(179, 64, 46, 0.09);
+    --color-high-border: rgba(179, 64, 46, 0.30);
+    --color-medium: #C25606;
+    --color-medium-bg: rgba(194, 86, 6, 0.10);
+    --color-medium-border: rgba(194, 86, 6, 0.30);
+    --color-low: #4E7A66;
+    --color-low-bg: rgba(78, 122, 102, 0.10);
+    --color-low-border: rgba(78, 122, 102, 0.30);
+
+    /* Elevation — gold-tinted, restrained */
+    --shadow-soft: 0 1px 3px rgba(80, 60, 20, 0.08), 0 4px 14px rgba(80, 60, 20, 0.06);
+    --shadow-float: 0 12px 32px -8px rgba(120, 90, 30, 0.18);
+
+    /* Radii — organic reserved for hero/header/empty states */
+    --radius-card: 14px;
+    --radius-pill: 999px;
+    --radius-hero: 28px;
+
+    /* Typography — fluid scale */
+    --font-heading: 'Fraunces', serif;
+    --font-body: 'Nunito', sans-serif;
+    --text-base: clamp(14px, 0.6vw + 12px, 16px);
+    --text-h1: clamp(22px, 2vw + 12px, 30px);
+    --text-h2: clamp(18px, 1.4vw + 12px, 24px);
+
+    /* Motion */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-fast: 150ms;
+    --dur-med: 260ms;
+    --dur-slow: 420ms;
+}
+
+/* Visible focus ring for keyboard users (WCAG 2.2) — gold, 3px */
+:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* Respect reduced-motion: kill animation/floating, keep only essential fades */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .organic-blob {
+        animation: none !important;
+    }
+    .skeleton-row,
+    .shimmer {
+        animation: none !important;
+        background: var(--bg-well) !important;
+    }
+}

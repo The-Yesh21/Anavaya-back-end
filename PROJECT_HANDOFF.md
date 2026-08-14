@@ -242,5 +242,6 @@ When anything in this project changes, append an entry here (date · what change
 
 | Date | Change |
 |---|---|
+| 2026-08-13 | Created `FRONTEND_DESIGN_PLAN.md` (root): approved direction = **White & Gold light theme** across all pages, smoothness (no-layout-shift motion, perf guards) + adaptability (WCAG 2.2 AA, unified 4-tier responsive). **PLAN ONLY — implementation pending user approval.** |
 | 2026-08-13 | Created this handoff doc from current codebase state (post-frontend-redesign, post-instant-pipeline, post-PDF-reports, case workflow + Chakshu + Courtroom live). |
 | — | *(add the next entry here)* |
