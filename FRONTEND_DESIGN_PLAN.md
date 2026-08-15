@@ -1,9 +1,16 @@
 # Anavaya Front-End Design Plan — "White & Gold" · Smooth · Adaptable for All
 
-> Status: **PLAN — awaiting approval** (do not implement until approved).
+> Status: **IMPLEMENTED** (all 4 phases done — P1 tokens + theme re-skin, P2 smoothness &
+> responsive unification, P3 case workflow + courtroom re-skin, P4 accessibility hooks &
+> validation). Validated: backend workflow e2e green, dashboard + courtroom load with zero
+> console errors at 1440/1024/768/375px, theme colors confirmed rendered.
 > Scope: **all front-end pages** — Dashboard (`index.html`/`app.js`/`style.css`), Case
 > Workflow (`case-workflow.css/js`), Live Courtroom (`courtroom.html/css/js`).
 > No backend/API changes, no build step, no new CDN libraries, no dark mode.
+>
+> **Bonus fix:** `courtroom.html` assets are now referenced with absolute paths
+> (`/courtroom.css`, `/courtroom.js`) — previously the relative refs resolved under
+> `/court/{room_id}` and the page silently served HTML instead of its stylesheet/script.
 >
 > Companion docs: `case_priority_system/FRONTEND_REDESIGN_PLAN.md` (previous visual redesign,
 > completed), `PROJECT_HANDOFF.md` (§9 gotchas).

@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderRegistry();
         } catch (err) {
             if (registryList) registryList.innerHTML =
-                `<div class="loader" style="color:#A85448">Cases unavailable — start the backend.</div>`;
+                `<div class="loader" style="color:#B3402E">Cases unavailable — start the backend.</div>`;
         }
     }
 
@@ -224,7 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentWorkspaceCaseId !== caseId) return;
             const docListEl = $("workspace-doc-list");
             if (docListEl) {
-                docListEl.innerHTML = `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
+                docListEl.innerHTML = `<div class="loader" style="color:#B3402E">${esc(err.message)}</div>`;
             }
         }
     }
@@ -341,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await openCaseWorkspace(currentWorkspaceCaseId);
             fetchRegistry();
         } catch (err) {
-            status.innerHTML = `<div class="loader" style="color:#A85448">${esc(err.message)}</div>`;
+            status.innerHTML = `<div class="loader" style="color:#B3402E">${esc(err.message)}</div>`;
         } finally {
             // Re-enable only when files are still queued (empty batch = done).
             btn.disabled = wsPending.length > 0;

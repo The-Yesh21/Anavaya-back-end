@@ -1,39 +1,9 @@
 /* ============================================================
    Anavaya — Live Courtroom styles
-   Reuses the dashboard's organic theme tokens (Moss Green,
-   Terracotta, Rice Paper, Fraunces/Nunito, asymmetric radii).
+   White & Gold theme — design tokens come from tokens.css
+   (imported FIRST; shared with Dashboard + Case Workflow).
    ============================================================ */
-
-:root {
-    --font-heading: 'Fraunces', serif;
-    --font-body: 'Nunito', sans-serif;
-
-    --bg-app: #FDFCF8;        /* rice paper */
-    --bg-card: #FEFEFA;       /* light ivory */
-    --bg-card-hover: #F8F6EF;
-
-    --text-primary: #2C2C24;
-    --text-secondary: #4A4A40;
-    --text-muted: #78786C;
-
-    --color-primary: #5D7052;     /* moss green */
-    --color-primary-fg: #F3F4F1;
-    --color-primary-dark: #4E5E45;
-    --color-secondary: #C18C5D;   /* terracotta */
-    --color-accent: #E6DCCD;      /* sand */
-    --color-muted: #F0EBE5;
-
-    --color-high: #A85448;        /* burnt sienna */
-    --color-medium: #C18C5D;      /* terracotta */
-    --color-low: #5D7052;         /* moss green */
-
-    --border-color: rgba(222, 216, 207, 0.6);
-    --border-color-glow: rgba(93, 112, 82, 0.35);
-    --shadow-soft: 0 4px 20px -2px rgba(93, 112, 82, 0.15);
-    --shadow-float: 0 10px 40px -10px rgba(193, 140, 93, 0.2);
-
-    --radius-pill: 99px;
-}
+@import url("tokens.css");
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -87,7 +57,7 @@ body::before {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(135deg, rgba(253,252,248,0.7), rgba(240,235,229,0.85));
+    background: linear-gradient(135deg, rgba(251,248,241,0.7), rgba(246,241,230,0.85));
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
@@ -96,7 +66,7 @@ body::before {
     z-index: 1;
     width: 100%;
     max-width: 480px;
-    background: rgba(254, 254, 250, 0.92);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1.5px solid var(--border-color);
@@ -192,7 +162,7 @@ body::before {
 }
 .role-btn.selected {
     border-color: var(--color-primary);
-    background: rgba(93, 112, 82, 0.08);
+    background: rgba(168, 126, 47, 0.08);
     box-shadow: 0 0 0 3px var(--border-color-glow);
 }
 .role-btn:disabled {
@@ -239,7 +209,7 @@ body::before {
 .join-error {
     color: var(--color-high);
     font-size: 13px;
-    background: rgba(168, 84, 72, 0.08);
+    background: rgba(179, 64, 46, 0.08);
     border-radius: var(--radius-pill);
     padding: 8px 14px;
 }
@@ -272,7 +242,7 @@ body::before {
     align-items: center;
     justify-content: space-between;
     padding: 16px 28px;
-    background: rgba(254, 254, 250, 0.85);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1.5px solid var(--border-color);
@@ -305,7 +275,7 @@ body::before {
     display: inline-block;
     padding: 3px 10px;
     border-radius: var(--radius-pill);
-    background: rgba(193, 140, 93, 0.15);
+    background: rgba(201, 162, 75, 0.15);
     color: var(--color-secondary);
     font-weight: 700;
     font-size: 11px;
@@ -320,7 +290,7 @@ body::before {
     font-size: 13px;
     font-weight: 700;
     color: var(--text-secondary);
-    background: rgba(254, 254, 250, 0.7);
+    background: rgba(255, 255, 255, 0.7);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-pill);
     cursor: pointer;
@@ -344,7 +314,7 @@ body::before {
 
 /* Generic card + panel header */
 .card {
-    background: rgba(254, 254, 250, 0.92);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1.5px solid var(--border-color);
@@ -392,10 +362,10 @@ body::before {
     border-radius: 1.1rem 1.4rem 1rem 1.3rem;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.participant-tile.is-me { border-color: var(--color-primary); background: rgba(93,112,82,0.06); }
+.participant-tile.is-me { border-color: var(--color-primary); background: rgba(168,126,47,0.06); }
 .participant-tile.speaking {
     border-color: var(--color-secondary);
-    box-shadow: 0 0 0 3px rgba(193, 140, 93, 0.25);
+    box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.25);
 }
 .avatar {
     position: relative;
@@ -502,17 +472,17 @@ body::before {
     font-size: 12px;
     font-weight: 700;
     color: var(--color-secondary);
-    background: rgba(193, 140, 93, 0.1);
+    background: rgba(201, 162, 75, 0.1);
     border: 1.5px solid transparent;
     border-radius: var(--radius-pill);
     cursor: pointer;
     transition: all 0.2s;
 }
-.quick-action:hover { background: rgba(193, 140, 93, 0.2); }
-.quick-action.objection { color: var(--color-high); background: rgba(168,84,72,0.1); }
-.quick-action.objection:hover { background: rgba(168,84,72,0.2); }
-.quick-action.ruling { color: var(--color-primary); background: rgba(93,112,82,0.1); }
-.quick-action.ruling:hover { background: rgba(93,112,82,0.2); }
+.quick-action:hover { background: rgba(201, 162, 75, 0.2); }
+.quick-action.objection { color: var(--color-high); background: rgba(179,64,46,0.1); }
+.quick-action.objection:hover { background: rgba(179,64,46,0.2); }
+.quick-action.ruling { color: var(--color-primary); background: rgba(168,126,47,0.1); }
+.quick-action.ruling:hover { background: rgba(168,126,47,0.2); }
 
 .statement-form {
     display: flex;
@@ -580,7 +550,7 @@ body::before {
 /* Custom scrollbar (matches dashboard) */
 .transcript-feed::-webkit-scrollbar { width: 8px; }
 .transcript-feed::-webkit-scrollbar-track { background: transparent; }
-.transcript-feed::-webkit-scrollbar-thumb { background: rgba(193,140,93,0.35); border-radius: 99px; }
+.transcript-feed::-webkit-scrollbar-thumb { background: rgba(201,162,75,0.35); border-radius: 99px; }
 
 .transcript-empty {
     text-align: center;
@@ -632,9 +602,9 @@ body::before {
 .entry-text { font-size: 14px; color: var(--text-primary); line-height: 1.45; word-wrap: break-word; }
 
 /* entry variants */
-.entry.kind-system { background: rgba(240,235,229,0.6); border-style: dashed; }
+.entry.kind-system { background: rgba(246,241,230,0.6); border-style: dashed; }
 .entry.kind-system .entry-text { font-style: italic; color: var(--text-muted); font-size: 13px; }
-.entry.kind-action { background: rgba(193,140,93,0.08); }
+.entry.kind-action { background: rgba(201,162,75,0.08); }
 .entry.kind-action .entry-text { font-style: italic; color: var(--color-secondary); font-weight: 600; }
 .entry.kind-phase {
     align-self: center;
@@ -677,7 +647,7 @@ body::before {
 /* ============================================================
    RESPONSIVE
    ============================================================ */
-@media (max-width: 900px) {
+@media (max-width: 899px) {
     .court-body { grid-template-columns: 1fr; padding: 16px; }
     .court-header { padding: 14px 16px; }
     .court-header h1 { font-size: 17px; }

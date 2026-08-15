@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="courtroom.css">
+    <link rel="stylesheet" href="/courtroom.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -17,7 +17,7 @@
     <div class="organic-blob color-3"></div>
 
     <!-- ───────── JOIN OVERLAY (shown until the participant picks a role) ───────── -->
-    <div id="join-overlay" class="join-overlay">
+    <div id="join-overlay" class="join-overlay" role="dialog" aria-modal="true" aria-labelledby="join-case-title">
         <div class="join-card">
             <a href="/" class="back-link"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
             <div class="join-emblem"><i data-lucide="scale"></i></div>
@@ -60,7 +60,7 @@
                 </div>
             </div>
             <div class="court-header-actions">
-                <button class="ghost-btn" id="copy-invite-btn" title="Copy invite link">
+                <button class="ghost-btn" id="copy-invite-btn" title="Copy invite link" aria-label="Copy invite link">
                     <i data-lucide="link"></i> Invite
                 </button>
                 <a class="ghost-btn" href="/" title="Back to dashboard">
@@ -113,7 +113,7 @@
                             <i data-lucide="download"></i> Export
                         </button>
                     </div>
-                    <div id="transcript-feed" class="transcript-feed">
+                    <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
                         <div class="transcript-empty">The court is in session. Statements will appear here.</div>
                     </div>
                 </div>
@@ -127,6 +127,6 @@
         <div id="toast" class="toast" style="display:none;"></div>
     </div>
 
-    <script src="courtroom.js"></script>
+    <script src="/courtroom.js"></script>
 </body>
 </html>

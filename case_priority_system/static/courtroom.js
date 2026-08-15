@@ -20,11 +20,11 @@
         { id: "Witness",      label: "Witness",           tag: "Gives testimony" },
     ];
     const ROLE_ACCENT = {
-        Judge: "#5D7052",
-        Defence: "#C18C5D",
-        Prosecution: "#A85448",
+        Judge: "#A87E2F",
+        Defence: "#C25606",
+        Prosecution: "#B3402E",
         Witness: "#8B5C9E",
-        system: "#78786C",
+        system: "#8B8471",
     };
 
     // role-specific quick actions shown in the action bar

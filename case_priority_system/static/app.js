@@ -59,14 +59,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabContents = document.querySelectorAll(".tab-content");
 
-    tabButtons.forEach(btn => {
-        btn.addEventListener("click", () => {
-            tabButtons.forEach(b => b.classList.remove("active"));
-            tabContents.forEach(c => c.classList.remove("active"));
+    function activateTab(btn) {
+        tabButtons.forEach(b => {
+            b.classList.remove("active");
+            b.setAttribute("aria-selected", "false");
+        });
+        tabContents.forEach(c => c.classList.remove("active"));
 
-            btn.classList.add("active");
-            const tabId = btn.getAttribute("data-tab");
-            document.getElementById(tabId).classList.add("active");
+        btn.classList.add("active");
+        btn.setAttribute("aria-selected", "true");
+        const tabId = btn.getAttribute("data-tab");
+        document.getElementById(tabId).classList.add("active");
 
             if (tabId === "tree-tab") {
                 // Fetch the tree lazily on first activation, then draw it
@@ -105,6 +108,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     console.error("Webcam release error:", e);
                 }
             }
+    }
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => activateTab(btn));
+        // Tablist arrow-key navigation (roving tabindex)
+        btn.addEventListener("keydown", (e) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+            e.preventDefault();
+            const idx = Array.from(tabButtons).indexOf(btn);
+            let next = idx;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % tabButtons.length;
+            else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + tabButtons.length) % tabButtons.length;
+            else if (e.key === "Home") next = 0;
+            else if (e.key === "End") next = tabButtons.length - 1;
+            activateTab(tabButtons[next]);
+            tabButtons[next].focus();
         });
     });
 
@@ -180,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
             populateFilters(casesData);
             renderCasesList(casesData);
         } catch (err) {
-            casesListContainer.innerHTML = `<div class="loader" style="color: #A85448">Error loading cases. Make sure the backend is running.</div>`;
+            casesListContainer.innerHTML = `<div class="loader" style="color: #B3402E">Error loading cases. Make sure the backend is running.</div>`;
             throw err;
         }
     }
@@ -205,7 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
             globalTreeData = await res.json();
             document.getElementById("tree-loading").style.display = "none";
         } catch (err) {
-            document.getElementById("tree-loading").innerHTML = `<span style="color: #A85448">Failed to load global decision tree structure.</span>`;
+            document.getElementById("tree-loading").innerHTML = `<span style="color: #B3402E">Failed to load global decision tree structure.</span>`;
             throw err;
         }
     }
@@ -310,7 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
         casesListContainer.innerHTML = "";
         if (filtered.length === 0) {
             casesListContainer.innerHTML = `<div class="empty-cases">
-                <i data-lucide="scale" style="width:28px;height:28px;color:#9AA3B2;"></i>
+                <i data-lucide="scale" style="width:28px;height:28px;color:#C9A24B;"></i>
                 <p>No cases yet. Upload a case PDF above to get an instant priority and report.</p>
             </div>`;
             if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -696,7 +715,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 drawDecisionTree(globalTreeData);
             }
         } catch (err) {
-            stepsContainer.innerHTML = `<div class="loader" style="color: #A85448">Error loading path trace steps.</div>`;
+            stepsContainer.innerHTML = `<div class="loader" style="color: #B3402E">Error loading path trace steps.</div>`;
             console.error(err);
         }
     }
@@ -894,7 +913,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 // Append class counts distribution
-                tooltipContent += `<div class="tooltip-row" style="margin-top:6px; font-size:10px; border-top: 1px solid rgba(74, 74, 64, 0.15); padding-top:4px;"><strong>Distribution:</strong></div>`;
+                tooltipContent += `<div class="tooltip-row" style="margin-top:6px; font-size:10px; border-top: 1px solid rgba(80, 60, 20, 0.15); padding-top:4px;"><strong>Distribution:</strong></div>`;
                 Object.entries(d.data.class_counts).forEach(([cls, count]) => {
                     tooltipContent += `<div class="tooltip-row" style="font-size:10px;">• ${cls}: ${count}</div>`;
                 });
@@ -919,7 +938,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (d.data.type === "leaf") {
                     return getPriorityColor(d.data.predicted_class);
                 }
-                return "#4A4A40"; // Decision Node border (Bark)
+                return "#C9A24B"; // Decision node border (gold)
             })
             .style("fill", d => {
                 const isActive = activePathNodes.includes(d.data.id);
@@ -927,15 +946,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (d.data.type === "leaf") {
                         return getPriorityColor(d.data.predicted_class);
                     }
-                    return "#C18C5D"; // Active decision node fill (Clay/Terracotta)
+                    return "#C9A24B"; // Active decision node fill (gold)
                 }
-                return "#FEFEFA"; // Background card color (Rice Paper)
+                return "#FFFFFF"; // Background card color (white)
             })
             .style("color", d => {
                 if (d.data.type === "leaf") {
                     return getPriorityColor(d.data.predicted_class);
                 }
-                return "#5D7052"; // Moss Green
+                return "#8A6A1F"; // Text-safe gold
             });
 
         // Invisible hit area so nodes are easy to click
@@ -951,7 +970,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .attr("x", d => d.children ? -12 : 12)
             .attr("text-anchor", d => d.children ? "end" : "start")
             .text(d => d.data.name.length > 30 ? d.data.name.substring(0, 28) + "..." : d.data.name)
-            .style("text-shadow", "0 0 4px #FDFCF8");
+            .style("text-shadow", "0 0 4px #FBF8F1");
 
         // Fit tree inside view
         const initialTransform = d3.zoomIdentity.translate(20, 20).scale(0.85);
@@ -959,10 +978,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function getPriorityColor(priority) {
-        if (priority === "High") return "#A85448";
-        if (priority === "Medium") return "#C18C5D";
-        if (priority === "Low") return "#5D7052";
-        return "#78786C";
+        if (priority === "High") return "#B3402E";
+        if (priority === "Medium") return "#C25606";
+        if (priority === "Low") return "#4E7A66";
+        return "#8B8471";
     }
 
     // -------------------------------------------------------------
@@ -1458,8 +1477,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function drawOverlayMesh(landmarks) {
-        overlayCtx.fillStyle = "rgba(193, 140, 93, 0.45)"; // Terracotta/Clay
-        overlayCtx.strokeStyle = "rgba(193, 140, 93, 0.2)";
+        overlayCtx.fillStyle = "rgba(201, 162, 75, 0.45)"; // gold
+        overlayCtx.strokeStyle = "rgba(201, 162, 75, 0.2)";
         overlayCtx.lineWidth = 1;
 
         // Draw left eye loop
@@ -1487,7 +1506,7 @@ document.addEventListener("DOMContentLoaded", () => {
         overlayCtx.stroke();
 
         // Draw pupil centers in glowing moss green
-        overlayCtx.fillStyle = "rgba(93, 112, 82, 0.85)"; // Moss Green
+        overlayCtx.fillStyle = "rgba(78, 122, 102, 0.85)"; // sage
         [468, 473].forEach(idx => {
             const p = landmarks[idx];
             overlayCtx.beginPath();
@@ -1496,7 +1515,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         // Draw eyebrows
-        overlayCtx.strokeStyle = "rgba(74, 74, 64, 0.4)"; // Bark
+        overlayCtx.strokeStyle = "rgba(80, 60, 20, 0.4)"; // warm charcoal
         overlayCtx.beginPath();
         overlayCtx.moveTo(landmarks[70].x * overlayCanvas.width, landmarks[70].y * overlayCanvas.height);
         overlayCtx.lineTo(landmarks[107].x * overlayCanvas.width, landmarks[107].y * overlayCanvas.height);

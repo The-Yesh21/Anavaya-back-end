@@ -19,6 +19,9 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
+    <!-- Skip link for keyboard users -->
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
     <!-- Global Page Preloader -->
     <div id="global-preloader" class="preloader-overlay">
         <div class="preloader-card">
@@ -108,7 +111,7 @@
         </section>
 
         <!-- Main Body Grid -->
-        <main class="dashboard-grid">
+        <main class="dashboard-grid" id="main-content">
             <!-- Sidebar: Case Selector -->
             <section class="cases-sidebar" id="cases-sidebar">
                 <div class="sidebar-header">
@@ -170,17 +173,17 @@
             <!-- Main Panel: Case Details & Tree Visualizer -->
             <section class="details-panel">
                 <!-- Navigation Tabs -->
-                <div class="tab-header" role="tablist">
-                    <button class="tab-btn active" data-tab="case-tab" role="tab"><i data-lucide="folder-kanban"></i> Case</button>
-                    <button class="tab-btn" data-tab="details-tab" role="tab"><i data-lucide="file-text"></i> Analysis</button>
-                    <button class="tab-btn" data-tab="tree-tab" role="tab"><i data-lucide="git-branch"></i> Decision Tree</button>
-                    <button class="tab-btn" data-tab="lie-detector-tab" role="tab"><i data-lucide="eye"></i> Chakshu</button>
-                    <button class="tab-btn" data-tab="courtroom-tab" role="tab"><i data-lucide="gavel"></i> Courtroom</button>
+                <div class="tab-header" role="tablist" aria-label="Dashboard sections">
+                    <button class="tab-btn active" data-tab="case-tab" role="tab" id="tab-case" aria-controls="case-tab" aria-selected="true"><i data-lucide="folder-kanban"></i> Case</button>
+                    <button class="tab-btn" data-tab="details-tab" role="tab" id="tab-details" aria-controls="details-tab" aria-selected="false"><i data-lucide="file-text"></i> Analysis</button>
+                    <button class="tab-btn" data-tab="tree-tab" role="tab" id="tab-tree" aria-controls="tree-tab" aria-selected="false"><i data-lucide="git-branch"></i> Decision Tree</button>
+                    <button class="tab-btn" data-tab="lie-detector-tab" role="tab" id="tab-lie" aria-controls="lie-detector-tab" aria-selected="false"><i data-lucide="eye"></i> Chakshu</button>
+                    <button class="tab-btn" data-tab="courtroom-tab" role="tab" id="tab-courtroom" aria-controls="courtroom-tab" aria-selected="false"><i data-lucide="gavel"></i> Courtroom</button>
                 </div>
 
                 <div class="tab-content-container">
                     <!-- Tab 0: Case Workspace (create → open → upload evidence anytime) -->
-                    <div class="tab-content active" id="case-tab">
+                    <div class="tab-content active" id="case-tab" role="tabpanel" aria-labelledby="tab-case">
                         <div id="case-workspace-empty" class="empty-state">
                             <div class="empty-icon"><i data-lucide="folder-kanban"></i></div>
                             <h3>No Case Open</h3>
@@ -233,7 +236,7 @@
                                     </label>
                                     <ul id="workspace-pending-list" class="wizard-doc-list"></ul>
                                     <button class="lobby-create-btn" id="workspace-upload-btn" style="width:100%;" disabled><i data-lucide="upload"></i> Upload Evidence</button>
-                                    <div id="workspace-upload-status" class="wizard-progress"></div>
+                                    <div id="workspace-upload-status" class="wizard-progress" aria-live="polite"></div>
                                     <p class="wizard-hint">Add evidence to this case any time — it stays here until you click “Analyze All Documents” to run the priority pipeline. For lie-detection fact-checking against these documents, use the Chakshu tab.</p>
                                 </div>
                             </div>
@@ -241,7 +244,7 @@
                     </div>
 
                     <!-- Tab 1: Analysis -->
-                    <div class="tab-content" id="details-tab">
+                    <div class="tab-content" id="details-tab" role="tabpanel" aria-labelledby="tab-details">
                         <div id="no-case-selected" class="empty-state">
                             <div class="empty-icon"><i data-lucide="folder-open"></i></div>
                             <h3>No Case Selected</h3>
@@ -340,7 +343,7 @@
                     </div>
 
                     <!-- Tab 2: Decision Tree Visualizer -->
-                    <div class="tab-content" id="tree-tab">
+                    <div class="tab-content" id="tree-tab" role="tabpanel" aria-labelledby="tab-tree">
                         <div class="tree-controls">
                             <span class="control-label"><i data-lucide="git-branch" style="display:inline-block; vertical-align:middle; width:18px; height:18px; margin-right:4px; stroke-width: 2.2px;"></i> Interactive Global Decision Tree</span>
                             <div class="tree-actions">
@@ -384,7 +387,7 @@
                     </div>
 
                     <!-- Tab 3: Lie Detector (Chakshu) -->
-                    <div class="tab-content" id="lie-detector-tab">
+                    <div class="tab-content" id="lie-detector-tab" role="tabpanel" aria-labelledby="tab-lie">
                         <div class="lie-detector-layout">
                             <div class="video-panel">
                                 <div class="webcam-container">
@@ -470,7 +473,7 @@
                                 <input type="text" id="typed-statement-input" placeholder="Speech unavailable? Type the subject's statement here…" maxlength="300" autocomplete="off">
                                 <button class="control-btn" id="add-typed-statement-btn"><i data-lucide="type"></i> Add</button>
                             </div>
-                            <div id="chakshu-transcript" class="chakshu-transcript">
+                            <div id="chakshu-transcript" class="chakshu-transcript" aria-live="polite">
                                 <div class="transcript-empty">Start a session, ask a question, and the subject's spoken answer will appear here.</div>
                             </div>
                             <p class="speech-status" id="speech-status">Speech-to-text idle — Chrome recommended.</p>
@@ -482,7 +485,7 @@
                                 <h2><i data-lucide="badge-check"></i> Evidence Fact-Check</h2>
                                 <button class="link-btn" id="download-dossier-btn" style="display:none;"><i data-lucide="download"></i> Dossier</button>
                             </div>
-                            <div class="factcheck-summary" id="factcheck-summary"></div>
+                            <div class="factcheck-summary" id="factcheck-summary" aria-live="polite"></div>
                             <div id="factcheck-verdicts" class="factcheck-verdicts"></div>
                             <button class="control-btn" id="run-factcheck-btn" disabled>
                                 <i data-lucide="search-check"></i> Run Fact-Check Against Documents
@@ -491,7 +494,7 @@
                     </div>
 
                     <!-- Tab 4: Live Courtroom Lobby -->
-                    <div class="tab-content" id="courtroom-tab">
+                    <div class="tab-content" id="courtroom-tab" role="tabpanel" aria-labelledby="tab-courtroom">
                         <div class="courtroom-lobby-layout">
                             <!-- Create Room -->
                             <div class="lobby-create-card">
