@@ -12,10 +12,10 @@
     <link rel="stylesheet" href="case-workflow.css">
     <!-- D3.js for Decision Tree Rendering -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- MediaPipe Face Mesh & Camera Tracking -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <!-- Lucide Icons for Premium UI -->
+    <!-- NOTE: MediaPipe (face_mesh + camera_utils, ~2.5 MB) is lazy-loaded by
+         app.js only when the Lie Detector tab's camera is started, so the
+         dashboard doesn't pay its parse/memory cost on every page load. -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>

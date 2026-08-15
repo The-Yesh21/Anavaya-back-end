@@ -3,6 +3,7 @@ import pickle
 import re
 import json
 import shutil
+import subprocess
 import tempfile
 import traceback
 import pandas as pd
@@ -422,14 +423,38 @@ def get_case_report_pdf(case_file: str):
                         filename=os.path.basename(report_path))
 
 
+# The dashboard and decision-path endpoints read case_results.xlsx on every
+# request. Reading + parsing the workbook with pandas costs ~1s, so cache the
+# parsed frame and re-read only when the file changes on disk (mtime + size).
+_cases_df_cache = {"mtime_ns": None, "size": None, "df": None}
+
+
+def _read_cases_df():
+    """Read case_results.xlsx, re-reading only when the file changes on disk."""
+    if os.path.exists(EXCEL_PATH):
+        st = os.stat(EXCEL_PATH)
+        key = (st.st_mtime_ns, st.st_size)
+        if (_cases_df_cache["df"] is not None
+                and _cases_df_cache["mtime_ns"] == key[0]
+                and _cases_df_cache["size"] == key[1]):
+            return _cases_df_cache["df"]
+        try:
+            df = pd.read_excel(EXCEL_PATH)
+            df = df.replace({np.nan: None})
+            _cases_df_cache.update({"mtime_ns": key[0], "size": key[1], "df": df})
+            return df
+        except Exception:
+            pass  # fall through to a fresh read below (e.g. file locked)
+    df = pd.read_excel(EXCEL_PATH)
+    return df.replace({np.nan: None})
+
+
 @app.get("/api/cases")
 def get_cases():
     if not os.path.exists(EXCEL_PATH):
         raise HTTPException(status_code=404, detail="Excel results file not found.")
     try:
-        df = pd.read_excel(EXCEL_PATH)
-        df = df.replace({np.nan: None})
-        return df.to_dict(orient="records")
+        return _read_cases_df().to_dict(orient="records")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
 
@@ -455,7 +480,7 @@ def get_case_decision_path(case_file: str):
         raise HTTPException(status_code=404, detail="Excel results file not found.")
         
     try:
-        df = pd.read_excel(EXCEL_PATH)
+        df = _read_cases_df()
         case_rows = df[df['Case_File'] == case_file]
         if case_rows.empty:
             raise HTTPException(status_code=404, detail=f"Case file {case_file} not found.")
@@ -730,8 +755,10 @@ def list_case_registry():
     return case_manager.list_cases()
 
 
-# CUDA device info is queried lazily and cached after the first call, so the
-# status endpoint stays cheap even though it can be hit on every page load.
+# GPU device info is queried lazily via `nvidia-smi` (fast subprocess) and
+# cached after the first call, so the status endpoint stays cheap even though
+# it can be hit on every page load. Deliberately avoids importing torch here:
+# importing torch costs seconds and can fail with DLL init errors on Windows.
 _gpu_status_cache = None  # {"gpu": str | None, "gpu_vram_mb": int | None}
 
 
@@ -741,12 +768,18 @@ def _cached_gpu_info():
         gpu_name = ""
         vram_total_mb = 0
         try:
-            import torch
-            if torch.cuda.is_available():
-                gpu_name = torch.cuda.get_device_name(0)
-                vram_total_mb = int(
-                    torch.cuda.get_device_properties(0).total_memory // (1024 * 1024)
-                )
+            out = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                parts = [p.strip() for p in out.stdout.strip().split(",")]
+                if parts:
+                    gpu_name = parts[0]
+                if len(parts) > 1 and parts[1].isdigit():
+                    vram_total_mb = int(parts[1])
         except Exception:
             pass
         _gpu_status_cache = {"gpu": gpu_name or None, "gpu_vram_mb": vram_total_mb or None}

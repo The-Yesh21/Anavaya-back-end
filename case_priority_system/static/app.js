@@ -69,9 +69,13 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById(tabId).classList.add("active");
 
             if (tabId === "tree-tab") {
-                // Trigger tree resize/draw if tree data is ready
+                // Fetch the tree lazily on first activation, then draw it
                 if (globalTreeData) {
                     drawDecisionTree(globalTreeData);
+                } else {
+                    fetchTree()
+                        .then(() => { if (globalTreeData) drawDecisionTree(globalTreeData); })
+                        .catch(() => {});
                 }
             }
 
@@ -144,7 +148,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Fetch and Initialize App Data
     async function init() {
         try {
-            await Promise.all([fetchCases(), fetchTree()]);
+            // The decision tree is fetched lazily on the first Tree-tab
+            // activation (see tab handler), so the initial page load only
+            // waits on /api/cases.
+            await fetchCases();
         } catch (err) {
             console.error("Initialization error:", err);
         } finally {
@@ -1050,6 +1057,35 @@ document.addEventListener("DOMContentLoaded", () => {
     const summaryTwitches = document.getElementById("summary-twitches");
     const summaryVerdict = document.getElementById("summary-verdict");
 
+    // MediaPipe (face_mesh + camera_utils, ~2.5 MB) is lazy-loaded only when
+    // the user actually starts the camera, so the dashboard never pays the
+    // script parse/memory cost on every page load.
+    let mediaPipePromise = null;
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("Failed to load " + src));
+            document.head.appendChild(s);
+        });
+    }
+
+    function ensureMediaPipeLibs() {
+        if (typeof window.FaceMesh !== "undefined" && typeof window.Camera !== "undefined") {
+            return Promise.resolve();
+        }
+        if (!mediaPipePromise) {
+            mediaPipePromise = Promise.all([
+                loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"),
+                loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"),
+            ]);
+        }
+        return mediaPipePromise;
+    }
+
     // Initialize Camera Stream
     startCameraBtn.addEventListener("click", async () => {
         try {
@@ -1067,6 +1103,7 @@ document.addEventListener("DOMContentLoaded", () => {
             overlayCanvas.width = 640;
             overlayCanvas.height = 480;
 
+            await ensureMediaPipeLibs();
             initializeFaceMesh();
             
             startAnalysisBtn.disabled = false;

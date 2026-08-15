@@ -8,6 +8,7 @@ try:
     from pypdf import PdfReader
 except ImportError:
     PdfReader = None
+import time
 import pandas as pd
 import subprocess
 
@@ -46,35 +47,68 @@ DECISION_GRAPH_DIR = 'case_priority_system/decision_graphs'
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
-# Ensure the required Ollama model is available
-try:
-    subprocess.run(["ollama", "list"], capture_output=True, check=True)
-except Exception:
-    # If ollama is not reachable or model list fails, attempt to pull the model
-    subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=False)
-
 # ---- GPU / LLM mode detection ----------------------------------------
 # The web app can either use the local Ollama LLM (which Ollama runs on the
 # NVIDIA GPU when one is present) or the deterministic rule-based extractor.
-# Forced env values are cached permanently; auto mode re-probes while it is
-# still disabled, so starting Ollama after the app is picked up on the next
-# call (a re-probe is cheap: connection refused when Ollama is down).
+# Forced env values are cached permanently; auto mode re-probes at most once
+# every _LLM_PROBE_INTERVAL seconds while it is still disabled, so starting
+# Ollama after the app is picked up on the next probe without paying a
+# subprocess/HTTP probe on every request.
 _llm_mode_cache: "bool | None" = None   # True once auto mode succeeded
 _llm_mode_reported = False              # startup banner printed once
+_llm_probe_deadline: float = 0.0        # monotonic() ts; re-probe only after
+_LLM_PROBE_INTERVAL = 30.0              # seconds between auto-mode probes
+_ollama_model_checked = False           # one-time lazy `ollama list` check
+
+_gpu_probe_cache: "bool | None" = None  # one-time nvidia-smi probe
 
 
 def _gpu_available() -> bool:
-    """True when a CUDA-capable NVIDIA GPU is present."""
-    try:
-        import torch
-        return bool(torch.cuda.is_available())
-    except Exception:
-        # torch not importable: fall back to the NVIDIA driver presence.
+    """True when an NVIDIA GPU with a working driver is present.
+
+    Probed once per process via `nvidia-smi` (fast subprocess). Deliberately
+    avoids importing torch: importing torch costs seconds and can fail with
+    DLL initialization errors on some Windows setups.
+    """
+    global _gpu_probe_cache
+    if _gpu_probe_cache is None:
         try:
-            import shutil
-            return shutil.which("nvidia-smi") is not None
+            out = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                capture_output=True,
+                timeout=3,
+            )
+            _gpu_probe_cache = out.returncode == 0 and bool((out.stdout or b"").strip())
         except Exception:
-            return False
+            _gpu_probe_cache = False
+    return _gpu_probe_cache
+
+
+def _ensure_model_available() -> None:
+    """One-time, lazy check that the Ollama model is available.
+
+    Replaces the old import-time `ollama list`/`ollama pull` block: it now
+    runs only on the first LLM call (never at import time) and tolerates
+    Ollama being absent — the LLM path then fails gracefully back to the
+    rule-based extractor.
+    """
+    global _ollama_model_checked
+    if _ollama_model_checked:
+        return
+    _ollama_model_checked = True
+    try:
+        out = subprocess.run(["ollama", "list"], capture_output=True, timeout=10)
+        if out.returncode == 0:
+            return  # ollama reachable; a missing model is handled by the LLM call
+    except Exception:
+        return  # ollama not installed/unreachable; LLM path fails gracefully
+    try:
+        # Cap the wait: if the daemon is still starting or the download is
+        # huge, the CLI is killed after 60s (the daemon keeps pulling in the
+        # background) and the LLM call fails back to rule-based extraction.
+        subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=False, timeout=60)
+    except Exception:
+        pass
 
 
 def _ollama_reachable() -> bool:
@@ -106,7 +140,7 @@ def llm_extraction_enabled() -> bool:
       - LLM-mode uploads take longer per document than the rule-based path
         (roughly 10-60s on a 4 GB laptop GPU vs ~2s).
     """
-    global _llm_mode_cache, _llm_mode_reported
+    global _llm_mode_cache, _llm_mode_reported, _llm_probe_deadline
     env = os.getenv("ANAVAYA_USE_LLM", "").strip().lower()
     if env in ("1", "true", "yes", "on"):
         enabled = True
@@ -114,9 +148,14 @@ def llm_extraction_enabled() -> bool:
         enabled = False
     elif _llm_mode_cache is True:
         enabled = True
+    elif time.monotonic() < _llm_probe_deadline:
+        # Auto mode, recently probed and still disabled: reuse the cached
+        # answer instead of probing on every request.
+        enabled = False
     else:
-        # Auto mode, not yet enabled: re-probe so a later-started Ollama is
-        # picked up. Cheap when Ollama is down (connection refused).
+        # Auto mode, not yet enabled: re-probe (throttled by the deadline)
+        # so a later-started Ollama is picked up within one interval.
+        _llm_probe_deadline = time.monotonic() + _LLM_PROBE_INTERVAL
         enabled = _gpu_available() and _ollama_reachable()
         if enabled:
             _llm_mode_cache = True
@@ -794,18 +833,14 @@ def fast_extract_features(text, pdf_file):
 
 
 def call_ollama_api(text):
-    # Ensure model is available before making request
-    try:
-        subprocess.run(["ollama", "list"], capture_output=True, check=True)
-    except Exception:
-        subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=False)
-
     """Calls the locally installed Ollama LLM to extract structured features and a narrative summary.
 
     Uses the Ollama summarizer module (langchain_summarizer.py) for the full
     constitutional prompt and JSON repair. Falls back to a direct Ollama API
     call if that module is unavailable.
     """
+    _ensure_model_available()  # lazy one-time `ollama list`/`pull` check
+
     try:
         from case_priority_system.scripts.langchain_summarizer import (
             extract_with_ollama,
