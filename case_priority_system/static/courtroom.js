@@ -1031,7 +1031,7 @@
         autoT.usingFallback = true;
         stopAutoTranscription();
         startAutoDictation();
-        toast(message || "Ollama whisper is not installed — using browser dictation for your speech only.");
+        toast(message || "Local speech-to-text is unavailable — using browser dictation for your speech only.");
         setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
     }
 

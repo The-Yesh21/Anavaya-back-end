@@ -999,15 +999,15 @@ def correct_transcript(payload: dict):
 async def transcribe_courtroom_audio(room_id: str = Form(...),
                                      participant_id: str = Form(...),
                                      audio: UploadFile = File(...)):
-    """Transcribe one recorded courtroom speech segment (WAV) with Ollama.
+    """Transcribe one recorded courtroom speech segment (WAV).
 
     The clip is stored under courtrooms/audio/{room_id}/, transcribed with the
-    local whisper model, grammar-corrected by the chat LLM, appended to the
-    room transcript as the speaker's statement (with the clip attached), and
-    broadcast to everyone in the room.
+    local openai-whisper model (GPU), grammar-corrected by the Ollama chat LLM,
+    appended to the room transcript as the speaker's statement (with the clip
+    attached), and broadcast to everyone in the room.
 
-    Returns 503 with code "asr_unavailable" when no whisper model is installed
-    so the client can fall back to the browser's speech recognition.
+    Returns 503 with code "asr_unavailable" when the ASR engine is not
+    installed so the client can fall back to the browser's speech recognition.
     """
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
@@ -1024,7 +1024,7 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
             status_code=503,
             detail={
                 "code": "asr_unavailable",
-                "message": "No whisper model installed. Run: ollama pull whisper-small",
+                "message": "Local speech-to-text is unavailable. Install it with: pip install openai-whisper",
             },
         )
 

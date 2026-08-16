@@ -66,7 +66,7 @@ PDF text ──► [LLM: local Ollama qwen2.5:3b on NVIDIA GPU] ──► struct
 | **Single PDF upload** | Upload → extract → predict → report → Excel row | `POST /api/upload` |
 | **Case workflow** | Create New Case wizard (name or FIR or auto-ID `ANV-YYYY-NNNN`), multi-document evidence upload, analyze-all, **aggregate priority** (highest doc wins, safety-first) | `scripts/case_manager.py` + Case tab |
 | **Chakshu** | Webcam physio analysis (arousal/deception gauge, MediaPipe), speech-to-text examiner/witness transcript, session save, **hybrid evidence fact-check** (contradicted / consistent / unverified + credibility index + LIE flags), dossier export (.md) | `scripts/fact_checker.py`, `case-workflow.js` |
-| **Live Courtroom** | WebRTC video rooms, roles (Judge/Prosecution/Defense/Witness…), WS signaling relay, transcript, judge-controlled phases, transcript download, **automatic speech transcription** (speak → recorded → Ollama whisper → grammar-corrected → transcript with playable audio clip) | `scripts/courtroom_manager.py`, `courtroom_asr.py`, `courtroom.*` |
+| **Live Courtroom** | WebRTC video rooms, roles (Judge/Prosecution/Defense/Witness…), WS signaling relay, transcript, judge-controlled phases, transcript download, **automatic speech transcription** (speak → recorded → openai-whisper on GPU → grammar-corrected by Ollama → transcript with playable audio clip) | `scripts/courtroom_manager.py`, `courtroom_asr.py`, `courtroom.*` |
 | **PDF case reports** | Polished printable per-case report (pipeline + constitutional analysis) | `scripts/generate_case_report.py`, `reports/` |
 | **Constitutional analysis** | Deterministic "State's Perspective" — rights engaged, state duty, balancing/proportionality, doctrines (Parens Patriae, Proportionality, Natural Justice…), full opinion, priority rules | `scripts/constitutional_analysis.py` |
 | **Model training** | Decision Tree trainer (synthetic + real PDF rows); optional PyTorch NN (not in pipeline) | `scripts/train_model.py`, `nlp_dl_model.py` |
@@ -149,7 +149,7 @@ F:\major_project
 | `POST|GET /api/cases/{id}/fact-check` | Run / fetch hybrid fact-check report |
 | `GET /api/cases/{id}/dossier` | Full case export as Markdown |
 | `POST|GET /api/court/rooms` · `GET /api/court/rooms/{id}` | Courtroom CRUD / state |
-| `POST /api/court/transcribe` | Recorded speech segment (WAV) → Ollama whisper → grammar-corrected → transcript entry + broadcast (`503 asr_unavailable` when no whisper model) |
+| `POST /api/court/transcribe` | Recorded speech segment (WAV) → openai-whisper (GPU) → grammar-corrected by Ollama → transcript entry + broadcast (`503 asr_unavailable` when ASR engine missing) |
 | `GET /api/court/rooms/{id}/audio/{file}` | Serve/download a recorded speech clip |
 | `GET /api/court/rooms/{id}/transcript` | Transcript Markdown download |
 | `WS /ws/court/{room_id}` | WebRTC signaling + transcript/roster broadcast |
@@ -210,12 +210,13 @@ zero console errors**. Courtroom UI intentionally untouched.
   *before* the catch-all `app.mount("/", StaticFiles(...))` at the bottom.
 - **Uvicorn ping:** forget `--ws-ping-interval 0` → courtroom participants silently drop
   after ~40s of quiet.
-- **Automatic speech transcription** (courtroom) needs an Ollama whisper model:
-  `ollama pull whisper-small` (override with `OLLAMA_WHISPER_MODEL`). Ollama's API has
-  no binary audio input, so the whisper runner is fed a *file path* in the prompt —
-  the server writes each segment to `courtrooms/audio/{room_id}/` first. If whisper is
-  missing the client falls back to the browser's own speech recognition for the local
-  speaker only (one-time toast explains this).
+- **Automatic speech transcription** (courtroom) uses the `openai-whisper` package
+  (`pip install openai-whisper`; model `small`, override with `WHISPER_MODEL`). It runs on
+  the NVIDIA GPU via the already-installed torch; the ~460 MB model downloads once into
+  `~/.cache/whisper` on first use. Segments are WAV (16 kHz mono) and decoded with the
+  stdlib `wave` module, so ffmpeg isn't required. If the engine is missing the client
+  falls back to the browser's own speech recognition for the local speaker only (one-time
+  toast explains this).
 - **LLM never decides priority.** Any change that lets the LLM influence the final
   High/Medium/Low violates the core invariant (§1).
 - **`case_priority_system/case_priority_system/`** is a legacy nested copy — the live app reads
@@ -250,7 +251,7 @@ When anything in this project changes, append an entry here (date · what change
 
 | Date | Change |
 |---|---|
-| 2026-08-16 | **Automatic courtroom speech transcription:** every participant's client voice-activity-detects their own mic, records each speech segment (MediaRecorder → 16 kHz WAV), and POSTs it to the new `/api/court/transcribe` endpoint. The server stores the clip under `courtrooms/audio/{room_id}/`, transcribes it with Ollama whisper (`whisper-small`, file-path prompt — Ollama's API has no binary audio input), grammar-corrects it with `qwen2.5:3b`, appends it to the transcript as that speaker's statement with the clip attached (new `audio_file` field on `TranscriptEntry`, playable/downloadable in the UI and echoed in the Markdown export), and broadcasts it live to the room. New `courtroom_asr.py` helper module; `correct_transcript` refactored to share its LLM prompt. Graceful degradation: if whisper is unavailable the endpoint returns `503 asr_unavailable` and the client falls back to auto-submitting the browser's own speech recognition for the local speaker (one-time toast + status line). New Auto toggle in the courtroom action bar. |
+| 2026-08-16 | **Automatic courtroom speech transcription:** every participant's client voice-activity-detects their own mic, records each speech segment (MediaRecorder → 16 kHz mono WAV), and POSTs it to the new `/api/court/transcribe` endpoint. The server stores the clip under `courtrooms/audio/{room_id}/`, transcribes it with **openai-whisper** on the NVIDIA GPU (model `small`; the Ollama whisper models were removed from Ollama's library, so `pip install openai-whisper` is the ASR path), grammar-corrects it with `qwen2.5:3b`, appends it to the transcript as that speaker's statement with the clip attached (new `audio_file` field on `TranscriptEntry`, playable/downloadable in the UI and echoed in the Markdown export), and broadcasts it live to the room. New `courtroom_asr.py` helper module; `correct_transcript` refactored to share its LLM prompt. Graceful degradation: if the ASR engine is missing the endpoint returns `503 asr_unavailable` and the client falls back to auto-submitting the browser's own speech recognition for the local speaker (one-time toast + status line). New Auto toggle in the courtroom action bar. |
 | 2026-08-15 | **Implemented the White & Gold front-end redesign** (`FRONTEND_DESIGN_PLAN.md`): `tokens.css` is now the single shared token source (`@import`ed by `style.css`, `case-workflow.css`, `courtroom.css`); all moss-green/terracotta/rice-paper literals replaced with gold/ivory/crimson/amber/sage palette (CSS + JS tree colors, Chakshu mesh overlay, courtroom role colors); legacy skew + 85→245px hover-expand case rows removed; responsive unified to 4 tiers (≥1200 / 900–1199 / 600–899 / <600) with tablet drawer + horizontally-scrolling tabs; added skip-link, tablist `aria-selected`/arrow-key nav, `aria-live` regions, courtroom dialog semantics. Also fixed a **pre-existing bug**: `courtroom.html` referenced `courtroom.css`/`courtroom.js` relatively, so on `/court/{room_id}` the browser fetched HTML instead of the assets — now absolute paths, page loads clean. Validated: workflow e2e passes, dashboard + courtroom load with zero console errors at 1440/1024/768/375px. |
 | 2026-08-13 | Created `FRONTEND_DESIGN_PLAN.md` (root): approved direction = **White & Gold light theme** across all pages, smoothness (no-layout-shift motion, perf guards) + adaptability (WCAG 2.2 AA, unified 4-tier responsive). **PLAN ONLY — implementation pending user approval.** |
 | 2026-08-13 | Created this handoff doc from current codebase state (post-frontend-redesign, post-instant-pipeline, post-PDF-reports, case workflow + Chakshu + Courtroom live). |

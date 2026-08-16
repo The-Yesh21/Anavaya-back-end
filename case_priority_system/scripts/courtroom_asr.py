@@ -1,122 +1,162 @@
 """
-Courtroom speech-to-text + grammar correction via the local Ollama server.
+Courtroom speech-to-text + grammar correction.
 
 Transcription
 -------------
-Ollama's /api/generate endpoint cannot receive raw audio. The community
-whisper models (whisper-small, whisper-large-v3, ...) work by reading a
-*file path* from the prompt: their custom runner loads the audio file from
-the server's filesystem and transcribes it. So the flow is:
+Speech-to-text runs on the openai-whisper model (torch, NVIDIA GPU when
+present). Ollama's whisper models were removed from its library, so this is
+the reliable local ASR path. The client records each speech segment and
+uploads it as 16 kHz mono WAV; we read it with the stdlib `wave` module and
+pass a numpy array straight into whisper (no ffmpeg dependency needed).
 
-    1. Client records a speech segment and uploads it as WAV (16 kHz mono).
-    2. The server writes it to disk.
-    3. We POST /api/generate with {model: whisper-small, prompt: <path>}.
-    4. The whisper runner transcribes the file; the response field holds the
-       transcription (a JSON blob for the whisper models, parsed defensively).
+The raw transcription is then passed through the Ollama chat LLM
+(qwen2.5:3b) for grammar/punctuation cleanup so the official record reads
+cleanly. Both steps degrade gracefully: if whisper is unavailable the caller
+falls back to the browser's speech recognition; if the correction LLM is
+down the raw transcription is used unchanged.
 
-The transcription is then passed through the chat LLM (qwen2.5:3b) for
-grammar/punctuation cleanup so the official record reads cleanly. Both steps
-degrade gracefully: if whisper is unavailable the caller falls back to the
-browser's speech recognition; if the correction LLM is down the raw
-transcription is used unchanged.
+Config (env vars, same convention as the rest of the app):
+    WHISPER_MODEL   whisper model name, default "small" (~460 MB, cached in
+                    ~/.cache/whisper on first use; "base"/"tiny" are smaller)
+    OLLAMA_URL      default http://localhost:11434
+    OLLAMA_MODEL    correction LLM, default qwen2.5:3b
 """
 
 from __future__ import annotations
 
-import json
 import os
+import threading
 import time
 
 import requests
 
-# Config (same env convention as the rest of the app).
+# Config.
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-OLLAMA_WHISPER_MODEL = os.getenv("OLLAMA_WHISPER_MODEL", "whisper-small")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 
-# Once whisper is seen it stays cached; a negative probe is re-checked so a
-# model pulled mid-session is picked up without a restart.
-_whisper_available: bool | None = None
-_whisper_checked_at: float = 0.0
+# The whisper package is imported lazily (importing it pulls in torch, which
+# costs seconds and can fail on Windows). Availability is cached; negatives
+# are re-probed so an install mid-session is picked up without a restart.
+_asr_available: bool | None = None
+_asr_checked_at: float = 0.0
 _NEGATIVE_PROBE_TTL_S = 15.0
+
+# The loaded model + device, plus a lock so concurrent courtroom segments
+# (multiple participants) never race on the shared model / CUDA context.
+_whisper_model = None
+_whisper_use_fp16 = False
+_whisper_lock = threading.Lock()
 
 
 def whisper_available() -> bool:
-    """Whether an Ollama whisper model is installed and reachable.
-
-    Checks /api/tags (fast, localhost). Positive results are cached forever;
-    negatives are re-probed every few seconds.
-    """
-    global _whisper_available, _whisper_checked_at
-    if _whisper_available is True:
+    """Whether the openai-whisper ASR engine is importable."""
+    global _asr_available, _asr_checked_at
+    if _asr_available is True:
         return True
     now = time.time()
-    if _whisper_available is False and now - _whisper_checked_at < _NEGATIVE_PROBE_TTL_S:
+    if _asr_available is False and now - _asr_checked_at < _NEGATIVE_PROBE_TTL_S:
         return False
-    _whisper_checked_at = now
+    _asr_checked_at = now
     try:
-        r = requests.get(f"{OLLAMA_URL.rstrip('/')}/api/tags", timeout=3)
-        r.raise_for_status()
-        models = [m.get("name", "") for m in r.json().get("models", [])]
-        _whisper_available = any(name.split(":")[0].lower().startswith("whisper") for name in models)
-    except Exception:
-        _whisper_available = False
-    return _whisper_available
+        import whisper  # noqa: F401  (lazy: pulls in torch)
+        _asr_available = True
+    except Exception as e:
+        print(f"Whisper ASR unavailable: {e}")
+        _asr_available = False
+    return _asr_available
+
+
+def _load_whisper_model():
+    """Load (once) and return (model, use_fp16). Caller holds _whisper_lock."""
+    global _whisper_model, _whisper_use_fp16
+    if _whisper_model is None:
+        import torch
+        import whisper
+
+        _whisper_model = whisper.load_model(WHISPER_MODEL)
+        _whisper_use_fp16 = torch.cuda.is_available()
+        device = "cuda" if _whisper_use_fp16 else "cpu"
+        print(f"Whisper model '{WHISPER_MODEL}' loaded on {device}.")
+    return _whisper_model, _whisper_use_fp16
+
+
+def _read_wav_np(path: str):
+    """Read a WAV file as a float32 mono 16 kHz numpy array.
+
+    Uses only the stdlib `wave` module, so whisper never needs ffmpeg for the
+    WAV segments the courtroom client produces.
+    """
+    import numpy as np
+    import wave
+
+    with wave.open(path, "rb") as w:
+        rate = w.getframerate()
+        channels = w.getnchannels()
+        width = w.getsampwidth()
+        frames = w.readframes(w.getnframes())
+
+    if width == 2:
+        data = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+    elif width == 4:
+        data = np.frombuffer(frames, dtype=np.int32).astype(np.float32) / 2147483648.0
+    else:
+        raise ValueError(f"Unsupported WAV sample width: {width}")
+
+    if channels > 1:
+        data = data.reshape(-1, channels).mean(axis=1)
+
+    # whisper expects 16 kHz mono; linear resample if needed.
+    if rate != 16000:
+        n = max(1, int(len(data) * 16000 / rate))
+        data = np.interp(np.linspace(0, len(data) - 1, n), np.arange(len(data)), data)
+
+    return data.astype(np.float32)
 
 
 def transcribe_audio(audio_path: str) -> str | None:
-    """Transcribe a WAV file on disk with Ollama whisper. Returns text or None.
+    """Transcribe a WAV file with openai-whisper. Returns text or None.
 
-    The prompt is the absolute file path: the whisper runner reads the file
-    itself (Ollama's API has no binary audio input). The response is parsed
-    defensively because the whisper models return a JSON blob.
+    The model is loaded lazily on the first call (a one-time ~460 MB download
+    for "small") and cached afterwards.
     """
     if not whisper_available() or not os.path.exists(audio_path):
         return None
     try:
-        payload = {
-            "model": OLLAMA_WHISPER_MODEL,
-            "prompt": os.path.abspath(audio_path),
-            "stream": False,
-        }
-        r = requests.post(
-            f"{OLLAMA_URL.rstrip('/')}/api/generate", json=payload, timeout=180
-        )
-        if r.status_code == 404:
-            # Model not installed locally — treat as unavailable.
-            _whisper_available = False  # type: ignore[assignment]
-            return None
-        r.raise_for_status()
-        data = r.json()
-    except Exception as e:
-        print(f"Ollama whisper transcription failed: {e}")
+        import numpy as np
+        import whisper  # noqa: F401
+    except ImportError:
         return None
 
-    raw = (data.get("response") or "").strip()
-    if not raw:
-        return None
-
-    # whisper models return a JSON object like {"text": ..., "segments": [...]}.
     try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            text = parsed.get("text") or ""
-            if not text and parsed.get("transcription"):
-                text = parsed["transcription"].get("text", "")
-            if not text and parsed.get("segments"):
-                text = " ".join(
-                    seg.get("text", "") for seg in parsed["segments"] if isinstance(seg, dict)
-                )
-            if text and text.strip():
-                return text.strip()
-    except (ValueError, TypeError, AttributeError):
-        pass
+        audio = _read_wav_np(audio_path)
+    except Exception as e:
+        print(f"Could not decode audio {audio_path}: {e}")
+        return None
 
-    return raw or None
+    with _whisper_lock:
+        try:
+            model, use_fp16 = _load_whisper_model()
+            result = model.transcribe(
+                audio,
+                language="en",
+                fp16=use_fp16,
+                task="transcribe",
+                temperature=0.0,
+            )
+        except Exception as e:
+            print(f"Whisper transcription failed: {e}")
+            return None
+
+    text = (result.get("text") or "").strip()
+    if not text:
+        return None
+    # Collapse whitespace/newlines whisper may leave in.
+    return " ".join(text.split())
 
 
 def correct_transcript_text(text: str) -> tuple[str, bool]:
-    """Clean up a spoken statement with the chat LLM.
+    """Clean up a spoken statement with the Ollama chat LLM.
 
     Fixes punctuation/capitalization/grammar and makes the sentence flow
     naturally without changing its meaning. Returns (corrected_text,
@@ -125,11 +165,6 @@ def correct_transcript_text(text: str) -> tuple[str, bool]:
     text = (text or "").strip()
     if not text:
         return "", False
-
-    try:
-        import requests as _requests  # already imported above
-    except ImportError:
-        return text, False
 
     system_prompt = (
         "You are a courtroom transcript editor for the official record of an "
