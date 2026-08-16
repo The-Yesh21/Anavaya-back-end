@@ -65,6 +65,9 @@ class TranscriptEntry:
     """One line of the official record.
 
     kind values: 'statement' | 'action' | 'phase' | 'system'
+
+    audio_file is the stored recording of a spoken statement (filename
+    inside the room's audio dir). Empty for typed/action/system entries.
     """
 
     timestamp: str
@@ -72,6 +75,7 @@ class TranscriptEntry:
     role: str
     kind: str
     text: str
+    audio_file: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -286,7 +290,8 @@ class CourtroomManager:
                 self._persist(room)
         return participant
 
-    def record_statement(self, room_id: str, participant_id: str, text: str) -> Optional[TranscriptEntry]:
+    def record_statement(self, room_id: str, participant_id: str, text: str,
+                         audio_file: str = "") -> Optional[TranscriptEntry]:
         room = self.get_room(room_id)
         if room is None:
             return None
@@ -303,6 +308,7 @@ class CourtroomManager:
                 kind="statement",
                 text=text,
             )
+            entry.audio_file = audio_file or ""
             self._persist(room)
         return entry
 
@@ -434,6 +440,8 @@ def room_to_markdown(room: Room) -> str:
             lines.append(f"**[{ts}] {entry.role} ({entry.actor}):** *{entry.text}*")
         else:  # statement
             lines.append(f"**[{ts}] {entry.role} ({entry.actor}):** {entry.text}")
+            if entry.audio_file:
+                lines.append(f"    🎙 _audio: {entry.audio_file}_")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 

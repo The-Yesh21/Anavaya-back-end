@@ -91,6 +91,8 @@
         dictateBtn: $("dictate-btn"),
         dictateStatus: $("dictate-status"),
         remoteAudioHost: $("remote-audio-host"),
+        autoTranscribeBtn: $("auto-transcribe-btn"),
+        asrStatus: $("asr-status"),
         toast: $("toast"),
     };
 
@@ -106,6 +108,7 @@
         els.copyInviteBtn.addEventListener("click", copyInvite);
         els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
         if (els.dictateBtn) els.dictateBtn.addEventListener("click", toggleDictate);
+        if (els.autoTranscribeBtn) els.autoTranscribeBtn.addEventListener("click", toggleAutoTranscribe);
         els.joinName.focus();
     }
 
@@ -233,6 +236,9 @@
                 }
                 drainPendingOffers();
                 toast(`Joined as ${state.me.display_role}`);
+                // Kick off automatic speech transcription for this participant:
+                // speak → recorded → Ollama whisper → grammar-corrected → transcript.
+                startAutoTranscription();
                 break;
             }
             case "participant_joined": {
@@ -609,6 +615,16 @@
             const initials = (entry.actor || "?").charAt(0).toUpperCase();
             const color = ROLE_ACCENT[roleKeyFromDisplay(entry.role)] || ROLE_ACCENT.system;
             const time = formatTime(entry.timestamp);
+            // Spoken statements carry their recorded audio clip.
+            let audioHtml = "";
+            if (entry.audio_file) {
+                const url = `/api/court/rooms/${ROOM_ID}/audio/${encodeURIComponent(entry.audio_file)}`;
+                audioHtml = `
+                    <span class="entry-audio">
+                        <button type="button" class="audio-play" data-url="${url}" title="Play recording" aria-label="Play recording"><i data-lucide="play"></i></button>
+                        <a class="audio-download" href="${url}" download="${escapeHtml(entry.audio_file)}" title="Download recording" aria-label="Download recording"><i data-lucide="download"></i></a>
+                    </span>`;
+            }
             node.innerHTML = `
                 <div class="entry-avatar" style="background:${color}">${initials}</div>
                 <div class="entry-body">
@@ -618,9 +634,11 @@
                         <span class="entry-time">${time}</span>
                     </div>
                     <div class="entry-text">${escapeHtml(entry.text)}</div>
+                    ${audioHtml}
                 </div>`;
         }
         els.transcriptFeed.appendChild(node);
+        lucide.createIcons();
         if (scroll) scrollToBottom();
     }
 
@@ -694,22 +712,36 @@
 
         recognition.onerror = (event) => {
             if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                if (autoDictating) stopAutoDictation();
                 setDictating(false);
                 toast("Microphone access denied — allow the mic in your browser to dictate.");
                 if (els.dictateStatus) els.dictateStatus.textContent = "Microphone access denied. Type instead.";
+                setAsrStatus("Microphone access denied — automatic transcription is off.");
             } else {
+                // Persistent recognition errors would otherwise loop (onend restarts).
+                if (autoDictating) stopAutoDictation();
                 setDictating(false);
                 if (els.dictateStatus) els.dictateStatus.textContent = `Speech error: ${event.error} — type instead.`;
+                if (autoT.usingFallback) {
+                    autoT.usingFallback = false;
+                    setAsrStatus(`Speech error: ${event.error} — automatic transcription is off.`);
+                }
             }
         };
 
         recognition.onend = () => {
             // Recognition stopped (manual or auto) — flush what was captured.
             setDictating(false);
-            if (finalSpeech.trim()) {
+            const captured = finalSpeech;
+            finalSpeech = "";
+            if (autoDictating) {
+                // Fallback auto mode: keep listening and auto-submit each utterance.
+                try { recognition.start(); } catch (_) {}
+                if (captured.trim()) autoSubmitSpoken(captured);
+                return;
+            }
+            if (captured.trim()) {
                 if (els.dictateStatus) els.dictateStatus.textContent = "Correcting with Ollama LLM…";
-                const captured = finalSpeech;
-                finalSpeech = "";
                 correctAndInsert(captured);
             } else if (els.dictateStatus) {
                 els.dictateStatus.textContent = "";
@@ -741,6 +773,8 @@
             // onend flushes the captured speech into the input.
             return;
         }
+        // Manual dictation takes over from the automatic fallback mode.
+        if (autoDictating) stopAutoDictation();
         finalSpeech = "";
         try { recognition.start(); } catch (e) { /* already started */ }
         setDictating(true);
@@ -770,6 +804,349 @@
         els.statementInput.setSelectionRange(len, len);
         if (els.dictateStatus) els.dictateStatus.textContent = "Corrected — review and press Speak to submit.";
     }
+
+    // ====================================================================
+    // AUTO-TRANSCRIPTION (continuous: speak → record → Ollama → transcript)
+    //
+    // Every participant's client records ONLY its own mic. Speech segments
+    // (voice-activity detected) are converted to 16 kHz WAV and POSTed to
+    // /api/court/transcribe, where Ollama whisper transcribes them, the chat
+    // LLM fixes the grammar, and the corrected words are appended to the
+    // official transcript with the audio clip attached. The server attributes
+    // the entry to this participant, so every speaker ends up in the record.
+    // If whisper is unavailable the client falls back to the browser's own
+    // speech recognition (auto-submitting for the local speaker only).
+    // ====================================================================
+
+    // Voice-activity detection tuning (RMS of the mic's time-domain data).
+    const VAD_SPEECH_THRESHOLD = 0.02; // above this = speech energy
+    const VAD_START_FRAMES = 10;       // ~170ms of speech before starting a segment
+    const VAD_STOP_FRAMES = 55;        // ~920ms of silence before ending a segment
+    const MIN_SEGMENT_MS = 500;        // ignore sub-half-second blips
+    const MAX_SEGMENT_MS = 20000;      // hard cap — whisper handles ≤ ~30s
+
+    class AsrUnavailableError extends Error {}
+
+    const autoT = {
+        enabled: true,       // user toggle (default on)
+        active: false,       // VAD pipeline running
+        usingFallback: false,// browser SpeechRecognition mode in use
+        ctx: null,           // AudioContext for the analyser
+        src: null,           // MediaStreamSource tap on the local mic
+        analyser: null,
+        timeData: null,
+        recorder: null,      // MediaRecorder for the current segment
+        recording: false,
+        chunks: [],
+        speechFrames: 0,
+        silenceFrames: 0,
+        segmentStartedAt: 0,
+        queue: Promise.resolve(), // serializes uploads (one at a time, in order)
+    };
+
+    function setAsrStatus(text) {
+        if (!els.asrStatus) return;
+        if (text) {
+            els.asrStatus.textContent = text;
+            els.asrStatus.hidden = false;
+        } else {
+            els.asrStatus.textContent = "";
+            els.asrStatus.hidden = true;
+        }
+    }
+
+    function renderAutoToggle() {
+        if (!els.autoTranscribeBtn) return;
+        els.autoTranscribeBtn.classList.toggle("active", autoT.enabled);
+        if (autoT.enabled) {
+            setAsrStatus(autoT.usingFallback
+                ? "Browser dictation active — your speech is added to the transcript automatically."
+                : "Listening… speak to add your words to the transcript.");
+        } else {
+            setAsrStatus("");
+        }
+    }
+
+    async function toggleAutoTranscribe() {
+        autoT.enabled = !autoT.enabled;
+        renderAutoToggle();
+        if (autoT.enabled) {
+            await startAutoTranscription();
+        } else {
+            stopAutoTranscription();
+        }
+    }
+
+    async function startAutoTranscription() {
+        if (!autoT.enabled) return;
+        if (autoT.usingFallback) { startAutoDictation(); return; }
+        if (autoT.active) return;
+
+        const stream = await ensureLocalStream();
+        if (!stream || !stream.getAudioTracks().length) {
+            setAsrStatus("Microphone unavailable — automatic transcription is off.");
+            return;
+        }
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === "suspended") ctx.resume().catch(() => {});
+            const src = ctx.createMediaStreamSource(stream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 1024;
+            src.connect(analyser);
+            autoT.ctx = ctx;
+            autoT.src = src;
+            autoT.analyser = analyser;
+            autoT.timeData = new Uint8Array(analyser.fftSize);
+            autoT.active = true;
+            setAsrStatus("Listening… speak to add your words to the transcript.");
+            vadTick();
+        } catch (e) {
+            console.warn("Could not start voice-activity detection:", e);
+            setAsrStatus("Automatic transcription unavailable.");
+        }
+    }
+
+    function stopAutoTranscription() {
+        // Detach handlers first so a torn-down segment is never uploaded.
+        if (autoT.recorder) autoT.recorder.onstop = null;
+        autoT.active = false;
+        autoT.recording = false;
+        if (autoT.recorder && autoT.recorder.state !== "inactive") {
+            try { autoT.recorder.stop(); } catch (_) {}
+        }
+        autoT.recorder = null;
+        autoT.chunks = [];
+        if (autoT.src) { try { autoT.src.disconnect(); } catch (_) {} }
+        if (autoT.ctx) { try { autoT.ctx.close(); } catch (_) {} }
+        autoT.src = null;
+        autoT.analyser = null;
+        autoT.ctx = null;
+        stopAutoDictation();
+    }
+
+    function computeRms(timeData) {
+        let sum = 0;
+        for (let i = 0; i < timeData.length; i++) {
+            const v = (timeData[i] - 128) / 128;
+            sum += v * v;
+        }
+        return Math.sqrt(sum / timeData.length);
+    }
+
+    function vadTick() {
+        if (!autoT.active || !autoT.analyser) return;
+        autoT.analyser.getByteTimeDomainData(autoT.timeData);
+        const speaking = computeRms(autoT.timeData) > VAD_SPEECH_THRESHOLD;
+        if (speaking) {
+            autoT.silenceFrames = 0;
+            autoT.speechFrames++;
+            if (autoT.speechFrames >= VAD_START_FRAMES && !autoT.recording) startSegment();
+        } else {
+            autoT.speechFrames = 0;
+            if (autoT.recording) {
+                autoT.silenceFrames++;
+                if (autoT.silenceFrames >= VAD_STOP_FRAMES) stopSegment();
+            }
+        }
+        // Safety cap so a long monologue is flushed before whisper's limit.
+        if (autoT.recording && Date.now() - autoT.segmentStartedAt > MAX_SEGMENT_MS) stopSegment();
+        requestAnimationFrame(vadTick);
+    }
+
+    function startSegment() {
+        if (autoT.recording) return;
+        autoT.recording = true;
+        autoT.segmentStartedAt = Date.now();
+        autoT.chunks = [];
+        try {
+            autoT.recorder = new MediaRecorder(state.localStream, { mimeType: "audio/webm" });
+        } catch (e) {
+            try { autoT.recorder = new MediaRecorder(state.localStream); }
+            catch (e2) { autoT.recording = false; return; }
+        }
+        autoT.recorder.ondataavailable = (e) => { if (e.data && e.data.size) autoT.chunks.push(e.data); };
+        autoT.recorder.onstop = onSegmentStopped;
+        autoT.recorder.start(250);
+        setAsrStatus("Recording…");
+    }
+
+    function stopSegment() {
+        if (!autoT.recording || !autoT.recorder) return;
+        autoT.recording = false;
+        try { autoT.recorder.stop(); } catch (_) {}
+    }
+
+    function onSegmentStopped() {
+        const chunks = autoT.chunks;
+        autoT.chunks = [];
+        const startedAt = autoT.segmentStartedAt;
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        if (!blob.size || Date.now() - startedAt < MIN_SEGMENT_MS) {
+            if (autoT.active) setAsrStatus("Listening…");
+            return;
+        }
+        setAsrStatus("Transcribing with Ollama…");
+        // Serialize uploads so segments are processed in order, one at a time.
+        autoT.queue = autoT.queue.then(async () => {
+            try {
+                const wav = await blobToWav(blob);
+                await uploadSegment(wav);
+            } catch (e) {
+                if (e instanceof AsrUnavailableError) {
+                    handleAsrUnavailable(e.message);
+                } else {
+                    console.warn("Segment transcription failed:", e);
+                }
+            } finally {
+                if (autoT.active) setAsrStatus("Listening…");
+            }
+        });
+    }
+
+    async function uploadSegment(wavBlob) {
+        const fd = new FormData();
+        fd.append("room_id", ROOM_ID);
+        fd.append("participant_id", state.me.participant_id);
+        fd.append("audio", wavBlob, `segment_${Date.now()}.wav`);
+        const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
+        if (!res.ok) {
+            let code = null, msg = `Transcription failed (${res.status})`;
+            try {
+                const d = await res.json();
+                if (d && d.detail) {
+                    if (typeof d.detail === "object") { code = d.detail.code; msg = d.detail.message || msg; }
+                    else msg = d.detail;
+                }
+            } catch (_) {}
+            if (code === "asr_unavailable") throw new AsrUnavailableError(msg);
+            throw new Error(msg);
+        }
+        // The server broadcasts the entry to the room; nothing else to do here.
+        return res.json();
+    }
+
+    function handleAsrUnavailable(message) {
+        if (autoT.usingFallback) return;
+        autoT.usingFallback = true;
+        stopAutoTranscription();
+        startAutoDictation();
+        toast(message || "Ollama whisper is not installed — using browser dictation for your speech only.");
+        setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
+    }
+
+    // Convert a recorded WebM/Opus blob to a 16 kHz mono WAV (what whisper needs).
+    async function blobToWav(blob) {
+        const arrayBuf = await blob.arrayBuffer();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuf = await ctx.decodeAudioData(arrayBuf);
+        const targetRate = 16000;
+        const outLen = Math.max(1, Math.ceil(audioBuf.duration * targetRate));
+        const offline = new OfflineAudioContext(1, outLen, targetRate);
+        const src = offline.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(offline.destination);
+        src.start(0);
+        const rendered = await offline.startRendering();
+        const channel = rendered.getChannelData(0);
+
+        const buffer = new ArrayBuffer(44 + channel.length * 2);
+        const view = new DataView(buffer);
+        const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+        writeStr(0, "RIFF");
+        view.setUint32(4, 36 + channel.length * 2, true);
+        writeStr(8, "WAVE");
+        writeStr(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);          // PCM
+        view.setUint16(22, 1, true);          // mono
+        view.setUint32(24, targetRate, true);
+        view.setUint32(28, targetRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, "data");
+        view.setUint32(40, channel.length * 2, true);
+        let offset = 44;
+        for (let i = 0; i < channel.length; i++) {
+            const s = Math.max(-1, Math.min(1, channel[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            offset += 2;
+        }
+        return new Blob([view], { type: "audio/wav" });
+    }
+
+    // ---- fallback: browser SpeechRecognition, auto-submitting each utterance ----
+    let autoDictating = false;
+
+    function startAutoDictation() {
+        if (!recognition) {
+            setAsrStatus("Speech-to-text is not supported in this browser — use Chrome.");
+            return;
+        }
+        autoDictating = true;
+        finalSpeech = "";
+        try { recognition.start(); } catch (_) {}
+        setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
+    }
+
+    function stopAutoDictation() {
+        autoDictating = false;
+        try { recognition.stop(); } catch (_) {}
+    }
+
+    async function autoSubmitSpoken(raw) {
+        setAsrStatus("Correcting with Ollama LLM…");
+        let text = raw.trim();
+        try {
+            const res = await fetch("/api/court/correct-transcript", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: raw }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data.corrected === "string" && data.corrected.trim()) {
+                    text = data.corrected.trim();
+                }
+            }
+        } catch (e) {
+            console.warn("LLM correction failed, using raw transcript:", e);
+        }
+        text = text.slice(0, 500); // match the input's maxlength
+        if (text.trim()) sendStatement(text);
+        if (autoDictating) setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
+    }
+
+    // ---- audio playback of recorded clips in the transcript ----
+    const clipPlayer = new Audio();
+    let activeClipBtn = null;
+
+    function toggleClipPlay(btn) {
+        const url = btn.dataset.url;
+        if (activeClipBtn === btn && !clipPlayer.paused) {
+            clipPlayer.pause();
+            btn.innerHTML = '<i data-lucide="play"></i>';
+            lucide.createIcons();
+            activeClipBtn = null;
+            return;
+        }
+        clipPlayer.src = url;
+        clipPlayer.play().catch(() => {});
+        if (activeClipBtn) activeClipBtn.innerHTML = '<i data-lucide="play"></i>';
+        btn.innerHTML = '<i data-lucide="pause"></i>';
+        lucide.createIcons();
+        activeClipBtn = btn;
+        clipPlayer.onended = () => {
+            btn.innerHTML = '<i data-lucide="play"></i>';
+            lucide.createIcons();
+            if (activeClipBtn === btn) activeClipBtn = null;
+        };
+    }
+
+    els.transcriptFeed.addEventListener("click", (e) => {
+        const btn = e.target.closest(".audio-play");
+        if (btn) toggleClipPlay(btn);
+    });
 
     // ====================================================================
     // ACTIONS (UI)
@@ -831,6 +1208,9 @@
         try { state.ws && state.ws.close(); } catch (_) {}
         for (const pid of [...state.peers.keys()]) closePeer(pid);
         if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop());
+        stopAutoTranscription();
+        stopAutoDictation();
+        try { clipPlayer.pause(); } catch (_) {}
     });
 
     init();

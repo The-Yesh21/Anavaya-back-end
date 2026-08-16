@@ -7,6 +7,8 @@ import socket
 import subprocess
 import tempfile
 import traceback
+import uuid
+from datetime import datetime
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect
@@ -76,6 +78,26 @@ except ImportError:
     except ImportError:
         case_manager = None
         print("Warning: case_manager module not found. Case workflow will be unavailable.")
+
+# Import the courtroom speech-to-text + grammar-correction helpers (Ollama)
+try:
+    from case_priority_system.scripts.courtroom_asr import (
+        correct_transcript_text,
+        transcribe_audio,
+        whisper_available,
+    )
+except ImportError:
+    try:
+        from scripts.courtroom_asr import (  # type: ignore
+            correct_transcript_text,
+            transcribe_audio,
+            whisper_available,
+        )
+    except ImportError:
+        correct_transcript_text = None
+        transcribe_audio = None
+        whisper_available = None
+        print("Warning: courtroom_asr module not found. Spoken statements will not be transcribed.")
 
 
 def display_feature_name(feature_name):
@@ -912,6 +934,10 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 
 COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
 
+# Recorded courtroom speech clips live under courtrooms/audio/{room_id}/ and are
+# served back to the transcript UI via /api/court/rooms/{room_id}/audio/{file}.
+COURTROOM_AUDIO_DIR = os.path.join("case_priority_system", "courtrooms", "audio")
+
 
 def _detect_lan_ip() -> str:
     """Best-effort IPv4 of this machine on the LAN (for invite links).
@@ -963,43 +989,96 @@ def correct_transcript(payload: dict):
     text = str(payload.get("text", "")).strip()
     if not text:
         return {"corrected": "", "llm": False}
-
-    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-    ollama_model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-
-    try:
-        import requests as _requests  # lazy: only needed when dictating
-    except ImportError:
+    if correct_transcript_text is None:
         return {"corrected": text, "llm": False}
+    corrected, used_llm = correct_transcript_text(text)
+    return {"corrected": corrected, "llm": used_llm}
 
-    system_prompt = (
-        "You are a courtroom transcript editor. Correct the punctuation, "
-        "capitalization, and grammar of the speaker's words and make the "
-        "sentence flow naturally. Keep the exact meaning: do not add, remove, "
-        "or invent any facts, names, or numbers. Output only the corrected text."
-    )
-    payload_body = {
-        "model": ollama_model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text},
-        ],
-        "stream": False,
-        "think": False,
-        "options": {"temperature": 0, "num_predict": 256},
-    }
-    try:
-        r = _requests.post(
-            f"{ollama_url.rstrip('/')}/api/chat", json=payload_body, timeout=60
+
+@app.post("/api/court/transcribe")
+async def transcribe_courtroom_audio(room_id: str = Form(...),
+                                     participant_id: str = Form(...),
+                                     audio: UploadFile = File(...)):
+    """Transcribe one recorded courtroom speech segment (WAV) with Ollama.
+
+    The clip is stored under courtrooms/audio/{room_id}/, transcribed with the
+    local whisper model, grammar-corrected by the chat LLM, appended to the
+    room transcript as the speaker's statement (with the clip attached), and
+    broadcast to everyone in the room.
+
+    Returns 503 with code "asr_unavailable" when no whisper model is installed
+    so the client can fall back to the browser's speech recognition.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    participant = room.get_participant(participant_id)
+    if participant is None:
+        raise HTTPException(status_code=404, detail="Participant not found in this room.")
+    if whisper_available is None or transcribe_audio is None:
+        raise HTTPException(status_code=503, detail={"code": "asr_unavailable", "message": "Speech transcription module is not installed."})
+    if not whisper_available():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "asr_unavailable",
+                "message": "No whisper model installed. Run: ollama pull whisper-small",
+            },
         )
-        r.raise_for_status()
-        data = r.json()
-        corrected = (data.get("message") or {}).get("content", "").strip()
-        if corrected:
-            return {"corrected": corrected, "llm": True}
+
+    # Persist the clip (unique name, same second collisions avoided).
+    room_audio_dir = os.path.join(COURTROOM_AUDIO_DIR, room_id)
+    os.makedirs(room_audio_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{ts}_{participant_id}_{uuid.uuid4().hex[:6]}.wav"
+    audio_path = os.path.join(room_audio_dir, filename)
+    try:
+        with open(audio_path, "wb") as buffer:
+            shutil.copyfileobj(audio.file, buffer)
     except Exception as e:
-        print(f"Transcript correction via Ollama failed: {e}")
-    return {"corrected": text, "llm": False}
+        raise HTTPException(status_code=500, detail=f"Failed to save audio: {str(e)}")
+
+    try:
+        text = transcribe_audio(audio_path)
+        if not text:
+            raise HTTPException(status_code=500, detail="Speech recognition failed for this segment. Please speak again.")
+        corrected, used_llm = correct_transcript_text(text)
+        entry = courtroom_manager.record_statement(
+            room_id, participant_id, corrected, audio_file=filename
+        )
+        if entry is None:
+            raise HTTPException(status_code=400, detail="Could not record the statement.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
+
+    # Broadcast the new entry to the whole room (everyone sees it live).
+    sockets = courtroom_manager._room_sockets.get(room_id, {})  # type: ignore[attr-defined]
+    await _broadcast(sockets, {"type": "transcript_entry", "entry": entry.to_dict()})
+
+    return {
+        "entry": entry.to_dict(),
+        "corrected": corrected,
+        "raw": text,
+        "used_llm": used_llm,
+        "audio_url": f"/api/court/rooms/{room_id}/audio/{filename}",
+    }
+
+
+@app.get("/api/court/rooms/{room_id}/audio/{filename}")
+def get_courtroom_audio(room_id: str, filename: str):
+    """Serve a recorded courtroom speech clip for playback/download."""
+    room_id = os.path.basename(room_id)  # block path traversal
+    filename = os.path.basename(filename)
+    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.wav", filename, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid audio file name.")
+    path = os.path.join(COURTROOM_AUDIO_DIR, room_id, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Audio clip not found.")
+    return FileResponse(path, media_type="audio/wav", filename=filename)
 
 
 @app.get("/court/{room_id}")

@@ -556,6 +556,38 @@ body::before {
     min-height: 14px;
 }
 
+.auto-transcribe-btn {
+    padding: 13px 18px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s;
+}
+.auto-transcribe-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.auto-transcribe-btn i { width: 16px; height: 16px; }
+.auto-transcribe-btn.active {
+    color: #fff;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+.auto-transcribe-btn:not(.active) { opacity: 0.75; }
+
+.asr-status {
+    margin: 8px 2px 0;
+    font-size: 12px;
+    color: var(--color-primary);
+    font-weight: 600;
+    min-height: 14px;
+}
+
 /* Transcript */
 .transcript { flex: 1; display: flex; flex-direction: column; min-height: 300px; max-height: calc(100vh - 340px); }
 .link-btn {
@@ -634,6 +666,44 @@ body::before {
 .entry-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 .entry-name { font-size: 12px; color: var(--text-muted); }
 .entry-text { font-size: 14px; color: var(--text-primary); line-height: 1.45; word-wrap: break-word; }
+
+/* recorded speech clip controls on spoken entries */
+.entry-audio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+.audio-play {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-app);
+    color: var(--color-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.audio-play:hover { border-color: var(--color-primary); background: rgba(201, 162, 75, 0.15); }
+.audio-play i { width: 13px; height: 13px; }
+.audio-download {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-app);
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.audio-download:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.audio-download i { width: 13px; height: 13px; }
 
 /* entry variants */
 .entry.kind-system { background: rgba(246,241,230,0.6); border-style: dashed; }
