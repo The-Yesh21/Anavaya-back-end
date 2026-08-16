@@ -11,8 +11,14 @@ To launch the system and inspect the court priority classifications:
 ### 1. Start the FastAPI Web Dashboard
 Run this command from the root directory:
 ```powershell
-python -m uvicorn case_priority_system.app:app --host 127.0.0.1 --port 8000 --ws-ping-interval 0
+python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
 ```
+> **Why `--host 0.0.0.0`?** The Live Courtroom invite links are shared with other
+> devices (phones/laptops) on the same network. Binding to `0.0.0.0` (instead of
+> `127.0.0.1`) lets them reach this machine — the invite link is built with the
+> machine's LAN IP automatically. If Windows Firewall prompts, allow Python on
+> **private networks**, otherwise phones on the same Wi-Fi/hotspot get
+> "This site can't be reached".
 > **Why `--ws-ping-interval 0`?** The Live Courtroom uses WebSockets. Uvicorn's default 20s
 > ping interval + 20s pong timeout silently kills any connection that doesn't answer a ping
 > within 40s — which drops courtroom participants that go quiet for a moment. `0` disables

@@ -3,6 +3,7 @@ import pickle
 import re
 import json
 import shutil
+import socket
 import subprocess
 import tempfile
 import traceback
@@ -910,6 +911,45 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 # pings keeps trial connections stable. See both READMEs for the command.
 
 COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
+
+
+def _detect_lan_ip() -> str:
+    """Best-effort IPv4 of this machine on the LAN (for invite links).
+
+    When the dashboard is opened via localhost, invite links must point at
+    this address instead, or a phone on the same network would resolve
+    "localhost" to itself and fail to connect.
+    """
+    candidates: list[str] = []
+    # 1) Route-based: ask the OS which local address it would use to reach
+    #    the internet. No packets are actually sent.
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            candidates.append(s.getsockname()[0])
+        finally:
+            s.close()
+    except OSError:
+        pass
+    # 2) Enumerate interfaces by hostname.
+    try:
+        for addr in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if not addr.startswith("127."):
+                candidates.append(addr)
+    except OSError:
+        pass
+    # Prefer a private-range address.
+    for ip in candidates:
+        if ip.startswith(("10.", "192.168.", "172.")):
+            return ip
+    return candidates[0] if candidates else "127.0.0.1"
+
+
+@app.get("/api/court/invite-info")
+def court_invite_info():
+    """LAN IP of this machine, so invite links work from other devices on the network."""
+    return {"lan_ip": _detect_lan_ip()}
 
 
 @app.get("/court/{room_id}")

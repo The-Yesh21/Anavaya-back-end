@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Pooja_Exporters_vs_Assistant_Director_D_R_I_on_1_January_1800.PDF</h2>
-  <p>The dispute is between Pooja Exporters and the Assistant Director, D.R.I. regarding an import licence for certain materials. The parties are arguing over conditions attached to the licence under the Imports (Control) Order, 1955. Pooja Exporters seeks clarification on the conditions of their import license while the D.R.I. is enforcing these conditions. This case falls under the Customs/Import-Export category as it deals with customs regulations and licences.</p>
+  <p>The parties, Pooja Exporters vs Assistant Director, D.R.I, are involved in a legal dispute. The document indicates customs, import, export, advance licence, d.r.i. This case is classified as Customs/Import-Export because the record matches customs, import, export, advance licence, d.r.i. Under the Constitution of India, the primary rights engaged are Article 14, Article 19(1)(g), Article 300A.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Customs/Import-Export</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>

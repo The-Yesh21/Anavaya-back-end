@@ -1,0 +1,45 @@
+{
+  "room_id": "6489",
+  "case_title": "State",
+  "created_at": "2026-08-16T14:19:02",
+  "created_by": "Host",
+  "phase": "Opening",
+  "participants": [],
+  "transcript": [
+    {
+      "timestamp": "2026-08-16T14:19:02",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'State' opened by Host."
+    },
+    {
+      "timestamp": "2026-08-16T14:19:26",
+      "actor": "Yeshwanth",
+      "role": "Prosecution Counsel",
+      "kind": "system",
+      "text": "Yeshwanth (Prosecution Counsel) joined the court."
+    },
+    {
+      "timestamp": "2026-08-16T14:20:41",
+      "actor": "Yeshwanth",
+      "role": "Prosecution Counsel",
+      "kind": "statement",
+      "text": "Witness, please state for the record:"
+    },
+    {
+      "timestamp": "2026-08-16T14:20:53",
+      "actor": "Yeshwanth",
+      "role": "Prosecution Counsel",
+      "kind": "action",
+      "text": "No further questions, Your Honour."
+    },
+    {
+      "timestamp": "2026-08-16T14:20:55",
+      "actor": "Yeshwanth",
+      "role": "Prosecution Counsel",
+      "kind": "system",
+      "text": "Yeshwanth (Prosecution Counsel) left the court."
+    }
+  ]
+}

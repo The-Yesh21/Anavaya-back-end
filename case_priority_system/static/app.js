@@ -1615,12 +1615,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
                 <div class="cc-actions">
                     <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
-                    <button class="cc-copy" onclick="navigator.clipboard.writeText('${inviteUrl}');this.innerHTML='<i data-lucide=\\'check\\'></i> Copied';"><i data-lucide="link"></i> Invite Link</button>
+                    <button class="cc-copy" data-invite-room="${r.room_id}"><i data-lucide="link"></i> Invite Link</button>
                     <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
                 </div>
             </div>`;
         }).join("");
         if (typeof lucide !== "undefined") lucide.createIcons();
+        // Wire up the LAN-aware invite-link copy buttons (see invite.js).
+        roomsListContainer.querySelectorAll("[data-invite-room]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const url = await buildInviteUrl(btn.dataset.inviteRoom);
+                try {
+                    await navigator.clipboard.writeText(url);
+                } catch (e) {
+                    console.warn("Clipboard write failed:", e);
+                }
+                btn.innerHTML = '<i data-lucide="check"></i> Copied';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            });
+        });
     }
 
     lobbyCreateForm.addEventListener("submit", async (e) => {
@@ -1648,8 +1661,13 @@ document.addEventListener("DOMContentLoaded", () => {
             lobbyCreateForm.style.display = "none";
             lobbySuccess.style.display = "block";
             openRoomBtn.onclick = () => window.open(`/court/${room.room_id}`, "_blank");
-            copyRoomInviteBtn.onclick = () => {
-                navigator.clipboard.writeText(`${window.location.origin}/court/${room.room_id}`);
+            copyRoomInviteBtn.onclick = async () => {
+                const url = await buildInviteUrl(room.room_id);
+                try {
+                    await navigator.clipboard.writeText(url);
+                } catch (e) {
+                    console.warn("Clipboard write failed:", e);
+                }
                 copyRoomInviteBtn.innerHTML = '<i data-lucide="check"></i> Copied';
             };
             if (typeof lucide !== "undefined") lucide.createIcons();

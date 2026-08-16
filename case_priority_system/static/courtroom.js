@@ -667,7 +667,7 @@
     // ACTIONS (UI)
     // ====================================================================
     async function copyInvite() {
-        const url = `${window.location.origin}/court/${ROOM_ID}`;
+        const url = await buildInviteUrl(ROOM_ID);
         try {
             await navigator.clipboard.writeText(url);
             toast("Invite link copied to clipboard");
