@@ -88,6 +88,8 @@
         transcriptFeed: $("transcript-feed"),
         copyInviteBtn: $("copy-invite-btn"),
         downloadTranscriptBtn: $("download-transcript-btn"),
+        dictateBtn: $("dictate-btn"),
+        dictateStatus: $("dictate-status"),
         remoteAudioHost: $("remote-audio-host"),
         toast: $("toast"),
     };
@@ -103,6 +105,7 @@
         els.statementForm.addEventListener("submit", onStatement);
         els.copyInviteBtn.addEventListener("click", copyInvite);
         els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
+        if (els.dictateBtn) els.dictateBtn.addEventListener("click", toggleDictate);
         els.joinName.focus();
     }
 
@@ -661,6 +664,111 @@
     }
     function setPhase(phase) {
         state.ws.send(JSON.stringify({ type: "set_phase", phase }));
+    }
+
+    // ====================================================================
+    // DICTATION (speech-to-text + LLM cleanup)
+    // ====================================================================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let dictating = false;
+    let finalSpeech = ""; // accumulated final utterances of the current session
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-IN";
+
+        recognition.onresult = (event) => {
+            let interim = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const r = event.results[i];
+                if (r.isFinal) finalSpeech += (finalSpeech ? " " : "") + r[0].transcript;
+                else interim += r[0].transcript;
+            }
+            if (interim && els.dictateStatus) {
+                els.dictateStatus.textContent = `Listening… “${interim}”`;
+            }
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                setDictating(false);
+                toast("Microphone access denied — allow the mic in your browser to dictate.");
+                if (els.dictateStatus) els.dictateStatus.textContent = "Microphone access denied. Type instead.";
+            } else {
+                setDictating(false);
+                if (els.dictateStatus) els.dictateStatus.textContent = `Speech error: ${event.error} — type instead.`;
+            }
+        };
+
+        recognition.onend = () => {
+            // Recognition stopped (manual or auto) — flush what was captured.
+            setDictating(false);
+            if (finalSpeech.trim()) {
+                if (els.dictateStatus) els.dictateStatus.textContent = "Correcting with Ollama LLM…";
+                const captured = finalSpeech;
+                finalSpeech = "";
+                correctAndInsert(captured);
+            } else if (els.dictateStatus) {
+                els.dictateStatus.textContent = "";
+            }
+        };
+    }
+
+    function setDictating(on) {
+        dictating = on;
+        if (!els.dictateBtn) return;
+        els.dictateBtn.classList.toggle("active", on);
+        els.dictateBtn.innerHTML = on
+            ? '<i data-lucide="mic-off"></i> Stop'
+            : '<i data-lucide="mic"></i> Dictate';
+        lucide.createIcons();
+        if (on && els.dictateStatus) els.dictateStatus.textContent = "Listening… speak clearly.";
+        else if (!on && els.dictateStatus && !els.dictateStatus.textContent.startsWith("Correcting")) {
+            els.dictateStatus.textContent = "";
+        }
+    }
+
+    function toggleDictate() {
+        if (!recognition) {
+            toast("Speech-to-text isn't supported in this browser — use Chrome.");
+            return;
+        }
+        if (dictating) {
+            try { recognition.stop(); } catch (_) {}
+            // onend flushes the captured speech into the input.
+            return;
+        }
+        finalSpeech = "";
+        try { recognition.start(); } catch (e) { /* already started */ }
+        setDictating(true);
+    }
+
+    async function correctAndInsert(raw) {
+        let text = raw.trim();
+        try {
+            const res = await fetch("/api/court/correct-transcript", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: raw }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data.corrected === "string" && data.corrected.trim()) {
+                    text = data.corrected.trim();
+                }
+            }
+        } catch (e) {
+            console.warn("LLM correction failed, using raw transcript:", e);
+        }
+        text = text.slice(0, 500); // match the input's maxlength
+        els.statementInput.value = text;
+        els.statementInput.focus();
+        const len = els.statementInput.value.length;
+        els.statementInput.setSelectionRange(len, len);
+        if (els.dictateStatus) els.dictateStatus.textContent = "Corrected — review and press Speak to submit.";
     }
 
     // ====================================================================

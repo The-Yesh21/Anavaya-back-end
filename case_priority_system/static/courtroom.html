@@ -101,8 +101,10 @@
                     </div>
                     <form id="statement-form" class="statement-form">
                         <input type="text" id="statement-input" placeholder="State your argument for the record…" maxlength="500" autocomplete="off">
+                        <button type="button" id="dictate-btn" class="dictate-btn" title="Dictate your statement — speech is corrected by the local Ollama LLM"><i data-lucide="mic"></i> Dictate</button>
                         <button type="submit" class="speak-btn"><i data-lucide="send"></i> Speak</button>
                     </form>
+                    <p id="dictate-status" class="dictate-status" hidden></p>
                 </div>
 
                 <!-- Live transcript -->

@@ -952,6 +952,56 @@ def court_invite_info():
     return {"lan_ip": _detect_lan_ip()}
 
 
+@app.post("/api/court/correct-transcript")
+def correct_transcript(payload: dict):
+    """Clean up a dictated courtroom statement with the local Ollama LLM.
+
+    Fixes punctuation/capitalization/grammar and makes the sentence flow
+    naturally without changing its meaning. If Ollama is unavailable the text
+    is returned unchanged (llm=false) so dictation never blocks on the LLM.
+    """
+    text = str(payload.get("text", "")).strip()
+    if not text:
+        return {"corrected": "", "llm": False}
+
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    ollama_model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+
+    try:
+        import requests as _requests  # lazy: only needed when dictating
+    except ImportError:
+        return {"corrected": text, "llm": False}
+
+    system_prompt = (
+        "You are a courtroom transcript editor. Correct the punctuation, "
+        "capitalization, and grammar of the speaker's words and make the "
+        "sentence flow naturally. Keep the exact meaning: do not add, remove, "
+        "or invent any facts, names, or numbers. Output only the corrected text."
+    )
+    payload_body = {
+        "model": ollama_model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text},
+        ],
+        "stream": False,
+        "think": False,
+        "options": {"temperature": 0, "num_predict": 256},
+    }
+    try:
+        r = _requests.post(
+            f"{ollama_url.rstrip('/')}/api/chat", json=payload_body, timeout=60
+        )
+        r.raise_for_status()
+        data = r.json()
+        corrected = (data.get("message") or {}).get("content", "").strip()
+        if corrected:
+            return {"corrected": corrected, "llm": True}
+    except Exception as e:
+        print(f"Transcript correction via Ollama failed: {e}")
+    return {"corrected": text, "llm": False}
+
+
 @app.get("/court/{room_id}")
 def serve_courtroom(room_id: str):
     """Serve the trial page. The room id is read by the client, not the route."""
