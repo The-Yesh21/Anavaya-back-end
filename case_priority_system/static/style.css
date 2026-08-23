@@ -2783,6 +2783,7 @@ button, a, input, select {
 .case-item {
     height: auto;
     min-height: 0;
+    flex-shrink: 0;                 /* don't let the flex column squash rows — the list scrolls (overflow-y:auto) instead */
     transform: none;
     padding: 14px 16px;
     border-radius: var(--radius-card);
