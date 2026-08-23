@@ -39,7 +39,7 @@
     --color-muted: var(--bg-well);
     --color-muted-fg: var(--text-muted);
 
-    /* Priority semantics (crimson / amber / sage) — always paired with icons */
+    /* Priority semantics (crimson / amber / sage) — always paired with a text label */
     --color-high: #B3402E;
     --color-high-bg: rgba(179, 64, 46, 0.09);
     --color-high-border: rgba(179, 64, 46, 0.30);
@@ -49,6 +49,22 @@
     --color-low: #4E7A66;
     --color-low-bg: rgba(78, 122, 102, 0.10);
     --color-low-border: rgba(78, 122, 102, 0.30);
+
+    /* Status & role accents — tokenized one-offs that used to be hardcoded hexes
+       scattered across the sheets. Named here so a re-skin touches one place. */
+    --color-success: #2F7A55;               /* GPU-active / positive status — text-safe sage-emerald (was #047857) */
+    --color-success-bg: color-mix(in srgb, var(--color-success) 12%, transparent);
+    --color-success-border: color-mix(in srgb, var(--color-success) 30%, transparent);
+    --color-recording: var(--color-high);   /* dictate/record "live" state — crimson, matches its pulse keyframe */
+    --urgency-highest: #7F1D1D;             /* deepest-red urgency pill; white text ≈ 9:1 (was hardcoded) */
+    --role-witness: #8B5C9E;                /* courtroom Witness role accent — muted violet (was hardcoded) */
+    --webcam-bg: #1C1C16;                   /* dark video well behind the Chakshu face mesh (was hardcoded) */
+
+    /* Brand washes — token-driven translucency via color-mix() (change the base hue to
+       re-skin). Prefer these, or an inline color-mix() on a base token, over raw rgba(). */
+    --wash-gold: color-mix(in srgb, var(--gold-500) 10%, transparent);
+    --wash-gold-soft: color-mix(in srgb, var(--gold-500) 6%, transparent);
+    --wash-primary: color-mix(in srgb, var(--color-primary) 12%, transparent);
 
     /* Elevation — gold-tinted, restrained */
     --shadow-soft: 0 1px 3px rgba(80, 60, 20, 0.08), 0 4px 14px rgba(80, 60, 20, 0.06);
@@ -112,11 +128,13 @@
     top: 16px;
 }
 
-/* Visible focus ring for keyboard users (WCAG 2.2) — gold, 3px */
+/* Visible focus ring for keyboard users (WCAG 2.2) — gold, 3px.
+   No border-radius here: `outline` already traces each element's own border-radius in
+   modern browsers, so forcing a radius reshaped pills/organic controls into an 8px
+   rectangle on focus. Elements needing an inset ring use --focus-ring / --shadow-gold. */
 :focus-visible {
     outline: 3px solid var(--color-primary);
     outline-offset: 2px;
-    border-radius: 8px;
 }
 
 /* Respect reduced-motion: kill animation/floating, keep only essential fades */
