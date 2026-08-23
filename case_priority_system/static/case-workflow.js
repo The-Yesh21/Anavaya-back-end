@@ -81,9 +81,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }).join("");
         if (typeof lucide !== "undefined") lucide.createIcons();
 
-        // Head click → expand + open the case workspace
+        // Head click → expand + open the case workspace + populate Analysis tab
         registryList.querySelectorAll(".registry-case-head").forEach((head) => {
-            head.addEventListener("click", (e) => {
+            head.addEventListener("click", async (e) => {
                 const card = head.closest(".registry-case");
                 const caseId = card.getAttribute("data-case-id");
                 expandedCaseId = expandedCaseId === caseId ? null : caseId;
@@ -91,7 +91,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderRegistry();
                 updateTranscriptCaseBadge();
                 // Open the case site for this case.
-                openCaseWorkspace(caseId);
+                await openCaseWorkspace(caseId);
+                // Auto-populate the Analysis tab: find the first analyzed
+                // document in this case's Excel rows and feed it to selectCase.
+                try {
+                    const caseRes = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
+                    if (caseRes.ok) {
+                        const caseData = await caseRes.json();
+                        const docs = caseData.documents || [];
+                        for (const d of docs) {
+                            const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
+                            if (row) {
+                                UI.selectCaseFn(row);
+                                break;
+                            }
+                        }
+                    }
+                } catch (_) { /* non-fatal */ }
                 const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
                 if (caseTabBtn) caseTabBtn.click();
             });
@@ -188,6 +204,17 @@ document.addEventListener("DOMContentLoaded", () => {
             // Refresh the sidebar registry + Excel-backed list.
             try { await UI.refreshCases(); } catch (e) { /* non-fatal */ }
             fetchRegistry();
+            // Auto-populate the Analysis tab if a FIR was analysed during creation.
+            try {
+                const cr = await fetch(`/api/cases/${encodeURIComponent(caseData.case_id)}`);
+                if (cr.ok) {
+                    const cd = await cr.json();
+                    for (const d of (cd.documents || [])) {
+                        const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
+                        if (row) { UI.selectCaseFn(row); break; }
+                    }
+                }
+            } catch (_) { /* non-fatal */ }
         } catch (err) {
             alert("Error: " + err.message);
         } finally {
