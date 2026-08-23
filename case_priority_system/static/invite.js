@@ -36,3 +36,84 @@ async function buildInviteUrl(roomId) {
     // Fallback: keep the current origin.
     return `${origin}/court/${roomId}`;
 }
+
+/* ============================================================
+   Shared theme switch — light / dark, OS-aware, persisted.
+   The inline <head> boot script already set documentElement.dataset.theme
+   before first paint (no FOUC). Here we wire the header toggle, persist the
+   choice, keep the button icon in sync, and broadcast `anavaya:themechange`
+   so JS-drawn UI (the D3 tree, the courtroom roster, gauges…) can re-read
+   its colours and redraw. Loaded by BOTH pages before their page script.
+   ============================================================ */
+const THEME_STORAGE_KEY = 'anavaya-theme';
+
+/* The active theme, straight off <html data-theme>. */
+function currentTheme() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+/* Read a CSS custom property off :root. Lets JS-drawn colour (SVG/canvas)
+   follow the active theme instead of hardcoding hexes — used across app.js /
+   courtroom.js so a theme flip re-skins everything, not just the CSS. */
+function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/* Point the toggle at the theme you'd switch TO (moon in light, sun in dark).
+   Rebuild the <i> each time: after lucide.createIcons() the <i data-lucide>
+   has become an <svg>, so we can't just flip an attribute. */
+function syncThemeToggleIcon(theme) {
+    const btn = document.getElementById('theme-toggle-btn');
+    if (!btn) return;
+    const next = theme === 'dark' ? 'sun' : 'moon';
+    btn.innerHTML = '<i data-lucide="' + next + '"></i>';
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+    const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+    btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
+}
+
+/* Apply a theme: flip the attribute + color-scheme, optionally persist, sync the
+   icon, and notify JS-drawn UI. `persist` is true for an explicit user choice,
+   false when merely following an OS change. */
+function applyTheme(theme, persist) {
+    const t = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+    document.documentElement.style.colorScheme = t;
+    if (persist) {
+        try { localStorage.setItem(THEME_STORAGE_KEY, t); } catch (e) { /* private mode */ }
+    }
+    syncThemeToggleIcon(t);
+    document.dispatchEvent(new CustomEvent('anavaya:themechange', { detail: { theme: t } }));
+}
+
+function initThemeToggle() {
+    const btn = document.getElementById('theme-toggle-btn');
+    if (!btn) return;
+    // HTML ships the moon icon (light default); if we booted into dark, show the sun.
+    if (currentTheme() === 'dark') {
+        syncThemeToggleIcon('dark');
+    } else {
+        btn.setAttribute('aria-pressed', 'false');
+    }
+    btn.addEventListener('click', function () {
+        applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
+    });
+    // While the user hasn't chosen explicitly, keep following the OS preference live.
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+            let saved = null;
+            try { saved = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) { /* ignore */ }
+            if (saved !== 'dark' && saved !== 'light') {
+                applyTheme(e.matches ? 'dark' : 'light', false);
+            }
+        });
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThemeToggle);
+} else {
+    initThemeToggle();
+}
