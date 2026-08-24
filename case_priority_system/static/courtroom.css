@@ -57,7 +57,7 @@ body::before {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(135deg, rgba(251,248,241,0.7), rgba(246,241,230,0.85));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--bg-app) 70%, transparent), color-mix(in srgb, var(--bg-well) 85%, transparent));
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
@@ -66,7 +66,7 @@ body::before {
     z-index: 1;
     width: 100%;
     max-width: 480px;
-    background: rgba(255, 255, 255, 0.92);
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1.5px solid var(--border-color);
@@ -162,7 +162,7 @@ body::before {
 }
 .role-btn.selected {
     border-color: var(--color-primary);
-    background: rgba(168, 126, 47, 0.08);
+    background: color-mix(in srgb, var(--gold-600) 8%, transparent);
     box-shadow: 0 0 0 3px var(--border-color-glow);
 }
 .role-btn:disabled {
@@ -209,7 +209,7 @@ body::before {
 .join-error {
     color: var(--color-high);
     font-size: 13px;
-    background: rgba(179, 64, 46, 0.08);
+    background: color-mix(in srgb, var(--color-high) 8%, transparent);
     border-radius: var(--radius-pill);
     padding: 8px 14px;
 }
@@ -242,7 +242,7 @@ body::before {
     align-items: center;
     justify-content: space-between;
     padding: 16px 28px;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1.5px solid var(--border-color);
@@ -275,7 +275,7 @@ body::before {
     display: inline-block;
     padding: 3px 10px;
     border-radius: var(--radius-pill);
-    background: rgba(201, 162, 75, 0.15);
+    background: color-mix(in srgb, var(--gold-500) 15%, transparent);
     color: var(--color-secondary);
     font-weight: 700;
     font-size: 11px;
@@ -290,7 +290,7 @@ body::before {
     font-size: 13px;
     font-weight: 700;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-pill);
     cursor: pointer;
@@ -314,7 +314,7 @@ body::before {
 
 /* Generic card + panel header */
 .card {
-    background: rgba(255, 255, 255, 0.92);
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1.5px solid var(--border-color);
@@ -362,10 +362,10 @@ body::before {
     border-radius: 1.1rem 1.4rem 1rem 1.3rem;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.participant-tile.is-me { border-color: var(--color-primary); background: rgba(168,126,47,0.06); }
+.participant-tile.is-me { border-color: var(--color-primary); background: color-mix(in srgb, var(--gold-600) 6%, transparent); }
 .participant-tile.speaking {
     border-color: var(--color-secondary);
-    box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.25);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-500) 25%, transparent);
 }
 .avatar {
     position: relative;
@@ -373,7 +373,7 @@ body::before {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    color: #fff;
+    color: var(--color-primary-fg);
     font-family: var(--font-heading);
     font-weight: 700;
     font-size: 16px;
@@ -440,7 +440,7 @@ body::before {
 .phase-btn:hover { border-color: var(--color-secondary); }
 .phase-btn.active {
     background: var(--color-secondary);
-    color: #fff;
+    color: var(--color-primary-fg);
     border-color: var(--color-secondary);
 }
 
@@ -472,17 +472,17 @@ body::before {
     font-size: 12px;
     font-weight: 700;
     color: var(--color-secondary);
-    background: rgba(201, 162, 75, 0.1);
+    background: color-mix(in srgb, var(--gold-500) 10%, transparent);
     border: 1.5px solid transparent;
     border-radius: var(--radius-pill);
     cursor: pointer;
     transition: all 0.2s;
 }
-.quick-action:hover { background: rgba(201, 162, 75, 0.2); }
-.quick-action.objection { color: var(--color-high); background: rgba(179,64,46,0.1); }
-.quick-action.objection:hover { background: rgba(179,64,46,0.2); }
-.quick-action.ruling { color: var(--color-primary); background: rgba(168,126,47,0.1); }
-.quick-action.ruling:hover { background: rgba(168,126,47,0.2); }
+.quick-action:hover { background: color-mix(in srgb, var(--gold-500) 20%, transparent); }
+.quick-action.objection { color: var(--color-high); background: color-mix(in srgb, var(--color-high) 10%, transparent); }
+.quick-action.objection:hover { background: color-mix(in srgb, var(--color-high) 20%, transparent); }
+.quick-action.ruling { color: var(--color-primary); background: color-mix(in srgb, var(--gold-600) 10%, transparent); }
+.quick-action.ruling:hover { background: color-mix(in srgb, var(--gold-600) 20%, transparent); }
 
 .statement-form {
     display: flex;
@@ -528,7 +528,7 @@ body::before {
     font-size: 14px;
     font-weight: 700;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-pill);
     cursor: pointer;
@@ -540,14 +540,14 @@ body::before {
 .dictate-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .dictate-btn i { width: 16px; height: 16px; }
 .dictate-btn.active {
-    color: #fff;
-    background: var(--color-accent, #B3402E);
-    border-color: var(--color-accent, #B3402E);
+    color: var(--color-primary-fg);
+    background: var(--color-recording);
+    border-color: var(--color-recording);
     animation: dictate-pulse 1.4s ease-in-out infinite;
 }
 @keyframes dictate-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(179, 64, 46, 0.45); }
-    50%      { box-shadow: 0 0 0 7px rgba(179, 64, 46, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-recording) 45%, transparent); }
+    50%      { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-recording) 0%, transparent); }
 }
 .dictate-status {
     margin: 8px 2px 0;
@@ -562,7 +562,7 @@ body::before {
     font-size: 14px;
     font-weight: 700;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-pill);
     cursor: pointer;
@@ -574,7 +574,7 @@ body::before {
 .auto-transcribe-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .auto-transcribe-btn i { width: 16px; height: 16px; }
 .auto-transcribe-btn.active {
-    color: #fff;
+    color: var(--color-primary-fg);
     background: var(--color-primary);
     border-color: var(--color-primary);
 }
@@ -616,7 +616,7 @@ body::before {
 /* Custom scrollbar (matches dashboard) */
 .transcript-feed::-webkit-scrollbar { width: 8px; }
 .transcript-feed::-webkit-scrollbar-track { background: transparent; }
-.transcript-feed::-webkit-scrollbar-thumb { background: rgba(201,162,75,0.35); border-radius: 99px; }
+.transcript-feed::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--gold-500) 35%, transparent); border-radius: 99px; }
 
 .transcript-empty {
     text-align: center;
@@ -644,7 +644,7 @@ body::before {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    color: #fff;
+    color: var(--color-primary-fg);
     font-family: var(--font-heading);
     font-weight: 700;
     font-size: 12px;
@@ -687,7 +687,7 @@ body::before {
     justify-content: center;
     transition: all 0.2s;
 }
-.audio-play:hover { border-color: var(--color-primary); background: rgba(201, 162, 75, 0.15); }
+.audio-play:hover { border-color: var(--color-primary); background: color-mix(in srgb, var(--gold-500) 15%, transparent); }
 .audio-play i { width: 13px; height: 13px; }
 .audio-download {
     width: 26px;
@@ -706,16 +706,16 @@ body::before {
 .audio-download i { width: 13px; height: 13px; }
 
 /* entry variants */
-.entry.kind-system { background: rgba(246,241,230,0.6); border-style: dashed; }
+.entry.kind-system { background: color-mix(in srgb, var(--bg-well) 60%, transparent); border-style: dashed; }
 .entry.kind-system .entry-text { font-style: italic; color: var(--text-muted); font-size: 13px; }
-.entry.kind-action { background: rgba(201,162,75,0.08); }
+.entry.kind-action { background: color-mix(in srgb, var(--gold-500) 8%, transparent); }
 .entry.kind-action .entry-text { font-style: italic; color: var(--color-secondary); font-weight: 600; }
 .entry.kind-phase {
     align-self: center;
     background: var(--color-primary);
     border-color: var(--color-primary);
 }
-.entry.kind-phase .entry-text { color: #fff; font-weight: 800; font-family: var(--font-heading); font-style: normal; text-align: center; }
+.entry.kind-phase .entry-text { color: var(--color-primary-fg); font-weight: 800; font-family: var(--font-heading); font-style: normal; text-align: center; }
 .entry.kind-phase .entry-avatar { display: none; }
 .entry.kind-phase .entry-body { text-align: center; }
 
@@ -723,7 +723,7 @@ body::before {
 .role-Judge, .entry-role.Judge { color: var(--color-primary); }
 .role-Defence, .entry-role.Defence { color: var(--color-secondary); }
 .role-Prosecution, .entry-role.Prosecution { color: var(--color-high); }
-.role-Witness, .entry-role.Witness { color: #8B5C9E; }
+.role-Witness, .entry-role.Witness { color: var(--role-witness); }
 
 /* ============================================================
    MISC
