@@ -1,4 +1,4 @@
-// Anavaya Dashboard UI Logic
+﻿// Anavaya Dashboard UI Logic
 document.addEventListener("DOMContentLoaded", () => {
     let casesData = [];
     let globalTreeData = null;
@@ -520,6 +520,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Case Selection
     async function selectCase(c) {
+        const detailsTabBtn = document.querySelector('.tab-btn[data-tab="details-tab"]');
+        if (detailsTabBtn && !detailsTabBtn.classList.contains('active')) {
+            activateTab(detailsTabBtn);
+        }
         selectedCase = c;
         // The Excel row now carries Case_ID for documents belonging to a case
         // registry entity — used by the Chakshu transcript + fact-check.

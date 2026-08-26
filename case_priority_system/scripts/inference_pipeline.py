@@ -1533,7 +1533,8 @@ def main():
         except Exception as e:
             print(f"Could not read existing {OUTPUT_EXCEL} for merge ({e}); overwriting.")
 
-    final_df = pd.DataFrame(preserved_rows + results) if preserved_rows else pd.DataFrame(results)
+    preserved_dicts = [r.to_dict() if hasattr(r, 'to_dict') else r for r in preserved_rows]
+    final_df = pd.DataFrame(preserved_dicts + results) if preserved_dicts else pd.DataFrame(results)
     final_df = final_df.reset_index(drop=True)
     final_df.to_excel(OUTPUT_EXCEL, index=False)
     print(f"\nFinal prioritized list saved to {OUTPUT_EXCEL} "
