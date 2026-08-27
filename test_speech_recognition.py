@@ -23,6 +23,7 @@ Optional: Ollama running locally with qwen2.5:3b (grammar correction)
 from __future__ import annotations
 
 import argparse
+import collections
 import os
 import signal
 import sys
@@ -122,13 +123,15 @@ def transcribe_wav(wav_path: str, transcribe_audio, whisper_available) -> str | 
 
 def run_single_shot(device, duration, no_correct):
     """Record for *duration* seconds, transcribe, grammar-correct, print."""
-    from functools import partial
-
     transcribe_audio, whisper_available, correct_fn = _import_asr()
 
     if not whisper_available():
         print("\n  ERROR: openai-whisper is not installed.")
         print("  Install it with:  pip install openai-whisper")
+        sys.exit(1)
+
+    if duration <= 0:
+        print("\n  ERROR: Duration must be positive.")
         sys.exit(1)
 
     print(f"  Recording {duration}s ...")
@@ -185,17 +188,19 @@ def run_single_shot(device, duration, no_correct):
 # ---------------------------------------------------------------------------
 
 class ContinuousRecorder:
-    """Records mic audio in a background thread, filling a ring buffer.
+    """Records mic audio in a background thread, filling a deque buffer.
 
     The main thread pulls *chunk_duration*-second windows from the buffer
-    for transcription.
+    for transcription.  Audio is never dropped mid-transcription — it
+    accumulates until explicitly consumed by :meth:`grab_chunk`.
     """
 
-    def __init__(self, device, samplerate=16000, chunk_duration=5.0, pre_roll=1.0):
+    def __init__(self, device, samplerate=16000, chunk_duration=5.0):
+        if chunk_duration <= 0:
+            raise ValueError("chunk_duration must be > 0")
         self.device = device
         self.samplerate = samplerate
         self.chunk_duration = chunk_duration
-        self.pre_roll = pre_roll  # overlap from previous chunk for context
 
         self._lock = threading.Lock()
         self._buffer: list[np.ndarray] = []
@@ -229,25 +234,33 @@ class ContinuousRecorder:
             self._buffer.append(chunk)
 
     def grab_chunk(self) -> np.ndarray | None:
-        """Return the next chunk_duration-second window, or None if not enough audio yet."""
+        """Return the oldest *chunk_duration*-second window, or None.
+
+        The consumed audio is removed from the buffer so it is never
+        re-processed.  Audio that arrives while the caller is transcribing
+        accumulates and will be picked up by the *next* call — nothing is
+        silently discarded.
+        """
+        needed = int(self.chunk_duration * self.samplerate)
         with self._lock:
             if not self._buffer:
                 return None
             all_audio = np.concatenate(self._buffer)
-
-        needed = int(self.chunk_duration * self.samplerate)
-        if len(all_audio) < needed:
-            return None
-
-        # Take the last *needed* samples (most recent chunk)
-        chunk = all_audio[-needed:]
-
-        # Trim the buffer — keep only the pre_roll overlap for the next grab
-        pre_roll_samples = int(self.pre_roll * self.samplerate)
-        with self._lock:
-            self._buffer = [all_audio[-pre_roll_samples:]]
-
+            if len(all_audio) < needed:
+                return None
+            # Consume the oldest chunk, keep remainder
+            chunk = all_audio[:needed]
+            remaining = all_audio[needed:]
+            self._buffer = [remaining] if len(remaining) > 0 else []
         return chunk
+
+    @property
+    def buffered_seconds(self) -> float:
+        with self._lock:
+            if not self._buffer:
+                return 0.0
+            total = sum(len(b) for b in self._buffer)
+        return total / self.samplerate
 
     @property
     def rms(self) -> float:
@@ -258,6 +271,40 @@ class ContinuousRecorder:
         return float(np.sqrt(np.mean(all_audio ** 2)))
 
 
+def _readline_nonblocking(stop_event: threading.Event) -> str | None:
+    """Read a line from stdin without blocking the main loop.
+
+    Runs in a daemon thread.  When a full line arrives it is stored in
+    *stop_event* (via a side-channel attribute) for the main loop to pick up.
+    """
+    try:
+        # On Windows msvcrt is the only non-blocking stdin option.
+        import msvcrt  # type: ignore[import-not-found]
+        buf = b""
+        while not stop_event.is_set():
+            if msvcrt.kbhit():  # type: ignore[attr-defined]
+                ch = msvcrt.getwch()  # type: ignore[attr-defined]
+                if ch in ("\r", "\n"):
+                    stop_event._stdin_line = True  # type: ignore[attr-defined]
+                    return
+                # Ignore other keys — we only care about Enter.
+            time.sleep(0.05)
+    except ImportError:
+        # POSIX: use selectors on stdin (non-blocking read).
+        import selectors
+        sel = selectors.DefaultSelector()
+        sel.register(sys.stdin, selectors.EVENT_READ)
+        while not stop_event.is_set():
+            events = sel.select(timeout=0.1)
+            for key, _ in events:
+                line = key.fileobj.readline()  # type: ignore[union-attr]
+                if line is not None:
+                    stop_event._stdin_line = True  # type: ignore[attr-defined]
+                    sel.unregister(key.fileobj)
+                    return
+        sel.close()
+
+
 def run_live(device, chunk_duration, no_correct):
     """Continuous recording + transcription loop. Press Enter or Ctrl+C to stop."""
     transcribe_audio, whisper_available, correct_fn = _import_asr()
@@ -265,6 +312,10 @@ def run_live(device, chunk_duration, no_correct):
     if not whisper_available():
         print("\n  ERROR: openai-whisper is not installed.")
         print("  Install it with:  pip install openai-whisper")
+        sys.exit(1)
+
+    if chunk_duration <= 0:
+        print("\n  ERROR: Chunk duration must be positive.")
         sys.exit(1)
 
     w = 72
@@ -283,7 +334,7 @@ def run_live(device, chunk_duration, no_correct):
     transcript_lines: list[str] = []
     chunk_num = 0
 
-    # Clean shutdown on Ctrl+C
+    # --- Shutdown signals ---
     stop_event = threading.Event()
 
     def _signal_handler(sig, frame):
@@ -291,25 +342,30 @@ def run_live(device, chunk_duration, no_correct):
 
     signal.signal(signal.SIGINT, _signal_handler)
 
+    # Start a background thread that watches stdin for Enter.
+    stdin_thread = threading.Thread(target=_readline_nonblocking, args=(stop_event,), daemon=True)
+    stdin_thread.start()
+
     try:
         while not stop_event.is_set():
-            # Wait for enough audio (check every 200ms)
+            # Wait for enough audio (check every 200ms).
             chunk = None
-            deadline = time.time() + chunk_duration + 2
+            deadline = time.time() + chunk_duration + 5
             while time.time() < deadline:
+                if stop_event.is_set():
+                    break
                 chunk = recorder.grab_chunk()
                 if chunk is not None:
                     break
-                # Show a mic level indicator while waiting
+                # Show a mic level indicator while waiting.
                 rms = recorder.rms
                 bars = int(min(rms * 200, 30))
                 level = "█" * bars + "░" * (30 - bars)
-                print(f"\r  🎤 [{level}] {rms:.4f}", end="", flush=True)
+                buffered = recorder.buffered_seconds
+                print(f"\r  🎤 [{level}] {rms:.4f}  (buffered: {buffered:.1f}s)", end="", flush=True)
                 stop_event.wait(0.2)
-                if stop_event.is_set():
-                    break
 
-            if chunk is None:
+            if chunk is None or stop_event.is_set():
                 continue
 
             chunk_num += 1
@@ -319,28 +375,40 @@ def run_live(device, chunk_duration, no_correct):
             # Save temp WAV
             fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="anavaya_live_")
             os.close(fd)
-            save_wav(chunk, wav_path)
-
-            # Transcribe
-            t0 = time.time()
-            raw_text = transcribe_wav(wav_path, transcribe_audio, whisper_available) or ""
-            whisper_time = time.time() - t0
-
-            # Grammar correct
-            corrected_text = raw_text
-            used_llm = False
-            if not no_correct and raw_text and correct_fn:
-                t0 = time.time()
-                corrected_text, used_llm = correct_fn(raw_text)
-                llm_time = time.time() - t0
-            else:
-                llm_time = 0
-
-            # Clean up WAV
             try:
-                os.remove(wav_path)
-            except OSError:
-                pass
+                save_wav(chunk, wav_path)
+            except Exception as e:
+                print(f"  [{chunk_num:3d}] Failed to save WAV: {e}")
+                try: os.remove(wav_path)
+                except OSError: pass
+                continue
+
+            # Transcribe (wrapped so errors never kill the loop).
+            raw_text = ""
+            corrected_text = ""
+            used_llm = False
+            whisper_time = 0.0
+            llm_time = 0.0
+            try:
+                t0 = time.time()
+                raw_text = transcribe_wav(wav_path, transcribe_audio, whisper_available) or ""
+                whisper_time = time.time() - t0
+
+                # Grammar correct
+                if not no_correct and raw_text and correct_fn:
+                    t0 = time.time()
+                    corrected_text, used_llm = correct_fn(raw_text)
+                    llm_time = time.time() - t0
+                else:
+                    corrected_text = raw_text
+            except Exception as e:
+                print(f"  [{chunk_num:3d}] Transcription error: {e}")
+            finally:
+                # Always clean up the WAV
+                try:
+                    os.remove(wav_path)
+                except OSError:
+                    pass
 
             # Display
             if raw_text.strip():
@@ -357,6 +425,7 @@ def run_live(device, chunk_duration, no_correct):
         pass
     finally:
         recorder.stop()
+        stop_event.set()
         signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     # Final transcript
