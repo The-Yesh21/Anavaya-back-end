@@ -1,0 +1,34 @@
+{
+  "room_id": "A24D",
+  "case_title": "State vs. Rakesh Sharma - Armed Robbery",
+  "created_at": "2026-08-26T22:17:12",
+  "created_by": "Justice Mehta",
+  "phase": "Opening",
+  "participants": [],
+  "transcript": [
+    {
+      "timestamp": "2026-08-26T22:17:12",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'State vs. Rakesh Sharma - Armed Robbery' opened by Justice Mehta.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-08-26T22:17:12",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) joined the court.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-08-26T22:21:24",
+      "actor": "Justice Mehta",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Justice Mehta (Presiding Judge) left the court.",
+      "audio_file": ""
+    }
+  ]
+}

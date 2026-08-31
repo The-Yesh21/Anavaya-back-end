@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "anavaya",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "case_priority_system.app:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--ws-ping-interval",
+        "0"
+      ],
+      "port": 8000
+    }
+  ]
+}

@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>AI.pdf</h2>
-  <p>The parties, AI, are involved in a legal dispute. The document indicates assault, victim, sexual assault, human trafficking. This case is classified as Criminal/Violent because the record matches assault, victim, sexual assault, human trafficking. Under the Constitution of India, the primary rights engaged are Article 21, Article 22, Article 20.</p>
+  <p>The AI-Powered Case Priority Prediction System disputes the validity of the hybrid architecture and the use of large language models in making final decisions. The system argues that the hybrid approach is not transparent and does not align with constitutional principles. The case involves a dispute over the use of LLMs in judicial triage, engaging Article 14 (Equality Before Law) and Article 21 (Right to Life).</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>

@@ -7,6 +7,31 @@ document.addEventListener("DOMContentLoaded", () => {
     let svgContainer = null;
     let activePathNodes = [];
     let courtroomsLoaded = false;
+    let lanIp = null;
+
+    // Trigger Ollama pre-warm on page load
+    function warmupOllama() {
+        fetch("/api/ollama/warmup", { method: "POST" })
+            .then(r => r.json())
+            .then(data => console.log("Ollama warmup:", data))
+            .catch(err => console.warn("Ollama warmup failed:", err));
+    }
+    warmupOllama();
+
+    // Fetch network info for LAN invite links
+    async function fetchNetworkInfo() {
+        try {
+            const res = await fetch("/api/network-info");
+            if (res.ok) {
+                const data = await res.json();
+                lanIp = data.lan_ip;
+                console.log("Network info loaded:", data);
+            }
+        } catch (e) {
+            console.warn("Could not fetch network info:", e);
+        }
+    }
+    fetchNetworkInfo();
 
     // Bridge so the separately-loaded case-workflow module (wizard, Chakshu
     // transcript + fact-check) can interact with the dashboard state without

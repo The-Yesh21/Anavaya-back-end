@@ -91,10 +91,10 @@
 
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
-  <h2>State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF</h2>
-  <p>The State of Karnataka petitioned against the Union of India and the Mysore Government Soap Factory over excise duty and tax issues. The factory manufactures soap and sells it through a sole agent and zonal agents. The dispute centers around the trade discount allowed on the wholesale price of the soap. The State of Karnataka seeks to have the wholesale cash price of the soap determined without the 6% trade discount, arguing that the discount should only apply to the sales made to the retail dealers and approved buyers at the factory premises. The case involves constitutional issues related to the right to profession and the right to move the Supreme Court for enforcement of fundamental rights (Article 226).</p>
+  <h2>_test_judgment.pdf</h2>
+  <p>The case involves a writ petition seeking the release of a motorcycle seized by the police under the Bihar Prohibition and Excise Act. The petitioner, Sanjay Kumar, seeks the release of his motorcycle, which was seized in connection with a case registered under Section 30(a) of the Act. The case falls under the Excise/Tax category as it deals with the confiscation of property under the Bihar Prohibition and Excise Act, engaging Article 14 for the power imbalance and Article 21 for the protection of life and personal liberty.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Customs/Import-Export</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
@@ -151,4 +151,4 @@ Node 0: Severity is one of: Fatal, Major; case value = No Injury; result = No ->
 
 ## Raw Graph
 
-Raw DOT file: `case_priority_system/decision_graphs\State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800_decision_path.dot`
+Raw DOT file: `case_priority_system/decision_graphs\test_judgment_decision_path.dot`

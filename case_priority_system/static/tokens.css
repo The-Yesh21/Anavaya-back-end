@@ -114,12 +114,62 @@
    tokens.css is @imported FIRST by style.css, case-workflow.css and
    courtroom.css, this one block re-skins all three surfaces and both pages.
    Activated by <html data-theme="dark">, which the inline boot script in each
-   HTML <head> sets before first paint (no flash). The full palette is authored
-   in D4 — this scaffold only flips `color-scheme` so the switch mechanism
-   (toggle, persistence, OS default) can be verified while light stays intact.
+   HTML <head> sets before first paint (no flash).
    ===================================================================== */
 :root[data-theme="dark"] {
     color-scheme: dark;
+
+    /* Surfaces — warm charcoal palette */
+    --bg-app: #1A1814;                /* deep warm charcoal page */
+    --bg-card: #242220;               /* raised cards */
+    --bg-card-hover: #2E2B28;         /* card hover */
+    --bg-well: #1E1C18;               /* recessed areas (sidebar header, tree canvas) */
+    --border-color: rgba(180, 160, 110, 0.22);
+    --border-color-glow: rgba(201, 162, 75, 0.35);
+
+    /* Text — warm light tones */
+    --text-primary: #F0ECE3;          /* warm off-white */
+    --text-secondary: #C4BCA8;        /* muted parchment */
+    --text-muted: #8A8274;            /* dimmed */
+
+    /* Brand roles */
+    --color-primary: #D4B45A;         /* brighter gold for dark bg contrast */
+    --color-primary-dark: #C9A24B;    /* standard gold */
+    --color-primary-fg: #1A1814;      /* dark text on gold buttons */
+    --color-secondary: #E07830;       /* brighter amber */
+    --color-secondary-fg: #1A1814;
+    --color-accent: rgba(201, 162, 75, 0.18);
+    --color-accent-fg: #D4B45A;
+    --color-muted: #2A2825;
+    --color-muted-fg: #8A8274;
+
+    /* Priority semantics — brighter for dark bg */
+    --color-high: #E85D4A;
+    --color-high-bg: rgba(232, 93, 74, 0.14);
+    --color-high-border: rgba(232, 93, 74, 0.35);
+    --color-medium: #E8922E;
+    --color-medium-bg: rgba(232, 146, 46, 0.14);
+    --color-medium-border: rgba(232, 146, 46, 0.35);
+    --color-low: #5EA888;
+    --color-low-bg: rgba(94, 168, 136, 0.14);
+    --color-low-border: rgba(94, 168, 136, 0.35);
+
+    /* Status & role accents */
+    --color-success: #4EBA7A;
+    --color-success-bg: color-mix(in srgb, var(--color-success) 14%, transparent);
+    --color-success-border: color-mix(in srgb, var(--color-success) 35%, transparent);
+    --color-recording: var(--color-high);
+    --urgency-highest: #F87171;
+    --role-witness: #B07CC6;
+    --webcam-bg: #111110;
+
+    /* Elevation — subtle, dark-friendly */
+    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+    --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.3), 0 10px 28px -12px rgba(0, 0, 0, 0.4);
+    --shadow-panel: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+    --shadow-float: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+    --shadow-gold: 0 0 0 4px rgba(201, 162, 75, 0.25);
+    --focus-ring: 0 0 0 3px rgba(212, 180, 90, 0.35);
 }
 
 /* Skip link — first focusable element, for keyboard users */

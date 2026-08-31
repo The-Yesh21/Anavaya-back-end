@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Cipla_Limited_vs_Union_Of_India_on_1_January_1800.PDF</h2>
-  <p>The parties, Cipla Limited vs Union Of India, are involved in a legal dispute. The document indicates central excise, excise duty, collector of central excise, classification list, elt. This case is classified as Excise/Tax because the record matches central excise, excise duty, collector of central excise, classification list, elt. Under the Constitution of India, the primary rights engaged are Article 265, Article 14, Article 19(1)(g).</p>
+  <p>Cipla Limited, a pharmaceutical company, challenged the classification of a chemical intermediate (BMS) as excisable under the Central Excise Act. The company argued that BMS is not a marketable commodity and should not be taxed, while the Union of India maintained that BMS is an excisable product. The case involves the interpretation of the Central Excise Act and the marketability test for excise duty. The constitutional article engaged is Article 14, as the case deals with the State's power imbalance and discrimination in tax classification.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
