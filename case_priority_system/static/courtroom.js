@@ -88,10 +88,9 @@
         transcriptFeed: $("transcript-feed"),
         copyInviteBtn: $("copy-invite-btn"),
         downloadTranscriptBtn: $("download-transcript-btn"),
-        dictateBtn: $("dictate-btn"),
+        pushToTalkBtn: $("push-to-talk-btn"),
         dictateStatus: $("dictate-status"),
         remoteAudioHost: $("remote-audio-host"),
-        autoTranscribeBtn: $("auto-transcribe-btn"),
         asrStatus: $("asr-status"),
         toast: $("toast"),
     };
@@ -107,8 +106,7 @@
         els.statementForm.addEventListener("submit", onStatement);
         els.copyInviteBtn.addEventListener("click", copyInvite);
         els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
-        if (els.dictateBtn) els.dictateBtn.addEventListener("click", toggleDictate);
-        if (els.autoTranscribeBtn) els.autoTranscribeBtn.addEventListener("click", toggleAutoTranscribe);
+        if (els.pushToTalkBtn) initPushToTalk();
         els.joinName.focus();
     }
 
@@ -236,9 +234,6 @@
                 }
                 drainPendingOffers();
                 toast(`Joined as ${state.me.display_role}`);
-                // Kick off automatic speech transcription for this participant:
-                // speak → recorded → Ollama whisper → grammar-corrected → transcript.
-                startAutoTranscription();
                 break;
             }
             case "participant_joined": {
@@ -685,138 +680,161 @@
     }
 
     // ====================================================================
-    // DICTATION (speech-to-text + LLM cleanup)
     // ====================================================================
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let dictating = false;
-    let finalSpeech = ""; // accumulated final utterances of the current session
+    // PUSH-TO-TALK
+    // ====================================================================
+    // Press and hold the button to record; release to stop and submit.
+    // This eliminates overlapping speech — only the person holding the
+    // button can talk, keeping the trial transcript clean.
+    const ptt = {
+        recorder: null,
+        chunks: [],
+        recording: false,
+        stream: null,
+        startedAt: 0,
+        minMs: 300,  // ignore sub-300ms blips
+    };
 
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-IN";
+    function initPushToTalk() {
+        const btn = els.pushToTalkBtn;
+        if (!btn) return;
+        // Mouse
+        btn.addEventListener("mousedown", pttStart);
+        btn.addEventListener("mouseup", pttStop);
+        btn.addEventListener("mouseleave", pttStop);
+        // Touch (mobile)
+        btn.addEventListener("touchstart", (e) => { e.preventDefault(); pttStart(); });
+        btn.addEventListener("touchend", (e) => { e.preventDefault(); pttStop(); });
+        btn.addEventListener("touchcancel", pttStop);
+    }
 
-        recognition.onresult = (event) => {
-            let interim = "";
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const r = event.results[i];
-                if (r.isFinal) finalSpeech += (finalSpeech ? " " : "") + r[0].transcript;
-                else interim += r[0].transcript;
-            }
-            if (interim && els.dictateStatus) {
-                els.dictateStatus.textContent = `Listening… “${interim}”`;
-            }
-        };
-
-        recognition.onerror = (event) => {
-            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-                if (autoDictating) stopAutoDictation();
-                setDictating(false);
-                toast("Microphone access denied — allow the mic in your browser to dictate.");
-                if (els.dictateStatus) els.dictateStatus.textContent = "Microphone access denied. Type instead.";
-                setAsrStatus("Microphone access denied — automatic transcription is off.");
-            } else {
-                // Persistent recognition errors would otherwise loop (onend restarts).
-                if (autoDictating) stopAutoDictation();
-                setDictating(false);
-                if (els.dictateStatus) els.dictateStatus.textContent = `Speech error: ${event.error} — type instead.`;
-                if (autoT.usingFallback) {
-                    autoT.usingFallback = false;
-                    setAsrStatus(`Speech error: ${event.error} — automatic transcription is off.`);
-                }
-            }
-        };
-
-        recognition.onend = () => {
-            // Recognition stopped (manual or auto) — flush what was captured.
-            setDictating(false);
-            const captured = finalSpeech;
-            finalSpeech = "";
-            if (autoDictating) {
-                // Fallback auto mode: keep listening and auto-submit each utterance.
-                try { recognition.start(); } catch (_) {}
-                if (captured.trim()) autoSubmitSpoken(captured);
+    async function pttStart() {
+        if (ptt.recording) return;
+        const stream = await ensureLocalStream();
+        if (!stream || !stream.getAudioTracks().length) {
+            toast("Microphone unavailable — check browser permissions.");
+            return;
+        }
+        ptt.stream = stream;
+        ptt.chunks = [];
+        try {
+            ptt.recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        } catch (_) {
+            try { ptt.recorder = new MediaRecorder(stream); } catch (_) {
+                toast("Recording not supported in this browser.");
                 return;
             }
-            if (captured.trim()) {
-                if (els.dictateStatus) els.dictateStatus.textContent = "Correcting with Ollama LLM…";
-                correctAndInsert(captured);
-            } else if (els.dictateStatus) {
-                els.dictateStatus.textContent = "";
-            }
-        };
-    }
-
-    function setDictating(on) {
-        dictating = on;
-        if (!els.dictateBtn) return;
-        els.dictateBtn.classList.toggle("active", on);
-        els.dictateBtn.innerHTML = on
-            ? '<i data-lucide="mic-off"></i> Stop'
-            : '<i data-lucide="mic"></i> Dictate';
+        }
+        ptt.recorder.ondataavailable = (e) => { if (e.data && e.data.size) ptt.chunks.push(e.data); };
+        ptt.recorder.onstop = pttOnStopped;
+        ptt.recorder.start(250);
+        ptt.recording = true;
+        ptt.startedAt = Date.now();
+        els.pushToTalkBtn.classList.add("active");
+        els.pushToTalkBtn.innerHTML = '<i data-lucide="mic-off"></i> Recording…';
         lucide.createIcons();
-        if (on && els.dictateStatus) els.dictateStatus.textContent = "Listening… speak clearly.";
-        else if (!on && els.dictateStatus && !els.dictateStatus.textContent.startsWith("Correcting")) {
-            els.dictateStatus.textContent = "";
-        }
+        setAsrStatus("Recording — release to send.");
     }
 
-    function toggleDictate() {
-        if (!recognition) {
-            toast("Speech-to-text isn't supported in this browser — use Chrome.");
-            return;
-        }
-        if (dictating) {
-            try { recognition.stop(); } catch (_) {}
-            // onend flushes the captured speech into the input.
-            return;
-        }
-        // Manual dictation takes over from the automatic fallback mode.
-        if (autoDictating) stopAutoDictation();
-        finalSpeech = "";
-        try { recognition.start(); } catch (e) { /* already started */ }
-        setDictating(true);
+    function pttStop() {
+        if (!ptt.recording || !ptt.recorder) return;
+        ptt.recording = false;
+        try { ptt.recorder.stop(); } catch (_) {}
     }
 
-    async function correctAndInsert(raw) {
-        let text = raw.trim();
+    async function pttOnStopped() {
+        const chunks = ptt.chunks;
+        ptt.chunks = [];
+        const elapsed = Date.now() - ptt.startedAt;
+        els.pushToTalkBtn.classList.remove("active");
+        els.pushToTalkBtn.innerHTML = '<i data-lucide="mic"></i> Hold to Talk';
+        lucide.createIcons();
+
+        if (!chunks.length || elapsed < ptt.minMs) {
+            setAsrStatus("");
+            return;
+        }
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        setAsrStatus("Transcribing…");
         try {
-            const res = await fetch("/api/court/correct-transcript", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: raw }),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data && typeof data.corrected === "string" && data.corrected.trim()) {
-                    text = data.corrected.trim();
-                }
-            }
+            const wav = await blobToWav(blob);
+            await pttUpload(wav);
         } catch (e) {
-            console.warn("LLM correction failed, using raw transcript:", e);
+            console.warn("Push-to-talk transcription failed:", e);
+            toast("Transcription failed — try again.");
+        } finally {
+            setAsrStatus("");
         }
-        text = text.slice(0, 500); // match the input's maxlength
-        els.statementInput.value = text;
-        els.statementInput.focus();
-        const len = els.statementInput.value.length;
-        els.statementInput.setSelectionRange(len, len);
-        if (els.dictateStatus) els.dictateStatus.textContent = "Corrected — review and press Speak to submit.";
+    }
+
+    async function pttUpload(wavBlob) {
+        const fd = new FormData();
+        fd.append("room_id", ROOM_ID);
+        fd.append("participant_id", state.me.participant_id);
+        fd.append("audio", wavBlob, `ptt_${Date.now()}.wav`);
+        const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
+        if (!res.ok) {
+            let msg = `Transcription failed (${res.status})`;
+            try {
+                const d = await res.json();
+                if (d && d.detail) {
+                    msg = typeof d.detail === "object" ? (d.detail.message || msg) : d.detail;
+                }
+            } catch (_) {}
+            toast(msg);
+        }
+        // Server broadcasts the entry to the room via WebSocket — nothing else needed.
+    }
+
+    function setAsrStatus(text) {
+        if (!els.asrStatus) return;
+        if (text) {
+            els.asrStatus.textContent = text;
+            els.asrStatus.hidden = false;
+        } else {
+            els.asrStatus.textContent = "";
+            els.asrStatus.hidden = true;
+        }
     }
 
     // ====================================================================
-    // AUTO-TRANSCRIPTION (continuous: speak → record → Ollama → transcript)
-    //
-    // Every participant's client records ONLY its own mic. Speech segments
-    // (voice-activity detected) are converted to 16 kHz WAV and POSTed to
-    // /api/court/transcribe, where Ollama whisper transcribes them, the chat
-    // LLM fixes the grammar, and the corrected words are appended to the
-    // official transcript with the audio clip attached. The server attributes
-    // the entry to this participant, so every speaker ends up in the record.
-    // If whisper is unavailable the client falls back to the browser's own
-    // speech recognition (auto-submitting for the local speaker only).
+    // AUTO-TRANSCRIPTION (kept as fallback, disabled by default)
     // ====================================================================
+
+    class AsrUnavailableError extends Error {}
+
+    const autoT = {
+        enabled: false,      // user toggle (default off — push-to-talk is primary)
+        active: false,
+        usingFallback: false,
+        ctx: null,
+        src: null,
+        analyser: null,
+        timeData: null,
+        recorder: null,
+        recording: false,
+        chunks: [],
+        speechFrames: 0,
+        silenceFrames: 0,
+        segmentStartedAt: 0,
+        queue: Promise.resolve(),
+    };
+
+    function renderAutoToggle() {
+        // No-op — auto-transcribe button removed in favor of push-to-talk.
+    }
+
+    async function toggleAutoTranscribe() {
+        // Legacy no-op — push-to-talk is now the primary input.
+    }
+
+    async function startAutoTranscription() {
+        // Legacy no-op — push-to-talk is now the primary input.
+    }
+
+    function stopAutoTranscription() {
+        // Legacy no-op — push-to-talk is now the primary input.
+    }
 
     // Voice-activity detection tuning (RMS of the mic's time-domain data).
     const VAD_SPEECH_THRESHOLD = 0.02; // above this = speech energy
@@ -856,73 +874,19 @@
     }
 
     function renderAutoToggle() {
-        if (!els.autoTranscribeBtn) return;
-        els.autoTranscribeBtn.classList.toggle("active", autoT.enabled);
-        if (autoT.enabled) {
-            setAsrStatus(autoT.usingFallback
-                ? "Browser dictation active — your speech is added to the transcript automatically."
-                : "Listening… speak to add your words to the transcript.");
-        } else {
-            setAsrStatus("");
-        }
+        // No-op — auto-transcribe button removed in favor of push-to-talk.
     }
 
     async function toggleAutoTranscribe() {
-        autoT.enabled = !autoT.enabled;
-        renderAutoToggle();
-        if (autoT.enabled) {
-            await startAutoTranscription();
-        } else {
-            stopAutoTranscription();
-        }
+        // Legacy no-op — push-to-talk is now the primary input.
     }
 
     async function startAutoTranscription() {
-        if (!autoT.enabled) return;
-        if (autoT.usingFallback) { startAutoDictation(); return; }
-        if (autoT.active) return;
-
-        const stream = await ensureLocalStream();
-        if (!stream || !stream.getAudioTracks().length) {
-            setAsrStatus("Microphone unavailable — automatic transcription is off.");
-            return;
-        }
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            if (ctx.state === "suspended") ctx.resume().catch(() => {});
-            const src = ctx.createMediaStreamSource(stream);
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 1024;
-            src.connect(analyser);
-            autoT.ctx = ctx;
-            autoT.src = src;
-            autoT.analyser = analyser;
-            autoT.timeData = new Uint8Array(analyser.fftSize);
-            autoT.active = true;
-            setAsrStatus("Listening… speak to add your words to the transcript.");
-            vadTick();
-        } catch (e) {
-            console.warn("Could not start voice-activity detection:", e);
-            setAsrStatus("Automatic transcription unavailable.");
-        }
+        // Legacy no-op — push-to-talk is now the primary input.
     }
 
     function stopAutoTranscription() {
-        // Detach handlers first so a torn-down segment is never uploaded.
-        if (autoT.recorder) autoT.recorder.onstop = null;
-        autoT.active = false;
-        autoT.recording = false;
-        if (autoT.recorder && autoT.recorder.state !== "inactive") {
-            try { autoT.recorder.stop(); } catch (_) {}
-        }
-        autoT.recorder = null;
-        autoT.chunks = [];
-        if (autoT.src) { try { autoT.src.disconnect(); } catch (_) {} }
-        if (autoT.ctx) { try { autoT.ctx.close(); } catch (_) {} }
-        autoT.src = null;
-        autoT.analyser = null;
-        autoT.ctx = null;
-        stopAutoDictation();
+        // Legacy no-op — push-to-talk is now the primary input.
     }
 
     function computeRms(timeData) {

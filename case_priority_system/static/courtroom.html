@@ -126,8 +126,7 @@
                     </div>
                     <form id="statement-form" class="statement-form">
                         <input type="text" id="statement-input" placeholder="State your argument for the record…" maxlength="500" autocomplete="off">
-                        <button type="button" id="auto-transcribe-btn" class="auto-transcribe-btn active" title="Automatically transcribe your spoken words, correct them with the local Ollama LLM, and add them to the transcript"><i data-lucide="audio-lines"></i> Auto</button>
-                        <button type="button" id="dictate-btn" class="dictate-btn" title="Dictate one statement — speech is corrected by the local Ollama LLM and placed in the box for review"><i data-lucide="mic"></i> Dictate</button>
+                        <button type="button" id="push-to-talk-btn" class="push-to-talk-btn" title="Hold to record your statement — release to send to transcript"><i data-lucide="mic"></i> Hold to Talk</button>
                         <button type="submit" class="speak-btn"><i data-lucide="send"></i> Speak</button>
                     </form>
                     <p id="dictate-status" class="dictate-status" hidden></p>
