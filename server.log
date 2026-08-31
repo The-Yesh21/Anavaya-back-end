@@ -1,32 +1,21 @@
-INFO:     Started server process [23052]
+INFO:     Started server process [11748]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 Model data loaded successfully.
-INFO:     127.0.0.1:57473 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62651 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64762 - "GET /api/tree HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62651 - "GET /api/cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52703 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52704 - "POST /api/court/rooms HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52705 - "GET /api/court/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 52706) - "WebSocket /ws/court/FCD7" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:53270 - "GET /api/cases/State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF/decision-path HTTP/1.1" 200 OK
-INFO:     connection closed
-INFO:     127.0.0.1:54426 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:61296 - "GET /api/tree HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54426 - "GET /api/cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64823 - "GET /api/court/rooms HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64823 - "GET /api/cases/Sample_Medium_Priority_FIR.pdf/decision-path HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64823 - "GET /api/cases/Sample_Medium_Priority_FIR.pdf/decision-path HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59247 - "GET /api/court/rooms HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56179 - "GET /api/court/rooms HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56179 - "GET /api/court/rooms HTTP/1.1" 200 OK
-INFO:     127.0.0.1:65390 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:65390 - "GET /style.css HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:49404 - "GET /app.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:65390 - "GET /api/tree HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49404 - "GET /api/cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57025 - "GET /api/cases/State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF/decision-path HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54866 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54714 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54714 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54421 - "GET /case-workflow.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59173 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63126 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60386 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65358 - "GET /case-workflow.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60386 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63126 - "GET /api/case-registry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63126 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60386 - "GET /api/cases HTTP/1.1" 200 OK
+[Anavaya] LLM feature extraction disabled (auto-detect, model qwen2.5:3b). ANAVAYA_USE_LLM=0 forces the ~2s rule-based path.
+INFO:     127.0.0.1:65358 - "GET /api/gpu-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58349 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58351 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58352 - "GET /tokens.css HTTP/1.1" 200 OK

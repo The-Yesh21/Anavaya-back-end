@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Pooja_Exporters_vs_Assistant_Director_D_R_I_on_1_January_1800.PDF</h2>
-  <p>The parties, Pooja Exporters vs Assistant Director, D.R.I, are involved in a legal dispute. The document indicates customs, import, export, advance licence, d.r.i. This case is classified as Customs/Import-Export because the record matches customs, import, export, advance licence, d.r.i. Under the Constitution of India, the primary rights engaged are Article 14, Article 19(1)(g), Article 300A.</p>
+  <p>Pooja Exporters, a registered partnership firm, sought a writ of mandamus and prohibition against the Assistant Director, D.R.I. to release 51 bales of 100% mulberry raw silk seized by customs authorities. The petitioner argued that the seizure was illegal and in violation of their import licence, while the respondents contended that the petitioner had violated the actual user condition of the licence. The case falls under the Customs/Import-Export category as it involves customs seizure and import licence issues.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Customs/Import-Export</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>

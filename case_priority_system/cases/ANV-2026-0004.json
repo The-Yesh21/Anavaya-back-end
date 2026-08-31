@@ -1,0 +1,22 @@
+{
+  "case_id": "ANV-2026-0004",
+  "title": "Untitled Case ANV-2026-0004",
+  "created_at": "2026-08-29T01:32:57",
+  "created_by": "Officer",
+  "source": "AUTO_ID",
+  "documents": [
+    {
+      "doc_id": "d_143a5730",
+      "filename": "Sample_Medium_Priority_FIR.pdf",
+      "doc_type": "FIR",
+      "path": "case_priority_system/case_documents\\ANV-2026-0004\\d_143a5730_Sample_Medium_Priority_FIR.pdf",
+      "uploaded_at": "2026-08-29T01:34:11",
+      "analysis": {},
+      "priority": null,
+      "decision_report": ""
+    }
+  ],
+  "aggregate_priority": null,
+  "aggregate_rationale": "",
+  "sessions": []
+}

@@ -92,10 +92,10 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Sample_Medium_Priority_FIR.pdf</h2>
-  <p>The parties, Sample Medium Priority FIR, are involved in a legal dispute. The document indicates property, charge. This case is classified as Property/Land because the record matches property, charge. Under the Constitution of India, the primary rights engaged are Article 300A, Article 14, Article 21.</p>
+  <p>The complainant, Mr. Arun Kumar, reported that his backpack, laptop, and accessories were stolen from a parked motorcycle. The vehicle lock showed signs of forced entry. The case involves a property dispute and seeks relief under general civil laws. The case falls under the General Civil category as it deals with a theft and property damage, engaging Article 21 for the protection of personal property and safety.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Property/Land</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Property</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>
@@ -107,13 +107,11 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
-  N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
-  N1["Step 2: Severity<br/>Severity is one of: Fatal, Major, Minor<br/>Case: No Injury<br/>Answer: No"]:::decision
+  N0["Step 1: Severity<br/>Severity is one of: Fatal, Major<br/>Case: No Injury<br/>Answer: No"]:::decision
+  N1["Step 2: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
   N0 --> N1
-  N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
+  N2["Final Priority: Medium<br/>435 training samples reached this leaf"]:::leaf
   N1 --> N2
-  N3["Final Priority: Medium<br/>133 training samples reached this leaf"]:::leaf
-  N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
 ```
@@ -124,40 +122,32 @@ flowchart TD
 <div class="step-card">
   <div class="step-index">1</div>
   <div class="step-body">
-    <div class="step-title">Step 1: Victim</div>
-    <div class="step-condition">Victim score <= 0.0258</div>
-    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
+    <div class="step-title">Step 1: Severity</div>
+    <div class="step-condition">Severity is one of: Fatal, Major</div>
+    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">2</div>
   <div class="step-body">
-    <div class="step-title">Step 2: Severity</div>
-    <div class="step-condition">Severity is one of: Fatal, Major, Minor</div>
-    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
-  </div>
-</div>
-<div class="step-card">
-  <div class="step-index">3</div>
-  <div class="step-body">
-    <div class="step-title">Step 3: Influence / power imbalance</div>
+    <div class="step-title">Step 2: Influence / power imbalance</div>
     <div class="step-condition">Influence / power imbalance is one of: High</div>
     <div class="step-meta">Case value: <strong>High</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
-  <div class="step-index">4</div>
+  <div class="step-index">3</div>
   <div class="step-body">
     <div class="step-title">Final Priority: Medium</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>133 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>435 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Victim score <= 0.0258; case value = 0.0000; result = Yes -> Node 1: Severity is one of: Fatal, Major, Minor; case value = No Injury; result = No -> Node 3: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 4 => Predicted Priority = Medium
+Node 0: Severity is one of: Fatal, Major; case value = No Injury; result = No -> Node 4: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 5 => Predicted Priority = Medium
 
 ## Raw Graph
 

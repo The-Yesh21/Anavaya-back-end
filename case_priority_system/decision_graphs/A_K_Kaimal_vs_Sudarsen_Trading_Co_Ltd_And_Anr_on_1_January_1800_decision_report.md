@@ -3,8 +3,8 @@
 <style>
 .decision-hero {
   border: 1px solid #CBD5E1;
-  border-left: 8px solid #D97706;
-  background: linear-gradient(135deg, #FFFBEB, #FFFFFF);
+  border-left: 8px solid #059669;
+  background: linear-gradient(135deg, #ECFDF5, #FFFFFF);
   border-radius: 14px;
   padding: 18px 20px;
   margin: 12px 0 18px;
@@ -14,7 +14,7 @@
   display: inline-block;
   padding: 6px 12px;
   border-radius: 999px;
-  background: #D97706;
+  background: #059669;
   color: white;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -66,7 +66,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #D97706;
+  background: #059669;
   color: #FFFFFF;
   font-weight: 800;
 }
@@ -90,15 +90,15 @@
 </style>
 
 <div class="decision-hero">
-  <div class="priority-badge">Medium Priority</div>
+  <div class="priority-badge">Low Priority</div>
   <h2>A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800.PDF</h2>
-  <p>A.K. Kaimal vs Sudarsen Trading Co. Ltd. And Anr. Venkataswami, J. The appeal is directed against an order made by the District Judge at Mysore in Insolvency Case No. 4 of 1972, whereby the appellant's petition preferred under Section 7 of the InsolVENcy Act had been dismissed.</p>
+  <p>In this case, A.K. Kaimal sought to be adjudged as an insolvent due to his inability to pay two debts. The appellant, A.K. Kaimal, approached the court to be declared insolvent, as he could not pay two items of debts due to the respondents. The court dismissed the petition, as the appellant had received a sum of Rs. 6,000 to 7,000 as a retirement benefit and could not account for its use. The case falls under the Insolvency/Debt category as it deals with the debtor's inability to pay debts, engaging Article 14 of the Indian Constitution, which prohibits discrimination and ensures equal protection.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
-    <div class="metric"><span>Influence</span><strong>High</strong></div>
+    <div class="metric"><span>Influence</span><strong>Low</strong></div>
   </div>
 </div>
 
@@ -107,15 +107,21 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
-  N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
-  N1["Step 2: Severity<br/>Severity is one of: Fatal, Major, Minor<br/>Case: No Injury<br/>Answer: No"]:::decision
+  N0["Step 1: Severity<br/>Severity is one of: Fatal, Major<br/>Case: No Injury<br/>Answer: No"]:::decision
+  N1["Step 2: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: Low<br/>Answer: No"]:::decision
   N0 --> N1
-  N2["Step 3: Influence / power imbalance<br/>Influence / power imbalance is one of: High<br/>Case: High<br/>Answer: Yes"]:::decision
+  N2["Step 3: Severity<br/>Severity is one of: Fatal, Major, Minor<br/>Case: No Injury<br/>Answer: No"]:::decision
   N1 --> N2
-  N3["Final Priority: Medium<br/>133 training samples reached this leaf"]:::leaf
+  N3["Step 4: Vulnerability<br/>Vulnerability is one of: High<br/>Case: Low<br/>Answer: No"]:::decision
   N2 --> N3
+  N4["Step 5: Legal category<br/>Legal category is one of: Company/Winding Up, Constitutional/Writ, Criminal/Violent, Customs/Import-Export, Excise/Tax, General Civil<br/>Case: Excise/Tax<br/>Answer: Yes"]:::decision
+  N3 --> N4
+  N5["Step 6: Dispute Concerning<br/>Dispute Concerning score <= 0.2136<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
+  N4 --> N5
+  N6["Final Priority: Low<br/>845 training samples reached this leaf"]:::leaf
+  N5 --> N6
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
-  classDef leaf fill:#FEF3C7,stroke:#D97706,stroke-width:3px,color:#78350F;
+  classDef leaf fill:#D1FAE5,stroke:#059669,stroke-width:3px,color:#064E3B;
 ```
 
 ## Animated Step View
@@ -124,40 +130,64 @@ flowchart TD
 <div class="step-card">
   <div class="step-index">1</div>
   <div class="step-body">
-    <div class="step-title">Step 1: Victim</div>
-    <div class="step-condition">Victim score <= 0.0258</div>
-    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
+    <div class="step-title">Step 1: Severity</div>
+    <div class="step-condition">Severity is one of: Fatal, Major</div>
+    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">2</div>
   <div class="step-body">
-    <div class="step-title">Step 2: Severity</div>
-    <div class="step-condition">Severity is one of: Fatal, Major, Minor</div>
-    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
+    <div class="step-title">Step 2: Influence / power imbalance</div>
+    <div class="step-condition">Influence / power imbalance is one of: High</div>
+    <div class="step-meta">Case value: <strong>Low</strong> | Result: <strong>No</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">3</div>
   <div class="step-body">
-    <div class="step-title">Step 3: Influence / power imbalance</div>
-    <div class="step-condition">Influence / power imbalance is one of: High</div>
-    <div class="step-meta">Case value: <strong>High</strong> | Result: <strong>Yes</strong></div>
+    <div class="step-title">Step 3: Severity</div>
+    <div class="step-condition">Severity is one of: Fatal, Major, Minor</div>
+    <div class="step-meta">Case value: <strong>No Injury</strong> | Result: <strong>No</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">4</div>
   <div class="step-body">
-    <div class="step-title">Final Priority: Medium</div>
+    <div class="step-title">Step 4: Vulnerability</div>
+    <div class="step-condition">Vulnerability is one of: High</div>
+    <div class="step-meta">Case value: <strong>Low</strong> | Result: <strong>No</strong></div>
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-index">5</div>
+  <div class="step-body">
+    <div class="step-title">Step 5: Legal category</div>
+    <div class="step-condition">Legal category is one of: Company/Winding Up, Constitutional/Writ, Criminal/Violent, Customs/Import-Export, Excise/Tax, General Civil</div>
+    <div class="step-meta">Case value: <strong>Excise/Tax</strong> | Result: <strong>Yes</strong></div>
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-index">6</div>
+  <div class="step-body">
+    <div class="step-title">Step 6: Dispute Concerning</div>
+    <div class="step-condition">Dispute Concerning score <= 0.2136</div>
+    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-index">7</div>
+  <div class="step-body">
+    <div class="step-title">Final Priority: Low</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>133 training samples reached this leaf</strong> | Result: <strong>Medium</strong></div>
+    <div class="step-meta">Case value: <strong>845 training samples reached this leaf</strong> | Result: <strong>Low</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Victim score <= 0.0258; case value = 0.0000; result = Yes -> Node 1: Severity is one of: Fatal, Major, Minor; case value = No Injury; result = No -> Node 3: Influence / power imbalance is one of: High; case value = High; result = Yes -> Leaf node 4 => Predicted Priority = Medium
+Node 0: Severity is one of: Fatal, Major; case value = No Injury; result = No -> Node 4: Influence / power imbalance is one of: High; case value = Low; result = No -> Node 6: Severity is one of: Fatal, Major, Minor; case value = No Injury; result = No -> Node 8: Vulnerability is one of: High; case value = Low; result = No -> Node 10: Legal category is one of: Company/Winding Up, Constitutional/Writ, Criminal/Violent, Customs/Import-Export, Excise/Tax, General Civil; case value = Excise/Tax; result = Yes -> Node 11: Dispute Concerning score <= 0.2136; case value = 0.0000; result = Yes -> Leaf node 12 => Predicted Priority = Low
 
 ## Raw Graph
 

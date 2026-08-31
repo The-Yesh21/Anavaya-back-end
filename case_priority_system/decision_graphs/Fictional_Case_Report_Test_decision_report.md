@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>Fictional_Case_Report_Test.pdf</h2>
-  <p>The parties, Fictional Case Report Test, are involved in a legal dispute. The document indicates assault, weapon, victim, robbery. This case is classified as Criminal/Violent because the record matches assault, weapon, victim, robbery. Under the Constitution of India, the primary rights engaged are Article 21, Article 22, Article 20.</p>
+  <p>Emma Carter, a store manager, was seriously injured during an armed robbery at a convenience store. Two unidentified males, one armed with a handgun and the other with a metal crowbar, assaulted her and stole cash and merchandise. The victim was hospitalized in ICU. The case involves serious physical harm and the potential for permanent disability, engaging Article 21 of the Constitution of India.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
@@ -107,9 +107,11 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
-  N0["Step 1: Victim<br/>Victim score <= 0.0258<br/>Case: 0.2503<br/>Answer: No"]:::decision
-  N1["Final Priority: High<br/>430 training samples reached this leaf"]:::leaf
+  N0["Step 1: Severity<br/>Severity is one of: Fatal, Major<br/>Case: Major<br/>Answer: Yes"]:::decision
+  N1["Step 2: Shri<br/>Shri score <= 0.0720<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
   N0 --> N1
+  N2["Final Priority: High<br/>898 training samples reached this leaf"]:::leaf
+  N1 --> N2
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEE2E2,stroke:#DC2626,stroke-width:3px,color:#7F1D1D;
 ```
@@ -120,24 +122,32 @@ flowchart TD
 <div class="step-card">
   <div class="step-index">1</div>
   <div class="step-body">
-    <div class="step-title">Step 1: Victim</div>
-    <div class="step-condition">Victim score <= 0.0258</div>
-    <div class="step-meta">Case value: <strong>0.2503</strong> | Result: <strong>No</strong></div>
+    <div class="step-title">Step 1: Severity</div>
+    <div class="step-condition">Severity is one of: Fatal, Major</div>
+    <div class="step-meta">Case value: <strong>Major</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">2</div>
   <div class="step-body">
+    <div class="step-title">Step 2: Shri</div>
+    <div class="step-condition">Shri score <= 0.0720</div>
+    <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-index">3</div>
+  <div class="step-body">
     <div class="step-title">Final Priority: High</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>430 training samples reached this leaf</strong> | Result: <strong>High</strong></div>
+    <div class="step-meta">Case value: <strong>898 training samples reached this leaf</strong> | Result: <strong>High</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Victim score <= 0.0258; case value = 0.2503; result = No -> Leaf node 12 => Predicted Priority = High
+Node 0: Severity is one of: Fatal, Major; case value = Major; result = Yes -> Node 1: Shri score <= 0.0720; case value = 0.0000; result = Yes -> Leaf node 2 => Predicted Priority = High
 
 ## Raw Graph
 
