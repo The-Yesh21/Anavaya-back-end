@@ -100,7 +100,7 @@ body::before {
     justify-content: space-between;
     align-items: center;
     padding: 14px 28px;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: 99px; /* Floating pill */
     backdrop-filter: blur(12px);
@@ -275,7 +275,7 @@ body::before {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    background: rgba(246, 241, 230, 0.35); /* Soft Stone wash */
+    background: color-mix(in srgb, var(--bg-well) 35%, transparent);
 }
 
 .sidebar-header h2 {
@@ -288,7 +288,7 @@ body::before {
 .search-box input {
     width: 100%;
     padding: 12px 18px;
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: 99px; /* Pill input */
     color: var(--text-primary);
@@ -299,7 +299,7 @@ body::before {
 }
 
 .search-box input:focus {
-    background: #ffffff;
+    background: var(--bg-card);
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(168, 126, 47, 0.18);
 }
@@ -312,7 +312,7 @@ body::before {
 
 .filter-row select {
     width: 100%;
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: 99px; /* Pill selects */
     padding: 10px 16px;
@@ -331,7 +331,7 @@ body::before {
 }
 
 .filter-row select:focus {
-    background-color: #ffffff;
+    background-color: var(--bg-card);
     border-color: var(--color-primary);
 }
 
@@ -553,7 +553,7 @@ body::before {
 /* Tab Header Navigation Pill */
 .tab-header {
     display: flex;
-    background: rgba(246, 241, 230, 0.55); /* Soft Stone wash */
+    background: color-mix(in srgb, var(--bg-well) 55%, transparent);
     border: 1px solid var(--border-color);
     border-radius: 99px;
     padding: 4px;
@@ -732,7 +732,7 @@ body::before {
     font-size: 14.5px;
     color: var(--text-primary);
     line-height: 1.7;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     border: 1.5px solid var(--border-color);
     padding: 20px;
     border-radius: 1.8rem;
@@ -759,7 +759,7 @@ body::before {
 }
 
 .param-card {
-    background: rgba(246, 241, 230, 0.35); /* Stone tint background */
+    background: color-mix(in srgb, var(--bg-well) 35%, transparent);
     border: 1.5px solid var(--border-color);
     padding: 16px;
     display: flex;
@@ -775,7 +775,7 @@ body::before {
 .param-card:nth-child(4) { border-radius: 1.4rem 1.2rem 1.6rem 1.1rem; }
 
 .param-card:hover {
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--bg-card) 95%, transparent);
     border-color: var(--color-primary);
     transform: translateY(-3px) rotate(-1.5deg);
     box-shadow: var(--shadow-soft);
@@ -858,7 +858,7 @@ body::before {
     position: relative;
     overflow: hidden;
     border-radius: 1.2rem 1.6rem 1rem 1.4rem;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
 }
 
 .rights-card:hover {
@@ -868,12 +868,12 @@ body::before {
 
 .rights-card.primary {
     border-left: 5px solid var(--color-high);
-    background: linear-gradient(135deg, rgba(179, 64, 46, 0.05), rgba(255, 255, 255, 0.95));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-high) 5%, transparent), color-mix(in srgb, var(--bg-card) 95%, transparent));
 }
 
 .rights-card.secondary {
     border-left: 5px solid var(--color-primary);
-    background: linear-gradient(135deg, rgba(168, 126, 47, 0.05), rgba(255, 255, 255, 0.95));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--gold-600) 5%, transparent), color-mix(in srgb, var(--bg-card) 95%, transparent));
 }
 
 .rights-article-tag {
@@ -914,7 +914,7 @@ body::before {
     color: var(--text-secondary);
     line-height: 1.6;
     padding: 12px;
-    background: rgba(246, 241, 230, 0.35);
+    background: color-mix(in srgb, var(--bg-well) 35%, transparent);
     border-radius: 1.2rem;
 }
 
@@ -923,8 +923,8 @@ body::before {
     font-size: 14px;
     color: var(--text-primary);
     line-height: 1.8;
-    background: linear-gradient(135deg, rgba(201, 162, 75, 0.04), rgba(255, 255, 255, 0.95));
-    border: 1.5px solid rgba(201, 162, 75, 0.2);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--gold-600) 4%, transparent), color-mix(in srgb, var(--bg-card) 95%, transparent));
+    border: 1.5px solid var(--border-color-glow);
     padding: 22px;
     border-radius: 1.8rem;
     border-left: 6px solid var(--color-medium);
@@ -949,7 +949,7 @@ body::before {
     font-size: 14px;
     color: var(--text-primary);
     line-height: 1.8;
-    background: rgba(255, 255, 255, 0.9);
+    background: color-mix(in srgb, var(--bg-card) 90%, transparent);
     border: 1.5px solid var(--border-color);
     padding: 22px;
     border-radius: 1.8rem;
@@ -964,7 +964,7 @@ body::before {
     color: var(--text-primary);
     margin: 18px 0 10px;
     padding-bottom: 6px;
-    border-bottom: 1.5px solid rgba(80, 60, 20, 0.12);
+    border-bottom: 1.5px solid var(--border-color);
 }
 
 .constitutional-h4 {
@@ -1007,7 +1007,7 @@ body::before {
 
 .doctrine-card {
     padding: 16px;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: 1.4rem 1.2rem 1.1rem 1.5rem;
     display: flex;
@@ -1049,7 +1049,7 @@ body::before {
     color: var(--text-secondary);
     line-height: 1.6;
     padding: 12px;
-    background: rgba(246, 241, 230, 0.35);
+    background: color-mix(in srgb, var(--bg-well) 35%, transparent);
     border-radius: 1.2rem;
 }
 
@@ -1075,7 +1075,7 @@ body::before {
 
 .step-item {
     position: relative;
-    background: rgba(255, 255, 255, 0.4);
+    background: color-mix(in srgb, var(--bg-card) 40%, transparent);
     border: 1px solid var(--border-color);
     border-radius: 1.5rem 1.2rem / 1.2rem 1.5rem; /* Asymmetric soft stone border */
     padding: 14px 20px;
@@ -1087,7 +1087,7 @@ body::before {
 
 .step-item:hover {
     border-color: var(--color-primary);
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     transform: translateX(2px);
 }
 
@@ -1224,7 +1224,7 @@ body::before {
     width: 100%;
     height: calc(100% - 70px);
     min-height: 520px;
-    background: rgba(246, 241, 230, 0.4); /* Stone Tint */
+    background: color-mix(in srgb, var(--bg-well) 40%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: 2rem;
     overflow: hidden;
@@ -1234,7 +1234,7 @@ body::before {
     position: absolute;
     top: 16px;
     left: 16px;
-    background: rgba(255, 255, 255, 0.92);
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
     border: 1.5px solid var(--border-color-glow);
     padding: 8px 18px;
     border-radius: 99px;
@@ -1305,7 +1305,7 @@ body::before {
 /* D3 Tooltip */
 .tree-tooltip {
     position: absolute;
-    background: rgba(255, 255, 255, 0.96);
+    background: color-mix(in srgb, var(--bg-card) 96%, transparent);
     border: 1.5px solid var(--border-color);
     box-shadow: var(--shadow-float);
     border-radius: 1.2rem;
@@ -1386,7 +1386,7 @@ body::before {
     justify-content: center;
     gap: 20px;
     color: var(--text-muted);
-    background: rgba(246, 241, 230, 0.45);
+    background: color-mix(in srgb, var(--bg-well) 45%, transparent);
     backdrop-filter: blur(4px);
 }
 
@@ -1434,7 +1434,7 @@ body::before {
     font-size: 14px;
     border: 1.5px solid var(--border-color);
     border-radius: 99px; /* Pill buttons */
-    background: rgba(255, 255, 255, 0.75);
+    background: color-mix(in srgb, var(--bg-card) 75%, transparent);
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1450,7 +1450,7 @@ body::before {
 }
 
 .control-btn:hover:not(:disabled) {
-    background: #ffffff;
+    background: var(--bg-card);
     border-color: var(--color-primary);
     transform: translateY(-1px);
 }
@@ -1490,7 +1490,7 @@ body::before {
 }
 
 .overall-gauge-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--bg-card) 95%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: 2rem;
     padding: 24px;
@@ -1524,7 +1524,7 @@ body::before {
 
 .gauge-ring-bg {
     fill: none;
-    stroke: rgba(246, 241, 230, 0.6); /* Stone base */
+    stroke: color-mix(in srgb, var(--bg-well) 60%, transparent);
     stroke-width: 8px;
 }
 
@@ -1557,7 +1557,7 @@ body::before {
     color: var(--color-primary);
     padding: 6px 16px;
     border-radius: 99px;
-    background: rgba(168, 126, 47, 0.08);
+    background: color-mix(in srgb, var(--gold-600) 8%, transparent);
     border: 1px solid var(--color-low-border);
 }
 
@@ -1568,7 +1568,7 @@ body::before {
 }
 
 .metric-card {
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     border: 1.5px solid var(--border-color);
     padding: 16px;
     display: flex;
@@ -1607,7 +1607,7 @@ body::before {
 .metric-progress-bar {
     width: 100%;
     height: 6px;
-    background: rgba(246, 241, 230, 0.8);
+    background: color-mix(in srgb, var(--bg-well) 80%, transparent);
     border-radius: 99px;
     overflow: hidden;
     margin-top: 4px;
@@ -1624,7 +1624,7 @@ body::before {
 .calibration-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(251, 248, 241, 0.94);
+    background: color-mix(in srgb, var(--bg-app) 94%, transparent);
     backdrop-filter: blur(4px);
     display: flex;
     flex-direction: column;
@@ -1642,7 +1642,7 @@ body::before {
 }
 
 .session-summary-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--bg-card) 95%, transparent);
     border: 1.5px solid var(--border-color-glow);
     border-radius: 2rem;
     padding: 20px;
@@ -1714,7 +1714,7 @@ body::before {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(251, 248, 241, 0.85); /* Semi-transparent warm white */
+    background: color-mix(in srgb, var(--bg-app) 85%, transparent);
     backdrop-filter: blur(8px);
     z-index: 9999;
     display: flex;
@@ -1843,7 +1843,7 @@ body::before {
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(246, 241, 230, 0.4);
+    background: color-mix(in srgb, var(--bg-well) 40%, transparent);
     border-radius: 99px;
 }
 
@@ -2276,7 +2276,7 @@ body::before {
 
 /* Create-room card */
 .lobby-create-card {
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1.5px solid var(--border-color);
@@ -2397,7 +2397,7 @@ body::before {
 /* Room list card */
 .lobby-list-card {
     position: relative;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1.5px solid var(--border-color);
@@ -2552,7 +2552,7 @@ button, a, input, select {
 .skeleton-row {
     height: 88px;
     border-radius: var(--radius-card);
-    background: linear-gradient(100deg, rgba(246, 241, 230, 0.5) 30%, rgba(255, 255, 255, 0.95) 50%, rgba(246, 241, 230, 0.5) 70%);
+    background: linear-gradient(100deg, color-mix(in srgb, var(--bg-well) 50%, transparent) 30%, color-mix(in srgb, var(--bg-card) 95%, transparent) 50%, color-mix(in srgb, var(--bg-well) 50%, transparent) 70%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s infinite linear;
 }
@@ -2573,7 +2573,7 @@ button, a, input, select {
     height: 40px;
     border-radius: 50%;
     border: 1.5px solid var(--border-color);
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     color: var(--color-primary);
     cursor: pointer;
     transition: all 0.25s var(--ease-spring);
@@ -2594,7 +2594,7 @@ button, a, input, select {
     padding: 2px 6px;
     border-radius: 5px;
     border: 1px solid var(--border-color);
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
     color: var(--text-secondary);
     box-shadow: 0 1px 1px rgba(80, 60, 20, 0.1);
 }
@@ -2730,10 +2730,10 @@ button, a, input, select {
     transition: all 0.2s var(--ease-spring);
 }
 .triage-legend-item:hover {
-    background: rgba(246, 241, 230, 0.6);
+    background: color-mix(in srgb, var(--bg-well) 60%, transparent);
     border-color: var(--border-color);
 }
-.triage-legend-item.active { background: rgba(246, 241, 230, 0.9); }
+.triage-legend-item.active { background: color-mix(in srgb, var(--bg-well) 90%, transparent); }
 .triage-legend-item strong { margin-left: auto; font-family: var(--font-heading); font-size: 17px; color: var(--text-primary); }
 .legend-swatch {
     width: 10px;
@@ -2764,7 +2764,7 @@ button, a, input, select {
 .cat-bar-track {
     height: 7px;
     border-radius: var(--radius-pill);
-    background: rgba(246, 241, 230, 0.9);
+    background: color-mix(in srgb, var(--bg-well) 90%, transparent);
     overflow: hidden;
 }
 .cat-bar-fill {
@@ -2787,7 +2787,7 @@ button, a, input, select {
     transform: none;
     padding: 14px 16px;
     border-radius: var(--radius-card);
-    background: rgba(255, 255, 255, 0.8);
+    background: color-mix(in srgb, var(--bg-card) 80%, transparent);
     border: 1.5px solid var(--border-color);
     box-shadow: 0 2px 6px rgba(80, 60, 20, 0.03);
     display: flex;
@@ -2801,13 +2801,13 @@ button, a, input, select {
 .case-item:hover {
     height: auto;
     transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.98);
-    border-color: rgba(168, 126, 47, 0.55);
+    background: color-mix(in srgb, var(--bg-card) 98%, transparent);
+    border-color: var(--border-color-glow);
     box-shadow: var(--shadow-card);
 }
 .case-item.active {
     height: auto;
-    background: rgba(168, 126, 47, 0.07);
+    background: color-mix(in srgb, var(--gold-600) 7%, transparent);
     border-color: var(--color-primary);
     border-width: 1.5px;
     box-shadow: var(--shadow-card);
@@ -2901,7 +2901,7 @@ button, a, input, select {
     padding: 10px 16px;
     min-width: 130px;
     flex: 1 1 auto;
-    background: rgba(246, 241, 230, 0.45);
+    background: color-mix(in srgb, var(--bg-well) 45%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-card);
 }
@@ -2927,7 +2927,7 @@ button, a, input, select {
     justify-content: space-between;
     gap: 8px;
     padding: 12px 16px;
-    background: rgba(246, 241, 230, 0.55);
+    background: color-mix(in srgb, var(--bg-well) 55%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-card);
     font-family: var(--font-heading);
@@ -2941,7 +2941,7 @@ button, a, input, select {
 }
 .collapsible-toggle:hover {
     border-color: var(--color-primary);
-    background: rgba(246, 241, 230, 0.85);
+    background: color-mix(in srgb, var(--bg-well) 85%, transparent);
 }
 .collapsible-toggle .collapse-chevron {
     transition: transform 0.3s var(--ease-spring);
@@ -2971,7 +2971,7 @@ button, a, input, select {
     padding: 8px 12px;
     border-radius: var(--radius-pill);
     border: 1.5px solid var(--border-color);
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     color: var(--text-secondary);
     font-family: var(--font-body);
     font-size: 12.5px;
@@ -2993,7 +2993,7 @@ button, a, input, select {
 
 .path-trace-wrap {
     margin-bottom: var(--space-5);
-    background: rgba(246, 241, 230, 0.4);
+    background: color-mix(in srgb, var(--bg-well) 40%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-card);
     padding: 12px 16px;
@@ -3033,7 +3033,7 @@ button, a, input, select {
     gap: 6px;
     margin: 10px 0 12px;
     padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     border: 1px dashed var(--border-color);
     border-radius: var(--radius-card);
     font-size: 12px;
@@ -3072,7 +3072,7 @@ button, a, input, select {
 .tree-node-panel {
     width: 280px;
     flex-shrink: 0;
-    background: rgba(246, 241, 230, 0.4);
+    background: color-mix(in srgb, var(--bg-well) 40%, transparent);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-card);
     padding: var(--space-4);

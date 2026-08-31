@@ -8,12 +8,16 @@ import subprocess
 import tempfile
 import traceback
 import uuid
+import asyncio
+import logging
 from datetime import datetime
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+
+logger = logging.getLogger(__name__)
 
 # Paths
 EXCEL_PATH = 'case_priority_system/case_results.xlsx'
@@ -40,6 +44,55 @@ if os.path.exists(MODEL_PATH):
         print(f"Error loading model data: {e}")
 else:
     print(f"Model file not found at {MODEL_PATH}")
+
+# Determine LAN IP for mobile access on same WiFi
+def get_lan_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+LAN_IP = get_lan_ip()
+print(f"\n{'='*60}")
+print(f"Anavaya Dashboard is running!")
+print(f"Local:   http://127.0.0.1:8000")
+print(f"Mobile:  http://{LAN_IP}:8000  (same WiFi)")
+print(f"{'='*60}\n")
+
+# =====================================================================
+# STARTUP EVENT: Pre-warm Ollama model in background
+# =====================================================================
+@app.on_event("startup")
+async def startup_event():
+    """Pre-warm Ollama model in background on server startup."""
+    if preload_ollama_model is not None:
+        logger.info("Server starting: Triggering background Ollama model pre-warm...")
+        asyncio.create_task(asyncio.to_thread(preload_ollama_model))
+
+# =====================================================================
+# NEW ENDPOINTS: Ollama warmup & Network info
+# =====================================================================
+@app.post("/api/ollama/warmup")
+async def warmup_ollama_endpoint():
+    """Manually trigger Ollama model pre-warm."""
+    if preload_ollama_model is None:
+        return {"status": "unavailable", "preloaded": False, "reason": "preload_ollama_model not imported"}
+    success = await asyncio.to_thread(preload_ollama_model)
+    return {"status": "ok" if success else "unavailable", "preloaded": success}
+
+@app.get("/api/network-info")
+async def get_network_info():
+    """Return LAN IP and base URL for invite links."""
+    lan_ip = get_lan_ip()
+    return {
+        "lan_ip": lan_ip,
+        "port": 8000,
+        "base_url": f"http://{lan_ip}:8000"
+    }
 
 # Import comprehensive constitutional analysis module
 try:
@@ -98,6 +151,16 @@ except ImportError:
         transcribe_audio = None
         whisper_available = None
         print("Warning: courtroom_asr module not found. Spoken statements will not be transcribed.")
+
+# Import Ollama model pre-warming function
+try:
+    from case_priority_system.scripts.inference_pipeline import preload_ollama_model
+except ImportError:
+    try:
+        from scripts.inference_pipeline import preload_ollama_model  # type: ignore
+    except ImportError:
+        preload_ollama_model = None
+        print("Warning: preload_ollama_model not found. Ollama warmup will be unavailable.")
 
 
 def display_feature_name(feature_name):
@@ -252,7 +315,11 @@ async def upload_case(file: UploadFile = File(...)):
                 build_decision_path_graph,
                 llm_extraction_enabled,
             )
-            
+
+        # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
+        if preload_ollama_model is not None:
+            asyncio.create_task(asyncio.to_thread(preload_ollama_model))
+
         # 1. Extract text
         text = extract_text_from_pdf(temp_pdf_path)
         if not text.strip():
@@ -748,6 +815,10 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
 @app.post("/api/cases/{case_id}/analyze")
 def analyze_case(case_id: str):
     """Analyse every unanalysed document and refresh the aggregate priority."""
+    # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
+    if preload_ollama_model is not None:
+        asyncio.create_task(asyncio.to_thread(preload_ollama_model))
+
     case = _get_case_or_404(case_id)
     errors = []
     for doc in list(case.documents):
@@ -1099,7 +1170,16 @@ def create_courtroom(payload: dict):
     if not case_title:
         raise HTTPException(status_code=400, detail="case_title is required.")
     room = courtroom_manager.create_room(case_title=case_title, created_by=created_by)
-    return room.to_dict()
+    # Include LAN IP and invite URL for cross-device access
+    lan_ip = _detect_lan_ip()
+    lan_invite_url = f"http://{lan_ip}:8000/court/{room.room_id}"
+    result = room.to_dict()
+    result.update({
+        "lan_ip": lan_ip,
+        "invite_url": lan_invite_url,
+        "lan_invite_url": lan_invite_url
+    })
+    return result
 
 
 @app.get("/api/court/rooms")
@@ -1118,7 +1198,16 @@ def get_courtroom(room_id: str):
     room = courtroom_manager.get_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found.")
-    return room.public_state()
+    result = room.public_state()
+    # Include LAN IP and invite URL for cross-device access
+    lan_ip = _detect_lan_ip()
+    lan_invite_url = f"http://{lan_ip}:8000/court/{room.room_id}"
+    result.update({
+        "lan_ip": lan_ip,
+        "invite_url": lan_invite_url,
+        "lan_invite_url": lan_invite_url
+    })
+    return result
 
 
 @app.get("/api/court/rooms/{room_id}/transcript")

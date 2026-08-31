@@ -124,6 +124,23 @@ def _ollama_reachable() -> bool:
         return False
 
 
+def preload_ollama_model(model: str = None, host: str = None, keep_alive: str = "1h") -> bool:
+    """Pre-load Ollama model weights into GPU VRAM to eliminate cold-start latency."""
+    if model is None:
+        model = OLLAMA_MODEL
+    if host is None:
+        host = OLLAMA_URL
+    if not _ollama_reachable():
+        return False
+    try:
+        # Sending prompt="" with keep_alive triggers model load into VRAM immediately
+        payload = {"model": model, "prompt": "", "keep_alive": keep_alive}
+        r = requests.post(f"{host.rstrip('/')}/api/generate", json=payload, timeout=5)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 def llm_extraction_enabled() -> bool:
     """Whether LLM (Ollama) feature extraction should be used.
 
