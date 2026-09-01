@@ -266,24 +266,33 @@ def safe_transform_encoder(encoders, key, value, default=0):
 
 @app.post("/api/upload")
 async def upload_case(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+    # Accept PDFs and images (JPG, PNG, WEBP, BMP, TIFF).
+    _ALLOWED_EXTS = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff")
+    _IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff")
+    lower_name = (file.filename or "").lower()
+    if not any(lower_name.endswith(ext) for ext in _ALLOWED_EXTS):
+        raise HTTPException(status_code=400,
+                            detail="Only PDF and image files are supported (PDF, JPG, PNG, WEBP).")
+    is_image = any(lower_name.endswith(ext) for ext in _IMAGE_EXTS)
     
     # Validate the filename BEFORE touching the filesystem (path traversal /
     # script-injection guard). os.path.basename blocks directory escape.
     filename = os.path.basename(file.filename or "upload.pdf")
-    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", filename, re.IGNORECASE):
-        raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf only.")
+    safe_ext = ".pdf" if not is_image else os.path.splitext(filename)[1]
+    safe_ext_esc = re.escape(safe_ext)
+    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+" + safe_ext_esc, filename, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf/.jpg/.png only.")
     # Save the upload to the OS temp dir (never the repo root), so a filename
     # collision can never overwrite or delete an existing project file.
-    fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", prefix="anavaya_upload_")
+    suffix = safe_ext
+    fd, temp_path = tempfile.mkstemp(suffix=suffix, prefix="anavaya_upload_")
     os.close(fd)
     try:
-        with open(temp_pdf_path, "wb") as buffer:
+        with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         try:
-            os.remove(temp_pdf_path)
+            os.remove(temp_path)
         except Exception:
             pass
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
@@ -320,8 +329,15 @@ async def upload_case(file: UploadFile = File(...)):
         if preload_ollama_model is not None:
             asyncio.create_task(asyncio.to_thread(preload_ollama_model))
 
-        # 1. Extract text
-        text = extract_text_from_pdf(temp_pdf_path)
+        # 1. Extract text (PDF via PyMuPDF, images via EasyOCR)
+        if is_image:
+            try:
+                from case_priority_system.scripts.image_ocr import extract_text_from_image
+            except ImportError:
+                from scripts.image_ocr import extract_text_from_image  # type: ignore
+            text = extract_text_from_image(temp_path)
+        else:
+            text = extract_text_from_pdf(temp_path)
         if not text.strip():
             raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
 
@@ -417,7 +433,7 @@ async def upload_case(file: UploadFile = File(...)):
         new_case['Document_Type'] = 'Single Upload'
         if case_manager is not None:
             try:
-                with open(temp_pdf_path, 'rb') as fh:
+                with open(temp_path, 'rb') as fh:
                     reg_case = case_manager.create_case(title=filename, created_by='', source='AUTO_ID')
                     reg_doc = case_manager.add_document(reg_case.case_id, fh, doc_type='FIR', filename=filename)
                 case_manager.attach_analysis(
@@ -448,18 +464,18 @@ async def upload_case(file: UploadFile = File(...)):
         excel_df.to_excel(EXCEL_PATH, index=False)
 
         # Clean up the uploaded temp file (keep the repo root tidy)
-        if os.path.exists(temp_pdf_path):
+        if os.path.exists(temp_path):
             try:
-                os.remove(temp_pdf_path)
+                os.remove(temp_path)
             except Exception:
                 pass
 
         return new_case
         
     except Exception as e:
-        if os.path.exists(temp_pdf_path):
+        if os.path.exists(temp_path):
             try:
-                os.remove(temp_pdf_path)
+                os.remove(temp_path)
             except Exception:
                 pass
         raise HTTPException(status_code=500, detail=f"Error analyzing case document: {str(e)}")
@@ -776,8 +792,9 @@ async def create_case(case_title: str = Form(""), created_by: str = Form(""),
     if case_manager is None:
         raise HTTPException(status_code=503, detail="Case manager not available.")
     fir_name = os.path.basename(fir_file.filename) if fir_file and fir_file.filename else ""
-    if fir_name and not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", fir_name, re.IGNORECASE):
-        raise HTTPException(status_code=400, detail="Invalid FIR file name. Use letters, numbers, spaces, dashes and .pdf only.")
+    _FIR_EXTS = ('.pdf', '.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff')
+    if fir_name and not any(fir_name.lower().endswith(ext) for ext in _FIR_EXTS):
+        raise HTTPException(status_code=400, detail="FIR must be a PDF or image file (PDF, JPG, PNG, WEBP).")
     source = "FIR_UPLOADED" if fir_name else "AUTO_ID"
     # No title typed? Name the case after the FIR document so the officer
     # only ever has to give the case a name OR drop in the FIR.
@@ -798,11 +815,13 @@ async def create_case(case_title: str = Form(""), created_by: str = Form(""),
 @app.post("/api/cases/{case_id}/documents")
 async def add_case_document(case_id: str, file: UploadFile = File(...),
                             doc_type: str = Form("Other")):
-    """Attach an evidence document (FIR, report, statement, ...) to a case."""
+    """Attach an evidence document (FIR, report, statement, photo, ...) to a case."""
     _get_case_or_404(case_id)
+    _ALLOWED_DOC_EXTS = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff")
     filename = os.path.basename(file.filename or "document.pdf")
-    if not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", filename, re.IGNORECASE):
-        raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf only.")
+    lower = filename.lower()
+    if not any(lower.endswith(ext) for ext in _ALLOWED_DOC_EXTS):
+        raise HTTPException(status_code=400, detail="Only PDF and image files are supported (PDF, JPG, PNG, WEBP).")
     try:
         doc = case_manager.add_document(case_id, file.file, doc_type=doc_type, filename=filename)
     except ValueError as e:
@@ -813,7 +832,7 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
 
 
 @app.post("/api/cases/{case_id}/analyze")
-def analyze_case(case_id: str):
+async def analyze_case(case_id: str):
     """Analyse every unanalysed document and refresh the aggregate priority."""
     # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
     if preload_ollama_model is not None:

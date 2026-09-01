@@ -265,9 +265,22 @@ class CaseManager:
             get_comprehensive_constitutional_analysis,
         )
 
-        text = extract_text_from_pdf(doc.path)
+        # Extract text: PDFs via PyMuPDF, images via EasyOCR.
+        _IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff')
+        if doc.filename.lower().endswith(_IMAGE_EXTS):
+            try:
+                from case_priority_system.scripts.image_ocr import extract_text_from_image
+            except ImportError:
+                from scripts.image_ocr import extract_text_from_image  # type: ignore
+            text = extract_text_from_image(doc.path)
+        else:
+            text = extract_text_from_pdf(doc.path)
         if not text.strip():
-            raise ValueError(f"'{doc.filename}' contains no extractable text. Please upload a searchable PDF.")
+            raise ValueError(
+                f"'{doc.filename}' contains no extractable text. "
+                "For images, make sure the text is clearly visible. "
+                "For PDFs, ensure it is a searchable (not scanned) document."
+            )
 
         # Same GPU/LLM mode as the web upload path: when an NVIDIA GPU is
         # present (or ANAVAYA_USE_LLM=1), extract features with the local

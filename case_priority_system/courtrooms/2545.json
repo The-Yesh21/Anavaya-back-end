@@ -1,0 +1,42 @@
+{
+  "room_id": "2545",
+  "case_title": "State",
+  "created_at": "2026-09-01T11:59:43",
+  "created_by": "Host",
+  "phase": "Opening",
+  "participants": [],
+  "transcript": [
+    {
+      "timestamp": "2026-09-01T11:59:43",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'State' opened by Host.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-09-01T11:59:50",
+      "actor": "Yesh",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Yesh (Presiding Judge) joined the court.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-09-01T12:01:17",
+      "actor": "Yesh",
+      "role": "Presiding Judge",
+      "kind": "statement",
+      "text": "So my name is Ishwant and I will be acting as the judge for this session and I need to make sure everything has been contained in a very well organized document and nothing should be said while the recording button has been untouched. Thank you.",
+      "audio_file": "20260901_120054_p_7d947ec6_479290.wav"
+    },
+    {
+      "timestamp": "2026-09-01T12:01:17",
+      "actor": "Yesh",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Yesh (Presiding Judge) left the court.",
+      "audio_file": ""
+    }
+  ]
+}

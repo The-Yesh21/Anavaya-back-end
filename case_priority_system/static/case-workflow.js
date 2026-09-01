@@ -314,8 +314,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function addWsFile(file) {
-        if (!file.name.toLowerCase().endsWith(".pdf")) {
-            alert(`Only PDF files are supported (${file.name}).`);
+        const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+        const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        if (!allowedExts.includes(fileExt)) {
+            alert(`Only PDF and image files are supported (${file.name}).\n\nImages will be OCR-processed to extract text.`);
             return;
         }
         wsPending.push({ file, type: $("workspace-doc-type").value });
@@ -390,8 +392,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.detail || "Analysis failed");
             }
+            const data = await res.json();
             await openCaseWorkspace(currentWorkspaceCaseId);
             fetchRegistry();
+            // Show per-document analysis errors (e.g. unreadable images).
+            if (data.analysis_errors && data.analysis_errors.length) {
+                const msg = data.analysis_errors.join("\n");
+                alert("Some documents could not be analyzed:\n\n" + msg);
+            }
         } catch (err) {
             alert("Analysis failed: " + err.message);
         } finally {
