@@ -392,8 +392,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.detail || "Analysis failed");
             }
+            const data = await res.json();
             await openCaseWorkspace(currentWorkspaceCaseId);
             fetchRegistry();
+            // Show per-document analysis errors (e.g. unreadable images).
+            if (data.analysis_errors && data.analysis_errors.length) {
+                const msg = data.analysis_errors.join("\n");
+                alert("Some documents could not be analyzed:\n\n" + msg);
+            }
         } catch (err) {
             alert("Analysis failed: " + err.message);
         } finally {
