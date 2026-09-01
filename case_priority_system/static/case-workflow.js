@@ -314,8 +314,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function addWsFile(file) {
-        if (!file.name.toLowerCase().endsWith(".pdf")) {
-            alert(`Only PDF files are supported (${file.name}).`);
+        const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+        const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        if (!allowedExts.includes(fileExt)) {
+            alert(`Only PDF and image files are supported (${file.name}).\n\nImages will be OCR-processed to extract text.`);
             return;
         }
         wsPending.push({ file, type: $("workspace-doc-type").value });

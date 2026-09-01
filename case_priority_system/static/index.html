@@ -175,9 +175,9 @@
                             <i data-lucide="folder-plus"></i> Create New Case
                         </button>
                         <label for="pdf-file-input" class="upload-btn">
-                            <i data-lucide="upload"></i> Upload Case PDF
+                            <i data-lucide="upload"></i> Upload Case Document
                         </label>
-                        <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
+                        <input type="file" id="pdf-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display: none;">
                         <p class="upload-hint">Create a case to attach multiple documents (FIR, reports…), then run lie-detection fact-checking against them.</p>
                     </div>
                 </div>
@@ -245,9 +245,9 @@
                                     </div>
                                     <div class="wizard-dropzone" id="workspace-doc-drop">
                                         <i data-lucide="file-plus-2"></i>
-                                        <p>Drop PDF files here or click to browse</p>
+                                        <p>Drop PDF or image files here or click to browse</p>
                                     </div>
-                                    <input type="file" id="workspace-doc-input" accept=".pdf" multiple style="display:none;">
+                                    <input type="file" id="workspace-doc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple style="display:none;">
                                     <label class="lobby-field">
                                         <span>Document type</span>
                                         <select id="workspace-doc-type">
@@ -571,7 +571,7 @@
                 </label>
                 <label class="lobby-field">
                     <span>FIR report (optional — the case is named after it when no name is given)</span>
-                    <input type="file" id="wizard-fir-input" accept=".pdf">
+                    <input type="file" id="wizard-fir-input" accept=".pdf,.jpg,.jpeg,.png,.webp">
                 </label>
                 <button class="lobby-create-btn" id="wizard-create-btn"><i data-lucide="folder-plus"></i> Create &amp; Open Case</button>
             </div>

@@ -487,8 +487,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!file.name.toLowerCase().endsWith(".pdf")) {
-            alert("Please upload a PDF file only.");
+        const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+        const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        if (!allowedExts.includes(fileExt)) {
+            alert("Please upload a PDF or image file (PDF, JPG, PNG, WEBP).\n\nImages will be OCR-processed to extract text.");
             fileInput.value = "";
             return;
         }
