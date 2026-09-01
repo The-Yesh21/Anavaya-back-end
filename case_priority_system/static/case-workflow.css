@@ -417,6 +417,21 @@
 }
 .ws-doc-download:hover { color: var(--color-primary); border-color: var(--color-primary); }
 .ws-doc-download svg { width: 13px; height: 13px; }
+.ws-doc-delete {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 99px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.ws-doc-delete:hover { color: var(--color-high); border-color: var(--color-high); background: var(--color-high-bg); }
+.ws-doc-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+.ws-doc-delete svg { width: 13px; height: 13px; }
 
 /* ---- Chakshu session transcript ---- */
 .session-transcript { margin-top: 24px; }

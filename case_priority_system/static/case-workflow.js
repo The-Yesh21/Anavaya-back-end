@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
             docListEl.innerHTML = `<div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>`;
         } else {
             docListEl.innerHTML = docs.map((d) => `
-                <div class="ws-doc-item ${d.priority ? "" : "pending"}">
+                <div class="ws-doc-item ${d.priority ? "" : "pending"}" data-doc-id="${esc(d.doc_id)}">
                     <div class="ws-doc-main">
                         <i data-lucide="file-text"></i>
                         <div class="ws-doc-info">
@@ -285,8 +285,35 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div class="ws-doc-side">
                         ${d.priority ? prioBadge(d.priority) : `<span class="ws-doc-pending">Analysis pending</span>`}
                         <a class="ws-doc-download" href="/api/cases/${encodeURIComponent(c.case_id)}/documents/${encodeURIComponent(d.doc_id)}/download" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
+                        <button class="ws-doc-delete" data-doc-id="${esc(d.doc_id)}" data-filename="${esc(d.filename)}" title="Delete ${esc(d.filename)}"><i data-lucide="trash-2"></i></button>
                     </div>
                 </div>`).join("");
+        // Attach delete handlers.
+        docListEl.querySelectorAll(".ws-doc-delete").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const did = btn.getAttribute("data-doc-id");
+                const fname = btn.getAttribute("data-filename");
+                if (!confirm(`Remove "${fname}" from this case? The case priority will be recalculated.`)) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(did)}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || "Delete failed");
+                    }
+                    // Refresh workspace to show updated doc list + recalculated priority.
+                    await openCaseWorkspace(caseId);
+                    fetchRegistry();
+                } catch (err) {
+                    alert("Failed to delete document: " + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="trash-2"></i>';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }
+            });
+        });
         }
         if (typeof lucide !== "undefined") lucide.createIcons();
     }

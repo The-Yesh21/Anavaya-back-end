@@ -942,6 +942,23 @@ def download_case_document(case_id: str, doc_id: str):
                         filename=os.path.basename(doc.filename))
 
 
+@app.delete("/api/cases/{case_id}/documents/{doc_id}")
+def delete_case_document(case_id: str, doc_id: str):
+    """Remove an evidence document from a case and recompute aggregate priority."""
+    try:
+        removed = case_manager.delete_document(case_id, doc_id)
+    except ValueError as e:
+        msg = str(e)
+        status = 404 if "not found" in msg else 400
+        raise HTTPException(status_code=status, detail=msg)
+    # Recompute aggregate from the remaining documents.
+    case = case_manager.get_case(case_id)
+    if case is not None:
+        case_manager.refresh_aggregate(case)
+        _append_case_documents_to_excel(case, case_id)
+    return {"deleted": doc_id, "filename": removed.filename, **case.to_dict()} if case else {"deleted": doc_id, "filename": removed.filename}
+
+
 @app.post("/api/cases/{case_id}/sessions")
 def save_case_session(case_id: str, payload: dict):
     """Save a completed Chakshu session (physio summary + transcript)."""
