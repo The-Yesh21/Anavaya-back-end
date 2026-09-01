@@ -1,9 +1,7 @@
-INFO:     Started server process [2484]
+INFO:     Started server process [10376]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8000): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 Model data loaded successfully.
 
 ============================================================
@@ -12,3 +10,5 @@ Local:   http://127.0.0.1:8000
 Mobile:  http://192.168.1.50:8000  (same WiFi)
 ============================================================
 
+[Anavaya] LLM feature extraction disabled (auto-detect, model qwen2.5:3b). ANAVAYA_USE_LLM=0 forces the ~2s rule-based path.
+INFO:     127.0.0.1:62554 - "GET /api/gpu-status HTTP/1.1" 200 OK
