@@ -298,13 +298,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
                 if (typeof lucide !== "undefined") lucide.createIcons();
                 try {
-                    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(did)}`, { method: "DELETE" });
+                    const res = await fetch(`/api/cases/${encodeURIComponent(c.case_id)}/documents/${encodeURIComponent(did)}`, { method: "DELETE" });
                     if (!res.ok) {
                         const err = await res.json().catch(() => ({}));
                         throw new Error(err.detail || "Delete failed");
                     }
                     // Refresh workspace to show updated doc list + recalculated priority.
-                    await openCaseWorkspace(caseId);
+                    await openCaseWorkspace(c.case_id);
                     fetchRegistry();
                 } catch (err) {
                     alert("Failed to delete document: " + err.message);
