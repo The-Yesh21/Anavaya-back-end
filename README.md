@@ -6,13 +6,24 @@ An AI-powered advisory system designed to assist judicial authorities in priorit
 
 ## 🚀 Getting Started
 
-To launch the system and inspect the court priority classifications:
+To launch the full system — landing page + dashboard — run **three** processes in separate terminals:
 
-### 1. Start the FastAPI Web Dashboard
-Run this command from the root directory:
+### 1. Start Ollama (GPU-accelerated LLM)
+
+```powershell
+ollama serve
+```
+> Required for GPU-powered case analysis. The model `qwen2.5:3b` is pulled automatically
+> on first use. Skip this step if you only need the rule-based (CPU) extraction.
+
+### 2. Start the FastAPI Backend (Dashboard)
+
+Run from the project root:
+
 ```powershell
 python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
 ```
+
 > **Why `--host 0.0.0.0`?** The Live Courtroom invite links are shared with other
 > devices (phones/laptops) on the same network. Binding to `0.0.0.0` (instead of
 > `127.0.0.1`) lets them reach this machine — the invite link is built with the
@@ -27,7 +38,38 @@ python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-p
 > GPU-accelerated LLM feature extraction via local Ollama (`qwen2.5:3b`). Force off/on with
 > `ANAVAYA_USE_LLM=0` / `1`. Verify the GPU is in use with `ollama ps` (should show `100% GPU`).
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your web browser to explore:
+### 3. Start the Landing Page (React/Vite)
+
+First-time setup:
+
+```powershell
+npm install
+```
+
+Then start the dev server:
+
+```powershell
+npm run dev
+```
+
+The landing page opens at [http://localhost:8081](http://localhost:8081). Click **"Try Anavaya Now →"** to navigate to the dashboard.
+
+### Quick Start (all at once)
+
+```powershell
+# Terminal 1 — Ollama (GPU)
+ollama serve
+
+# Terminal 2 — Backend dashboard
+python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
+
+# Terminal 3 — Landing page
+npm run dev
+```
+
+Open [http://localhost:8081](http://localhost:8081) for the landing page, or [http://127.0.0.1:8000](http://127.0.0.1:8000) for the dashboard directly.
+
+**Dashboard features:**
 - **Interactive Case Board:** Filter and search cases processed from the Excel sheet.
 - **Dynamic Decision Tree Graph:** Inspect the global decision structure and highlight active decision paths in glowing neon.
 - **Constitutional Trace:** Review case summaries and programmatic legal justifications based on the Constitution of India.
@@ -40,6 +82,14 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your web browser to explo
 F:\major_project
 │   README.md                        # Master repository documentation
 │   *.PDF                            # Raw input case documents
+│
+├───src/                             # Landing page (React/Vite/Tailwind)
+│   ├───components/landing/           # Hero, Stats, Features, CTA, etc.
+│   ├───components/ui/               # shadcn/ui component library
+│   ├───routes/                      # TanStack Start routes
+│   └───styles.css                   # Gold-dark theme tokens
+│
+├───public/                          # Static assets (favicon, robots.txt)
 │
 └───case_priority_system
     │   app.py                       # FastAPI backend server
@@ -92,3 +142,18 @@ If you want to re-run parts of the pipeline:
   ```
 
 For more detailed technical details, see the subfolder [case_priority_system/README.md](file:///F:/major_project/case_priority_system/README.md).
+
+---
+
+## 🌐 Landing Page
+
+The React landing page runs separately on Vite's dev server and provides:
+
+- **Hero section** with animated SVG scales-of-justice visual
+- **Impact stats** with count-up animations on scroll
+- **How It Works** — 7-step pipeline walkthrough
+- **Key Features** grid with hover glow effects
+- **Tech Stack** marquee strip
+- **"Try Anavaya Now"** button → navigates to the FastAPI dashboard at port 8000
+
+Tech: TanStack Start, React 19, Tailwind CSS 4, Framer Motion, shadcn/ui.
