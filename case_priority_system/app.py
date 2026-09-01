@@ -1228,6 +1228,231 @@ def download_transcript(room_id: str):
     )
 
 
+@app.get("/api/court/rooms/{room_id}/transcript.pdf")
+def download_transcript_pdf(room_id: str):
+    """Download the room transcript as a formatted court-document PDF."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+
+    try:
+        import fitz
+        import html as html_mod
+
+        from case_priority_system.scripts.courtroom_manager import (
+            ROLE_LABELS,
+            TRIAL_PHASES,
+        )
+    except ImportError:
+        raise HTTPException(status_code=500, detail="PDF generation dependencies not available.")
+
+    def esc(text):
+        return html_mod.escape(str(text))
+
+    # -- Build HTML --
+    now_str = datetime.now().strftime("%d %B %Y, %H:%M")
+    created_str = ""
+    try:
+        created_str = datetime.fromisoformat(room.created_at).strftime("%d %B %Y, %H:%M")
+    except (ValueError, TypeError):
+        created_str = room.created_at
+
+    # Collect unique participants with their roles
+    participants_html = ""
+    if room.participants:
+        for p in room.participants:
+            label = ROLE_LABELS.get(p.role, p.role)
+            participants_html += (
+                f'<div class="participant-row">'
+                f'<span class="part-name">{esc(p.name)}</span>'
+                f'<span class="part-role">{esc(label)}</span>'
+                f'</div>'
+            )
+
+    # Build transcript entries
+    entries_html = ""
+    role_colors = {
+        "Presiding Judge": "#1B2A4A",
+        "Defence Counsel": "#C25606",
+        "Prosecution Counsel": "#B3402E",
+        "system": "#6B7280",
+    }
+    for entry in room.transcript:
+        ts = ""
+        try:
+            ts = datetime.fromisoformat(entry.timestamp).strftime("%H:%M")
+        except (ValueError, TypeError):
+            ts = entry.timestamp
+
+        if entry.kind == "phase":
+            entries_html += (
+                f'<div class="entry entry-phase">'
+                f'<div class="phase-marker">▸ {esc(entry.text)}</div>'
+                f'</div>'
+            )
+        elif entry.kind == "system":
+            entries_html += (
+                f'<div class="entry entry-system">'
+                f'<div class="system-text">{esc(entry.text)}</div>'
+                f'</div>'
+            )
+        elif entry.kind == "action":
+            color = role_colors.get(entry.role, "#6B7280")
+            entries_html += (
+                f'<div class="entry entry-action">'
+                f'<div class="entry-header">'
+                f'<span class="entry-role" style="color:{color}">{esc(entry.role)}</span>'
+                f'<span class="entry-actor">{esc(entry.actor)}</span>'
+                f'<span class="entry-time">{esc(ts)}</span>'
+                f'</div>'
+                f'<div class="entry-action-text">{esc(entry.text)}</div>'
+                f'</div>'
+            )
+        else:  # statement
+            color = role_colors.get(entry.role, "#6B7280")
+            entries_html += (
+                f'<div class="entry entry-statement">'
+                f'<div class="entry-header">'
+                f'<span class="entry-role" style="color:{color}">{esc(entry.role)}</span>'
+                f'<span class="entry-actor">{esc(entry.actor)}</span>'
+                f'<span class="entry-time">{esc(ts)}</span>'
+                f'</div>'
+                f'<div class="entry-text">{esc(entry.text)}</div>'
+                f'</div>'
+            )
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head><body>
+<div class="page-header">
+    <div class="kicker">ANAVAYA · LIVE COURTROOM</div>
+    <h1>Official Transcript of Proceedings</h1>
+    <div class="sub">Case: {esc(room.case_title)}</div>
+    <div class="meta-row">
+        Room {esc(room.room_id)} · Opened {esc(created_str)} · By {esc(room.created_by)}
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">Case Details</div>
+    <div class="detail-grid">
+        <div class="detail"><span class="dt">Case Title</span><span class="dd">{esc(room.case_title)}</span></div>
+        <div class="detail"><span class="dt">Room ID</span><span class="dd">{esc(room.room_id)}</span></div>
+        <div class="detail"><span class="dt">Date Opened</span><span class="dd">{esc(created_str)}</span></div>
+        <div class="detail"><span class="dt">Final Phase</span><span class="dd">{esc(room.phase)}</span></div>
+        <div class="detail"><span class="dt">Total Entries</span><span class="dd">{len(room.transcript)}</span></div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">Participants</div>
+    {participants_html}
+</div>
+
+<div class="section">
+    <div class="section-title">Proceedings</div>
+    <div class="transcript-body">
+        {entries_html}
+    </div>
+</div>
+
+<div class="legal-note">
+    <strong>Disclaimer:</strong> This transcript is generated from the live courtroom session.
+    It includes all recorded statements, actions, and phase changes. Audio recordings of spoken
+    statements are stored separately and can be accessed from the courtroom interface.
+</div>
+
+<div class="page-footer">
+    Anavaya — AI-Powered Judicial System · Transcript generated {esc(now_str)}
+    · Room {esc(room.room_id)} · {esc(room.case_title)}
+</div>
+</body></html>"""
+
+    # -- CSS (court document styling) --
+    css = """
+    body { font-family: Georgia, 'Times New Roman', serif; font-size: 11px;
+           color: #1F2937; line-height: 1.5; margin: 0; padding: 0; }
+    .page-header { background: #1B2A4A; color: #fff; padding: 24px 28px;
+                   border-bottom: 5px solid #C9A227; }
+    .page-header .kicker { font-family: Helvetica, Arial, sans-serif; font-size: 9px;
+                   letter-spacing: 3px; text-transform: uppercase; color: #C9A227; }
+    .page-header h1 { margin: 6px 0 4px; font-size: 20px; color: #FFFFFF; }
+    .page-header .sub { font-size: 12px; color: #C7D2E5; font-family: Helvetica, Arial, sans-serif; }
+    .meta-row { margin-top: 8px; font-family: Helvetica, Arial, sans-serif; font-size: 10px;
+                color: #E5E9F3; }
+    .section { margin: 16px 24px; page-break-inside: avoid; }
+    .section-title { font-family: Helvetica, Arial, sans-serif; font-size: 11px;
+             font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
+             color: #1B2A4A; padding: 5px 0 5px 10px; margin-bottom: 10px;
+             border-bottom: 1px solid #E5E7EB; }
+    .detail-grid { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+    .detail { font-family: Helvetica, Arial, sans-serif; }
+    .dt { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #6B7280; display: block; }
+    .dd { font-size: 11px; font-weight: 600; color: #111827; }
+    .participant-row { padding: 4px 0; border-bottom: 1px solid #F3F4F6;
+                       font-family: Helvetica, Arial, sans-serif; }
+    .part-name { font-weight: 700; font-size: 11px; color: #111827; }
+    .part-role { font-size: 10px; color: #6B7280; margin-left: 10px; }
+    .transcript-body { padding: 0; }
+    .entry { padding: 6px 0; border-bottom: 1px solid #F3F4F6; page-break-inside: avoid; }
+    .entry-header { font-family: Helvetica, Arial, sans-serif; margin-bottom: 2px; }
+    .entry-role { font-size: 9px; font-weight: 800; text-transform: uppercase;
+                  letter-spacing: 0.8px; margin-right: 6px; }
+    .entry-actor { font-size: 10px; color: #374151; margin-right: 8px; }
+    .entry-time { font-size: 9px; color: #9CA3AF; }
+    .entry-text { font-size: 11px; color: #1F2937; margin-top: 2px; padding-left: 2px; }
+    .entry-action-text { font-size: 11px; color: #1F2937; font-style: italic;
+                         margin-top: 2px; padding-left: 2px; }
+    .entry-phase { background: #F8FAFC; padding: 8px 12px; margin: 4px 0;
+                   border-left: 4px solid #C9A227; border-radius: 0 4px 4px 0; }
+    .phase-marker { font-family: Helvetica, Arial, sans-serif; font-size: 10px;
+                    font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+                    color: #1B2A4A; }
+    .entry-system { padding: 4px 0; }
+    .system-text { font-size: 10px; color: #6B7280; font-style: italic; padding-left: 4px; }
+    .legal-note { background: #FFFBEB; border: 1px solid #FDE68A; border-left: 6px solid #C9A227;
+            padding: 10px 14px; border-radius: 4px; font-size: 10px; color: #713F12;
+            margin: 16px 24px; }
+    .page-footer { margin: 20px 24px; padding-top: 8px; border-top: 1px solid #E5E7EB;
+            font-size: 9px; color: #9CA3AF; font-family: Helvetica, Arial, sans-serif; }
+    """
+
+    full_html = (
+        f"<html><head><meta charset='utf-8'></head>"
+        f"<style>{css}</style>"
+        f"<body>{html}</body></html>"
+    )
+
+    # -- Render PDF --
+    import tempfile
+    fd, pdf_path = tempfile.mkstemp(suffix=".pdf", prefix="transcript_")
+    os.close(fd)
+    try:
+        story = fitz.Story(html=full_html, user_css=css, em=11)
+        writer = fitz.DocumentWriter(pdf_path)
+        rect = fitz.paper_rect("a4")
+        more = 1
+        while more:
+            dev = writer.begin_page(rect)
+            more, _ = story.place(rect)
+            story.draw(dev)
+            writer.end_page()
+        writer.close()
+
+        safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
+        filename = f"{safe_title.strip()}_{room_id}_transcript.pdf"
+        return FileResponse(pdf_path, media_type="application/pdf",
+                            filename=filename)
+    except Exception as e:
+        if os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+
 @app.websocket("/ws/court/{room_id}")
 async def courtroom_socket(websocket: WebSocket, room_id: str):
     """Signaling + state relay for a trial room.
