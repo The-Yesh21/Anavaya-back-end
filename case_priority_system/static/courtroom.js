@@ -106,6 +106,8 @@
         els.statementForm.addEventListener("submit", onStatement);
         els.copyInviteBtn.addEventListener("click", copyInvite);
         els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
+        const pdfBtn = document.getElementById("download-transcript-pdf-btn");
+        if (pdfBtn) pdfBtn.addEventListener("click", downloadTranscriptPdf);
         if (els.pushToTalkBtn) initPushToTalk();
         els.joinName.focus();
     }
@@ -800,41 +802,7 @@
     // ====================================================================
     // AUTO-TRANSCRIPTION (kept as fallback, disabled by default)
     // ====================================================================
-
     class AsrUnavailableError extends Error {}
-
-    const autoT = {
-        enabled: false,      // user toggle (default off — push-to-talk is primary)
-        active: false,
-        usingFallback: false,
-        ctx: null,
-        src: null,
-        analyser: null,
-        timeData: null,
-        recorder: null,
-        recording: false,
-        chunks: [],
-        speechFrames: 0,
-        silenceFrames: 0,
-        segmentStartedAt: 0,
-        queue: Promise.resolve(),
-    };
-
-    function renderAutoToggle() {
-        // No-op — auto-transcribe button removed in favor of push-to-talk.
-    }
-
-    async function toggleAutoTranscribe() {
-        // Legacy no-op — push-to-talk is now the primary input.
-    }
-
-    async function startAutoTranscription() {
-        // Legacy no-op — push-to-talk is now the primary input.
-    }
-
-    function stopAutoTranscription() {
-        // Legacy no-op — push-to-talk is now the primary input.
-    }
 
     // Voice-activity detection tuning (RMS of the mic's time-domain data).
     const VAD_SPEECH_THRESHOLD = 0.02; // above this = speech energy
@@ -843,10 +811,8 @@
     const MIN_SEGMENT_MS = 500;        // ignore sub-half-second blips
     const MAX_SEGMENT_MS = 20000;      // hard cap — whisper handles ≤ ~30s
 
-    class AsrUnavailableError extends Error {}
-
     const autoT = {
-        enabled: true,       // user toggle (default on)
+        enabled: false,      // user toggle (default off — push-to-talk is primary)
         active: false,       // VAD pipeline running
         usingFallback: false,// browser SpeechRecognition mode in use
         ctx: null,           // AudioContext for the analyser
@@ -1134,6 +1100,10 @@
 
     function downloadTranscript() {
         window.location.href = `/api/court/rooms/${ROOM_ID}/transcript`;
+    }
+
+    function downloadTranscriptPdf() {
+        window.location.href = `/api/court/rooms/${ROOM_ID}/transcript.pdf`;
     }
 
     // ====================================================================

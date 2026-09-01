@@ -137,9 +137,14 @@
                 <div class="transcript card">
                     <div class="panel-header">
                         <h2><i data-lucide="scroll-text"></i> Live Transcript</h2>
-                        <button class="link-btn" id="download-transcript-btn">
-                            <i data-lucide="download"></i> Export
-                        </button>
+                        <div class="transcript-actions">
+                            <button class="link-btn" id="download-transcript-btn" title="Download transcript as Markdown">
+                                <i data-lucide="download"></i> Export
+                            </button>
+                            <button class="link-btn pdf-btn" id="download-transcript-pdf-btn" title="Download full court transcript as PDF">
+                                <i data-lucide="file-text"></i> Download PDF
+                            </button>
+                        </div>
                     </div>
                     <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
                         <div class="transcript-empty">The court is in session. Statements will appear here.</div>
