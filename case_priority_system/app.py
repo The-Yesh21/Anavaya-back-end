@@ -792,8 +792,9 @@ async def create_case(case_title: str = Form(""), created_by: str = Form(""),
     if case_manager is None:
         raise HTTPException(status_code=503, detail="Case manager not available.")
     fir_name = os.path.basename(fir_file.filename) if fir_file and fir_file.filename else ""
-    if fir_name and not re.fullmatch(r"[A-Za-z0-9 _\-().]+\.pdf", fir_name, re.IGNORECASE):
-        raise HTTPException(status_code=400, detail="Invalid FIR file name. Use letters, numbers, spaces, dashes and .pdf only.")
+    _FIR_EXTS = ('.pdf', '.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff')
+    if fir_name and not any(fir_name.lower().endswith(ext) for ext in _FIR_EXTS):
+        raise HTTPException(status_code=400, detail="FIR must be a PDF or image file (PDF, JPG, PNG, WEBP).")
     source = "FIR_UPLOADED" if fir_name else "AUTO_ID"
     # No title typed? Name the case after the FIR document so the officer
     # only ever has to give the case a name OR drop in the FIR.
@@ -821,7 +822,6 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
     lower = filename.lower()
     if not any(lower.endswith(ext) for ext in _ALLOWED_DOC_EXTS):
         raise HTTPException(status_code=400, detail="Only PDF and image files are supported (PDF, JPG, PNG, WEBP).")
-        raise HTTPException(status_code=400, detail="Invalid file name. Use letters, numbers, spaces, dashes and .pdf only.")
     try:
         doc = case_manager.add_document(case_id, file.file, doc_type=doc_type, filename=filename)
     except ValueError as e:
