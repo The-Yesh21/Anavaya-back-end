@@ -832,7 +832,7 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
 
 
 @app.post("/api/cases/{case_id}/analyze")
-def analyze_case(case_id: str):
+async def analyze_case(case_id: str):
     """Analyse every unanalysed document and refresh the aggregate priority."""
     # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
     if preload_ollama_model is not None:
