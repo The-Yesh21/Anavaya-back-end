@@ -244,6 +244,30 @@ class CaseManager:
             self._persist(case)
         return doc
 
+    def delete_document(self, case_id: str, doc_id: str) -> CaseDocument:
+        """Remove a document from a case and delete its file from disk.
+
+        Returns the removed CaseDocument on success. Raises ValueError if
+        the case or document is not found. The caller should follow up with
+        ``refresh_aggregate()`` to recompute the case priority.
+        """
+        case = self.get_case(case_id)
+        if case is None:
+            raise ValueError(f"Case {case_id} not found.")
+        doc = case.get_document(doc_id)
+        if doc is None:
+            raise ValueError(f"Document {doc_id} not found.")
+        with self._lock:
+            case.documents = [d for d in case.documents if d.doc_id != doc_id]
+            self._persist(case)
+        # Best-effort file removal (don't crash if already gone).
+        try:
+            if doc.path and os.path.exists(doc.path):
+                os.remove(doc.path)
+        except OSError:
+            pass
+        return doc
+
     def analyze_document(self, case: Case, doc: CaseDocument, model_data=None) -> CaseDocument:
         """Run one document through the full Anavaya pipeline.
 
