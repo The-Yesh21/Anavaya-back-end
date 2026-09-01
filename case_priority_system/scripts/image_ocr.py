@@ -33,6 +33,32 @@ def _get_reader():
     return _reader if _reader is not False else None
 
 
+def _convert_to_png(path: str) -> str:
+    """Convert an image to a temporary PNG that EasyOCR can read.
+
+    EasyOCR (via imageio) lacks backends for some formats (e.g. WebP).
+    Pillow handles almost everything, so we convert via Pillow and return
+    the temp path. The caller is responsible for cleaning it up.
+    """
+    import tempfile
+    import PIL.Image
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    try:
+        with PIL.Image.open(path) as img:
+            img = img.convert("RGB")
+            img.save(tmp.name, "PNG")
+        return tmp.name
+    except Exception as e:
+        print(f"image_ocr: Pillow conversion failed for {path}: {e}")
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+        return ""
+
+
 def extract_text_from_image(path: str) -> str:
     """Extract text from an image file using EasyOCR.
 
@@ -47,6 +73,15 @@ def extract_text_from_image(path: str) -> str:
         # Fallback: try Pillow + pytesseract if available (binary must be installed).
         return _fallback_tesseract(path)
 
+    # WebP and some other formats lack imageio backends; convert via Pillow.
+    converted_path = None
+    _CONVERT_EXTS = ('.webp', '.bmp', '.tiff', '.tif')
+    if path.lower().endswith(_CONVERT_EXTS):
+        converted_path = _convert_to_png(path)
+        if converted_path:
+            path = converted_path
+        # If conversion failed, path still points to original — let EasyOCR try.
+
     try:
         results = reader.readtext(path, detail=0, paragraph=True)
         # EasyOCR returns a list of text strings; join with newlines.
@@ -55,6 +90,12 @@ def extract_text_from_image(path: str) -> str:
     except Exception as e:
         print(f"image_ocr: EasyOCR failed on {path}: {e}")
         return _fallback_tesseract(path)
+    finally:
+        if converted_path:
+            try:
+                os.unlink(converted_path)
+            except OSError:
+                pass
 
 
 def _fallback_tesseract(path: str) -> str:
