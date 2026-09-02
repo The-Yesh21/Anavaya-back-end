@@ -1,0 +1,18 @@
+digraph DecisionPath {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fillcolor="#F7FBFF", color="#4B5563", fontname="Arial"];
+  edge [color="#6B7280", fontname="Arial"];
+  n0 [label="Node 0\nSeverity is one of: Fatal, Major\nCase value: 3 (No Injury)\nDecision: No"];
+  n4 [label="Node 4\nInfluence / power imbalance is one of: High\nCase value: 1 (Low)\nDecision: No"];
+  n0 -> n4 [label="step 1"];
+  n6 [label="Node 6\nSeverity is one of: Fatal, Major, Minor\nCase value: 3 (No Injury)\nDecision: No"];
+  n4 -> n6 [label="step 2"];
+  n8 [label="Node 8\nVulnerability is one of: High\nCase value: 1 (Low)\nDecision: No"];
+  n6 -> n8 [label="step 3"];
+  n10 [label="Node 10\nLegal category is one of: Company/Winding Up, Constitutional/Writ, Criminal/Violent, Customs/Import-Export, Excise/Tax, General Civil\nCase value: 1 (Constitutional/Writ)\nDecision: Yes"];
+  n8 -> n10 [label="step 4"];
+  n11 [label="Node 11\nDispute Concerning score <= 0.2136\nCase value: 0.0000\nDecision: Yes"];
+  n10 -> n11 [label="step 5"];
+  n12 [label="Leaf node 12\nPredicted priority: Low\nSamples: 845"];
+  n11 -> n12 [label="step 6"];
+}

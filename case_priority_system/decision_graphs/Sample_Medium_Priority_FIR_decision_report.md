@@ -92,10 +92,10 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Sample_Medium_Priority_FIR.pdf</h2>
-  <p>The complainant, Mr. Arun Kumar, reported that his backpack, laptop, and accessories were stolen from a parked motorcycle. The vehicle lock showed signs of forced entry. The case involves a property dispute and seeks relief under general civil laws. The case falls under the General Civil category as it deals with a theft and property damage, engaging Article 21 for the protection of personal property and safety.</p>
+  <p>The parties, Sample Medium Priority FIR, are involved in a legal dispute. The document indicates property, charge. This case is classified as Property/Land because the record matches property, charge. Under the Constitution of India, the primary rights engaged are Article 300A, Article 14, Article 21.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Property/Land</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Property</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>

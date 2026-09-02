@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>Fictional_Case_Report_Test.pdf</h2>
-  <p>Emma Carter, a store manager, was seriously injured during an armed robbery at a convenience store. Two unidentified males, one armed with a handgun and the other with a metal crowbar, assaulted her and stole cash and merchandise. The victim was hospitalized in ICU. The case involves serious physical harm and the potential for permanent disability, engaging Article 21 of the Constitution of India.</p>
+  <p>Emma Carter, a store manager, was assaulted with a crowbar and handgun during an armed robbery at a convenience store. She sustained severe head injuries and was hospitalized. The two suspects fled the scene, leaving the victim vulnerable and in need of urgent legal intervention. This case falls under the Criminal/Violent category as it involves a violent assault and the potential for serious injury, engaging Article 21 of the Constitution for the protection of life and personal liberty.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>

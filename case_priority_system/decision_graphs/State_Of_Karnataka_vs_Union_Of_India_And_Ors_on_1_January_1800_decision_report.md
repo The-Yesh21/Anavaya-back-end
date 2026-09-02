@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>State_Of_Karnataka_vs_Union_Of_India_And_Ors_on_1_January_1800.PDF</h2>
-  <p>The State of Karnataka petitioned against the Union of India and the Mysore Government Soap Factory over excise duty and tax issues. The factory manufactures soap and sells it through a sole agent and zonal agents. The dispute centers around the trade discount allowed on the wholesale price of the soap. The State of Karnataka seeks to have the wholesale cash price of the soap determined without the 6% trade discount, arguing that the discount should only apply to the sales made to the retail dealers and approved buyers at the factory premises. The case involves constitutional issues related to the right to profession and the right to move the Supreme Court for enforcement of fundamental rights (Article 226).</p>
+  <p>This case involves a dispute between the State of Karnataka and the Union of India regarding the excise duty on soap manufactured by the petitioner. The petitioner seeks to determine the percentage of trade discount allowable under the Excise Act, while the Union of India argues that the wholesale market for the soap does not exist. The petitioner claims that the agreements with the sole selling agent and zonal agents should be the basis for determining the price of the soap, and not isolated sales. The case falls under the Excise/Tax category as it deals with excise duty on soap manufactured by the petitioner.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>

@@ -59,6 +59,7 @@ _llm_mode_reported = False              # startup banner printed once
 _llm_probe_deadline: float = 0.0        # monotonic() ts; re-probe only after
 _LLM_PROBE_INTERVAL = 30.0              # seconds between auto-mode probes
 _ollama_model_checked = False           # one-time lazy `ollama list` check
+_ollama_daemon_started = False          # one-time daemon auto-start attempt
 
 _gpu_probe_cache: "bool | None" = None  # one-time nvidia-smi probe
 
@@ -124,13 +125,52 @@ def _ollama_reachable() -> bool:
         return False
 
 
+def _ensure_ollama_daemon() -> bool:
+    """Ensure the Ollama daemon is running; start it if reachable but not yet started.
+
+    Called once at server startup and lazily before the first LLM request.
+    Returns True if the daemon is (now) reachable.
+    """
+    global _ollama_daemon_started
+    if _ollama_daemon_started:
+        return _ollama_reachable()
+    _ollama_daemon_started = True
+    # Already running?
+    if _ollama_reachable():
+        return True
+    # Try to start the Ollama daemon in the background (ollama serve)
+    try:
+        subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        # Give the daemon a few seconds to bind its port
+        import time as _t
+        for _ in range(10):
+            _t.sleep(0.5)
+            if _ollama_reachable():
+                print("[Anavaya] Ollama daemon started successfully.")
+                return True
+        print("[Anavaya] Ollama daemon started but not yet reachable after 5s.")
+        return False
+    except FileNotFoundError:
+        print("[Anavaya] 'ollama' command not found on PATH. LLM features unavailable.")
+        return False
+    except Exception as e:
+        print(f"[Anavaya] Failed to start Ollama daemon: {e}")
+        return False
+
+
 def preload_ollama_model(model: str = None, host: str = None, keep_alive: str = "1h") -> bool:
     """Pre-load Ollama model weights into GPU VRAM to eliminate cold-start latency."""
     if model is None:
         model = OLLAMA_MODEL
     if host is None:
         host = OLLAMA_URL
-    if not _ollama_reachable():
+    # Ensure daemon is running (auto-starts if not)
+    if not _ensure_ollama_daemon():
         return False
     try:
         # Sending prompt="" with keep_alive triggers model load into VRAM immediately
@@ -173,6 +213,9 @@ def llm_extraction_enabled() -> bool:
         # Auto mode, not yet enabled: re-probe (throttled by the deadline)
         # so a later-started Ollama is picked up within one interval.
         _llm_probe_deadline = time.monotonic() + _LLM_PROBE_INTERVAL
+        # Try to auto-start the daemon if not reachable yet
+        if not _ollama_reachable():
+            _ensure_ollama_daemon()
         enabled = _gpu_available() and _ollama_reachable()
         if enabled:
             _llm_mode_cache = True
@@ -584,27 +627,8 @@ def fallback_extract_features(text, pdf_file):
     vulnerability = "High" if any(term in lowered for term in vulnerable_terms) else "Low"
     influence = "High" if any(term in lowered or term in main_parties.lower() for term in influence_terms) else "Low"
 
-    summary_text = ""
-    summarizer = _get_bart_summarizer()
-    if summarizer is not None:
-        try:
-            # Limit text input length to prevent index errors in BART (max 1024 tokens)
-            truncated_text = text[:3000].strip()
-            if len(truncated_text) > 100:
-                # Run summarizer
-                summary_res = summarizer(truncated_text, max_length=130, min_length=45, do_sample=False)
-                if summary_res and isinstance(summary_res, list) and 'summary_text' in summary_res[0]:
-                    summary_text = summary_res[0]['summary_text'].strip()
-                    print("Local BART summarization succeeded.")
-        except Exception as ex:
-            print(f"Local BART summarization failed: {ex}")
-
-    if not summary_text:
-        summary_text = (
-            f"{main_parties or 'The parties'} are involved in this legal dispute. "
-            f"The document appears to concern a {crime_type.lower()} matter with {severity.lower()} severity. "
-            "This summary was generated locally because the local LLM (Ollama) response was unavailable."
-        )
+    # Build summary from actual document content
+    summary_text = _extract_dispute_summary(text, main_parties, legal_category, severity)
 
     return normalize_llm_data({
         "main_parties": main_parties or "Unknown",
@@ -619,7 +643,7 @@ def fallback_extract_features(text, pdf_file):
 # ── Rule-based party extraction ────────────────────────────────────────
 _PLACEHOLDER_RE = re.compile(
     r"\[|^if\s+known$|^unknown$|^n/?a$|^not\s+provided$|^not\s+applicable$"
-    r"|^none$|^to\s+be\s+filled$",
+    r"|^none$|^to\s+be\s+filled$|^not\s+mentioned$",
     re.IGNORECASE,
 )
 _CAPTION_SKIP_RE = re.compile(
@@ -672,6 +696,8 @@ def extract_parties_from_text(text, fallback=""):
     """
     if not text:
         return fallback or "Unknown"
+    # Clean bracketed placeholders first so [Complainant Name] etc. don't match
+    text = _clean_placeholders(text)
 
     # 1) Labeled forms (FIRs, complaints, case reports). Line-anchored so body
     #    sentences like "the complainant's name is X" can't false-match.
@@ -714,6 +740,32 @@ def extract_parties_from_text(text, fallback=""):
     if labeled:
         return "; ".join(sorted(labeled, key=str.lower))
     if placeholder_roles:
+        # Try to extract actual names from the body text near the role labels
+        # Look for 'Name: X' patterns anywhere in the text
+        name_anywhere = re.findall(r'[Nn]ame\s*:\s*([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){1,4})', text)
+        if name_anywhere:
+            # Deduplicate while preserving order
+            seen_names = set()
+            unique_names = []
+            for n in name_anywhere:
+                n_clean = _clean_party_name(n)
+                if n_clean and n_clean.lower() not in seen_names:
+                    seen_names.add(n_clean.lower())
+                    unique_names.append(n_clean)
+            if unique_names:
+                return ", ".join(unique_names)
+        # If still just role labels, try to find party names from 'X vs Y' patterns
+        # even without 'on date'
+        vs_match = re.search(
+            r"([^\n]{2,80}?)\s+(?:vs\.?|v\.)\s+([^\n]{2,80}?)(?:\s|$)",
+            text[:2000], re.IGNORECASE
+        )
+        if vs_match:
+            a = _clean_party_name(vs_match.group(1))
+            b = _clean_party_name(vs_match.group(2))
+            if a and b and a.lower() != b.lower():
+                return f"{a} vs {b}"
+        # Fall back to role labels with note
         return ", ".join(sorted(placeholder_roles)) + " — names not disclosed"
 
     # 2) Court caption: petitioner block before 'Versus', first respondent after.
@@ -758,7 +810,195 @@ def extract_parties_from_text(text, fallback=""):
         if a:
             return a
 
+    # 4) Try to extract proper names from the first paragraph (capitalized phrases)
+    # This helps with images/OCR text where the structured patterns don't match.
+    first_para = text[:1500]
+    # Find capitalized name-like phrases (2-5 words starting with uppercase)
+    # Use [ \t]+ instead of \s+ to avoid matching across newlines
+    name_candidates = re.findall(r'\b([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){1,4})\b', first_para)
+    # Filter out common non-name phrases (legal terms, dates, labels, etc.)
+    skip_words = {
+        'case', 'court', 'high', 'district', 'supreme', 'federal',
+        'appellant', 'respondent', 'petitioner', 'applicant', 'order', 'judgment',
+        'section', 'act', 'article', 'chapter', 'part', 'rule', 'schedule',
+        'annexure', 'form', 'format', 'certificate', 'affidavit',
+        'injunction', 'writ', 'civil', 'criminal', 'appeal', 'revision',
+        'before', 'after', 'filed', 'dated', 'registered', 'heard',
+        'dismissed', 'allowed', 'honble', 'lord', 'justice', 'learned',
+        'counsel', 'advocate', 'page', 'number', 'reference', 'citation',
+        'ruling', 'precedent', 'sub', 'clause', 'paragraph', 'verse',
+        'testing', 'fictional', 'report', 'document', 'test', 'sample',
+        'physical', 'assault', 'armed', 'robbery', 'expected', 'market',
+        'serious', 'incident', 'statement', 'location', 'details',
+        'field', 'value', 'type', 'priority', 'date', 'time',
+        'medical', 'care', 'support', 'allegations', 'evidence',
+        'police', 'station', 'complaint', 'first', 'information',
+        'annual', 'general', 'meeting', 'board', 'directors',
+        'private', 'limited', 'public', 'national', 'international',
+        'company', 'industries', 'enterprises', 'corporation',
+        'collective', 'division', 'bench', 'single', 'bench',
+        'factor', 'status', 'weapon', 'suspects', 'store', 'manager',
+        'officer', 'detective', 'investigator', 'examiner', 'reviewer',
+        'responding', 'reporting', 'personnel', 'department', 'agency',
+        'bureau', 'division', 'unit', 'team', 'group', 'section',
+        'yes', 'used', 'injured', 'seriously', 'multiple', 'offenders',
+        'victim', 'offender', 'incident', 'crime', 'scene', 'evidence',
+        'witness', 'statement', 'investigation', 'arrest', 'suspect',
+        'confession', 'testimony', 'exhibit', 'charge', 'offence',
+        'penalty', 'imprisonment', 'custody', 'bail', 'fine',
+        'not', 'mentioned',
+    }
+    clean_names = []
+    for candidate in name_candidates:
+        words = candidate.split()
+        # Skip if any word is a skip word or if it looks like a legal phrase
+        if any(w.lower() in skip_words for w in words):
+            continue
+        # Skip if it contains common non-name patterns
+        if any(p in candidate.lower() for p in ['act,', 'act.', 'section', 'article', 'case id']):
+            continue
+        clean = _clean_party_name(candidate)
+        if not clean or len(clean) < 5:
+            continue
+        # Filter out non-name words from the phrase
+        words = clean.split()
+        name_words = [w for w in words if w.lower() not in skip_words]
+        if len(name_words) >= 2 and all(len(w) >= 2 for w in name_words):
+            clean = ' '.join(name_words)
+        elif len(name_words) < 2 or not any(len(w) >= 3 for w in name_words):
+            continue
+        # Reject if result still contains non-name words after filtering
+        if any(w.lower() in skip_words for w in clean.split()):
+            continue
+        if len(clean) >= 5:
+            clean_names.append(clean)
+    if clean_names:
+        # Return up to 4 most relevant names
+        return ", ".join(clean_names[:4])
+
     return fallback or "Unknown"
+
+
+def _clean_placeholders(text):
+    """Replace bracketed placeholders like [Age], [Location], [DD/MM/YYYY HH:MM]
+    with 'not mentioned' so summaries don't show raw template blanks.
+    """
+    return re.sub(r'\[[^\]]{1,60}\]', 'not mentioned', text)
+
+
+def _extract_dispute_summary(text, main_parties, legal_category, severity):
+    """Build a plain-language summary by extracting key facts from the document text.
+
+    Instead of a generic template, this function reads the actual document content
+    to identify what the dispute is about, what relief is sought, and key legal
+    issues — producing a 2-4 sentence summary a non-lawyer can understand.
+    """
+    # Clean placeholder brackets from the text first
+    text = _clean_placeholders(text)
+    sentences = re.split(r'(?<=[.!?])\s+', text[:5000])
+    # Filter out very short or junk sentences (page numbers, headers, etc.)
+    good_sentences = [
+        s.strip() for s in sentences
+        if len(s.strip()) > 30
+        and not re.match(r'^(page|page no|dated|date|sl\.?\s*no|case no|writ|misc)', s.strip(), re.I)
+        and not re.match(r'\d+\s*$', s.strip())
+        # Skip template field labels (e.g., 'Date & Time: not mentioned')
+        and not re.search(r':\s*not mentioned', s.strip(), re.I)
+        # Skip section headers like 'Incident Details', 'Complainant Details'
+        and not re.match(r'^[A-Z][a-z]+\s+Details\s*$', s.strip())
+        and not re.match(r'^[A-Z][a-z]+\s+(?:Information|Report|Statement)\s*$', s.strip())
+    ]
+
+    # Identify the core dispute: look for sentences with key legal verbs
+    dispute_verbs = [
+        'challeng', 'contend', 'argue', 'seek', 'pray', 'claim', 'allege',
+        'dispute', 'contest', 'disagree', 'oppose', 'filed', 'petitioned',
+        'instituted', 'challenged', 'contended', 'sought', 'prayed',
+    ]
+    dispute_sentences = [
+        s for s in good_sentences
+        if any(v in s.lower() for v in dispute_verbs)
+    ]
+
+    # Identify relief sought
+    relief_verbs = ['seek', 'pray', 'request', 'seeking', 'praying', 'requested']
+    relief_sentences = [
+        s for s in good_sentences
+        if any(v in s.lower() for v in relief_verbs)
+    ]
+
+    # Build the summary
+    parts = []
+
+    # Opening: who is involved and what the document is about
+    parties_str = main_parties if main_parties and main_parties != 'Unknown' else 'The parties'
+    if dispute_sentences:
+        # Prefer sentences that name the parties or describe the core dispute
+        # (avoid sentences that start with 'In the...' or reference annexures)
+        good_dispute = [
+            s for s in dispute_sentences
+            if not re.match(r'^(?:in\s+the|as\s+per|pursuant\s+to|per\s+annexure|per\s+schedule)', s.strip(), re.I)
+            and len(s.strip()) > 40
+        ]
+        if good_dispute:
+            core = good_dispute[0]
+        else:
+            core = dispute_sentences[0]
+        # If it's very long, take just the first two clauses
+        if len(core) > 250:
+            parts.append(core[:250].rsplit(',', 1)[0] + '.')
+        else:
+            parts.append(core)
+    elif good_sentences:
+        # Filter out sentences starting with filler phrases
+        substantial = [
+            s for s in good_sentences
+            if not re.match(r'^(?:in\s+the|as\s+per|pursuant\s+to|per\s+annexure|field|value|\d)', s.strip(), re.I)
+        ]
+        s = substantial[0] if substantial else good_sentences[0]
+        parts.append(s[:250] if len(s) > 250 else s)
+    else:
+        parts.append(f"{parties_str} are involved in a legal matter.")
+
+    # Add relief sought if found
+    if relief_sentences and len(parts) < 3:
+        relief = relief_sentences[0]
+        if relief not in parts[0]:
+            if len(relief) > 200:
+                relief = relief[:200].rsplit(',', 1)[0] + '.'
+            parts.append(relief)
+
+    # Add severity/crime context if relevant
+    if severity in ('Fatal', 'Major'):
+        parts.append(f"This is a {severity.lower()}-severity matter.")
+
+    # Category reasoning: cite specific facts
+    category_reasons = {
+        'Excise/Tax': 'This falls under Excise/Tax as it involves excise duty, tax assessment, or related revenue matters.',
+        'Customs/Import-Export': 'This falls under Customs/Import-Export as it involves customs seizure, import/export issues, or foreign trade matters.',
+        'Company/Winding Up': 'This falls under Company/Winding Up as it involves corporate disputes, winding-up proceedings, or shareholder matters.',
+        'Insolvency/Debt': 'This falls under Insolvency/Debt as it involves debt recovery, insolvency proceedings, or creditor-debtor disputes.',
+        'Constitutional/Writ': 'This falls under Constitutional/Writ as it involves constitutional remedies, fundamental rights, or writ jurisdiction.',
+        'Property/Land': 'This falls under Property/Land as it involves property disputes, land matters, tenancy, or ownership issues.',
+        'Criminal/Violent': 'This falls under Criminal/Violent as it involves criminal offenses, violence, or matters affecting life and liberty.',
+        'General Civil': 'This falls under General Civil as it involves civil disputes, contracts, consumer matters, or family law.',
+    }
+    cat_reason = category_reasons.get(legal_category, '')
+    if cat_reason:
+        parts.append(cat_reason)
+
+    # Constitutional articles
+    try:
+        from case_priority_system.scripts.constitutional_analysis import (
+            CATEGORY_CONSTITUTIONAL_MAP,
+        )
+    except ImportError:
+        from constitutional_analysis import CATEGORY_CONSTITUTIONAL_MAP  # type: ignore
+    articles = CATEGORY_CONSTITUTIONAL_MAP.get(legal_category, {}).get('primary_articles', [])
+    if articles:
+        parts.append(f"Primary constitutional articles engaged: {', '.join(articles[:3])}.")
+
+    return ' '.join(parts)
 
 
 def fast_extract_features(text, pdf_file):
@@ -766,10 +1006,9 @@ def fast_extract_features(text, pdf_file):
 
     This is the fast path used by the web app so priority is returned in ~2s
     without any LLM call. It mirrors `fallback_extract_features` but skips the
-    BART summarization model entirely and builds a template plain_summary that
-    still names the parties, the category, matched keywords, and the primary
-    constitutional articles (so the Decision Tree's TF-IDF text features stay
-    informative).
+    BART summarization model entirely and builds a plain_summary from the actual
+    document text (so the parties, dispute details, and constitutional articles
+    are extracted from the real content, not a generic template).
     """
     lowered = text.lower()
     filename_parties = os.path.splitext(pdf_file)[0].replace("_", " ")
@@ -818,25 +1057,8 @@ def fast_extract_features(text, pdf_file):
         severity = "Major"
         vulnerability = "High"
 
-    # Template summary naming parties, category, keywords + constitutional articles
-    matched = [kw for kw in LEGAL_CATEGORIES.get(legal_category, []) if kw in lowered][:5]
-    kw_phrase = ", ".join(matched) if matched else "the facts of the dispute"
-    try:
-        from case_priority_system.scripts.constitutional_analysis import (
-            CATEGORY_CONSTITUTIONAL_MAP,
-        )
-    except ImportError:
-        from constitutional_analysis import CATEGORY_CONSTITUTIONAL_MAP  # type: ignore
-    articles = ", ".join(
-        CATEGORY_CONSTITUTIONAL_MAP.get(legal_category, {})
-        .get("primary_articles", ["Article 14"])
-    )
-    plain_summary = (
-        f"The parties, {main_parties or 'unknown'}, are involved in a legal dispute. "
-        f"The document indicates {kw_phrase}. This case is classified as {legal_category} "
-        f"because the record matches {kw_phrase}. Under the Constitution of India, the "
-        f"primary rights engaged are {articles}."
-    )
+    # Build summary from actual document content (not a generic template)
+    plain_summary = _extract_dispute_summary(text, main_parties, legal_category, severity)
 
     return normalize_llm_data({
         "main_parties": main_parties or "Unknown",

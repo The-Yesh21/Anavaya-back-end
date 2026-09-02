@@ -1,0 +1,348 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* ---------- LIGHT (default) ---------- */
+  /* Warm off-white #F7F4EE */
+  --background: oklch(0.962 0.0095 85);
+  /* Deep charcoal #1A1A1A */
+  --foreground: oklch(0.225 0 0);
+
+  --card: oklch(0.985 0.006 85);
+  --card-foreground: oklch(0.225 0 0);
+  --popover: oklch(0.985 0.006 85);
+  --popover-foreground: oklch(0.225 0 0);
+
+  /* Deep gold #8C6D18 — AA on warm off-white */
+  --primary: oklch(0.525 0.093 88);
+  --primary-foreground: oklch(0.985 0.006 85);
+
+  /* Antique gold #A6821C */
+  --accent: oklch(0.6 0.104 88);
+  --accent-foreground: oklch(0.225 0 0);
+
+  --secondary: oklch(0.925 0.012 85);
+  --secondary-foreground: oklch(0.225 0 0);
+
+  --muted: oklch(0.925 0.012 85);
+  --muted-foreground: oklch(0.42 0.012 80);
+
+  --destructive: oklch(0.48 0.16 30);
+  --destructive-foreground: oklch(0.985 0.006 85);
+
+  --border: oklch(0.525 0.093 88 / 22%);
+  --input: oklch(0.525 0.093 88 / 28%);
+  --ring: oklch(0.525 0.093 88 / 60%);
+
+  /* Glass: black tint on light */
+  --surface: oklch(0 0 0 / 4%);
+  --surface-strong: oklch(0 0 0 / 7%);
+
+  /* Priority colors darkened for AA on light bg */
+  --priority-high: oklch(0.472 0.145 30.5);
+  --priority-medium: oklch(0.552 0.148 55.5);
+  --priority-low: oklch(0.5 0.115 163.2);
+
+  --grain-opacity: 0.22;
+
+  --gradient-gold: linear-gradient(
+    135deg,
+    var(--primary),
+    var(--accent) 55%,
+    color-mix(in oklab, var(--primary) 70%, black)
+  );
+  --shadow-gold: 0 18px 50px -24px color-mix(in oklab, var(--primary) 45%, transparent);
+}
+
+.dark {
+  /* ---------- DARK ---------- */
+  /* Deep charcoal #0D0D0D */
+  --background: oklch(0.155 0.002 60);
+  --foreground: oklch(0.962 0.012 84);
+
+  --card: oklch(0.195 0.004 70);
+  --card-foreground: oklch(0.962 0.012 84);
+  --popover: oklch(0.195 0.004 70);
+  --popover-foreground: oklch(0.962 0.012 84);
+
+  /* Rich gold #C9A22B */
+  --primary: oklch(0.72 0.128 89);
+  --primary-foreground: oklch(0.155 0.002 60);
+
+  /* Warm amber #D4A843 */
+  --accent: oklch(0.762 0.113 87);
+  --accent-foreground: oklch(0.155 0.002 60);
+
+  --secondary: oklch(0.24 0.008 80);
+  --secondary-foreground: oklch(0.962 0.012 84);
+
+  --muted: oklch(0.24 0.008 80);
+  --muted-foreground: oklch(0.72 0.012 84);
+
+  --destructive: oklch(0.52 0.15 30);
+  --destructive-foreground: oklch(0.962 0.012 84);
+
+  --border: oklch(0.72 0.128 89 / 15%);
+  --input: oklch(0.72 0.128 89 / 20%);
+  --ring: oklch(0.72 0.128 89 / 55%);
+
+  --surface: oklch(1 0 0 / 4%);
+  --surface-strong: oklch(1 0 0 / 7%);
+
+  --priority-high: oklch(0.62 0.16 30.5);
+  --priority-medium: oklch(0.73 0.155 60);
+  --priority-low: oklch(0.7 0.13 163.2);
+
+  --grain-opacity: 0.35;
+
+  --gradient-gold: linear-gradient(
+    135deg,
+    var(--primary),
+    var(--accent) 55%,
+    color-mix(in oklab, var(--primary) 60%, white)
+  );
+  --shadow-gold: 0 18px 60px -22px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Snap only where a full section can realistically fit the viewport */
+  @media (min-width: 1024px) and (min-height: 700px) {
+    html {
+      scroll-snap-type: y proximity;
+    }
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem; /* 17px */
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Warm grain texture over the whole page */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.79 0 0 0 0 0.64 0 0 0 0 0.17 0 0 0 0.055 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 35%, transparent);
+  }
+}
+
+@utility glass-panel {
+  background-color: var(--surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+}
+
+@utility text-gradient-gold {
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility font-display {
+  font-family: var(--font-serif);
+}
+
+@utility eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+@utility emphasis {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--primary);
+}
+
+/* Full-viewport scroll-snap sections */
+@utility snap-section {
+  min-height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@utility snap-section-loose {
+  min-height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@utility snap-section-auto {
+  scroll-snap-align: none;
+}
+
+
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) rotate(6deg);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 9s ease-in-out infinite;
+}
+.animate-spin-slow {
+  animation: spin-slow 48s linear infinite;
+}
+.animate-spin-slower {
+  animation: spin-slow 90s linear infinite reverse;
+}
+.animate-pulse-glow {
+  animation: pulse-glow 6s ease-in-out infinite;
+}
+.animate-marquee {
+  animation: marquee 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+  .snap-section,
+  .snap-section-loose {
+    scroll-snap-align: none;
+    scroll-snap-stop: normal;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .animate-float-slow,
+  .animate-spin-slow,
+  .animate-spin-slower,
+  .animate-pulse-glow,
+  .animate-marquee {
+    animation: none !important;
+  }
+}
+
+.animate-dash-flow {
+  animation: dash-flow 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dash-flow {
+    animation: none !important;
+  }
+}

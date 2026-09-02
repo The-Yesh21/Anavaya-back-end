@@ -68,7 +68,14 @@ print(f"{'='*60}\n")
 # =====================================================================
 @app.on_event("startup")
 async def startup_event():
-    """Pre-warm Ollama model in background on server startup."""
+    """Ensure Ollama daemon is running, then pre-warm model in background."""
+    # Import the daemon auto-start helper so we can trigger it here
+    try:
+        from case_priority_system.scripts.inference_pipeline import _ensure_ollama_daemon
+    except ImportError:
+        from scripts.inference_pipeline import _ensure_ollama_daemon  # type: ignore
+    logger.info("Server starting: Ensuring Ollama daemon is running...")
+    asyncio.create_task(asyncio.to_thread(_ensure_ollama_daemon))
     if preload_ollama_model is not None:
         logger.info("Server starting: Triggering background Ollama model pre-warm...")
         asyncio.create_task(asyncio.to_thread(preload_ollama_model))
@@ -83,6 +90,33 @@ async def warmup_ollama_endpoint():
         return {"status": "unavailable", "preloaded": False, "reason": "preload_ollama_model not imported"}
     success = await asyncio.to_thread(preload_ollama_model)
     return {"status": "ok" if success else "unavailable", "preloaded": success}
+
+
+@app.get("/api/ollama/status")
+async def ollama_status():
+    """Check whether the Ollama daemon is reachable and the model is loaded."""
+    try:
+        from case_priority_system.scripts.inference_pipeline import (
+            _ollama_reachable,
+            OLLAMA_MODEL,
+            OLLAMA_URL,
+            llm_extraction_enabled,
+        )
+    except ImportError:
+        from scripts.inference_pipeline import (
+            _ollama_reachable,
+            OLLAMA_MODEL,
+            OLLAMA_URL,
+            llm_extraction_enabled,
+        )
+    reachable = _ollama_reachable()
+    enabled = llm_extraction_enabled()
+    return {
+        "daemon_running": reachable,
+        "llm_enabled": enabled,
+        "model": OLLAMA_MODEL,
+        "url": OLLAMA_URL,
+    }
 
 @app.get("/api/network-info")
 async def get_network_info():
