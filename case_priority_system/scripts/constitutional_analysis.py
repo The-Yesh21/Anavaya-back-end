@@ -1316,13 +1316,175 @@ def generate_priority_rules_detailed(features: dict, priority: str) -> str:
         "and justice is delivered without undue delay."
     )
 
-    return "\n\n".join(rules)
+    return "\n\n".join(rules)# ---------------------------------------------------------------------------
+# PLAIN-LANGUAGE "WHY THIS APPLIES" EXPLANATIONS
+# ---------------------------------------------------------------------------
+
+def _generate_why_applies(article: str, features: dict, priority: str) -> str:
+    """Generate a plain-language explanation of why a specific constitutional
+    article applies to THIS case, based on the extracted features.
+
+    This is the key function that turns legal jargon into something a
+    non-lawyer can understand: "Article X applies because the case involves Y,"
+    "which means Z for the people involved."
+    """
+    severity = features.get("severity", "No Injury")
+    vulnerability = features.get("vulnerability", "Low")
+    influence = features.get("influence", "Low")
+    category = features.get("case_category", "General Civil")
+    crime_type = features.get("crime_type", "Non-Violent")
+    parties = features.get("main_parties", "the parties")
+
+    explanations = {
+        "Article 14": {
+            "Criminal/Violent": (
+                "This case involves a criminal matter where equality before the law "
+                "matters — the accused must be treated fairly, and the victim must "
+                "receive equal protection. Article 14 ensures neither party is "
+                "favoured or disadvantaged because of who they are."
+            ),
+            "_default": (
+                "Article 14 guarantees that everyone is treated equally under the law. "
+                "It applies here because the case involves a dispute where both sides "
+                "deserve a fair hearing, and the court must not favour one party over "
+                "the other."
+            ),
+        },
+        "Article 15": (
+            "This case involves a person or group that the Constitution specifically "
+            "protects — such as women, children, or members of Scheduled Castes "
+            "and Tribes. Article 15 says the law must not discriminate against them, "
+            "and the state must take special steps to protect their interests."
+        ),
+        "Article 19": (
+            "This case affects someone's right to carry on a business, trade, or "
+            "profession. Article 19(1)(g) protects that freedom, but the government "
+            "can impose reasonable restrictions in the public interest. The court "
+            "must check if any restriction was fair and justified."
+        ),
+        "Article 19(1)(g)": (
+            "This case affects someone's right to carry on a business, trade, or "
+            "profession. Article 19(1)(g) protects that freedom, but the government "
+            "can impose reasonable restrictions in the public interest. The court "
+            "must check if any restriction was fair and justified."
+        ),
+        "Article 21": {
+            "Fatal": (
+                "Someone has lost their life. Article 21 — the right to life — is the "
+                "most important right in the Constitution. When a life is lost, the "
+                "state has a duty to investigate, punish the wrongdoer, and make sure "
+                "this never happens again. This is why the case gets the highest priority."
+            ),
+            "Major": (
+                "Someone has been seriously injured or their health is in danger. "
+                "Article 21 protects the right to life and to live with dignity. "
+                "When a person is seriously hurt, the state must act quickly to "
+                "ensure they get medical care and that those responsible are held "
+                "accountable."
+            ),
+            "Minor": (
+                "Someone has been injured, though not life-threatening. Article 21 "
+                "protects the right to bodily integrity — even minor harm to a "
+                "person's body is taken seriously by the Constitution. The state "
+                "must ensure the injured person gets justice without unreasonable delay."
+            ),
+            "_default": (
+                "Article 21 protects the right to life and personal liberty. It applies "
+                "here because the case involves a matter where a person's freedom, safety, "
+                "or dignity could be affected. Even when no physical harm is involved, "
+                "the court must ensure that no one is deprived of their liberty without "
+                "a lawful reason."
+            ),
+        },
+        "Article 20": (
+            "This is a criminal case, and Article 21 protects the accused from being "
+            "unfairly prosecuted. It ensures that no one can be punished for something "
+            "that was not a crime when they did it, cannot be tried twice for the same "
+            "offence, and cannot be forced to testify against themselves."
+        ),
+        "Article 22": (
+            "Someone has been arrested or detained. Article 22 ensures they are told "
+            "why they were arrested, can speak to a lawyer, and are not held indefinitely "
+            "without proper legal process. This protects people from being locked up "
+            "arbitrarily by the state."
+        ),
+        "Articles 23 & 24": (
+            "This case involves exploitation — trafficking, forced labour, or child labour. "
+            "The Constitution absolutely forbids these practices. Articles 23 and 24 "
+            "require the state to protect the most vulnerable from being used and abused "
+            "by others."
+        ),
+        "Article 32": (
+            "This case is filed in the Supreme Court to enforce fundamental rights. "
+            "Article 32 gives every citizen the power to go directly to the Supreme Court "
+            "if their constitutional rights are being violated — it is the "
+            ""constitutional remedy" that makes all other rights enforceable."
+        ),
+        "Article 226": (
+            "This case is filed in a High Court. Article 226 gives High Courts the power "
+            "to issue orders (writs) to the government and its agencies when they act "
+            "illegally or violate someone's rights. It is the main tool citizens use to "
+            "hold the state accountable."
+        ),
+        "Article 265": (
+            "This case involves a tax dispute. Article 265 says the government cannot "
+            "collect any tax unless there is a law authorising it. If the tax was levied "
+            "without proper legal authority, it is unconstitutional and must be refunded."
+        ),
+        "Article 300A": {
+            "Property/Land": (
+                "This case involves property or land. Article 300A says no one can be "
+                "deprived of their property except by authority of law. If someone's land "
+                "or property is being taken away, the government must follow a proper legal "
+                "process and pay fair compensation."
+            ),
+            "_default": (
+                "This case involves property or money. Article 300A protects people from "
+                "losing their property without a lawful reason. The court must check that "
+                "any deprivation of property was done through proper legal channels."
+            ),
+        },
+    }
+
+    # Look up the explanation for this article
+    article_expl = explanations.get(article)
+    if article_expl is None:
+        return ""
+
+    # If the explanation is a dict (has category/severity variants), pick the right one
+    if isinstance(article_expl, dict):
+        # For Article 21, use severity-specific explanation
+        if article == "Article 21":
+            expl = article_expl.get(severity, article_expl.get("_default", ""))
+        else:
+            expl = article_expl.get(category, article_expl.get("_default", ""))
+    else:
+        expl = article_expl
+
+    # Add context about vulnerability and influence if relevant
+    extras = []
+    if vulnerability == "High" and article in ("Article 14", "Article 15", "Article 21"):
+        extras.append(
+            "Because a vulnerable person is involved (such as a minor, elderly person, "
+            "or member of a disadvantaged community), the state has an extra duty to "
+            "protect them — this is called the Doctrine of Parens Patriae."
+        )
+    if influence == "High" and article == "Article 14":
+        extras.append(
+            "There is a power imbalance in this case — one party is a government body "
+            "or large institution. Article 14 requires the court to make sure the "
+            "smaller party is not crushed by the bigger one's resources and influence."
+        )
+
+    if extras:
+        expl = expl + " " + " ".join(extras)
+
+    return expl
 
 
 # ---------------------------------------------------------------------------
 # COMPREHENSIVE ANALYSIS — SINGLE ENTRY POINT
 # ---------------------------------------------------------------------------
-
 
 def get_comprehensive_constitutional_analysis(features: dict, priority: str) -> dict:
     """
@@ -1331,13 +1493,25 @@ def get_comprehensive_constitutional_analysis(features: dict, priority: str) -> 
     """
     rights_analysis = analyze_constitutional_rights(features)
 
+    # Precedent citations from the LLM (may be None if LLM didn't produce them)
+    llm_precedents = features.get("precedent_citations") or {}
+
+    def _merge_precedents(article: str, right: dict) -> dict:
+        """Attach LLM-generated precedent citations to a constitutional right."""
+        result = {
+            "article": right["article"],
+            "title": right["title"],
+            "primary": right["primary"],
+            "why_applies": _generate_why_applies(right["article"], features, priority),
+            "precedents": [],
+        }
+        # Merge: LLM citations take priority; fall back to empty list
+        result["precedents"] = llm_precedents.get(article, [])
+        return result
+
     return {
         "constitutional_rights_engaged": [
-            {
-                "article": r["article"],
-                "title": r["title"],
-                "primary": r["primary"],
-            }
+            _merge_precedents(r["article"], r)
             for r in rights_analysis["engaged_rights"]
         ],
         "constitutional_rights_detail": rights_analysis["engaged_rights"],
