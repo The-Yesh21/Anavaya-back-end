@@ -94,6 +94,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 await openCaseWorkspace(caseId);
                 // Auto-populate the Analysis tab: find the first analyzed
                 // document in this case's Excel rows and feed it to selectCase.
+                // selectCaseFn activates the Analysis (details) tab automatically.
+                let foundAnalysis = false;
                 try {
                     const caseRes = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
                     if (caseRes.ok) {
@@ -103,13 +105,19 @@ document.addEventListener("DOMContentLoaded", () => {
                             const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
                             if (row) {
                                 UI.selectCaseFn(row);
+                                foundAnalysis = true;
                                 break;
                             }
                         }
                     }
                 } catch (_) { /* non-fatal */ }
-                const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
-                if (caseTabBtn) caseTabBtn.click();
+                // If no analyzed document was found, stay on the Case workspace tab
+                // so the officer can upload evidence. If selectCaseFn was called,
+                // the Analysis tab is already active.
+                if (!foundAnalysis) {
+                    const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
+                    if (caseTabBtn) caseTabBtn.click();
+                }
             });
         });
         // Doc click → select the matching Excel row if present
@@ -421,12 +429,26 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             const data = await res.json();
             await openCaseWorkspace(currentWorkspaceCaseId);
+            // Refresh the Excel-backed case list so getCasesData() has the
+            // latest analysis results before we try to find the matching row.
+            try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
             fetchRegistry();
             // Show per-document analysis errors (e.g. unreadable images).
             if (data.analysis_errors && data.analysis_errors.length) {
                 const msg = data.analysis_errors.join("\n");
                 alert("Some documents could not be analyzed:\n\n" + msg);
             }
+            // Auto-navigate to the Analysis tab so the officer sees results.
+            try {
+                const caseRes = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}`);
+                if (caseRes.ok) {
+                    const caseData = await caseRes.json();
+                    for (const d of (caseData.documents || [])) {
+                        const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
+                        if (row) { UI.selectCaseFn(row); break; }
+                    }
+                }
+            } catch (_) { /* non-fatal */ }
         } catch (err) {
             alert("Analysis failed: " + err.message);
         } finally {
@@ -716,22 +738,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // =================================================================
-    // 5. GPU STATUS BADGE (header)
+    // 5. OLLAMA / GPU STATUS BADGE (header)
     // =================================================================
     async function loadGpuBadge() {
         const badge = $("gpu-badge");
         const textEl = $("gpu-badge-text");
         if (!badge || !textEl) return;
         try {
-            const res = await fetch("/api/gpu-status");
-            if (!res.ok) throw new Error("status fetch failed");
-            const st = await res.json();
-            if (!st.gpu) { badge.hidden = true; return; }
-            const gpuShort = String(st.gpu)
-                .replace(/^NVIDIA GeForce /, "")
-                .replace(/^NVIDIA /, "");
-            textEl.textContent = `${gpuShort} · ${st.model || "LLM"} · `
-                + (st.llm_mode === "enabled" ? "GPU inference" : "rule-based");
+            // Check Ollama daemon status first
+            const ollamaRes = await fetch("/api/ollama/status");
+            if (!ollamaRes.ok) throw new Error("status fetch failed");
+            const ollamaSt = await ollamaRes.json();
+            if (!ollamaSt.daemon_running) {
+                textEl.textContent = `Ollama: starting…`;
+                badge.classList.remove("gpu-on");
+                badge.hidden = false;
+                // Retry in 5s
+                setTimeout(loadGpuBadge, 5000);
+                return;
+            }
+            // GPU status
+            const gpuRes = await fetch("/api/gpu-status");
+            if (!gpuRes.ok) throw new Error("gpu status failed");
+            const st = await gpuRes.json();
+            const parts = [];
+            if (st.gpu) {
+                const gpuShort = String(st.gpu)
+                    .replace(/^NVIDIA GeForce /, "")
+                    .replace(/^NVIDIA /, "");
+                parts.push(gpuShort);
+            }
+            parts.push(st.model || "LLM");
+            parts.push(st.llm_mode === "enabled" ? "GPU inference" : "rule-based");
+            textEl.textContent = parts.join(' · ');
             badge.classList.toggle("gpu-on", st.llm_mode === "enabled");
             badge.hidden = false;
         } catch (e) {
