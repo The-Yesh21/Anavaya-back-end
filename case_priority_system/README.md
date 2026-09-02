@@ -92,7 +92,7 @@ The system includes a premium web interface built with FastAPI, D3.js, and Vanil
 ### Start the Dashboard Server:
 Run the following command from the workspace root:
 ```powershell
-python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
+ff
 ```
 Then, open your web browser and navigate to `http://127.0.0.1:8000`.
 
