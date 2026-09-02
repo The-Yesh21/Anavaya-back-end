@@ -26,6 +26,16 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
 # ---------- Pydantic model for structured output ----------
 
+class PrecedentCitation(BaseModel):
+    """A landmark case that established or reinforced a constitutional interpretation."""
+    case_name: str = Field(description="Full case name, e.g. 'Maneka Gandhi v. Union of India'")
+    year: int = Field(description="Year of the judgment")
+    court: str = Field(description="Court that decided it, e.g. 'Supreme Court' or 'High Court of Bombay'")
+    relevance: str = Field(
+        description="One sentence explaining how this precedent connects the article to the current case type"
+    )
+
+
 class CaseFeatures(BaseModel):
     """Schema for structured case feature extraction from legal documents."""
     main_parties: str = Field(
@@ -60,6 +70,15 @@ class CaseFeatures(BaseModel):
             "any key legal issues or constitutional questions, and state the "
             "relief sought. Use simple language a non-lawyer could understand."
         )
+    )
+    precedent_citations: Optional[dict[str, list[PrecedentCitation]]] = Field(
+        default=None,
+        description=(
+            "For EACH applicable constitutional article (e.g. 'Article 21'), list the 1-2 most "
+            "relevant landmark Indian court cases that established or expanded the interpretation "
+            "of that article as it applies to THIS type of case. Include the case name, year, "
+            "court, and a one-sentence relevance note."
+        ),
     )
 
 
@@ -139,7 +158,19 @@ SYSTEM_PROMPT = (
     "markdown fences, nothing before or after the JSON. The parser takes the first "
     "{...} block; anything else breaks the pipeline. If a field is genuinely "
     "undeterminable, pick the CLOSEST allowed label — never invent a new value and "
-    "never leave a field empty."
+    "never leave a field empty.\n\n"
+    "--- PRECEDENT CITATIONS (NEW) ---\n"
+    "After the 7 standard fields, add a 'precedent_citations' object. For EACH "
+    "constitutional article that applies to this case (from the articles you identified), "
+    "cite 1-2 real landmark Indian court cases that established or expanded that article's "
+    "interpretation for this type of dispute. Each citation must have:\n"
+    "  - case_name: The full case name (e.g. 'Maneka Gandhi v. Union of India')\n"
+    "  - year: The year of judgment (integer)\n"
+    "  - court: 'Supreme Court' or the specific High Court name\n"
+    "  - relevance: One sentence explaining WHY this precedent matters for this case type\n\n"
+    "IMPORTANT: Only cite REAL, well-known Indian landmark cases. If you are not confident "
+    "about a specific case, omit that article rather than fabricate a citation."
+)
 )
 
 USER_PROMPT_TEMPLATE = """Analyze the following legal case text and extract case features.
@@ -179,8 +210,29 @@ Return ONLY valid JSON matching this schema:
   "severity": "...",
   "vulnerability": "...",
   "influence": "...",
-  "plain_summary": "..."
+  "plain_summary": "...",
+  "precedent_citations": {{
+    "Article 21": [
+      {{
+        "case_name": "Maneka Gandhi v. Union of India",
+        "year": 1978,
+        "court": "Supreme Court",
+        "relevance": "Expanded Article 21 to include right to live with dignity, making it the most invoked precedent in life-and-liberty cases."
+      }}
+    ],
+    "Article 14": [
+      {{
+        "case_name": "E.P. Royappa v. State of Tamil Nadu",
+        "year": 1974,
+        "court": "Supreme Court",
+        "relevance": "Established that Article 14 strikes at arbitrariness in state action, not just discrimination."
+      }}
+    ]
+  }}
 }}
+
+For precedent_citations, include ONLY the articles that are most relevant to THIS case.
+Use real, well-known Indian landmark cases only. If unsure about a case, omit it.
 """
 
 
