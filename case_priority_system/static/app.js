@@ -592,16 +592,38 @@ document.addEventListener("DOMContentLoaded", () => {
             c.Constitutional_Rights_Engaged.forEach(right => {
                 const primaryClass = right.primary ? 'primary' : 'secondary';
                 const tagText = right.primary ? 'PRIMARY' : 'SECONDARY';
+                const whyText = right.why_applies ? `<p class="rights-why">${escHtml(right.why_applies)}</p>` : '';
+                // Render landmark precedent citations inside the card
+                let precedentsHtml = '';
+                const precedents = right.precedents || [];
+                if (precedents.length > 0) {
+                    precedentsHtml = '<div class="rights-precedents">';
+                    precedentsHtml += '<div class="precedents-label"><i data-lucide="landmark"></i> Landmark Precedents</div>';
+                    precedents.forEach(p => {
+                        precedentsHtml += `
+                            <div class="precedent-item">
+                                <span class="precedent-case">${escHtml(p.case_name)}</span>
+                                <span class="precedent-meta">${escHtml(p.court)}, ${escHtml(String(p.year))}</span>
+                                <p class="precedent-relevance">${escHtml(p.relevance)}</p>
+                            </div>
+                        `;
+                    });
+                    precedentsHtml += '</div>';
+                }
                 rightsHtml += `
                     <div class="rights-card ${primaryClass}">
                         <div class="rights-article-tag">${tagText}</div>
                         <strong class="rights-article">${escHtml(right.article)}</strong>
                         <span class="rights-title">${escHtml(right.title)}</span>
+                        ${whyText}
+                        ${precedentsHtml}
                     </div>
                 `;
             });
             rightsHtml += '</div>';
             rightsContainer.innerHTML = rightsHtml;
+            // Re-render lucide icons for the landmark icons
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         } else if (typeof c.Constitutional_Rights_Engaged === 'string' && c.Constitutional_Rights_Engaged) {
             // Handle legacy string format (may embed a Python list-of-dict repr)
             const parsedRights = parseListRepr(c.Constitutional_Rights_Engaged);
@@ -610,11 +632,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 parsedRights.forEach(right => {
                     const primaryClass = right.primary ? 'primary' : 'secondary';
                     const tagText = right.primary ? 'PRIMARY' : 'SECONDARY';
+                    const whyText = right.why_applies ? `<p class="rights-why">${escHtml(right.why_applies)}</p>` : '';
                     rightsHtml += `
                         <div class="rights-card ${primaryClass}">
                             <div class="rights-article-tag">${tagText}</div>
                             <strong class="rights-article">${escHtml(right.article)}</strong>
                             <span class="rights-title">${escHtml(right.title)}</span>
+                            ${whyText}
                         </div>
                     `;
                 });
