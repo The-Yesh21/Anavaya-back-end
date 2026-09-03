@@ -44,6 +44,10 @@
             <div class="join-emblem"><i data-lucide="scale"></i></div>
             <h1 id="join-case-title">Loading trial…</h1>
             <p id="join-subtitle" class="join-subtitle">Enter the courtroom</p>
+            <p id="join-media-warning" class="join-media-warning" style="display:none;">
+                <i data-lucide="mic-off"></i>
+                <span>Microphone &amp; video need a secure connection (https or localhost). This page is open over plain http on a network address, so <strong>Hold to Talk</strong> cannot access your mic here. Open <code>http://localhost:8000/court/<span id="join-media-room"></span></code> on the host machine (or serve the app over https) to use audio.</span>
+            </p>
 
             <form id="join-form" class="join-form">
                 <label class="field">

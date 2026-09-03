@@ -105,6 +105,7 @@
     async function init() {
         lucide.createIcons();
         await loadRoomPreview();
+        maybeShowMediaWarning();
         renderRolePicker();
         els.joinForm.addEventListener("submit", onJoin);
         els.statementForm.addEventListener("submit", onStatement);
@@ -315,6 +316,12 @@
 
     async function ensureLocalStream() {
         if (state.localStream) return state.localStream;
+        if (mediaUnavailableReason()) {
+            reportMicFailure(null, "Microphone unavailable on this connection.");
+            state.micEnabled = false;
+            showMicFallback();
+            return null;
+        }
         try {
             state.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
@@ -329,7 +336,7 @@
                 console.warn("Microphone access denied too. Audio will be disabled.", e2);
                 state.localStream = null;
                 state.micEnabled = false;
-                toast("Microphone unavailable — you can still participate via text.");
+                reportMicFailure(e2, "Microphone unavailable — you can still participate via text.");
                 showMicFallback();
             }
         }
@@ -818,6 +825,68 @@
     }
 
     // ====================================================================
+    // MIC / CAMERA AVAILABILITY
+    // ====================================================================
+    // getUserMedia only exists in a secure context (https or localhost).
+    // Invite links built by invite.js point at this machine's LAN IP over
+    // plain http, where the browser exposes NO mediaDevices API — previously
+    // this surfaced as a generic "Microphone unavailable" toast that gave the
+    // user no idea why Hold to Talk would not work. Detect it up front, warn
+    // on the join card, and give an actionable reason for each failure mode.
+    function mediaUnavailableReason() {
+        if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return "insecure_context";
+        }
+        return null;
+    }
+
+    function maybeShowMediaWarning() {
+        const warn = document.getElementById("join-media-warning");
+        if (!warn || mediaUnavailableReason() !== "insecure_context") return;
+        const room = warn.querySelector("#join-media-room");
+        if (room) room.textContent = ROOM_ID;
+        warn.style.display = "flex";
+        lucide.createIcons();
+    }
+
+    // Human-readable, actionable reason for a failed mic/camera request.
+    function micErrorInfo(e) {
+        if (mediaUnavailableReason() === "insecure_context") {
+            return {
+                title: "Microphone & camera need a secure connection.",
+                hint: "This page is open over plain http on a network address. Join at http://localhost:8000 on the host machine (or serve the app over https) to enable your mic.",
+            };
+        }
+        if (!e) return null;
+        const name = e.name || "";
+        if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+            return {
+                title: "Microphone permission was blocked.",
+                hint: "Click the lock or shield icon beside the address bar, allow Microphone (and Camera for video), then press Hold to Talk again.",
+            };
+        }
+        if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+            return { title: "No microphone was found.", hint: "Check that a microphone is connected and enabled on this device." };
+        }
+        if (name === "NotReadableError" || name === "TrackStartError") {
+            return { title: "Microphone is busy in another app.", hint: "Close other apps using the mic (video calls, meetings, recorders) and try again." };
+        }
+        if (name === "OverconstrainedError") {
+            return { title: "Microphone couldn't start with the requested settings.", hint: "Try again — your browser may have just restarted the mic." };
+        }
+        return null;
+    }
+
+    function reportMicFailure(e, fallbackText) {
+        const info = micErrorInfo(e);
+        const title = info ? info.title : fallbackText;
+        const hint = info ? info.hint : "";
+        toast((hint ? `${title} ${hint}` : title).trim());
+        if (els.pushToTalkBtn) els.pushToTalkBtn.title = hint ? `${title} ${hint}` : title;
+        setAsrStatus(title);
+    }
+
+    // ====================================================================
     // ====================================================================
     // PUSH-TO-TALK
     // ====================================================================
@@ -857,10 +926,25 @@
             // the user might release the button (see ptt.releasedDuringInit).
             stream = await ensureLocalStream();
         }
+        // The shared stream can carry no audio (e.g. it was acquired as
+        // video-only, or the join-time prompt was dismissed). Hold to Talk
+        // needs a mic, so request a dedicated audio stream instead of failing
+        // with a vague message — this also re-triggers the browser's permission
+        // prompt when the earlier one was dismissed rather than blocked.
         if (!stream || !stream.getAudioTracks().length) {
-            toast("Microphone unavailable — you can still type your statement.");
-            showMicFallback();
-            return;
+            if (mediaUnavailableReason()) {
+                reportMicFailure(null, "Microphone unavailable on this connection.");
+                showMicFallback();
+                return;
+            }
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (e) {
+                console.warn("Push-to-talk could not access the microphone:", e);
+                reportMicFailure(e, "Microphone unavailable — you can still type your statement.");
+                showMicFallback();
+                return;
+            }
         }
         // If the user released while we were waiting for the mic, abort.
         if (ptt.releasedDuringInit) {
