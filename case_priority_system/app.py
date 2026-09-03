@@ -1308,6 +1308,24 @@ def list_courtrooms():
     return courtroom_manager.list_rooms()
 
 
+@app.delete("/api/court/rooms/{room_id}")
+def delete_courtroom(room_id: str):
+    """Permanently delete a trial room (JSON + audio) for cleanup.
+
+    Live participants are not force-disconnected — end the session first
+    (Judge → End Session) or delete abandoned/ended rooms only.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    # Drop the live socket map so a deleted room can't keep broadcasting. Live
+    # participants are not force-closed — end the session first (Judge → End
+    # Session) or use this on abandoned/ended rooms.
+    getattr(courtroom_manager, "_room_sockets", {}).pop(room_id, None)
+    if not courtroom_manager.delete_room(room_id):
+        raise HTTPException(status_code=404, detail="Room not found.")
+    return {"deleted": room_id}
+
+
 @app.get("/api/court/rooms/{room_id}")
 def get_courtroom(request: Request, room_id: str):
     """Public state of one room (roster + transcript)."""

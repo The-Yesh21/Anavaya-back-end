@@ -300,6 +300,31 @@ class CourtroomManager:
                 self._persist(room)
         return participant
 
+    def delete_room(self, room_id: str) -> bool:
+        """Permanently delete a trial room: memory, disk JSON, and audio clips.
+
+        Returns True when anything was removed. Used by the dashboard's
+        cleanup control for abandoned/ended sessions.
+        """
+        removed = False
+        with self._lock:
+            if room_id in self._rooms:
+                del self._rooms[room_id]
+                removed = True
+        json_path = os.path.join(self.storage_dir, f"{room_id}.json")
+        if os.path.exists(json_path):
+            try:
+                os.remove(json_path)
+                removed = True
+            except OSError:
+                pass
+        audio_dir = os.path.join(self.storage_dir, "audio", room_id)
+        if os.path.isdir(audio_dir):
+            import shutil
+            shutil.rmtree(audio_dir, ignore_errors=True)
+            removed = True
+        return removed
+
     def end_room(self, room_id: str, ended_by: str) -> Optional[Room]:
         """Adjourn a trial: mark the room ended, set the phase to Concluded,
         and append a system entry. The transcript + roster stay on disk so the
