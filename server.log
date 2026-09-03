@@ -1,14 +1,56 @@
-INFO:     Started server process [10376]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfTransformer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfVectorizer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LabelEncoder from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
 Model data loaded successfully.
 
 ============================================================
 Anavaya Dashboard is running!
 Local:   http://127.0.0.1:8000
-Mobile:  http://192.168.1.50:8000  (same WiFi)
+Mobile:  http://10.83.187.37:8000  (same WiFi)
 ============================================================
 
-[Anavaya] LLM feature extraction disabled (auto-detect, model qwen2.5:3b). ANAVAYA_USE_LLM=0 forces the ~2s rule-based path.
-INFO:     127.0.0.1:62554 - "GET /api/gpu-status HTTP/1.1" 200 OK
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+INFO:     Started server process [7280]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[Anavaya] Ollama daemon started successfully.
+INFO:     127.0.0.1:59987 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59988 - "GET /api/cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61264 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61264 - "GET /style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55500 - "GET /case-workflow.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:57545 - "GET /app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54717 - "GET /case-workflow.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:51278 - "GET /api/network-info HTTP/1.1" 200 OK
+[Anavaya] LLM feature extraction ENABLED (auto-detect, model qwen2.5:3b). ANAVAYA_USE_LLM=0 forces the ~2s rule-based path.
+INFO:     127.0.0.1:52994 - "GET /api/ollama/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54550 - "GET /api/cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60053 - "GET /api/case-registry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51278 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51278 - "GET /api/gpu-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55140 - "POST /api/ollama/warmup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55633 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58214 - "POST /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58215 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58216 - "WebSocket /ws/court/D142" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:58220 - "WebSocket /ws/court/D142" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:55920 - "WebSocket /ws/court/D142" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:53595 - "WebSocket /ws/court/D142" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:55524 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50901 - "POST /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50902 - "WebSocket /ws/court/5964" [accepted]
+INFO:     connection open

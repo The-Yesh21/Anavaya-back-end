@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Low Priority</div>
   <h2>A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800.PDF</h2>
-  <p>In this case, A.K. Kaimal sought to be adjudged as an insolvent due to his inability to pay two debts. The appellant, A.K. Kaimal, approached the court to be declared insolvent, as he could not pay two items of debts due to the respondents. The court dismissed the petition, as the appellant had received a sum of Rs. 6,000 to 7,000 as a retirement benefit and could not account for its use. The case falls under the Insolvency/Debt category as it deals with the debtor's inability to pay debts, engaging Article 14 of the Indian Constitution, which prohibits discrimination and ensures equal protection.</p>
+  <p>A.K. Kaimal, a former employee of Chamundy Curing Works, sought to be declared insolvent due to inability to pay two debts. The District Judge dismissed his petition, finding that Kaimal had received a retirement benefit and could not account for its use. The appeal argued that the judge's decision was premature and that the Court should have focused on the insolvency provisions of the Act. The Court allowed the appeal, finding that the judge's dismissal was unjustified and remitted the case for further proceedings.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>

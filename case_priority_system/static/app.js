@@ -378,7 +378,40 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="case-item-category">${escHtml(c.Category) || "General Civil"}</span>
                     </div>
                 </div>
+                <div class="case-item-hover-actions">
+                    <button class="case-action-btn open-btn" title="Open this case"><i data-lucide="file-text"></i> Open</button>
+                    <button class="case-action-btn remove-btn" title="Remove this case"><i data-lucide="trash-2"></i> Remove</button>
+                </div>
             `;
+            // Hover overlay action handlers
+            const openBtn = item.querySelector(".open-btn");
+            const removeBtn = item.querySelector(".remove-btn");
+            openBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                selectCase(c);
+                closeSidebar();
+            });
+            removeBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                if (!confirm(`Remove "${cleanTitle}" from the list?`)) return;
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const d = await res.json().catch(() => ({}));
+                        alert(d.detail || "Failed to delete.");
+                        return;
+                    }
+                    casesData = casesData.filter(x => x.Case_File !== c.Case_File);
+                    if (selectedCase && selectedCase.Case_File === c.Case_File) {
+                        selectedCase = null;
+                        showEmptyDetail();
+                    }
+                    renderCasesList(casesData);
+                    updateStats(casesData);
+                } catch (err) {
+                    alert("Delete failed: " + err.message);
+                }
+            });
             item.addEventListener("click", () => { selectCase(c); closeSidebar(); });
             item.addEventListener("keydown", (e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -389,6 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             casesListContainer.appendChild(item);
         });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     // Search and Filter Listeners (debounced search)
@@ -399,6 +433,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     filterPriority.addEventListener("change", () => renderCasesList(casesData));
     filterCategory.addEventListener("change", () => renderCasesList(casesData));
+
+    // Clear All cases
+    const clearAllBtn = document.getElementById("clear-all-btn");
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener("click", async () => {
+            if (!casesData.length) return;
+            if (!confirm(`Remove all ${casesData.length} cases from the list?`)) return;
+            let failed = 0;
+            for (const c of [...casesData]) {
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}`, { method: "DELETE" });
+                    if (!res.ok) failed++;
+                } catch (_) { failed++; }
+            }
+            casesData = [];
+            selectedCase = null;
+            showEmptyDetail();
+            renderCasesList(casesData);
+            updateStats(casesData);
+            if (failed) alert(`${failed} case(s) could not be removed.`);
+        });
+    }
 
     // Ctrl/Cmd+K focuses search
     document.addEventListener("keydown", (e) => {
@@ -544,6 +600,11 @@ document.addEventListener("DOMContentLoaded", () => {
             fileInput.value = ""; // clear input
         }
     });
+
+    function showEmptyDetail() {
+        noCaseSelectedEl.style.display = "flex";
+        caseDetailsContentEl.style.display = "none";
+    }
 
     // Case Selection
     async function selectCase(c) {

@@ -63,7 +63,7 @@
             </form>
             <p class="join-note">
                 <i data-lucide="info"></i>
-                Live audio connects you to the other counsel. When you speak, your words are
+                Live audio and video connect you to the other counsel. When you speak, your words are
                 transcribed, grammar-corrected by the local LLM, and added to the official
                 transcript automatically — with the audio recording attached.
             </p>
@@ -111,6 +111,46 @@
                     <div class="phase-buttons" id="phase-buttons">
                         <!-- phase buttons injected by JS -->
                     </div>
+                </div>
+
+                <!-- Witness Face & Expression Analysis (local camera; cues logged to the record) -->
+                <div id="face-analysis" class="face-analysis card" style="display:none;">
+                    <div class="panel-header">
+                        <h2><i data-lucide="scan-face"></i> Face &amp; Expression</h2>
+                        <span id="face-state" class="face-state">Off</span>
+                    </div>
+                    <label class="face-source-field" title="Which camera feed to analyze">
+                        <span>Analyze</span>
+                        <select id="face-source">
+                            <option value="self">My camera</option>
+                        </select>
+                    </label>
+                    <p id="face-source-status" class="face-source-status" hidden></p>
+                    <div class="face-video-wrap mirror">
+                        <video id="face-video" autoplay playsinline muted></video>
+                        <canvas id="face-overlay"></canvas>
+                        <div id="face-placeholder" class="face-placeholder">
+                            <i data-lucide="user-round"></i>
+                            <span>Feed off</span>
+                        </div>
+                    </div>
+                    <div class="face-metrics">
+                        <div class="fm"><span class="fm-label">Expression</span><strong id="fm-expression">—</strong></div>
+                        <div class="fm"><span class="fm-label">Lips</span><strong id="fm-lips">—</strong></div>
+                        <div class="fm"><span class="fm-label">Brows</span><strong id="fm-brows">—</strong></div>
+                        <div class="fm"><span class="fm-label">Blinks</span><strong id="fm-blinks">0</strong></div>
+                    </div>
+                    <div class="face-gauge">
+                        <div class="face-gauge-track"><div id="face-gauge-fill" class="face-gauge-fill"></div></div>
+                        <div class="face-gauge-readout"><strong id="face-score">0%</strong><span>nervousness</span></div>
+                    </div>
+                    <div id="face-cues" class="face-cues"></div>
+                    <div class="face-actions">
+                        <button type="button" id="face-camera-btn" class="face-btn"><i data-lucide="video"></i> Enable Camera</button>
+                        <button type="button" id="face-start-btn" class="face-btn primary" disabled><i data-lucide="play"></i> Start Analysis</button>
+                        <button type="button" id="face-stop-btn" class="face-btn danger" disabled><i data-lucide="square"></i> Stop</button>
+                    </div>
+                    <p class="face-note"><i data-lucide="info"></i> Analyzes the selected feed via MediaPipe — your camera or a remote participant's video. Detected nervousness cues (lip pressing, rapid blinking, gaze avoidance, …) are logged to the official transcript.</p>
                 </div>
             </section>
 
