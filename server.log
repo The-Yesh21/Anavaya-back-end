@@ -54,3 +54,185 @@ INFO:     127.0.0.1:55524 - "GET /api/court/rooms HTTP/1.1" 200 OK
 INFO:     127.0.0.1:50901 - "POST /api/court/rooms HTTP/1.1" 200 OK
 INFO:     127.0.0.1:50902 - "WebSocket /ws/court/5964" [accepted]
 INFO:     connection open
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfTransformer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfVectorizer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LabelEncoder from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+Model data loaded successfully.
+
+============================================================
+Anavaya Dashboard is running!
+Local:   http://127.0.0.1:8000
+Mobile:  http://10.83.187.37:8000  (same WiFi)
+============================================================
+
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+INFO:     Started server process [20620]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:62956 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62976 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62977 - "GET /api/cases HTTP/1.1" 200 OK
+[Anavaya] LLM feature extraction ENABLED (auto-detect, model qwen2.5:3b). ANAVAYA_USE_LLM=0 forces the ~2s rule-based path.
+INFO:     127.0.0.1:62978 - "GET /api/gpu-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62983 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63404 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63404 - "GET /style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:60625 - "GET /case-workflow.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59404 - "GET /app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59090 - "GET /case-workflow.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59090 - "GET /tokens.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59404 - "GET /api/network-info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61658 - "GET /api/ollama/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60625 - "GET /api/cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63404 - "GET /api/case-registry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59404 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60625 - "GET /api/gpu-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59090 - "POST /api/ollama/warmup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59090 - "GET /api/cases/A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800.PDF/decision-path HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52346 - "POST /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52346 - "GET /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52346 - "GET /api/court/invite-info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63167 - "GET /court/1A86 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63167 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63167 - "GET /api/court/rooms/1A86 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52792 - "WebSocket /ws/court/1A86" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:58342 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     10.83.187.230:48462 - "GET /court/1A86 HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48476 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48462 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48494 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48492 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48494 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48494 - "GET /api/court/rooms/1A86 HTTP/1.1" 200 OK
+INFO:     10.83.187.230:48494 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     10.83.187.230:59912 - "WebSocket /ws/court/1A86" [accepted]
+INFO:     connection open
+Whisper ASR unavailable: No module named 'whisper'
+INFO:     127.0.0.1:57802 - "POST /api/court/transcribe HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:65463 - "GET /api/court/rooms/1A86/transcript.pdf HTTP/1.1" 200 OK
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfTransformer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfVectorizer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LabelEncoder from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+Model data loaded successfully.
+
+============================================================
+Anavaya Dashboard is running!
+Local:   http://127.0.0.1:8000
+Mobile:  http://10.83.187.37:8000  (same WiFi)
+============================================================
+
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+INFO:     Started server process [15940]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59837 - "GET / HTTP/1.1" 200 OK
+Whisper ASR unavailable: No module named 'whisper'
+INFO:     127.0.0.1:59838 - "GET /api/court/asr-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59844 - "POST /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53596 - "GET /court/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53596 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63643 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62489 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60021 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59738 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59738 - "GET /api/court/rooms/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62642 - "WebSocket /ws/court/50E5" [accepted]
+INFO:     connection open
+Whisper ASR unavailable: No module named 'whisper'
+INFO:     127.0.0.1:59738 - "GET /api/court/asr-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50254 - "GET /court/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50254 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61046 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58534 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56791 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56791 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56791 - "GET /api/court/rooms/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57045 - "WebSocket /ws/court/50E5" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:56791 - "GET /api/court/asr-status HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "F:\major_project\case_priority_system\app.py", line 1614, in courtroom_socket
+    raw = await websocket.receive_text()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\starlette\websockets.py", line 118, in receive_text
+    raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
+RuntimeError: WebSocket is not connected. Need to call "accept" first.
+Courtroom socket error: WebSocket is not connected. Need to call "accept" first.
+INFO:     127.0.0.1:57046 - "GET /api/court/rooms/50E5/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57047 - "GET /api/court/rooms/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53851 - "GET /court/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53851 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53867 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55074 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55644 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55644 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55644 - "GET /api/court/rooms/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51741 - "GET /court/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51741 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65068 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63225 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63433 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63225 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63225 - "GET /api/court/rooms/50E5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53108 - "POST /api/court/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59199 - "GET /court/FA0D HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59199 - "GET /tailwind-init.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57278 - "GET /courtroom.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56007 - "GET /invite.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50826 - "GET /courtroom.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50826 - "GET /tokens.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50826 - "GET /api/court/rooms/FA0D HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56863 - "WebSocket /ws/court/FA0D" [accepted]
+INFO:     connection open
+Whisper ASR unavailable: No module named 'whisper'
+INFO:     127.0.0.1:50826 - "GET /api/court/asr-status HTTP/1.1" 200 OK
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfTransformer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfVectorizer from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Python312\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LabelEncoder from version 1.3.2 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+Model data loaded successfully.
+
+============================================================
+Anavaya Dashboard is running!
+Local:   http://127.0.0.1:8000
+Mobile:  http://10.83.187.37:8000  (same WiFi)
+============================================================
+
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+INFO:     Started server process [14656]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on https://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53758 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53759 - "GET /api/court/asr-status HTTP/1.1" 200 OK

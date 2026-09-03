@@ -97,6 +97,11 @@
         remoteAudioHost: $("remote-audio-host"),
         asrStatus: $("asr-status"),
         toast: $("toast"),
+        endSessionBtn: $("end-session-btn"),
+        sessionEndedPanel: $("session-ended-panel"),
+        endedMdLink: $("ended-md-link"),
+        endedPdfLink: $("ended-pdf-link"),
+        joinError: $("join-error"),
     };
 
     // ====================================================================
@@ -114,6 +119,7 @@
         const pdfBtn = document.getElementById("download-transcript-pdf-btn");
         if (pdfBtn) pdfBtn.addEventListener("click", downloadTranscriptPdf);
         if (els.pushToTalkBtn) initPushToTalk();
+        if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
         els.joinName.focus();
     }
 
@@ -135,6 +141,11 @@
             els.roomId.textContent = room.room_id;
             els.phaseBadge.textContent = room.phase;
             state.participants = room.participants;
+            // A room the Judge already adjourned cannot be joined again —
+            // show the ended card with the record download links instead.
+            if (room.status === "ended") {
+                showEndedJoinCard(room);
+            }
             // Seed any existing transcript so a late joiner sees history.
             renderTranscript(room.transcript);
         } catch (e) {
@@ -283,13 +294,20 @@
                 appendTranscript(msg.transcript_entry);
                 break;
             }
+            case "session_ended": {
+                // The Judge adjourned the trial — everyone is returned to the
+                // join card with the record preserved for download.
+                handleSessionEnded(msg.room);
+                break;
+            }
             case "error": {
                 console.warn("Server error:", msg.detail);
                 // If the join was rejected (e.g. role taken), bounce back to overlay.
-                if (!state.me && msg.detail.includes("already taken")) {
-                    showJoinError(msg.detail + " Please pick another role.");
+                if (!state.me && (msg.detail.includes("already taken") || msg.detail.includes("has ended"))) {
+                    showJoinError(msg.detail + (msg.detail.includes("already taken") ? " Please pick another role." : ""));
                     try { state.ws.close(); } catch (_) {}
-                    els.enterBtn.disabled = false;
+                    // Ended sessions stay closed; role-taken rooms re-enable on pick.
+                    els.enterBtn.disabled = msg.detail.includes("has ended");
                     els.enterBtn.innerHTML = '<i data-lucide="door-open"></i> Enter the Courtroom';
                     lucide.createIcons();
                     // refresh role availability
@@ -598,10 +616,13 @@
         els.joinOverlay.style.display = "none";
         els.root.style.display = "flex";
         els.youAreRole.textContent = state.me.display_role;
-        // Show phase controls only for the Judge.
-        els.phaseControls.style.display = state.me.role === "Judge" ? "block" : "none";
+        // Show phase controls + End Session only for the Judge.
+        const isJudge = state.me.role === "Judge";
+        els.phaseControls.style.display = isJudge ? "block" : "none";
+        if (els.endSessionBtn) els.endSessionBtn.style.display = isJudge ? "inline-flex" : "none";
         renderPhaseButtons();
         initFacePanel();
+        probeAsr();
         els.statementInput.focus();
     }
 
@@ -901,6 +922,10 @@
         startedAt: 0,
         minMs: 300,  // ignore sub-300ms blips
         releasedDuringInit: false, // set true if user releases while we're still acquiring the mic
+        serverAsr: true,    // whisper available on the server (probed at join)
+        browserAsr: false,  // fall back to browser SpeechRecognition when whisper is missing
+        sr: null,           // active SpeechRecognition session while holding (browser mode)
+        srText: "",         // accumulated final transcript of the current hold
     };
 
     function initPushToTalk() {
@@ -919,6 +944,16 @@
     async function pttStart() {
         if (ptt.recording) return;
         ptt.releasedDuringInit = false;
+        // Server whisper unavailable → browser SpeechRecognition hold mode.
+        if (!ptt.serverAsr && ptt.browserAsr) {
+            if (mediaUnavailableReason()) {
+                reportMicFailure(null, "Microphone unavailable on this connection.");
+                showMicFallback();
+                return;
+            }
+            pttStartBrowserAsr();
+            return;
+        }
         // If we already have a stream, start synchronously (no race condition).
         let stream = state.localStream;
         if (!stream) {
@@ -977,6 +1012,11 @@
     }
 
     function pttStop() {
+        if (ptt.sr) {
+            // Browser speech mode — release finalizes + submits (see onend).
+            try { ptt.sr.stop(); } catch (_) {}
+            return;
+        }
         if (!ptt.recording || !ptt.recorder) {
             // User released before recording actually started (async mic init).
             // Flag it so pttStart aborts when it finally resolves.
@@ -1020,12 +1060,25 @@
         const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
         if (!res.ok) {
             let msg = `Transcription failed (${res.status})`;
+            let asrUnavailable = false;
             try {
                 const d = await res.json();
                 if (d && d.detail) {
-                    msg = typeof d.detail === "object" ? (d.detail.message || msg) : d.detail;
+                    const det = d.detail;
+                    msg = typeof det === "object" ? (det.message || msg) : det;
+                    if (typeof det === "object" && det.code === "asr_unavailable") asrUnavailable = true;
                 }
             } catch (_) {}
+            if (asrUnavailable) {
+                ptt.serverAsr = false;
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                ptt.browserAsr = !!SR && window.isSecureContext;
+                if (ptt.browserAsr) {
+                    msg = "Recordings can't be transcribed on this server — press and hold again and speak: your browser will add it to the transcript.";
+                } else {
+                    msg += " Type your statement below instead.";
+                }
+            }
             toast(msg);
         }
         // Server broadcasts the entry to the room via WebSocket — nothing else needed.
@@ -1046,6 +1099,179 @@
             els.asrStatus.textContent = "";
             els.asrStatus.hidden = true;
         }
+    }
+
+    // ====================================================================
+    // END SESSION + ASR AVAILABILITY
+    // ====================================================================
+    // The Presiding Judge can adjourn the trial for everyone. The server marks
+    // the room ended (phase Concluded, new joins refused) and closes every
+    // socket; each client lands back on the join card, now showing the
+    // official record's download links.
+    function requestEndSession() {
+        if (!state.ws || !state.me || state.me.role !== "Judge") return;
+        const ok = window.confirm(
+            "End this trial session for everyone? The transcript stays available for download, and no one will be able to rejoin."
+        );
+        if (!ok) return;
+        if (els.endSessionBtn) els.endSessionBtn.disabled = true;
+        state.ws.send(JSON.stringify({ type: "end_session" }));
+    }
+
+    // The join card, dressed as a "session ended" screen.
+    function showEndedJoinCard(room) {
+        const title = (room && room.case_title) || "Trial";
+        els.joinCaseTitle.textContent = `${title} — concluded`;
+        els.joinSubtitle.textContent =
+            "The Presiding Judge adjourned this session. The official record is preserved below — no one can rejoin.";
+        els.joinForm.style.display = "none";
+        const warn = document.getElementById("join-media-warning");
+        if (warn) warn.style.display = "none";
+        const md = els.endedMdLink, pdf = els.endedPdfLink;
+        if (md) md.href = `/api/court/rooms/${ROOM_ID}/transcript`;
+        if (pdf) pdf.href = `/api/court/rooms/${ROOM_ID}/transcript.pdf`;
+        if (els.sessionEndedPanel) els.sessionEndedPanel.style.display = "block";
+        if (md || pdf) lucide.createIcons();
+    }
+
+    function handleSessionEnded(room) {
+        // Tear down the live session: peers, local media, analyzers.
+        for (const pid of [...state.peers.keys()]) closePeer(pid);
+        try { if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
+        state.localStream = null;
+        try { stopAutoDictation(); } catch (_) {}
+        try { if (ptt.sr) ptt.sr.abort(); } catch (_) {}
+        ptt.sr = null;
+        disableFaceCamera();
+        // Back to the join card, now showing the ended state.
+        els.root.style.display = "none";
+        els.joinOverlay.style.display = "";
+        hideJoinError();
+        showEndedJoinCard(room);
+        state.me = null;
+        if (state.ws) {
+            try { state.ws.onclose = null; state.ws.close(); } catch (_) {}
+            state.ws = null;
+        }
+        toast("Session ended — the transcript is preserved.");
+    }
+
+    // Ask the server whether whisper is installed. When it isn't, Hold to Talk
+    // switches to the browser's SpeechRecognition (Chrome) so spoken words
+    // still reach the official transcript — the record-then-upload path can't
+    // work without server ASR.
+    async function probeAsr() {
+        try {
+            const res = await fetch("/api/court/asr-status", { cache: "no-store" });
+            const data = res.ok ? await res.json() : null;
+            if (data && typeof data.available === "boolean") ptt.serverAsr = data.available;
+        } catch (_) {
+            ptt.serverAsr = true; // unknown — keep the recorded-clip path; a 503 will flip it
+        }
+        if (ptt.serverAsr) return;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        ptt.browserAsr = !!SR && window.isSecureContext;
+        if (ptt.browserAsr) {
+            toast("Server speech-to-text isn't installed — Hold to Talk will use your browser's speech recognition (Chrome).");
+            if (els.pushToTalkBtn) els.pushToTalkBtn.title = "Hold, speak, release — your browser transcribes it into the record";
+        } else {
+            setAsrStatus(window.isSecureContext
+                ? "Server speech-to-text isn't installed and this browser has none — Hold to Talk needs Chrome, or install it with: pip install openai-whisper"
+                : "");
+        }
+    }
+
+    // ---- Hold to Talk over browser SpeechRecognition -------------------
+    // While the button is held, Chrome listens (continuous); on release the
+    // accumulated words are grammar-corrected via Ollama and sent as this
+    // speaker's statement — no server whisper required.
+    function pttStartBrowserAsr() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            toast("Speech recognition isn't available in this browser — type your statement instead.");
+            showMicFallback();
+            return;
+        }
+        if (ptt.sr) return; // already listening
+        const rec = new SR();
+        ptt.sr = rec;
+        ptt.srText = "";
+        rec.lang = "en-IN";
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.onresult = (ev) => {
+            let interim = "";
+            for (let i = ev.resultIndex; i < ev.results.length; i++) {
+                const seg = ev.results[i];
+                if (!seg || !seg[0]) continue;
+                const t = seg[0].transcript;
+                if (seg.isFinal) ptt.srText = (ptt.srText + " " + t).trim();
+                else interim += t;
+            }
+            if (interim) setAsrStatus("Listening… " + interim);
+        };
+        rec.onerror = (ev) => {
+            const err = (ev && ev.error) || "";
+            if (err === "not-allowed" || err === "service-not-allowed") {
+                reportMicFailure(null, "Microphone permission was blocked — click the lock icon beside the address bar and allow Microphone.");
+            }
+            // 'no-speech' and others end quietly (release with silence = no-op).
+        };
+        rec.onend = () => {
+            if (ptt.sr === rec) ptt.sr = null;
+            pttFinishBrowserAsr();
+        };
+        ptt.recording = true;
+        ptt.startedAt = Date.now();
+        setPttLabel(true, "Listening…");
+        try {
+            rec.start();
+        } catch (_) {
+            ptt.sr = null;
+            ptt.recording = false;
+            setPttLabel(false, "Hold to Talk");
+            toast("Speech recognition could not start — type your statement instead.");
+            showMicFallback();
+        }
+    }
+
+    function pttFinishBrowserAsr() {
+        const wasRecording = ptt.recording;
+        ptt.recording = false;
+        setPttLabel(false, "Hold to Talk");
+        if (!wasRecording) return;
+        const raw = ptt.srText;
+        ptt.srText = "";
+        if (!raw) {
+            setAsrStatus("");
+            return;
+        }
+        setAsrStatus("Adding to transcript…");
+        (async () => {
+            let text = raw;
+            try {
+                const res = await fetch("/api/court/correct-transcript", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: raw }),
+                });
+                if (res.ok) {
+                    const d = await res.json();
+                    if (d && typeof d.corrected === "string" && d.corrected.trim()) text = d.corrected.trim();
+                }
+            } catch (_) {}
+            if (text.trim()) sendStatement(text.slice(0, 500));
+            setAsrStatus("");
+        })();
+    }
+
+    function setPttLabel(active, text) {
+        if (!els.pushToTalkBtn) return;
+        els.pushToTalkBtn.classList.toggle("active", !!active);
+        els.pushToTalkBtn.innerHTML = active
+            ? `<i data-lucide="mic-off"></i> ${text}`
+            : '<i data-lucide="mic"></i> Hold to Talk';
+        lucide.createIcons();
     }
 
     // ====================================================================

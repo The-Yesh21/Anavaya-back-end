@@ -321,6 +321,35 @@ body::before {
 }
 .ghost-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .ghost-btn i { width: 15px; height: 15px; }
+.end-session-btn {
+    color: var(--color-high);
+    border-color: var(--color-high-border);
+    background: var(--color-high-bg);
+}
+.end-session-btn:hover {
+    border-color: var(--color-high);
+    color: var(--color-high);
+    background: color-mix(in srgb, var(--color-high) 14%, transparent);
+}
+
+.session-ended-panel {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1.5px dashed var(--border-color);
+}
+.session-ended-note {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+.session-ended-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+.session-ended-actions .ghost-btn { background: var(--bg-card); }
 
 /* Body grid */
 .court-body {
