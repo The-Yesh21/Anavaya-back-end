@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -1157,6 +1157,18 @@ def correct_transcript(payload: dict):
     return {"corrected": corrected, "llm": used_llm}
 
 
+@app.get("/api/court/asr-status")
+def court_asr_status():
+    """Whether the local whisper ASR engine is installed and importable.
+
+    Lets the courtroom client choose between uploading recorded clips (whisper)
+    and falling back to the browser's own SpeechRecognition when whisper is
+    missing — so Hold to Talk keeps working on machines without openai-whisper.
+    """
+    available = bool(whisper_available is not None and whisper_available())
+    return {"available": available}
+
+
 @app.post("/api/court/transcribe")
 async def transcribe_courtroom_audio(room_id: str = Form(...),
                                      participant_id: str = Form(...),
@@ -1251,8 +1263,24 @@ def serve_courtroom(room_id: str):
     return FileResponse(COURTROOM_HTML)
 
 
+def _lan_invite_url(request: Request, room_id: str) -> str:
+    """Invite URL reachable from other devices on the LAN.
+
+    Uses the scheme/port of the caller's own request (https when the app is
+    served over TLS, http otherwise) so a phone on the same network can open
+    the room with the right protocol — mic/video need a secure context, so
+    https LAN invites are required for cross-device courtroom audio.
+    """
+    scheme = request.url.scheme  # http | https
+    port = request.url.port
+    port_suffix = ""
+    if port and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
+        port_suffix = f":{port}"
+    return f"{scheme}://{_detect_lan_ip()}{port_suffix}/court/{room_id}"
+
+
 @app.post("/api/court/rooms")
-def create_courtroom(payload: dict):
+def create_courtroom(request: Request, payload: dict):
     """Create a new trial room. Body: { case_title, created_by }."""
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
@@ -1262,11 +1290,10 @@ def create_courtroom(payload: dict):
         raise HTTPException(status_code=400, detail="case_title is required.")
     room = courtroom_manager.create_room(case_title=case_title, created_by=created_by)
     # Include LAN IP and invite URL for cross-device access
-    lan_ip = _detect_lan_ip()
-    lan_invite_url = f"http://{lan_ip}:8000/court/{room.room_id}"
+    lan_invite_url = _lan_invite_url(request, room.room_id)
     result = room.to_dict()
     result.update({
-        "lan_ip": lan_ip,
+        "lan_ip": _detect_lan_ip(),
         "invite_url": lan_invite_url,
         "lan_invite_url": lan_invite_url
     })
@@ -1281,8 +1308,26 @@ def list_courtrooms():
     return courtroom_manager.list_rooms()
 
 
+@app.delete("/api/court/rooms/{room_id}")
+def delete_courtroom(room_id: str):
+    """Permanently delete a trial room (JSON + audio) for cleanup.
+
+    Live participants are not force-disconnected — end the session first
+    (Judge → End Session) or delete abandoned/ended rooms only.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    # Drop the live socket map so a deleted room can't keep broadcasting. Live
+    # participants are not force-closed — end the session first (Judge → End
+    # Session) or use this on abandoned/ended rooms.
+    getattr(courtroom_manager, "_room_sockets", {}).pop(room_id, None)
+    if not courtroom_manager.delete_room(room_id):
+        raise HTTPException(status_code=404, detail="Room not found.")
+    return {"deleted": room_id}
+
+
 @app.get("/api/court/rooms/{room_id}")
-def get_courtroom(room_id: str):
+def get_courtroom(request: Request, room_id: str):
     """Public state of one room (roster + transcript)."""
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
@@ -1291,10 +1336,9 @@ def get_courtroom(room_id: str):
         raise HTTPException(status_code=404, detail="Room not found.")
     result = room.public_state()
     # Include LAN IP and invite URL for cross-device access
-    lan_ip = _detect_lan_ip()
-    lan_invite_url = f"http://{lan_ip}:8000/court/{room.room_id}"
+    lan_invite_url = _lan_invite_url(request, room.room_id)
     result.update({
-        "lan_ip": lan_ip,
+        "lan_ip": _detect_lan_ip(),
         "invite_url": lan_invite_url,
         "lan_invite_url": lan_invite_url
     })
@@ -1706,6 +1750,30 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                     })
                 continue
 
+            # --- end the trial session (judge only) ---------------------------
+            if mtype == "end_session":
+                room = courtroom_manager.get_room(room_id)
+                me = room.get_participant(bound_participant_id) if room else None
+                if me is None or me.role != "Judge":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": "Only the Judge may end the session."
+                    })
+                    continue
+                ended = courtroom_manager.end_room(room_id, me.name)
+                if ended is not None:
+                    # Tell everyone the trial is over, then close every socket.
+                    await _broadcast(sockets, {
+                        "type": "session_ended",
+                        "room": ended.public_state(),
+                    })
+                    for ws in list(sockets.values()):
+                        try:
+                            await ws.close()
+                        except Exception:
+                            pass
+                continue
+
             await websocket.send_json({"type": "error", "detail": f"Unknown message type '{mtype}'."})
 
     except WebSocketDisconnect:
@@ -1717,11 +1785,14 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
         # Clean up: remove the socket and (optionally) the participant.
         if bound_participant_id is not None:
             sockets.pop(bound_participant_id, None)
-            if courtroom_manager is not None:
+            room = courtroom_manager.get_room(room_id) if courtroom_manager else None
+            ended = room is not None and room.status == "ended"
+            if courtroom_manager is not None and not ended:
+                # Skip the "left the court" noise when the Judge already ended
+                # the session — the record closes with the adjournment entry.
                 courtroom_manager.leave_room(room_id, bound_participant_id)
             # Notify the room of the departure + refreshed roster.
-            room = courtroom_manager.get_room(room_id) if courtroom_manager else None
-            if room is not None:
+            if room is not None and not ended:
                 try:
                     await _broadcast(sockets, {
                         "type": "participant_left",

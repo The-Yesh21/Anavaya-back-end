@@ -44,6 +44,10 @@
             <div class="join-emblem"><i data-lucide="scale"></i></div>
             <h1 id="join-case-title">Loading trial…</h1>
             <p id="join-subtitle" class="join-subtitle">Enter the courtroom</p>
+            <p id="join-media-warning" class="join-media-warning" style="display:none;">
+                <i data-lucide="mic-off"></i>
+                <span>Microphone &amp; video need a secure connection (https or localhost). This page is open over plain http on a network address, so <strong>Hold to Talk</strong> cannot access your mic here. Open <code>http://localhost:8000/court/<span id="join-media-room"></span></code> on the host machine (or serve the app over https) to use audio.</span>
+            </p>
 
             <form id="join-form" class="join-form">
                 <label class="field">
@@ -61,6 +65,13 @@
                 </button>
                 <p id="join-error" class="join-error" style="display:none;"></p>
             </form>
+            <div id="session-ended-panel" class="session-ended-panel" style="display:none;">
+                <p class="session-ended-note">The court stands adjourned. The official record of this trial is preserved below.</p>
+                <div class="session-ended-actions">
+                    <a class="ghost-btn" id="ended-md-link" href="#"><i data-lucide="download"></i> Export Transcript (.md)</a>
+                    <a class="ghost-btn pdf-btn" id="ended-pdf-link" href="#"><i data-lucide="file-text"></i> Download PDF</a>
+                </div>
+            </div>
             <p class="join-note">
                 <i data-lucide="info"></i>
                 Live audio and video connect you to the other counsel. When you speak, your words are
@@ -82,6 +93,9 @@
                 </div>
             </div>
             <div class="court-header-actions">
+                <button class="ghost-btn end-session-btn" id="end-session-btn" title="End the trial session for everyone" aria-label="End session" style="display:none;">
+                    <i data-lucide="power"></i> End Session
+                </button>
                 <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
                     <i data-lucide="moon"></i>
                 </button>

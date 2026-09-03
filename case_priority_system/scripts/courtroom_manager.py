@@ -95,6 +95,7 @@ class Room:
     created_at: str
     created_by: str
     phase: str = TRIAL_PHASES[0]
+    status: str = "live"       # "live" | "ended" — ended rooms reject new joins
     participants: list[Participant] = field(default_factory=list)
     transcript: list[TranscriptEntry] = field(default_factory=list)
 
@@ -153,6 +154,7 @@ class Room:
             "created_at": self.created_at,
             "created_by": self.created_by,
             "phase": self.phase,
+            "status": self.status,
             "participants": [p.to_dict() for p in self.participants],
             "transcript": [e.to_dict() for e in self.transcript],
         }
@@ -164,6 +166,7 @@ class Room:
             "case_title": self.case_title,
             "phase": self.phase,
             "phase_options": TRIAL_PHASES,
+            "status": self.status,
             "participants": [p.to_dict() for p in self.participants],
             "transcript": [e.to_dict() for e in self.transcript],
         }
@@ -251,6 +254,8 @@ class CourtroomManager:
             raise ValueError("Room not found.")
         if role not in UNIQUE_ROLES and role != WITNESS_ROLE:
             raise ValueError(f"Unknown role '{role}'.")
+        if room.status == "ended":
+            raise ValueError("This trial session has ended and can no longer be joined.")
 
         with self._lock:
             if not room.role_available(role):
@@ -294,6 +299,54 @@ class CourtroomManager:
                 )
                 self._persist(room)
         return participant
+
+    def delete_room(self, room_id: str) -> bool:
+        """Permanently delete a trial room: memory, disk JSON, and audio clips.
+
+        Returns True when anything was removed. Used by the dashboard's
+        cleanup control for abandoned/ended sessions.
+        """
+        removed = False
+        with self._lock:
+            if room_id in self._rooms:
+                del self._rooms[room_id]
+                removed = True
+        json_path = os.path.join(self.storage_dir, f"{room_id}.json")
+        if os.path.exists(json_path):
+            try:
+                os.remove(json_path)
+                removed = True
+            except OSError:
+                pass
+        audio_dir = os.path.join(self.storage_dir, "audio", room_id)
+        if os.path.isdir(audio_dir):
+            import shutil
+            shutil.rmtree(audio_dir, ignore_errors=True)
+            removed = True
+        return removed
+
+    def end_room(self, room_id: str, ended_by: str) -> Optional[Room]:
+        """Adjourn a trial: mark the room ended, set the phase to Concluded,
+        and append a system entry. The transcript + roster stay on disk so the
+        official record can still be exported; new joins are refused.
+
+        Idempotent — ending an already-ended room is a no-op that returns it.
+        """
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        with self._lock:
+            if room.status != "ended":
+                room.status = "ended"
+                room.phase = "Concluded"
+                room.add_entry(
+                    actor=ended_by or "The Court",
+                    role="system",
+                    kind="system",
+                    text="The Presiding Judge ended the session. The court stands adjourned.",
+                )
+                self._persist(room)
+        return room
 
     def record_statement(self, room_id: str, participant_id: str, text: str,
                          audio_file: str = "") -> Optional[TranscriptEntry]:
@@ -404,6 +457,7 @@ class CourtroomManager:
             "phase": room.phase,
             "participant_count": len(room.participants),
             "transcript_entries": len(room.transcript),
+            "status": room.status,
             "active": room.room_id in self._rooms,
         }
 
@@ -508,6 +562,7 @@ def _room_from_dict(data: dict) -> Room:
         created_at=data.get("created_at", _now_iso()),
         created_by=data.get("created_by", "Unknown"),
         phase=data.get("phase", TRIAL_PHASES[0]),
+        status=data.get("status", "live"),
         participants=participants,
         transcript=transcript,
     )

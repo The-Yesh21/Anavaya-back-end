@@ -225,6 +225,28 @@ body::before {
 }
 .join-note i { width: 14px; height: 14px; flex-shrink: 0; }
 
+.join-media-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--color-high);
+    background: var(--color-high-bg);
+    border: 1px solid var(--color-high-border);
+    border-radius: 8px;
+}
+.join-media-warning i { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.join-media-warning code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: color-mix(in srgb, var(--color-high) 8%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
 /* ============================================================
    COURTROOM ROOT
    ============================================================ */
@@ -299,6 +321,35 @@ body::before {
 }
 .ghost-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .ghost-btn i { width: 15px; height: 15px; }
+.end-session-btn {
+    color: var(--color-high);
+    border-color: var(--color-high-border);
+    background: var(--color-high-bg);
+}
+.end-session-btn:hover {
+    border-color: var(--color-high);
+    color: var(--color-high);
+    background: color-mix(in srgb, var(--color-high) 14%, transparent);
+}
+
+.session-ended-panel {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1.5px dashed var(--border-color);
+}
+.session-ended-note {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+.session-ended-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+.session-ended-actions .ghost-btn { background: var(--bg-card); }
 
 /* Body grid */
 .court-body {

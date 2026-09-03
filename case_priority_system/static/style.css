@@ -2595,6 +2595,16 @@ body::before {
     background: var(--color-muted);
 }
 .cc-transcript:hover { background: var(--color-accent); }
+.cc-delete {
+    margin-left: auto;
+    color: var(--color-high);
+    background: var(--color-high-bg);
+    border-color: var(--color-high-border);
+}
+.cc-delete:hover {
+    background: var(--color-high);
+    color: var(--color-primary-fg);
+}
 
 /* Responsive */
 @media (max-width: 900px) {

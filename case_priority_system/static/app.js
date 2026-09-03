@@ -1691,6 +1691,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let lastCreatedRoomId = null;
 
+    function escapeHtml(s) {
+        return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
     async function fetchCourtrooms() {
         try {
             const res = await fetch("/api/court/rooms");
@@ -1733,6 +1739,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
                     <button class="cc-copy" data-invite-room="${r.room_id}"><i data-lucide="link"></i> Invite Link</button>
                     <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
+                    <button class="cc-delete" data-delete-room="${r.room_id}" title="Delete this trial session and its recordings" aria-label="Delete room ${r.room_id}"><i data-lucide="trash-2"></i> Delete</button>
                 </div>
             </div>`;
         }).join("");
@@ -1748,6 +1755,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 btn.innerHTML = '<i data-lucide="check"></i> Copied';
                 if (typeof lucide !== "undefined") lucide.createIcons();
+            });
+        });
+        // Delete buttons: remove an abandoned/ended trial session permanently.
+        roomsListContainer.querySelectorAll("[data-delete-room]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const roomId = btn.dataset.deleteRoom;
+                const ok = window.confirm(
+                    `Delete trial room ${roomId} and its audio recordings? This cannot be undone.`
+                );
+                if (!ok) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Deleting…';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+                try {
+                    const res = await fetch(`/api/court/rooms/${roomId}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({ detail: res.statusText }));
+                        throw new Error(err.detail || "Failed to delete room.");
+                    }
+                    fetchCourtrooms();
+                } catch (e) {
+                    alert("Could not delete room: " + e.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="trash-2"></i> Delete';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }
             });
         });
     }

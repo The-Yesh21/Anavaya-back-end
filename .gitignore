@@ -58,3 +58,8 @@ desktop.ini
 .env
 .env.*
 !.env.example
+
+# ---------- Local TLS (self-signed dev certs) ----------
+case_priority_system/certs/
+*.pem
+!case_priority_system/certs/.gitkeep
