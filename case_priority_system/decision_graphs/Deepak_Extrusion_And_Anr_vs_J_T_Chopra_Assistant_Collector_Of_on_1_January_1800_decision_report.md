@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Deepak_Extrusion_And_Anr_vs_J_T_Chopra_Assistant_Collector_Of_on_1_January_1800.PDF</h2>
-  <p>The petitioners, Deepak Extrusion And Anr., challenge the constitutional validity of the amendment to Section 2(f) and Tariff Item 27 of the Central Excise Act. The case involves the levy of excise duty on aluminium containers that have been lacquered or printed. The Department argues that lacquering and printing are also a form of manufacture, while the petitioners contend that these processes are ancillary to the manufacture of the final product. The case raises questions about the scope of the term 'manufacture' in the Excise Act and the applicability of the decision in Empire Industries Ltd. v. Union of India to aluminium products.</p>
+  <p>This case involves a dispute over the classification of aluminium products for excise duty. The petitioner argues that the processes of bleaching and dyeing should not be considered manufacturing, while the respondent argues that these processes are part of the `manufacture' of the fabric. The parties seek clarification on the definition of `manufacture' and the applicability of the Tariff Items to aluminium products.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
     <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>

@@ -1,0 +1,58 @@
+{
+  "room_id": "787A",
+  "case_title": "State",
+  "created_at": "2026-09-02T10:27:27",
+  "created_by": "Host",
+  "phase": "Opening",
+  "participants": [],
+  "transcript": [
+    {
+      "timestamp": "2026-09-02T10:27:27",
+      "actor": "System",
+      "role": "system",
+      "kind": "system",
+      "text": "Trial 'State' opened by Host.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-09-02T10:29:00",
+      "actor": "Yesh",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Yesh (Presiding Judge) joined the court.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-09-02T10:29:28",
+      "actor": "Shashank",
+      "role": "Defence Counsel",
+      "kind": "system",
+      "text": "Shashank (Defence Counsel) joined the court.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-09-02T10:29:49",
+      "actor": "Yesh",
+      "role": "Presiding Judge",
+      "kind": "statement",
+      "text": "Now my name is Ishwant, I will be acting as an judge for this case. I need to go through this session as well as possible.",
+      "audio_file": "20260902_102942_p_40cb7324_8ccdc2.wav"
+    },
+    {
+      "timestamp": "2026-09-02T10:29:49",
+      "actor": "Yesh",
+      "role": "Presiding Judge",
+      "kind": "system",
+      "text": "Yesh (Presiding Judge) left the court.",
+      "audio_file": ""
+    },
+    {
+      "timestamp": "2026-09-02T10:31:52",
+      "actor": "Shashank",
+      "role": "Defence Counsel",
+      "kind": "system",
+      "text": "Shashank (Defence Counsel) left the court.",
+      "audio_file": ""
+    }
+  ]
+}

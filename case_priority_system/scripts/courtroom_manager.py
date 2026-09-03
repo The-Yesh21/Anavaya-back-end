@@ -64,10 +64,15 @@ class Participant:
 class TranscriptEntry:
     """One line of the official record.
 
-    kind values: 'statement' | 'action' | 'phase' | 'system'
+    kind values: 'statement' | 'action' | 'phase' | 'system' | 'behavior'
 
     audio_file is the stored recording of a spoken statement (filename
     inside the room's audio dir). Empty for typed/action/system entries.
+
+    kind='behavior' entries carry automated face/expression observations
+    (lip pressing, rapid blinking, gaze avoidance, ...) produced by the
+    client-side MediaPipe analyzer, so nervousness cues become part of the
+    official record.
     """
 
     timestamp: str
@@ -333,6 +338,32 @@ class CourtroomManager:
             self._persist(room)
         return entry
 
+    def record_behavior(self, room_id: str, participant_id: str, text: str) -> Optional[TranscriptEntry]:
+        """Log a face/expression analysis observation (nervousness cue).
+
+        Produced by the client-side MediaPipe analyzer and appended to the
+        official transcript so the court's record captures behavioural cues
+        (lip pressing, rapid blinking, gaze avoidance, ...).
+        """
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        p = room.get_participant(participant_id)
+        if p is None:
+            return None
+        text = (text or "").strip()
+        if not text:
+            return None
+        with self._lock:
+            entry = room.add_entry(
+                actor=p.name,
+                role=ROLE_LABELS.get(p.role, p.role),
+                kind="behavior",
+                text=text,
+            )
+            self._persist(room)
+        return entry
+
     def set_phase(self, room_id: str, phase: str) -> Optional[TranscriptEntry]:
         room = self.get_room(room_id)
         if room is None:
@@ -438,6 +469,8 @@ def room_to_markdown(room: Room) -> str:
             lines.append(f"### {entry.text}")
         elif entry.kind == "action":
             lines.append(f"**[{ts}] {entry.role} ({entry.actor}):** *{entry.text}*")
+        elif entry.kind == "behavior":
+            lines.append(f"⚠ **[{ts}] {entry.role} ({entry.actor}):** _{entry.text}_")
         else:  # statement
             lines.append(f"**[{ts}] {entry.role} ({entry.actor}):** {entry.text}")
             if entry.audio_file:

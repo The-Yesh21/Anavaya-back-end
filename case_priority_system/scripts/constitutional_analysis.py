@@ -1338,110 +1338,106 @@ def _generate_why_applies(article: str, features: dict, priority: str) -> str:
     explanations = {
         "Article 14": {
             "Criminal/Violent": (
-                "This case involves a criminal matter where equality before the law "
-                "matters — the accused must be treated fairly, and the victim must "
-                "receive equal protection. Article 14 ensures neither party is "
-                "favoured or disadvantaged because of who they are."
+                "This is a criminal case. Article 14 says everyone must be treated "
+                "the same way by the law — the person accused and the victim both "
+                "deserve to be treated fairly. The court cannot take sides based on "
+                "who someone is."
             ),
             "_default": (
-                "Article 14 guarantees that everyone is treated equally under the law. "
-                "It applies here because the case involves a dispute where both sides "
-                "deserve a fair hearing, and the court must not favour one party over "
-                "the other."
+                "Article 14 means the law must treat everyone equally. This case "
+                "involves a disagreement between two sides, and both sides deserve "
+                "a fair chance to be heard. The judge must not favour one over the other."
             ),
         },
         "Article 15": (
-            "This case involves a person or group that the Constitution specifically "
-            "protects — such as women, children, or members of Scheduled Castes "
-            "and Tribes. Article 15 says the law must not discriminate against them, "
-            "and the state must take special steps to protect their interests."
+            "This case involves someone the Constitution specially protects — like "
+                "women, children, or people from weaker communities. Article 15 says "
+                "the law cannot treat them unfairly, and the government must go out of "
+                "its way to look after their interests."
         ),
         "Article 19": (
-            "This case affects someone's right to carry on a business, trade, or "
-            "profession. Article 19(1)(g) protects that freedom, but the government "
-            "can impose reasonable restrictions in the public interest. The court "
-            "must check if any restriction was fair and justified."
+            "This case is about someone's right to run a business, practice a "
+                "trade, or do a job. Article 19(1)(g) protects that right, but the "
+                "government can put fair limits on it if the public interest requires "
+                "it. The court must decide if those limits were reasonable."
         ),
         "Article 19(1)(g)": (
-            "This case affects someone's right to carry on a business, trade, or "
-            "profession. Article 19(1)(g) protects that freedom, but the government "
-            "can impose reasonable restrictions in the public interest. The court "
-            "must check if any restriction was fair and justified."
+            "This case is about someone's right to run a business, practice a "
+                "trade, or do a job. Article 19(1)(g) protects that right, but the "
+                "government can put fair limits on it if the public interest requires "
+                "it. The court must decide if those limits were reasonable."
         ),
         "Article 21": {
             "Fatal": (
-                "Someone has lost their life. Article 21 — the right to life — is the "
-                "most important right in the Constitution. When a life is lost, the "
-                "state has a duty to investigate, punish the wrongdoer, and make sure "
-                "this never happens again. This is why the case gets the highest priority."
+                "Someone has died. Article 21 is the right to life — the most "
+                "important right in the whole Constitution. When a life is lost, the "
+                "government must investigate, punish whoever is responsible, and make "
+                "sure it does not happen again. This is why the case is given the "
+                "highest priority."
             ),
             "Major": (
-                "Someone has been seriously injured or their health is in danger. "
-                "Article 21 protects the right to life and to live with dignity. "
-                "When a person is seriously hurt, the state must act quickly to "
-                "ensure they get medical care and that those responsible are held "
-                "accountable."
+                "Someone has been badly hurt or their life is in danger. Article 21 "
+                "says every person has the right to live with dignity. When someone "
+                "is seriously injured, the government must act fast — make sure they "
+                "get medical help and hold the person responsible for the harm."
             ),
             "Minor": (
-                "Someone has been injured, though not life-threatening. Article 21 "
-                "protects the right to bodily integrity — even minor harm to a "
-                "person's body is taken seriously by the Constitution. The state "
-                "must ensure the injured person gets justice without unreasonable delay."
+                "Someone has been hurt, though it is not life-threatening. Article 21 "
+                "says even a small injury to someone's body is serious. The government "
+                "must make sure the injured person gets justice without unnecessary delay."
             ),
             "_default": (
-                "Article 21 protects the right to life and personal liberty. It applies "
-                "here because the case involves a matter where a person's freedom, safety, "
-                "or dignity could be affected. Even when no physical harm is involved, "
-                "the court must ensure that no one is deprived of their liberty without "
-                "a lawful reason."
+                "Article 21 protects every person's right to life and freedom. It "
+                "applies here because this case could affect someone's safety, freedom, "
+                "or basic dignity. Even without physical harm, the court must make sure "
+                "no one is deprived of their freedom without a valid reason."
             ),
         },
         "Article 20": (
-            "This is a criminal case, and Article 21 protects the accused from being "
-            "unfairly prosecuted. It ensures that no one can be punished for something "
-            "that was not a crime when they did it, cannot be tried twice for the same "
-            "offence, and cannot be forced to testify against themselves."
+            "This is a criminal case. Article 20 protects the accused person from "
+                "being treated unfairly. It says: you cannot be punished for something "
+                "that was not a crime when you did it, you cannot be tried twice for "
+                "the same offence, and you cannot be forced to confess."
         ),
         "Article 22": (
-            "Someone has been arrested or detained. Article 22 ensures they are told "
-            "why they were arrested, can speak to a lawyer, and are not held indefinitely "
-            "without proper legal process. This protects people from being locked up "
-            "arbitrarily by the state."
+            "Someone has been arrested. Article 22 says they must be told why, "
+                "allowed to talk to a lawyer, and not kept in jail forever without a "
+                "proper hearing. It protects people from being locked up without reason."
         ),
         "Articles 23 & 24": (
-            "This case involves exploitation — trafficking, forced labour, or child labour. "
-            "The Constitution absolutely forbids these practices. Articles 23 and 24 "
-            "require the state to protect the most vulnerable from being used and abused "
-            "by others."
+            "This case involves exploitation — like trafficking, forced labour, or "
+                "child labour. The Constitution bans all of these completely. Articles "
+                "23 and 24 say the government must protect people who cannot protect "
+                "themselves from being used by others."
         ),
         "Article 32": (
-            "This case is filed in the Supreme Court to enforce fundamental rights. "
-            "Article 32 gives every citizen the power to go directly to the Supreme Court "
-            "if their constitutional rights are being violated — it is the "
-            ""constitutional remedy" that makes all other rights enforceable."
+            "This case has been filed directly in the Supreme Court. Article 32 "
+                "gives every citizen the right to go to the Supreme Court if their "
+                "basic rights are being taken away. It is the tool that makes sure all "
+                "the other rights actually work."
         ),
         "Article 226": (
-            "This case is filed in a High Court. Article 226 gives High Courts the power "
-            "to issue orders (writs) to the government and its agencies when they act "
-            "illegally or violate someone's rights. It is the main tool citizens use to "
-            "hold the state accountable."
+            "This case has been filed in a High Court. Article 226 gives High "
+                "Courts the power to order the government to follow the law. If a "
+                "government body does something illegal, this article lets citizens "
+                "ask the court to step in and fix it."
         ),
         "Article 265": (
-            "This case involves a tax dispute. Article 265 says the government cannot "
-            "collect any tax unless there is a law authorising it. If the tax was levied "
-            "without proper legal authority, it is unconstitutional and must be refunded."
+            "This is a tax case. Article 265 says the government cannot collect "
+                "any tax unless a law specifically allows it. If the tax was charged "
+                "without proper legal backing, it must be given back."
         ),
         "Article 300A": {
             "Property/Land": (
-                "This case involves property or land. Article 300A says no one can be "
-                "deprived of their property except by authority of law. If someone's land "
-                "or property is being taken away, the government must follow a proper legal "
-                "process and pay fair compensation."
+                "This case is about property or land. Article 300A says no one can "
+                "take away your property unless the law specifically allows it. If "
+                "someone's land or property is being taken, the government must follow "
+                "a proper process and pay fair compensation."
             ),
             "_default": (
-                "This case involves property or money. Article 300A protects people from "
-                "losing their property without a lawful reason. The court must check that "
-                "any deprivation of property was done through proper legal channels."
+                "This case involves property or money. Article 300A protects people "
+                "from losing their property without a lawful reason. The court must "
+                "check that the proper legal process was followed."
             ),
         },
     }
@@ -1465,15 +1461,15 @@ def _generate_why_applies(article: str, features: dict, priority: str) -> str:
     extras = []
     if vulnerability == "High" and article in ("Article 14", "Article 15", "Article 21"):
         extras.append(
-            "Because a vulnerable person is involved (such as a minor, elderly person, "
-            "or member of a disadvantaged community), the state has an extra duty to "
-            "protect them — this is called the Doctrine of Parens Patriae."
+            "A vulnerable person is involved — like a child, an elderly person, "
+            "or someone from a disadvantaged community. The government has a special "
+            "duty to protect them."
         )
     if influence == "High" and article == "Article 14":
         extras.append(
-            "There is a power imbalance in this case — one party is a government body "
-            "or large institution. Article 14 requires the court to make sure the "
-            "smaller party is not crushed by the bigger one's resources and influence."
+            "One side is much more powerful than the other — a government body, "
+            "a large company, or someone with political influence. Article 14 "
+            "requires the court to make sure the weaker party is not overpowered."
         )
 
     if extras:

@@ -171,7 +171,6 @@ SYSTEM_PROMPT = (
     "IMPORTANT: Only cite REAL, well-known Indian landmark cases. If you are not confident "
     "about a specific case, omit that article rather than fabricate a citation."
 )
-)
 
 USER_PROMPT_TEMPLATE = """Analyze the following legal case text and extract case features.
 

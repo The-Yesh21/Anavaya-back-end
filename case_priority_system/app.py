@@ -598,6 +598,27 @@ def get_cases():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
 
+
+@app.delete("/api/cases/{case_file:path}")
+def delete_case(case_file: str):
+    """Delete a case row from the Excel file by its Case_File name."""
+    if not os.path.exists(EXCEL_PATH):
+        raise HTTPException(status_code=404, detail="Excel results file not found.")
+    try:
+        df = _read_cases_df()
+        before = len(df)
+        df = df[df["Case_File"] != case_file]
+        if len(df) == before:
+            raise HTTPException(status_code=404, detail=f"Case '{case_file}' not found.")
+        df.to_excel(EXCEL_PATH, index=False)
+        _cases_df_cache.update({"df": None})  # invalidate cache
+        return {"deleted": case_file, "remaining": len(df)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting case: {str(e)}")
+
+
 @app.get("/api/tree")
 def get_tree():
     if model_data is None:
@@ -1380,6 +1401,18 @@ def download_transcript_pdf(room_id: str):
                 f'<div class="entry-action-text">{esc(entry.text)}</div>'
                 f'</div>'
             )
+        elif entry.kind == "behavior":
+            color = role_colors.get(entry.role, "#6B7280")
+            entries_html += (
+                f'<div class="entry entry-behavior">'
+                f'<div class="entry-header">'
+                f'<span class="entry-role" style="color:{color}">{esc(entry.role)}</span>'
+                f'<span class="entry-actor">{esc(entry.actor)}</span>'
+                f'<span class="entry-time">{esc(ts)}</span>'
+                f'</div>'
+                f'<div class="entry-behavior-text">{esc(entry.text)}</div>'
+                f'</div>'
+            )
         else:  # statement
             color = role_colors.get(entry.role, "#6B7280")
             entries_html += (
@@ -1473,6 +1506,9 @@ def download_transcript_pdf(room_id: str):
     .entry-time { font-size: 9px; color: #9CA3AF; }
     .entry-text { font-size: 11px; color: #1F2937; margin-top: 2px; padding-left: 2px; }
     .entry-action-text { font-size: 11px; color: #1F2937; font-style: italic;
+                         margin-top: 2px; padding-left: 2px; }
+    .entry-behavior { border-left: 4px solid #B45309; background: #FFFBF0; }
+    .entry-behavior-text { font-size: 11px; color: #713F12; font-style: italic;
                          margin-top: 2px; padding-left: 2px; }
     .entry-phase { background: #F8FAFC; padding: 8px 12px; margin: 4px 0;
                    border-left: 4px solid #C9A227; border-radius: 0 4px 4px 0; }
@@ -1630,6 +1666,18 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
             # --- transcript: structured action (objection/ruling/examine) ----
             if mtype == "action":
                 entry = courtroom_manager.record_action(
+                    room_id, bound_participant_id, msg.get("text", "")
+                )
+                if entry is not None:
+                    await _broadcast(sockets, {
+                        "type": "transcript_entry",
+                        "entry": entry.to_dict(),
+                    })
+                continue
+
+            # --- transcript: automated face-analysis observation --------------
+            if mtype == "behavior":
+                entry = courtroom_manager.record_behavior(
                     room_id, bound_participant_id, msg.get("text", "")
                 )
                 if entry is not None:

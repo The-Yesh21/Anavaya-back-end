@@ -388,6 +388,39 @@ body::before {
     border-color: var(--color-secondary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-500) 25%, transparent);
 }
+/* Live video preview slot in each roster tile — the avatar doubles as the
+   fallback until the video track delivers its first frame. */
+.tile-video {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    border-radius: 0.9rem;
+    overflow: hidden;
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
+    display: grid;
+    place-items: center;
+}
+.tile-video video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: var(--webcam-bg);
+}
+.tile-video .avatar {
+    position: static;
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    background: inherit;
+}
+.tile-video .avatar.muted::after {
+    width: 12px; height: 12px;
+    border-color: var(--bg-well);
+}
 .avatar {
     position: relative;
     width: 42px; height: 42px;
@@ -425,7 +458,14 @@ body::before {
     letter-spacing: 0.04em;
     font-weight: 700;
 }
-.tile-mic-btn {
+.tile-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+}
+.tile-mic-btn,
+.tile-video-btn {
     background: none;
     border: none;
     cursor: pointer;
@@ -436,9 +476,12 @@ body::before {
     place-items: center;
     transition: all 0.2s;
 }
-.tile-mic-btn:hover { background: var(--color-muted); color: var(--text-primary); }
-.tile-mic-btn.off { color: var(--color-high); }
-.tile-mic-btn i { width: 16px; height: 16px; }
+.tile-mic-btn:hover,
+.tile-video-btn:hover { background: var(--color-muted); color: var(--text-primary); }
+.tile-mic-btn.off,
+.tile-video-btn.off { color: var(--color-high); }
+.tile-mic-btn i,
+.tile-video-btn i { width: 16px; height: 16px; }
 
 /* Phase controls */
 .phase-controls .phase-buttons {
@@ -464,6 +507,205 @@ body::before {
     color: var(--color-primary-fg);
     border-color: var(--color-secondary);
 }
+
+/* ============================================================
+   FACE & EXPRESSION ANALYSIS (local camera → nervousness cues)
+   ============================================================ */
+.face-analysis { display: flex; flex-direction: column; gap: 12px; }
+.face-state {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    background: var(--color-muted);
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    transition: all 0.2s;
+}
+.face-state.on  { color: var(--color-success); background: var(--color-success-bg); }
+.face-state.live { color: var(--color-high); background: var(--color-high-bg); }
+
+.face-video-wrap {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 1.1rem;
+    overflow: hidden;
+    background: var(--webcam-bg);
+    border: 1.5px solid var(--border-color);
+}
+.face-video-wrap video,
+.face-video-wrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.face-video-wrap canvas { z-index: 1; pointer-events: none; }
+/* Mirror both the video and the overlay canvas so the mesh stays aligned
+   with the (mirrored) self-view. Only applied when analyzing our own camera
+   (.mirror) — remote feeds are shown as-is, like a court camera. */
+.face-video-wrap.mirror video,
+.face-video-wrap.mirror canvas { transform: scaleX(-1); }
+
+.face-source-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+.face-source-field select {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg-app);
+    border: 1.5px solid var(--border-color);
+    border-radius: 0.7rem;
+    padding: 6px 10px;
+    max-width: 200px;
+    cursor: pointer;
+}
+.face-source-status {
+    font-size: 11px;
+    color: var(--color-medium);
+    margin: 0;
+}
+.face-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    z-index: 2;
+}
+.face-placeholder i { width: 34px; height: 34px; opacity: 0.6; }
+
+.face-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.fm {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
+    border-radius: 0.9rem;
+    padding: 8px 10px;
+}
+.fm-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.fm strong {
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.fm strong.tension { color: var(--color-high); }
+.fm strong.elevated { color: var(--color-medium); }
+
+.face-gauge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.face-gauge-track {
+    flex: 1;
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+.face-gauge-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: var(--radius-pill);
+    background: var(--color-low);
+    transition: width 0.25s var(--ease-out), background 0.25s;
+}
+.face-gauge-readout {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.1;
+    min-width: 52px;
+}
+.face-gauge-readout strong { font-size: 17px; font-family: var(--font-heading); color: var(--text-primary); }
+.face-gauge-readout span { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.face-cues {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 22px;
+}
+.cue-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: var(--radius-pill);
+    animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.cue-chip i { width: 12px; height: 12px; }
+.cue-chip.mild { color: var(--color-medium); background: var(--color-medium-bg); border: 1px solid var(--color-medium-border); }
+.cue-chip.strong { color: var(--color-high); background: var(--color-high-bg); border: 1px solid var(--color-high-border); }
+
+.face-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.face-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 13px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: var(--bg-app);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.face-btn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.face-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.face-btn i { width: 14px; height: 14px; }
+.face-btn.primary { background: var(--color-primary); color: var(--color-primary-fg); border-color: var(--color-primary); }
+.face-btn.primary:hover:not(:disabled) { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: var(--color-primary-fg); }
+.face-btn.danger { color: var(--color-high); border-color: var(--color-high-border); }
+.face-btn.danger:hover:not(:disabled) { background: var(--color-high); color: #fff; border-color: var(--color-high); }
+
+.face-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    margin: 0;
+}
+.face-note i { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
 
 /* ============================================================
    COURT FLOOR (action bar + transcript)
@@ -711,6 +953,12 @@ body::before {
 .entry.kind-system .entry-text { font-style: italic; color: var(--text-muted); font-size: 13px; }
 .entry.kind-action { background: color-mix(in srgb, var(--gold-500) 8%, transparent); }
 .entry.kind-action .entry-text { font-style: italic; color: var(--color-secondary); font-weight: 600; }
+.entry.kind-behavior {
+    background: var(--color-high-bg);
+    border-color: var(--color-high-border);
+    border-left: 3px solid var(--color-high);
+}
+.entry.kind-behavior .entry-text { font-style: italic; color: var(--color-high); font-size: 13px; }
 .entry.kind-phase {
     align-self: center;
     background: var(--color-primary);

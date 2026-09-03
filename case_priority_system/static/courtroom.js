@@ -57,10 +57,14 @@
         selectedRole: null,
         ws: null,
         micEnabled: true,
-        localStream: null,
-        peers: new Map(),          // participant_id -> { pc: RTCPeerConnection, audio: HTMLAudioElement }
+        videoEnabled: true,
+        localStream: null,         // local audio + video, shared with every peer + the self-view
+        peers: new Map(),          // participant_id -> { pc: RTCPeerConnection, audio, videoTrack }
         pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
     };
+
+    // Persistent <video> element per participant (roster tiles rebuild, streams don't).
+    const videoEls = new Map();    // participant_id -> <video>
 
     // ---- element refs ---------------------------------------------------
     const $ = (id) => document.getElementById(id);
@@ -314,19 +318,88 @@
         try {
             state.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                // video: false  — flip to enable video later
+                video: true,
             });
         } catch (e) {
-            console.warn("Microphone access denied or unavailable. Audio will be disabled.", e);
+            console.warn("Camera+microphone access denied or unavailable. Falling back to audio-only.", e);
             state.localStream = null;
-            state.micEnabled = false;
-            toast("Microphone unavailable — you can still participate via text.");
+            try {
+                state.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (e2) {
+                console.warn("Microphone access denied too. Audio will be disabled.", e2);
+                state.localStream = null;
+                state.micEnabled = false;
+                toast("Microphone unavailable — you can still participate via text.");
+                showMicFallback();
+            }
+        }
+        attachSelfVideo();
+        if (state.me) {
+            renderRoster();
+            // Stream resolved after peers were already negotiated → send tracks now.
+            drainPendingOffers();
+            for (const pid of [...state.peers.keys()]) upgradePeerWithTracks(pid);
         }
         return state.localStream;
     }
 
+    // (Re)negotiate with an established peer once our stream gains tracks that
+    // weren't there when the original offer/answer was negotiated.
+    async function upgradePeerWithTracks(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || !state.localStream) return;
+        const pc = entry.pc;
+        if (pc.signalingState !== "stable" || pc.connectionState === "closed") return;
+        const kinds = new Set(pc.getSenders().map((s) => s.track && s.track.kind).filter(Boolean));
+        let added = false;
+        for (const track of state.localStream.getTracks()) {
+            if (!kinds.has(track.kind)) {
+                pc.addTrack(track, state.localStream);
+                kinds.add(track.kind);
+                added = true;
+            }
+        }
+        if (!added) return;
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            state.ws.send(JSON.stringify({
+                type: "sdp_offer",
+                target_participant_id: remotePid,
+                data: pc.localDescription,
+            }));
+        } catch (e) {
+            console.error(`Track upgrade offer to ${remotePid} failed:`, e);
+        }
+    }
+
+    function videoElFor(participantId) {
+        let v = videoEls.get(participantId);
+        if (!v) {
+            v = document.createElement("video");
+            v.autoplay = true;
+            v.playsInline = true;
+            v.muted = true;   // remote audio flows through the hidden <audio> element
+            videoEls.set(participantId, v);
+        }
+        return v;
+    }
+
+    function attachSelfVideo() {
+        if (!state.me) return;
+        const v = videoElFor(state.me.participant_id);
+        v.srcObject = state.localStream && state.localStream.getVideoTracks().length
+            ? state.localStream
+            : null;
+    }
+
     function createPeerConnection(remotePid) {
         const pc = new RTCPeerConnection(RTC_CONFIG);
+
+        // Receive both audio and video from the peer. Our own tracks are added
+        // below, which flips these transceivers to sendrecv.
+        pc.addTransceiver("audio", { direction: "recvonly" });
+        pc.addTransceiver("video", { direction: "recvonly" });
 
         // Remote audio element for this peer.
         const audio = document.createElement("audio");
@@ -334,7 +407,20 @@
         audio.playsInline = true;
         els.remoteAudioHost.appendChild(audio);
 
+        const peer = { pc, audio, videoTrack: null };
+        state.peers.set(remotePid, peer);
+
         pc.ontrack = (event) => {
+            if (event.track.kind === "video") {
+                // Route video to the persistent roster tile element (muted —
+                // audio plays through the hidden <audio> element above).
+                peer.videoTrack = event.track;
+                const v = videoElFor(remotePid);
+                v.srcObject = new MediaStream([event.track]);
+                v.play().catch(() => {});
+                refreshFaceSourceIfPending(remotePid);
+                return;
+            }
             audio.srcObject = event.streams[0];
             audio.play().catch(() => {});
             // Light active-speaker glow via WebRTC audio-level (analyser).
@@ -358,23 +444,20 @@
             }
         };
 
-        // Add our local tracks so the peer can hear us.
+        // Add our local tracks so the peer can hear + see us.
         if (state.localStream) {
             for (const track of state.localStream.getTracks()) {
                 pc.addTrack(track, state.localStream);
             }
         }
-
-        state.peers.set(remotePid, { pc, audio });
         return pc;
     }
 
-    // Newcomer-initiated: we offer to each pending target once our mic is ready.
+    // Newcomer-initiated: we offer to each pending target once our mic+camera
+    // stream is ready, so every offer actually carries audio + video tracks.
+    // ensureLocalStream() re-invokes this when the stream resolves late.
     async function drainPendingOffers() {
-        if (!state.localStream) {
-            // If the mic failed, wait briefly and retry; offer once tracks exist.
-            if (state.localStream === null) return; // truly unavailable
-        }
+        if (!state.localStream || !state.pendingOfferTargets.size) return;
         for (const pid of [...state.pendingOfferTargets]) {
             state.pendingOfferTargets.delete(pid);
             await makeOffer(pid);
@@ -386,7 +469,7 @@
         if (!entry) entry = { pc: createPeerConnection(remotePid), audio: null };
         const pc = entry.pc;
         try {
-            const offer = await pc.createOffer({ offerToReceiveAudio: true });
+            const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
             await pc.setLocalDescription(offer);
             state.ws.send(JSON.stringify({
                 type: "sdp_offer",
@@ -443,17 +526,31 @@
         if (!entry) return;
         try { entry.pc.close(); } catch (_) {}
         if (entry.audio && entry.audio.parentNode) entry.audio.parentNode.removeChild(entry.audio);
+        const v = videoEls.get(remotePid);
+        if (v) { v.srcObject = null; if (v.parentNode) v.parentNode.removeChild(v); }
+        videoEls.delete(remotePid);
         state.peers.delete(remotePid);
+        // If the face analyzer was watching this participant, fall back to self.
+        if (face.source === remotePid) {
+            face.source = "self";
+            const sel = faceEl("face-source");
+            if (sel) sel.value = "self";
+            attachFaceSource();
+        }
     }
 
     // Simple active-speaker detection via WebAudio analyser (visual glow only).
     function attachSpeakerDetection(audioEl, remotePid) {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // createMediaElementSource reroutes the element's audio through this
+            // graph, so it is silent unless we also connect it to the speakers.
+            ctx.resume().catch(() => {}); // context may start suspended (autoplay policy)
             const src = ctx.createMediaElementSource(audioEl);
             const analyser = ctx.createAnalyser();
             analyser.fftSize = 256;
             src.connect(analyser);
+            analyser.connect(ctx.destination);
             const data = new Uint8Array(analyser.frequencyBinCount);
             const tick = () => {
                 if (!state.peers.has(remotePid)) return;
@@ -478,6 +575,15 @@
         renderRoster();
     }
 
+    function toggleVideo() {
+        if (!state.localStream) return;
+        state.videoEnabled = !state.videoEnabled;
+        for (const track of state.localStream.getVideoTracks()) {
+            track.enabled = state.videoEnabled;
+        }
+        renderRoster();
+    }
+
     // ====================================================================
     // RENDER
     // ====================================================================
@@ -488,6 +594,7 @@
         // Show phase controls only for the Judge.
         els.phaseControls.style.display = state.me.role === "Judge" ? "block" : "none";
         renderPhaseButtons();
+        initFacePanel();
         els.statementInput.focus();
     }
 
@@ -508,22 +615,36 @@
             tile.className = "participant-tile" + (isMe ? " is-me" : "");
             tile.dataset.pid = p.participant_id;
             tile.innerHTML = `
-                <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
+                <div class="tile-video">
+                    <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
+                </div>
                 <div class="tile-info">
                     <div class="tile-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</div>
                     <div class="tile-role role-${p.role}">${escapeHtml(displayRole)}</div>
                 </div>
-                ${isMe ? `<button class="tile-mic-btn ${state.micEnabled ? "" : "off"}" title="${state.micEnabled ? "Mute" : "Unmute"}">
-                    <i data-lucide="${state.micEnabled ? "mic" : "mic-off"}"></i>
-                </button>` : ""}
+                <div class="tile-controls">
+                    ${isMe ? `<button class="tile-mic-btn ${state.micEnabled ? "" : "off"}" title="${state.micEnabled ? "Mute" : "Unmute"}">
+                        <i data-lucide="${state.micEnabled ? "mic" : "mic-off"}"></i>
+                    </button>` : ""}
+                    ${isMe ? `<button class="tile-video-btn ${state.videoEnabled ? "" : "off"}" title="${state.videoEnabled ? "Hide my video" : "Show my video"}">
+                        <i data-lucide="${state.videoEnabled ? "video" : "video-off"}"></i>
+                    </button>` : ""}
+                </div>
             `;
+            // Move the persistent video element (already fed by the mesh) into
+            // this tile's video slot; the avatar stays as the fallback.
+            tile.querySelector(".tile-video").prepend(videoElFor(p.participant_id));
             if (isMe) {
+                attachSelfVideo();
                 tile.querySelector(".tile-mic-btn").addEventListener("click", toggleMic);
+                const vbtn = tile.querySelector(".tile-video-btn");
+                if (vbtn) vbtn.addEventListener("click", toggleVideo);
                 if (!state.micEnabled) tile.querySelector(".avatar").classList.add("muted");
             }
             els.rosterList.appendChild(tile);
         }
         lucide.createIcons();
+        populateFaceSourceSelect();
     }
 
     function displayRoleFor(p) {
@@ -607,6 +728,21 @@
             node.innerHTML = `
                 <div class="entry-body">
                     <div class="entry-text">${escapeHtml(entry.text)}</div>
+                </div>`;
+        } else if (entry.kind === "behavior") {
+            // Automated face/expression observations (nervousness cues).
+            const initials = (entry.actor || "?").charAt(0).toUpperCase();
+            const color = ROLE_ACCENT[roleKeyFromDisplay(entry.role)] || ROLE_ACCENT.system;
+            const time = formatTime(entry.timestamp);
+            node.innerHTML = `
+                <div class="entry-avatar" style="background:${color}">${initials}</div>
+                <div class="entry-body">
+                    <div class="entry-meta">
+                        <span class="entry-role role-${roleKeyFromDisplay(entry.role)}">${escapeHtml(entry.role)}</span>
+                        <span class="entry-name">${escapeHtml(entry.actor)}</span>
+                        <span class="entry-time">${time}</span>
+                    </div>
+                    <div class="entry-text">⚠ ${escapeHtml(entry.text)}</div>
                 </div>`;
         } else {
             const initials = (entry.actor || "?").charAt(0).toUpperCase();
@@ -695,6 +831,7 @@
         stream: null,
         startedAt: 0,
         minMs: 300,  // ignore sub-300ms blips
+        releasedDuringInit: false, // set true if user releases while we're still acquiring the mic
     };
 
     function initPushToTalk() {
@@ -712,17 +849,34 @@
 
     async function pttStart() {
         if (ptt.recording) return;
-        const stream = await ensureLocalStream();
+        ptt.releasedDuringInit = false;
+        // If we already have a stream, start synchronously (no race condition).
+        let stream = state.localStream;
+        if (!stream) {
+            // First time or after denial — acquire async. While we wait,
+            // the user might release the button (see ptt.releasedDuringInit).
+            stream = await ensureLocalStream();
+        }
         if (!stream || !stream.getAudioTracks().length) {
-            toast("Microphone unavailable — check browser permissions.");
+            toast("Microphone unavailable — you can still type your statement.");
+            showMicFallback();
+            return;
+        }
+        // If the user released while we were waiting for the mic, abort.
+        if (ptt.releasedDuringInit) {
+            ptt.releasedDuringInit = false;
             return;
         }
         ptt.stream = stream;
         ptt.chunks = [];
+        // Record AUDIO ONLY: the shared local stream also carries video tracks
+        // (added for the WebRTC video mesh), which makes MediaRecorder reject
+        // the audio/webm mime type and later breaks the WAV decode in blobToWav.
+        const audioOnlyStream = new MediaStream(stream.getAudioTracks());
         try {
-            ptt.recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+            ptt.recorder = new MediaRecorder(audioOnlyStream, { mimeType: "audio/webm" });
         } catch (_) {
-            try { ptt.recorder = new MediaRecorder(stream); } catch (_) {
+            try { ptt.recorder = new MediaRecorder(audioOnlyStream); } catch (_) {
                 toast("Recording not supported in this browser.");
                 return;
             }
@@ -739,7 +893,12 @@
     }
 
     function pttStop() {
-        if (!ptt.recording || !ptt.recorder) return;
+        if (!ptt.recording || !ptt.recorder) {
+            // User released before recording actually started (async mic init).
+            // Flag it so pttStart aborts when it finally resolves.
+            ptt.releasedDuringInit = true;
+            return;
+        }
         ptt.recording = false;
         try { ptt.recorder.stop(); } catch (_) {}
     }
@@ -788,6 +947,12 @@
         // Server broadcasts the entry to the room via WebSocket — nothing else needed.
     }
 
+    // ---- mic-unavailable text fallback ----
+    function showMicFallback() {
+        els.statementInput.placeholder = "Type your statement for the record…";
+        els.statementInput.focus();
+    }
+
     function setAsrStatus(text) {
         if (!els.asrStatus) return;
         if (text) {
@@ -828,17 +993,6 @@
         queue: Promise.resolve(), // serializes uploads (one at a time, in order)
     };
 
-    function setAsrStatus(text) {
-        if (!els.asrStatus) return;
-        if (text) {
-            els.asrStatus.textContent = text;
-            els.asrStatus.hidden = false;
-        } else {
-            els.asrStatus.textContent = "";
-            els.asrStatus.hidden = true;
-        }
-    }
-
     function renderAutoToggle() {
         // No-op — auto-transcribe button removed in favor of push-to-talk.
     }
@@ -853,116 +1007,6 @@
 
     function stopAutoTranscription() {
         // Legacy no-op — push-to-talk is now the primary input.
-    }
-
-    function computeRms(timeData) {
-        let sum = 0;
-        for (let i = 0; i < timeData.length; i++) {
-            const v = (timeData[i] - 128) / 128;
-            sum += v * v;
-        }
-        return Math.sqrt(sum / timeData.length);
-    }
-
-    function vadTick() {
-        if (!autoT.active || !autoT.analyser) return;
-        autoT.analyser.getByteTimeDomainData(autoT.timeData);
-        const speaking = computeRms(autoT.timeData) > VAD_SPEECH_THRESHOLD;
-        if (speaking) {
-            autoT.silenceFrames = 0;
-            autoT.speechFrames++;
-            if (autoT.speechFrames >= VAD_START_FRAMES && !autoT.recording) startSegment();
-        } else {
-            autoT.speechFrames = 0;
-            if (autoT.recording) {
-                autoT.silenceFrames++;
-                if (autoT.silenceFrames >= VAD_STOP_FRAMES) stopSegment();
-            }
-        }
-        // Safety cap so a long monologue is flushed before whisper's limit.
-        if (autoT.recording && Date.now() - autoT.segmentStartedAt > MAX_SEGMENT_MS) stopSegment();
-        requestAnimationFrame(vadTick);
-    }
-
-    function startSegment() {
-        if (autoT.recording) return;
-        autoT.recording = true;
-        autoT.segmentStartedAt = Date.now();
-        autoT.chunks = [];
-        try {
-            autoT.recorder = new MediaRecorder(state.localStream, { mimeType: "audio/webm" });
-        } catch (e) {
-            try { autoT.recorder = new MediaRecorder(state.localStream); }
-            catch (e2) { autoT.recording = false; return; }
-        }
-        autoT.recorder.ondataavailable = (e) => { if (e.data && e.data.size) autoT.chunks.push(e.data); };
-        autoT.recorder.onstop = onSegmentStopped;
-        autoT.recorder.start(250);
-        setAsrStatus("Recording…");
-    }
-
-    function stopSegment() {
-        if (!autoT.recording || !autoT.recorder) return;
-        autoT.recording = false;
-        try { autoT.recorder.stop(); } catch (_) {}
-    }
-
-    function onSegmentStopped() {
-        const chunks = autoT.chunks;
-        autoT.chunks = [];
-        const startedAt = autoT.segmentStartedAt;
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        if (!blob.size || Date.now() - startedAt < MIN_SEGMENT_MS) {
-            if (autoT.active) setAsrStatus("Listening…");
-            return;
-        }
-        setAsrStatus("Transcribing with Ollama…");
-        // Serialize uploads so segments are processed in order, one at a time.
-        autoT.queue = autoT.queue.then(async () => {
-            try {
-                const wav = await blobToWav(blob);
-                await uploadSegment(wav);
-            } catch (e) {
-                if (e instanceof AsrUnavailableError) {
-                    handleAsrUnavailable(e.message);
-                } else {
-                    console.warn("Segment transcription failed:", e);
-                }
-            } finally {
-                if (autoT.active) setAsrStatus("Listening…");
-            }
-        });
-    }
-
-    async function uploadSegment(wavBlob) {
-        const fd = new FormData();
-        fd.append("room_id", ROOM_ID);
-        fd.append("participant_id", state.me.participant_id);
-        fd.append("audio", wavBlob, `segment_${Date.now()}.wav`);
-        const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
-        if (!res.ok) {
-            let code = null, msg = `Transcription failed (${res.status})`;
-            try {
-                const d = await res.json();
-                if (d && d.detail) {
-                    if (typeof d.detail === "object") { code = d.detail.code; msg = d.detail.message || msg; }
-                    else msg = d.detail;
-                }
-            } catch (_) {}
-            if (code === "asr_unavailable") throw new AsrUnavailableError(msg);
-            throw new Error(msg);
-        }
-        // The server broadcasts the entry to the room; nothing else to do here.
-        return res.json();
-    }
-
-    function handleAsrUnavailable(message) {
-        if (autoT.usingFallback) return;
-        autoT.usingFallback = true;
-        stopAutoTranscription();
-        startAutoDictation();
-        toast(message || "Local speech-to-text is unavailable — using browser dictation for your speech only.");
-        setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
     }
 
     // Convert a recorded WebM/Opus blob to a 16 kHz mono WAV (what whisper needs).
@@ -1007,6 +1051,34 @@
 
     // ---- fallback: browser SpeechRecognition, auto-submitting each utterance ----
     let autoDictating = false;
+    let recognition = null;
+    let finalSpeech = "";
+    // Lazily create browser SpeechRecognition (if available).
+    try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = "en-IN";
+            recognition.onresult = (event) => {
+                let interim = "";
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalSpeech += transcript + " ";
+                        autoSubmitSpoken(finalSpeech.trim());
+                        finalSpeech = "";
+                    } else {
+                        interim += transcript;
+                    }
+                }
+                if (interim) setAsrStatus("Listening… " + interim);
+            };
+            recognition.onerror = () => {};
+            recognition.onend = () => { if (autoDictating) try { recognition.start(); } catch (_) {} };
+        }
+    } catch (_) {}
 
     function startAutoDictation() {
         if (!recognition) {
@@ -1021,7 +1093,7 @@
 
     function stopAutoDictation() {
         autoDictating = false;
-        try { recognition.stop(); } catch (_) {}
+        try { if (recognition) recognition.stop(); } catch (_) {}
     }
 
     async function autoSubmitSpoken(raw) {
@@ -1077,6 +1149,625 @@
         const btn = e.target.closest(".audio-play");
         if (btn) toggleClipPlay(btn);
     });
+
+    // ====================================================================
+    // FACE & EXPRESSION ANALYSIS (local camera → nervousness cues)
+    // ====================================================================
+    // MediaPipe FaceLandmarker (@mediapipe/tasks-vision, lazy-loaded). Detects
+    // lip movement / expression cues — lip pressing, lip trembling, frowning,
+    // furrowed/raised brows, rapid blinking, gaze avoidance — and logs them to
+    // the official transcript as kind='behavior' entries, so nervousness cues
+    // become part of the court record. Works on the local camera OR any remote
+    // participant's video feed (selected in the panel's source dropdown).
+    const FACE_LANDMARKS = {
+        leftEye: [33, 160, 158, 133, 153, 144],
+        rightEye: [362, 385, 387, 263, 373, 380],
+        leftIris: 468,
+        rightIris: 473,
+        lipLeftCorner: 61,
+        lipRightCorner: 291,
+        lipUpper: 13,      // inner upper lip
+        lipLower: 14,      // inner lower lip
+        lipMidUpper: 0,    // outer upper lip centre
+        lipMidLower: 17,   // outer lower lip centre
+        browInnerL: 21,
+        browInnerR: 22,
+        browOuterL: 107,
+        browOuterR: 336,
+        eyeTopL: 159,
+        eyeTopR: 386,
+        eyeOuterL: 33,
+        eyeOuterR: 263,
+    };
+
+    const CALIBRATION_FRAMES = 120; // ~4 s of neutral face
+    const CUE_PERSIST_FRAMES = 6;   // a cue must persist this long to count
+    const CUE_LOG_INTERVAL_MS = 12000;
+
+    const face = {
+        source: "self",          // "self" or a remote participant_id to analyze
+        stream: null,
+        ownStream: null,         // dedicated camera stream (only when the mesh lacks video)
+        ownsStream: false,       // true when we created ownStream ourselves (safe to stop)
+        landmarker: null,        // Vision.FaceLandmarker instance (lazy)
+        camera: null,            // { stop() } — frame-loop handle for the landmarker
+        _raf: null,
+        mediaPipePromise: null,
+        analyzing: false,
+        calibrated: false,
+        calibrationFrames: 0,
+        calibAcc: { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gaze: [], lipJitter: [] },
+        baseline: {
+            earMean: 0.3, earStd: 0.02,
+            lipOpenMean: 0.05, lipOpenStd: 0.004,
+            lipWidthMean: 0.45, lipWidthStd: 0.02,
+            frownMean: 0.0, frownStd: 0.003,
+            browGapMean: 0.4, browGapStd: 0.02,
+            browRaiseMean: 0.15, browRaiseStd: 0.01,
+            gazeMean: 0.5, gazeStd: 0.03,
+            lipJitterMean: 0.001, lipJitterStd: 0.0005,
+        },
+        stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0 },
+        history: { lipOpen: [] },
+        activeCues: new Set(),
+        cueStreak: {},
+        logCooldownUntil: 0,
+        gauge: 0,
+    };
+
+    const CUE_LABELS = {
+        rapid_blink: { label: "Rapid blinking", icon: "eye", sev: "strong" },
+        gaze_avoid: { label: "Gaze avoidance", icon: "scan-eye", sev: "strong" },
+        lip_press: { label: "Lip pressing", icon: "smile", sev: "strong" },
+        lip_tremor: { label: "Lip trembling", icon: "activity", sev: "strong" },
+        frown: { label: "Frowning", icon: "frown", sev: "mild" },
+        brow_furrow: { label: "Furrowed brows", icon: "chevrons-down", sev: "mild" },
+        brow_raise: { label: "Raised brows", icon: "chevrons-up", sev: "mild" },
+    };
+
+    function faceEl(id) { return document.getElementById(id); }
+
+    function initFacePanel() {
+        const panel = faceEl("face-analysis");
+        if (!panel) return;
+        panel.style.display = "flex";
+        const camBtn = faceEl("face-camera-btn");
+        if (camBtn) camBtn.addEventListener("click", enableFaceCamera);
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.addEventListener("click", startFaceAnalysis);
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.addEventListener("click", stopFaceAnalysis);
+        const srcSel = faceEl("face-source");
+        if (srcSel) {
+            srcSel.addEventListener("change", () => {
+                face.source = srcSel.value;
+                if (face.camera) attachFaceSource();  // already monitoring → switch feed
+            });
+        }
+        lucide.createIcons();
+    }
+
+    // ---- MediaPipe lazy-load (mirrors the dashboard Chakshu pattern) ----
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("Failed to load " + src));
+            document.head.appendChild(s);
+        });
+    }
+
+    // Loads the official, maintained @mediapipe/tasks-vision bundle (the legacy
+    // @mediapipe/face_mesh "solution" bundle is deprecated and throws when sent
+    // frames before its model finishes loading).
+    function ensureFacePipeLibs() {
+        if (typeof window.Vision !== "undefined" && window.Vision.FaceLandmarker) return Promise.resolve();
+        if (!face.mediaPipePromise) {
+            face.mediaPipePromise = loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.js");
+        }
+        return face.mediaPipePromise;
+    }
+
+    // Which feed the analyzer watches: repopulated from the roster. The
+    // selected feed is mirrored onto the panel's #face-video monitor element,
+    // so the landmarker always reads one element regardless of source.
+    function populateFaceSourceSelect() {
+        const sel = faceEl("face-source");
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '<option value="self">My camera</option>';
+        if (state.participants && state.me) {
+            for (const p of state.participants) {
+                if (p.participant_id === state.me.participant_id) continue;
+                const opt = document.createElement("option");
+                opt.value = p.participant_id;
+                opt.textContent = `${displayRoleFor(p)} — ${p.name}`;
+                sel.appendChild(opt);
+            }
+        }
+        if (prev && [...sel.options].some((o) => o.value === prev)) {
+            sel.value = prev;
+        } else {
+            sel.value = "self";
+            face.source = "self";
+        }
+    }
+
+    function attachFaceSource() {
+        const video = faceEl("face-video");
+        const wrap = document.querySelector(".face-video-wrap");
+        const status = faceEl("face-source-status");
+        if (!video) return;
+        if (wrap) wrap.classList.toggle("mirror", face.source === "self");
+        if (status) status.hidden = true;
+
+        if (face.source === "self") {
+            // Reuse the shared mesh stream when it has a camera; otherwise fall
+            // back to the dedicated stream requested by enableFaceCamera().
+            video.srcObject = (state.localStream && state.localStream.getVideoTracks().length)
+                ? state.localStream
+                : (face.ownStream || null);
+            return;
+        }
+
+        // A remote participant's feed.
+        const peer = state.peers.get(face.source);
+        const track = peer && peer.videoTrack;
+        if (track) {
+            video.srcObject = new MediaStream([track]);
+        } else {
+            video.srcObject = null;
+            if (status) {
+                status.textContent = "Waiting for video from the selected participant…";
+                status.hidden = false;
+            }
+        }
+    }
+
+    function refreshFaceSourceIfPending(pid) {
+        // The remote's video track just arrived — if the panel is monitoring
+        // them, switch the monitor feed over now.
+        if (face.camera && face.source === pid) attachFaceSource();
+    }
+
+    // ---- camera lifecycle -----------------------------------------------
+    async function enableFaceCamera() {
+        const btn = faceEl("face-camera-btn");
+        const video = faceEl("face-video");
+        const placeholder = faceEl("face-placeholder");
+        const statePill = faceEl("face-state");
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Connecting to feed…';
+            lucide.createIcons();
+            // Self: reuse the shared mesh camera when available; only ask the
+            // browser for a dedicated stream if the user joined audio-only.
+            // Remote: no permission needed — we mirror their video track.
+            if (face.source === "self" && (!state.localStream || !state.localStream.getVideoTracks().length)) {
+                face.ownStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" },
+                });
+                face.ownsStream = true;
+            }
+            attachFaceSource();
+            if (placeholder) placeholder.style.display = "none";
+            await ensureFacePipeLibs();
+            await initFaceMesh();
+            if (statePill) { statePill.textContent = "On"; statePill.classList.add("on"); }
+            const startBtn = faceEl("face-start-btn");
+            if (startBtn) startBtn.disabled = false;
+            btn.innerHTML = '<i data-lucide="video-off"></i> Disable';
+            btn.disabled = false;
+            btn.onclick = disableFaceCamera;
+            toast("Feed connected — start analysis to detect nervousness cues.");
+        } catch (err) {
+            console.error("Face camera error:", err);
+            toast("Could not access the selected feed. Check camera permissions.");
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
+            lucide.createIcons();
+        }
+    }
+
+    function disableFaceCamera() {
+        stopFaceAnalysis();
+        if (face.camera) { try { face.camera.stop(); } catch (_) {} face.camera = null; }
+        // Only stop a stream we created ourselves — never the shared mesh stream.
+        if (face.ownStream && face.ownsStream) {
+            face.ownStream.getTracks().forEach((t) => t.stop());
+        }
+        face.ownStream = null;
+        face.ownsStream = false;
+        const video = faceEl("face-video");
+        if (video) video.srcObject = null;
+        const placeholder = faceEl("face-placeholder");
+        if (placeholder) placeholder.style.display = "flex";
+        const statePill = faceEl("face-state");
+        if (statePill) { statePill.textContent = "Off"; statePill.classList.remove("on", "live"); }
+        const camBtn = faceEl("face-camera-btn");
+        if (camBtn) {
+            camBtn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
+            camBtn.onclick = enableFaceCamera;
+        }
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.disabled = true;
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.disabled = true;
+        lucide.createIcons();
+    }
+
+    // Creates the FaceLandmarker (async — resolves only once the model is
+    // loaded, so there is no race sending frames too early). Falls back to the
+    // CPU delegate if GPU is unavailable (headless / software rendering).
+    async function ensureFaceLandmarker() {
+        if (face.landmarker) return face.landmarker;
+        const fileset = await Vision.FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+        );
+        const make = (delegate) => Vision.FaceLandmarker.createFromOptions(fileset, {
+            baseOptions: {
+                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                delegate,
+            },
+            runningMode: "VIDEO",
+            numFaces: 1,
+            outputFaceBlendshapes: false,
+            outputFacialTransformationMatrixes: false,
+        });
+        try {
+            face.landmarker = await make("GPU");
+        } catch (e) {
+            console.warn("GPU FaceLandmarker unavailable — using CPU.", e);
+            face.landmarker = await make("CPU");
+        }
+        return face.landmarker;
+    }
+
+    // Starts a requestAnimationFrame loop feeding the monitor <video> (local or
+    // remote feed) into the landmarker. detectForVideo is synchronous and needs
+    // strictly increasing timestamps.
+    async function initFaceMesh() {
+        const landmarker = await ensureFaceLandmarker();
+        if (!landmarker) throw new Error("FaceLandmarker failed to initialise.");
+        const video = faceEl("face-video");
+        const overlay = faceEl("face-overlay");
+        if (overlay) { overlay.width = 640; overlay.height = 480; }
+        if (face.camera) { try { face.camera.stop(); } catch (_) {} }
+        face.camera = {
+            stop: () => { if (face._raf) cancelAnimationFrame(face._raf); face._raf = null; },
+        };
+        let lastTs = 0;
+        const loop = () => {
+            if (!face.landmarker || !face.camera) return;
+            if (video.readyState >= 2) {
+                const ts = performance.now();
+                if (ts > lastTs) {
+                    lastTs = ts;
+                    try {
+                        onFaceMeshResults(landmarker.detectForVideo(video, ts));
+                    } catch (e) {
+                        console.error("Face landmark inference failed:", e);
+                    }
+                }
+            }
+            face._raf = requestAnimationFrame(loop);
+        };
+        face._raf = requestAnimationFrame(loop);
+    }
+
+    // ---- analysis lifecycle ---------------------------------------------
+    function startFaceAnalysis() {
+        face.analyzing = true;
+        face.calibrated = false;
+        face.calibrationFrames = 0;
+        face.calibAcc = { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gaze: [], lipJitter: [] };
+        face.stats = { blinks: 0, lastEarState: "open", startedAt: Date.now(), peakScore: 0, cueEvents: 0 };
+        face.history = { lipOpen: [] };
+        face.activeCues.clear();
+        face.cueStreak = {};
+        face.logCooldownUntil = 0;
+        face.gauge = 0;
+
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.disabled = true;
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.disabled = false;
+        const scoreEl = faceEl("face-score");
+        if (scoreEl) scoreEl.textContent = "0%";
+        const fill = faceEl("face-gauge-fill");
+        if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
+        const statePill = faceEl("face-state");
+        if (statePill) {
+            statePill.textContent = "Calibrating…";
+            statePill.classList.add("live");
+            statePill.classList.remove("on");
+        }
+        renderFaceCueChips();
+    }
+
+    function stopFaceAnalysis() {
+        if (!face.analyzing) return;
+        face.analyzing = false;
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.disabled = false;
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.disabled = true;
+        const statePill = faceEl("face-state");
+        if (statePill) { statePill.textContent = "Camera on"; statePill.classList.remove("live"); statePill.classList.add("on"); }
+        const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
+        const peak = face.stats.peakScore;
+        let summary = `Face analysis ended — peak nervousness index ${peak}%.`;
+        if (names.length) summary += ` Cues observed: ${names.join(", ")}.`;
+        else summary += " No notable nervousness cues detected.";
+        face.activeCues.clear();
+        renderFaceCueChips();
+        sendBehaviorEntry(summary);
+        toast("Face analysis stopped — result logged to the transcript.");
+    }
+
+    function finishFaceCalibration() {
+        const b = face.baseline;
+        b.earMean = meanOf(face.calibAcc.ear);       b.earStd = Math.max(0.005, stddev(face.calibAcc.ear));
+        b.lipOpenMean = meanOf(face.calibAcc.lipOpen); b.lipOpenStd = Math.max(0.0005, stddev(face.calibAcc.lipOpen));
+        b.lipWidthMean = meanOf(face.calibAcc.lipWidth); b.lipWidthStd = Math.max(0.005, stddev(face.calibAcc.lipWidth));
+        b.frownMean = meanOf(face.calibAcc.frown);   b.frownStd = Math.max(0.0005, stddev(face.calibAcc.frown));
+        b.browGapMean = meanOf(face.calibAcc.browGap); b.browGapStd = Math.max(0.005, stddev(face.calibAcc.browGap));
+        b.browRaiseMean = meanOf(face.calibAcc.browRaise); b.browRaiseStd = Math.max(0.003, stddev(face.calibAcc.browRaise));
+        b.gazeMean = meanOf(face.calibAcc.gaze);     b.gazeStd = Math.max(0.005, stddev(face.calibAcc.gaze));
+        b.lipJitterMean = meanOf(face.calibAcc.lipJitter); b.lipJitterStd = Math.max(0.0002, stddev(face.calibAcc.lipJitter));
+        face.calibrated = true;
+        face.stats.startedAt = Date.now();
+        const statePill = faceEl("face-state");
+        if (statePill) { statePill.textContent = "Analyzing"; statePill.classList.remove("on"); statePill.classList.add("live"); }
+        sendBehaviorEntry("Face analysis started — baseline calibrated. Monitoring for nervousness cues.");
+    }
+
+    // ---- per-frame signal extraction ------------------------------------
+    function meanOf(arr) {
+        if (!arr.length) return 0;
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+    function stddev(arr) {
+        if (arr.length < 2) return 0;
+        const m = meanOf(arr);
+        return Math.sqrt(arr.reduce((s, v) => s + (v - m) * (v - m), 0) / arr.length);
+    }
+    function lmDist(a, b) {
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2) + Math.pow(a.z - b.z, 2));
+    }
+    function eyeAspectRatio(lm, idxs) {
+        const v1 = lmDist(lm[idxs[1]], lm[idxs[5]]);
+        const v2 = lmDist(lm[idxs[2]], lm[idxs[4]]);
+        const h = lmDist(lm[idxs[0]], lm[idxs[3]]);
+        return (v1 + v2) / (2.0 * h);
+    }
+
+    function onFaceMeshResults(results) {
+        const overlay = faceEl("face-overlay");
+        if (!overlay) return;
+        const ctx = overlay.getContext("2d");
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        if (!results.faceLandmarks || !results.faceLandmarks.length) return;
+        const lm = results.faceLandmarks[0];
+        drawFaceOverlay(ctx, lm);
+        if (!face.analyzing) return;
+
+        const L = FACE_LANDMARKS;
+        // Stable per-face scale: distance between the outer eye corners.
+        const unit = Math.max(1e-4, lmDist(lm[L.eyeOuterL], lm[L.eyeOuterR]));
+
+        const lipOpen = lmDist(lm[L.lipUpper], lm[L.lipLower]) / unit;
+        const lipWidth = lmDist(lm[L.lipLeftCorner], lm[L.lipRightCorner]) / unit;
+        const mouthMidY = (lm[L.lipMidUpper].y + lm[L.lipMidLower].y) / 2;
+        const cornerMidY = (lm[L.lipLeftCorner].y + lm[L.lipRightCorner].y) / 2;
+        const frown = (cornerMidY - mouthMidY) / unit;   // corners sag below the lip midline
+        const browGap = lmDist(lm[L.browInnerL], lm[L.browInnerR]) / unit;
+        const browRaise = (lmDist(lm[L.browInnerL], lm[L.eyeTopL]) + lmDist(lm[L.browInnerR], lm[L.eyeTopR])) / 2 / unit;
+        const ear = (eyeAspectRatio(lm, L.leftEye) + eyeAspectRatio(lm, L.rightEye)) / 2;
+        const gaze = lmDist(lm[L.eyeOuterL], lm[L.leftIris]) / lmDist(lm[L.eyeOuterL], lm[133]);
+
+        // Rolling window for lip tremor (jitter of the mouth opening).
+        face.history.lipOpen.push(lipOpen);
+        if (face.history.lipOpen.length > 15) face.history.lipOpen.shift();
+        const lipJitter = stddev(face.history.lipOpen);
+
+        // ---- calibration phase (neutral face baseline) ----
+        if (!face.calibrated) {
+            face.calibrationFrames++;
+            face.calibAcc.ear.push(ear);
+            face.calibAcc.lipOpen.push(lipOpen);
+            face.calibAcc.lipWidth.push(lipWidth);
+            face.calibAcc.frown.push(frown);
+            face.calibAcc.browGap.push(browGap);
+            face.calibAcc.browRaise.push(browRaise);
+            face.calibAcc.gaze.push(gaze);
+            face.calibAcc.lipJitter.push(lipJitter);
+            const statePill = faceEl("face-state");
+            if (statePill) {
+                statePill.textContent = `Calibrating ${Math.min(100, Math.round((face.calibrationFrames / CALIBRATION_FRAMES) * 100))}%`;
+            }
+            if (face.calibrationFrames >= CALIBRATION_FRAMES) finishFaceCalibration();
+            return;
+        }
+
+        // ---- live analysis ----
+        const b = face.baseline;
+        const z = (v, mean, sd) => (v - mean) / Math.max(sd, 1e-6);
+        const zLipOpen = z(lipOpen, b.lipOpenMean, b.lipOpenStd);
+        const zFrown = z(frown, b.frownMean, b.frownStd);
+        const zBrowGap = z(browGap, b.browGapMean, b.browGapStd);
+        const zBrowRaise = z(browRaise, b.browRaiseMean, b.browRaiseStd);
+        const zGaze = z(gaze, b.gazeMean, b.gazeStd);
+        const zLipJitter = z(lipJitter, b.lipJitterMean, b.lipJitterStd);
+        const zEar = z(ear, b.earMean, b.earStd);
+
+        // Blink counting: EAR dropping well below baseline = a blink.
+        if (zEar < -2.2) {
+            if (face.stats.lastEarState === "open") {
+                face.stats.blinks++;
+                face.stats.lastEarState = "closed";
+            }
+        } else {
+            face.stats.lastEarState = "open";
+        }
+        const elapsedSec = Math.max(1, (Date.now() - face.stats.startedAt) / 1000);
+        const bpm = Math.round((face.stats.blinks / elapsedSec) * 60);
+
+        // ---- cue detection with persistence gating ----
+        const frame = {
+            rapid_blink: bpm > 26,
+            gaze_avoid: Math.abs(zGaze) > 2.2,
+            lip_press: zLipOpen < -2.0 && lipOpen < b.lipOpenMean * 0.85,
+            lip_tremor: zLipJitter > 2.0,
+            frown: zFrown > 2.0,
+            brow_furrow: zBrowGap < -2.0,
+            brow_raise: zBrowRaise > 2.0,
+        };
+        for (const key of Object.keys(frame)) {
+            face.cueStreak[key] = frame[key] ? (face.cueStreak[key] || 0) + 1 : 0;
+            if (frame[key] && face.cueStreak[key] >= CUE_PERSIST_FRAMES) face.activeCues.add(key);
+            else if (!frame[key]) face.activeCues.delete(key);
+        }
+
+        // ---- nervousness index (0-100) ----
+        const zPool = [
+            Math.abs(zGaze),
+            Math.max(0, zLipJitter),
+            Math.max(0, zFrown),
+            Math.max(0, -zBrowGap),
+            Math.max(0, -zLipOpen),
+            Math.max(0, zBrowRaise),
+        ];
+        const avgZ = zPool.reduce((a, v) => a + v, 0) / zPool.length;
+        let score = Math.min(100, Math.max(0, Math.round(((avgZ - 0.6) / 2.0) * 100)));
+        score = Math.min(100, score + face.activeCues.size * 6);
+        if (bpm > 28 || bpm < 6) score = Math.min(100, score + 8);
+        face.gauge = score;
+        face.stats.peakScore = Math.max(face.stats.peakScore, score);
+
+        renderFaceLive(score, bpm);
+        maybeLogFaceCues();
+    }
+
+    // ---- rendering ----
+    function setMetric(el, text, cls) {
+        if (!el) return;
+        el.textContent = text;
+        el.className = cls || "";
+    }
+
+    function renderFaceLive(score, bpm) {
+        const fill = faceEl("face-gauge-fill");
+        if (fill) {
+            fill.style.width = `${score}%`;
+            fill.style.background = score >= 60 ? "var(--color-high)" : score >= 30 ? "var(--color-medium)" : "var(--color-low)";
+        }
+        const scoreEl = faceEl("face-score");
+        if (scoreEl) scoreEl.textContent = `${score}%`;
+
+        const blinks = faceEl("fm-blinks");
+        if (blinks) blinks.textContent = `${bpm} bpm (${face.stats.blinks})`;
+
+        const expr = faceEl("fm-expression");
+        if (score >= 60) setMetric(expr, "High stress", "tension");
+        else if (score >= 30) setMetric(expr, "Elevated", "elevated");
+        else setMetric(expr, "Neutral", "");
+
+        const lips = faceEl("fm-lips");
+        if (face.activeCues.has("lip_tremor")) setMetric(lips, "Trembling", "tension");
+        else if (face.activeCues.has("lip_press")) setMetric(lips, "Pressing", "tension");
+        else setMetric(lips, "Stable", "");
+
+        const brows = faceEl("fm-brows");
+        if (face.activeCues.has("brow_furrow")) setMetric(brows, "Furrowed", "tension");
+        else if (face.activeCues.has("brow_raise")) setMetric(brows, "Raised", "elevated");
+        else setMetric(brows, "Relaxed", "");
+
+        renderFaceCueChips();
+    }
+
+    function renderFaceCueChips() {
+        const wrap = faceEl("face-cues");
+        if (!wrap) return;
+        const keys = [...face.activeCues];
+        if (!keys.length) {
+            wrap.innerHTML = face.analyzing ? '<span class="face-note" style="margin:0;">No active cues</span>' : "";
+            return;
+        }
+        wrap.innerHTML = keys.map((k) => {
+            const c = CUE_LABELS[k] || { label: k, icon: "activity", sev: "mild" };
+            return `<span class="cue-chip ${c.sev}"><i data-lucide="${c.icon}"></i> ${c.label}</span>`;
+        }).join("");
+        lucide.createIcons();
+    }
+
+    function drawFaceOverlay(ctx, lm) {
+        const W = ctx.canvas.width, H = ctx.canvas.height;
+        const L = FACE_LANDMARKS;
+        const px = (i) => ({ x: lm[i].x * W, y: lm[i].y * H });
+        ctx.lineWidth = 1;
+
+        // Eye loops (gold)
+        ctx.strokeStyle = "rgba(201, 162, 75, 0.45)";
+        [L.leftEye, L.rightEye].forEach((idxs) => {
+            ctx.beginPath();
+            idxs.forEach((idx, i) => {
+                const p = px(idx);
+                if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+            ctx.stroke();
+        });
+
+        // Pupils (sage)
+        ctx.fillStyle = "rgba(78, 122, 102, 0.85)";
+        [L.leftIris, L.rightIris].forEach((idx) => {
+            const p = px(idx);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2.5, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        // Brows
+        ctx.strokeStyle = "rgba(80, 60, 20, 0.4)";
+        ctx.beginPath();
+        [[L.browInnerL, L.browOuterL], [L.browInnerR, L.browOuterR]].forEach((pair) => {
+            const a = px(pair[0]), b = px(pair[1]);
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+        });
+        ctx.stroke();
+
+        // Lips: corners + inner upper/lower
+        ctx.strokeStyle = "rgba(201, 162, 75, 0.45)";
+        const cL = px(L.lipLeftCorner), cR = px(L.lipRightCorner);
+        const uL = px(L.lipUpper), lL = px(L.lipLower);
+        ctx.beginPath();
+        ctx.moveTo(cL.x, cL.y);
+        ctx.lineTo(uL.x, uL.y);
+        ctx.lineTo(cR.x, cR.y);
+        ctx.lineTo(lL.x, lL.y);
+        ctx.closePath();
+        ctx.stroke();
+    }
+
+    // ---- logging to the official record ----
+    function maybeLogFaceCues() {
+        const now = Date.now();
+        if (now < face.logCooldownUntil) return;
+        if (!face.activeCues.size) return;
+        const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
+        sendBehaviorEntry(`Nervousness cues detected: ${names.join(", ")} — nervousness index ${face.gauge}%.`);
+        face.logCooldownUntil = now + CUE_LOG_INTERVAL_MS;
+        face.stats.cueEvents++;
+    }
+
+    function sendBehaviorEntry(text) {
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN || !state.me) return;
+        state.ws.send(JSON.stringify({ type: "behavior", text }));
+    }
 
     // ====================================================================
     // ACTIONS (UI)
@@ -1145,6 +1836,7 @@
         stopAutoTranscription();
         stopAutoDictation();
         try { clipPlayer.pause(); } catch (_) {}
+        disableFaceCamera();
     });
 
     init();
