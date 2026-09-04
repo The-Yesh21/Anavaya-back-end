@@ -638,6 +638,7 @@
     color: var(--color-success);
     box-shadow: 0 4px 14px rgba(5, 150, 105, 0.18);
 }
-@media (max-width: 899px) {
-    .gpu-badge { display: none; }
-}
+/* Mobile shows the GPU/LLM badge too (removed the old <900px hide), so
+   users on phones can see the inference backend status. The header wraps
+   via .app-header { flex-wrap: wrap } at small sizes (style.css) so the
+   badge never overflows. */
