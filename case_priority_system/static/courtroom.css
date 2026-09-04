@@ -952,7 +952,9 @@ body::before {
 .entry-meta {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    flex-wrap: wrap;
+    row-gap: 2px;
+    column-gap: 8px;
     margin-bottom: 3px;
 }
 .entry-role {
@@ -960,9 +962,11 @@ body::before {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
-.entry-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
-.entry-name { font-size: 12px; color: var(--text-muted); }
+.entry-time { font-size: 11px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+.entry-name { font-size: 12px; color: var(--text-muted); min-width: 0; overflow-wrap: anywhere; }
 .entry-text { font-size: 14px; color: var(--text-primary); line-height: 1.45; word-wrap: break-word; }
 
 /* recorded speech clip controls on spoken entries */
