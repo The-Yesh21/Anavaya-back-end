@@ -56,6 +56,15 @@ Write-Host "  Anavaya - Remote Demo Launcher" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 Set-Location $RepoRoot
 
+# --- 0. GPU / LLM mode ------------------------------------------------
+# Force LLM feature extraction ON for the whole remote stack (this is what
+# makes the ngrok path use the NVIDIA GPU): ANAVAYA_USE_LLM=1 is inherited by
+# the uvicorn child process below, so uploads always go through Ollama
+# (qwen2.5:3b on the GPU) instead of the ~2s rule-based fallback. Auto-detect
+# usually reaches the same result, but forcing removes the probe lag while
+# Ollama warms up and keeps the remote demo deterministic.
+$env:ANAVAYA_USE_LLM = "1"
+
 # --- 1. Backend (FastAPI, https :8000, repo self-signed certs) ---
 if (Test-Port 8000) {
     Write-Host "[1/4] Backend already running on :8000" -ForegroundColor Green

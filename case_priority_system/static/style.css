@@ -6,6 +6,10 @@
 @import url("tokens.css");
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 
+html {
+    overflow-x: hidden; /* decorative absolute blobs must never widen the page on mobile */
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -3335,7 +3339,7 @@ button, a, input, select {
     .stats-container { grid-template-columns: 1fr; }
     .category-card { grid-column: auto; }
     .triage-donut-card { flex-wrap: wrap; }
-    .app-header { border-radius: 2rem; padding: 12px 16px; }
+    .app-header { border-radius: 2rem; padding: 12px 16px; flex-wrap: wrap; row-gap: 8px; }
     .logo-text span { display: none; }
     .tab-btn { padding: 10px 8px; font-size: 12.5px; }
     .tab-btn i { display: none; }

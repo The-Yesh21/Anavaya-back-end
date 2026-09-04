@@ -56,7 +56,11 @@
         participants: [],          // roster from server
         selectedRole: null,
         ws: null,
-        micEnabled: true,
+        // The live mic starts CLOSED: participants are heard only while they
+        // hold the Hold to Talk button (or explicitly open the mic with the
+        // roster toggle). Previously the mic track stayed enabled from join,
+        // so the whole room heard every participant continuously.
+        micEnabled: false,
         videoEnabled: true,
         iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
@@ -402,6 +406,9 @@
             }
         }
         attachSelfVideo();
+        // Enforce the default mic gate on a freshly acquired stream (closed
+        // unless the user explicitly opened the mic / is holding to talk).
+        applyMicGate();
         if (state.me) {
             renderRoster();
             // Stream resolved after peers were already negotiated → send tracks now.
@@ -634,12 +641,22 @@
         }
     }
 
+    // Keep the WebRTC audio track in sync with who should be audible:
+    //   - micEnabled (roster toggle)  -> always audible
+    //   - ptt.recording (hold)        -> audible while holding to talk
+    // Everything else (not holding, not toggled) is silent to the room.
+    function applyMicGate() {
+        if (!state.localStream) return;
+        const open = state.micEnabled || ptt.recording;
+        for (const track of state.localStream.getAudioTracks()) {
+            track.enabled = open;
+        }
+    }
+
     function toggleMic() {
         if (!state.localStream) return;
         state.micEnabled = !state.micEnabled;
-        for (const track of state.localStream.getAudioTracks()) {
-            track.enabled = state.micEnabled;
-        }
+        applyMicGate();
         renderRoster();
     }
 
@@ -696,7 +713,7 @@
                     <div class="tile-role role-${p.role}">${escapeHtml(displayRole)}</div>
                 </div>
                 <div class="tile-controls">
-                    ${isMe ? `<button class="tile-mic-btn ${state.micEnabled ? "" : "off"}" title="${state.micEnabled ? "Mute" : "Unmute"}">
+                    ${isMe ? `<button class="tile-mic-btn ${state.micEnabled ? "" : "off"}" title="${state.micEnabled ? "Mic on — always audible to the room (click to mute)" : "Mic off — others hear you only while you hold Hold to Talk (click for always-on mic)"}">
                         <i data-lucide="${state.micEnabled ? "mic" : "mic-off"}"></i>
                     </button>` : ""}
                     ${isMe ? `<button class="tile-video-btn ${state.videoEnabled ? "" : "off"}" title="${state.videoEnabled ? "Hide my video" : "Show my video"}">
@@ -848,7 +865,15 @@
         if (scroll) scrollToBottom();
     }
 
+    // Map a display role (server ROLE_LABELS value) back to the internal
+    // role key used for avatar colors and CSS role accents. The server stores
+    // friendly labels like "Presiding Judge", so the naive first-word split
+    // produced "Presiding" and every Judge statement rendered with the gray
+    // system color instead of the Judge gold.
     function roleKeyFromDisplay(displayRole) {
+        if (displayRole === "Presiding Judge") return "Judge";
+        if (displayRole === "Defence Counsel") return "Defence";
+        if (displayRole === "Prosecution Counsel") return "Prosecution";
         if (displayRole.startsWith("Witness")) return "Witness";
         return displayRole.split(" ")[0];
     }
@@ -1063,6 +1088,8 @@
         ptt.recorder.start(250);
         ptt.recording = true;
         ptt.startedAt = Date.now();
+        // Holding to talk opens the live mic to the room (see applyMicGate).
+        applyMicGate();
         els.pushToTalkBtn.classList.add("active");
         els.pushToTalkBtn.innerHTML = '<i data-lucide="mic-off"></i> Recording…';
         lucide.createIcons();
@@ -1082,6 +1109,9 @@
             return;
         }
         ptt.recording = false;
+        // Release = stop being heard immediately (don't wait for the async
+        // recorder stop to fire).
+        applyMicGate();
         try { ptt.recorder.stop(); } catch (_) {}
     }
 
@@ -1089,6 +1119,8 @@
         const chunks = ptt.chunks;
         ptt.chunks = [];
         const elapsed = Date.now() - ptt.startedAt;
+        // Belt-and-braces: recorder stopped without pttStop (edge cases).
+        applyMicGate();
         els.pushToTalkBtn.classList.remove("active");
         els.pushToTalkBtn.innerHTML = '<i data-lucide="mic"></i> Hold to Talk';
         lucide.createIcons();
@@ -1321,6 +1353,7 @@
         ptt.recording = true;
         ptt.startedAt = Date.now();
         setPttLabel(true, "Listening…");
+        applyMicGate(); // browser-ASR hold also opens the live mic
         try {
             rec.start();
         } catch (_) {
@@ -1335,6 +1368,7 @@
     function pttFinishBrowserAsr() {
         const wasRecording = ptt.recording;
         ptt.recording = false;
+        applyMicGate();
         setPttLabel(false, "Hold to Talk");
         if (!wasRecording) return;
         const raw = ptt.srText;
