@@ -13,7 +13,11 @@
         "--port",
         "8000",
         "--ws-ping-interval",
-        "0"
+        "0",
+        "--ssl-certfile",
+        "case_priority_system/certs/cert.pem",
+        "--ssl-keyfile",
+        "case_priority_system/certs/key.pem"
       ],
       "port": 8000
     }

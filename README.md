@@ -21,7 +21,16 @@ ollama serve
 Run from the project root:
 
 ```powershell
-python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
+python case_priority_system/app.py
+```
+
+The dashboard serves over **https** automatically whenever the self-signed certs
+(`case_priority_system/certs/cert.pem` + `key.pem`) exist — the courtroom mic/video
+features need a secure context on phones, so https is required for cross-device
+courtrooms. Without the certs it falls back to plain http. Equivalent uvicorn command:
+
+```powershell
+python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0 --ssl-certfile case_priority_system/certs/cert.pem --ssl-keyfile case_priority_system/certs/key.pem
 ```
 
 > **Why `--host 0.0.0.0`?** The Live Courtroom invite links are shared with other
@@ -30,6 +39,9 @@ python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-p
 > machine's LAN IP automatically. If Windows Firewall prompts, allow Python on
 > **private networks**, otherwise phones on the same Wi-Fi/hotspot get
 > "This site can't be reached".
+> **Why https?** Browsers only grant microphone/video access on secure contexts
+> (`https` or `localhost`). A phone opening `http://<LAN-IP>:8000` gets no mic;
+> `https://<LAN-IP>:8000/court/<room>` does (after accepting the self-signed cert).
 > **Why `--ws-ping-interval 0`?** The Live Courtroom uses WebSockets. Uvicorn's default 20s
 > ping interval + 20s pong timeout silently kills any connection that doesn't answer a ping
 > within 40s — which drops courtroom participants that go quiet for a moment. `0` disables
@@ -60,19 +72,88 @@ The landing page opens at [http://localhost:8081](http://localhost:8081). Click 
 # Terminal 1 — Ollama (GPU)
 ollama serve
 
-# Terminal 2 — Backend dashboard
-python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
+# Terminal 2 — Backend dashboard (serves https when case_priority_system/certs/ exists)
+python case_priority_system/app.py
 
 # Terminal 3 — Landing page
 npm run dev
 ```
 
-Open [http://localhost:8081](http://localhost:8081) for the landing page, or [http://127.0.0.1:8000](http://127.0.0.1:8000) for the dashboard directly.
+Open [http://localhost:8081](http://localhost:8081) for the landing page, or [https://127.0.0.1:8000](https://127.0.0.1:8000) for the dashboard directly (https when the certs are present, http otherwise).
 
 **Dashboard features:**
 - **Interactive Case Board:** Filter and search cases processed from the Excel sheet.
 - **Dynamic Decision Tree Graph:** Inspect the global decision structure and highlight active decision paths in glowing neon.
 - **Constitutional Trace:** Review case summaries and programmatic legal justifications based on the Constitution of India.
+
+---
+
+## 🌍 Remote Participants (anywhere in the world)
+
+The dashboard serves over https on the LAN, but remote counsel/witnesses on other
+networks (or mobile data) cannot reach a private IP — and browsers on phone data
+networks are almost always behind **symmetric NAT (CGNAT)**, which plain STUN
+hole-punching cannot traverse. Two small additions make the courtroom work for
+them:
+
+1. **A tunnel** exposes this machine's FastAPI server with a real public `https`
+   URL (mic/video work on any phone — no self-signed-cert dance).
+2. **A TURN relay** lets WebRTC media fall back to relaying through a public
+   server when direct peer-to-peer fails (required for mobile-data callers).
+
+### Step 1 — give the courtroom a TURN relay (one-time)
+
+The server advertises ICE config at `GET /api/court/rtc-config`. It always ships
+the STUN defaults and appends any TURN servers from the `COURTROOM_TURN_SERVERS`
+environment variable (JSON array of `{urls, username, credential}` objects) that
+must be set **before** starting the backend — or, to keep them across restarts,
+copy `case_priority_system/courtroom_turn.example.json` to
+`case_priority_system/courtroom_turn.json` (gitignored) and fill in your real
+credentials: the backend reads that file automatically on startup.
+
+Cloudflare Realtime TURN (recommended — ~1 TB/month free): create a TURN app in
+the Cloudflare dashboard, grab its static username/credential, then start the
+server with:
+
+```powershell
+$env:COURTROOM_TURN_SERVERS = '[{"urls": ["turn:turn.cloudflare.com:3478?transport=udp", "turn:turn.cloudflare.com:3478?transport=tcp", "turns:turn.cloudflare.com:5349?transport=tcp"], "username": "<TURN_USERNAME>", "credential": "<TURN_CREDENTIAL>"}]'
+python case_priority_system/app.py
+```
+
+Quick public test relay (Metered Open Relay, no sign-up — fine for demos only):
+
+```powershell
+$env:COURTROOM_TURN_SERVERS = '[{"urls": ["turn:openrelay.metered.ca:80"], "username": "openrelayproject", "credential": "openrelayproject"}]'
+python case_priority_system/app.py
+```
+
+Verify it is served: `curl https://127.0.0.1:8000/api/court/rtc-config` should
+list the STUN servers **plus** your TURN entry.
+
+### Step 2 — expose the server with a tunnel
+
+Download `cloudflared` (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+and run a quick tunnel from a terminal next to the backend. The origin cert is
+self-signed, so pass `--no-tls-verify`:
+
+```bash
+cloudflared tunnel --url https://localhost:8000 --no-tls-verify
+```
+
+It prints a public URL like `https://<random>.trycloudflare.com`. Remote
+participants open **`<that URL>/court/<room_id>`** (create the room from the
+dashboard first, as usual). Invite links built in the app already use the page's
+origin, so they become public automatically when the page is reached through the
+tunnel.
+
+> **Limits & notes**
+> - The hearing runs while this laptop stays on and online — the tunnel dies
+>   with the machine.
+> - No code change needed to switch STUN-only → TURN: the client fetches
+>   `/api/court/rtc-config` on load and merges the relays into every peer
+>   connection.
+> - Room ids are short and a public URL makes them guessable — for real use,
+>   share the room id privately and expect a join-PIN feature soon.
 
 ---
 

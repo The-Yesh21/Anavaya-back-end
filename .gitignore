@@ -54,10 +54,15 @@ desktop.ini
 0.46.1
 .zcode/
 
+# ---------- Node / build output ----------
+node_modules/
+.output/
+
 # ---------- Env / secrets ----------
 .env
 .env.*
 !.env.example
+case_priority_system/courtroom_turn.json
 
 # ---------- Local TLS (self-signed dev certs) ----------
 case_priority_system/certs/

@@ -57,10 +57,25 @@ def get_lan_ip():
         return "127.0.0.1"
 
 LAN_IP = get_lan_ip()
+
+# TLS: serve over https whenever the self-signed certs exist (certs/), so the
+# courtroom mic/video (which need a secure context) work on phones over the LAN.
+# Falls back to plain http on machines without the certs — same convention as
+# vite.config.ts, so the landing page and dashboard share one TLS setup.
+CERT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "certs")
+SSL_CERTFILE = os.path.join(CERT_DIR, "cert.pem")
+SSL_KEYFILE = os.path.join(CERT_DIR, "key.pem")
+TLS_ENABLED = os.path.exists(SSL_CERTFILE) and os.path.exists(SSL_KEYFILE)
+SCHEME = "https" if TLS_ENABLED else "http"
+
 print(f"\n{'='*60}")
 print(f"Anavaya Dashboard is running!")
-print(f"Local:   http://127.0.0.1:8000")
-print(f"Mobile:  http://{LAN_IP}:8000  (same WiFi)")
+print(f"Local:   {SCHEME}://127.0.0.1:8000")
+print(f"Mobile:  {SCHEME}://{LAN_IP}:8000  (same WiFi)")
+if TLS_ENABLED:
+    print(f"TLS:     on (self-signed certs: {CERT_DIR})")
+else:
+    print(f"TLS:     off — drop cert.pem/key.pem into {CERT_DIR} to enable https")
 print(f"{'='*60}\n")
 
 # =====================================================================
@@ -119,13 +134,14 @@ async def ollama_status():
     }
 
 @app.get("/api/network-info")
-async def get_network_info():
+async def get_network_info(request: Request):
     """Return LAN IP and base URL for invite links."""
     lan_ip = get_lan_ip()
+    scheme = request.url.scheme  # https when served over TLS, http otherwise
     return {
         "lan_ip": lan_ip,
         "port": 8000,
-        "base_url": f"http://{lan_ip}:8000"
+        "base_url": f"{scheme}://{lan_ip}:8000"
     }
 
 # Import comprehensive constitutional analysis module
@@ -1169,6 +1185,67 @@ def court_asr_status():
     return {"available": available}
 
 
+def _load_courtroom_turn_servers():
+    """TURN relays for the courtroom, from COURTROOM_TURN_SERVERS env first,
+    else the gitignored config file case_priority_system/courtroom_turn.json
+    (JSON list of {urls, username, credential}, or {"servers": [...]}).
+    Returns [] when unset so the client falls back to STUN-only.
+    """
+    raw = os.getenv("COURTROOM_TURN_SERVERS", "").strip()
+    source = "env"
+    if not raw:
+        cfg_path = os.getenv(
+            "COURTROOM_TURN_CONFIG",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "courtroom_turn.json"),
+        )
+        if os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, encoding="utf-8") as f:
+                    cfg = json.load(f)
+                if isinstance(cfg, dict):
+                    cfg = cfg.get("servers", [])
+                if isinstance(cfg, list):
+                    raw = json.dumps(cfg)
+                    source = f"file {os.path.basename(cfg_path)}"
+                else:
+                    return []
+            except Exception as e:
+                print(f"courtroom TURN config file ignored: {e}")
+                return []
+    try:
+        extra = json.loads(raw)
+        if not isinstance(extra, list):
+            return []
+        print(f"courtroom TURN relays loaded from {source}: {len(extra)}")
+        return extra
+    except Exception as e:
+        print(f"courtroom TURN config ignored ({source}): {e}")
+        return []
+
+
+@app.get("/api/court/rtc-config")
+def court_rtc_config():
+    """ICE servers the courtroom client should use for WebRTC peer connections.
+
+    Always returns the STUN defaults. When remote participants join from other
+    networks / mobile data (symmetric NAT or CGNAT) STUN is not enough — a TURN
+    relay is required. Configure one or more TURN servers (Cloudflare Realtime
+    TURN, Metered Open Relay, …) via the ``COURTROOM_TURN_SERVERS`` env var or
+    the gitignored ``case_priority_system/courtroom_turn.json`` file; each is
+    appended to the list the client merges into every RTCPeerConnection.
+    """
+    servers = [
+        {"urls": "stun:stun.l.google.com:19302"},
+        {"urls": "stun:stun1.l.google.com:19302"},
+    ]
+    for s in _load_courtroom_turn_servers():
+        if isinstance(s, dict) and (s.get("urls") or s.get("url")):
+            if "url" in s and "urls" not in s:
+                s["urls"] = s["url"]
+            servers.append(s)
+    return {"iceServers": servers}
+
+
 @app.post("/api/court/transcribe")
 async def transcribe_courtroom_audio(room_id: str = Form(...),
                                      participant_id: str = Form(...),
@@ -1833,3 +1910,30 @@ def read_index():
 
 # Mount static folder
 app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+if __name__ == "__main__":
+    import sys
+    import uvicorn
+
+    # Make the project root importable (e.g. `case_priority_system.scripts.*`)
+    # when launched as `python case_priority_system/app.py` from anywhere —
+    # plain `python script.py` only puts the script's own directory on sys.path.
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    # Start uvicorn with TLS when the self-signed certs exist (certs/), so the
+    # courtroom mic/video work on phones over the LAN (secure context required).
+    # `--host 0.0.0.0` exposes the dashboard to other devices and
+    # `--ws-ping-interval 0` keeps courtroom WebSocket connections alive.
+    ssl_kwargs = {}
+    if TLS_ENABLED:
+        ssl_kwargs = {"ssl_certfile": SSL_CERTFILE, "ssl_keyfile": SSL_KEYFILE}
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        ws_ping_interval=0,
+        **ssl_kwargs,
+    )

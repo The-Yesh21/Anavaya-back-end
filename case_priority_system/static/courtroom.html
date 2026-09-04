@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Anavaya — Live Courtroom</title>
     <!-- Theme boot — runs synchronously before any stylesheet is applied, so the
          page paints in the right theme with no flash. Saved choice wins; otherwise
@@ -46,7 +46,7 @@
             <p id="join-subtitle" class="join-subtitle">Enter the courtroom</p>
             <p id="join-media-warning" class="join-media-warning" style="display:none;">
                 <i data-lucide="mic-off"></i>
-                <span>Microphone &amp; video need a secure connection (https or localhost). This page is open over plain http on a network address, so <strong>Hold to Talk</strong> cannot access your mic here. Open <code>http://localhost:8000/court/<span id="join-media-room"></span></code> on the host machine (or serve the app over https) to use audio.</span>
+                <span>Microphone &amp; video need a secure connection (https or localhost). This page is open over plain http on a network address, so <strong>Hold to Talk</strong> cannot access your mic here. Open <code>https://localhost:8000/court/<span id="join-media-room"></span></code> on the host machine to use audio.</span>
             </p>
 
             <form id="join-form" class="join-form">
@@ -94,16 +94,16 @@
             </div>
             <div class="court-header-actions">
                 <button class="ghost-btn end-session-btn" id="end-session-btn" title="End the trial session for everyone" aria-label="End session" style="display:none;">
-                    <i data-lucide="power"></i> End Session
+                    <i data-lucide="power"></i><span class="btn-label">End Session</span>
                 </button>
                 <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
                     <i data-lucide="moon"></i>
                 </button>
                 <button class="ghost-btn" id="copy-invite-btn" title="Copy invite link" aria-label="Copy invite link">
-                    <i data-lucide="link"></i> Invite
+                    <i data-lucide="link"></i><span class="btn-label">Invite</span>
                 </button>
                 <a class="ghost-btn" href="/" title="Back to dashboard">
-                    <i data-lucide="layout-dashboard"></i> Dashboard
+                    <i data-lucide="layout-dashboard"></i><span class="btn-label">Dashboard</span>
                 </a>
             </div>
         </header>
@@ -193,10 +193,10 @@
                         <h2><i data-lucide="scroll-text"></i> Live Transcript</h2>
                         <div class="transcript-actions">
                             <button class="link-btn" id="download-transcript-btn" title="Download transcript as Markdown">
-                                <i data-lucide="download"></i> Export
+                                <i data-lucide="download"></i><span class="btn-label">Export</span>
                             </button>
                             <button class="link-btn pdf-btn" id="download-transcript-pdf-btn" title="Download full court transcript as PDF">
-                                <i data-lucide="file-text"></i> Download PDF
+                                <i data-lucide="file-text"></i><span class="btn-label">Download PDF</span>
                             </button>
                         </div>
                     </div>

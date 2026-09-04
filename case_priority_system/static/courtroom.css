@@ -254,6 +254,7 @@ body::before {
     position: relative;
     z-index: 1;
     min-height: 100vh;
+    min-height: 100dvh;   /* mobile browsers: exclude collapsing URL bar */
     display: flex;
     flex-direction: column;
 }
@@ -269,7 +270,7 @@ body::before {
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1.5px solid var(--border-color);
 }
-.court-title-block { display: flex; align-items: center; gap: 14px; }
+.court-title-block { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .court-emblem {
     width: 44px; height: 44px;
     border-radius: 50%;
@@ -284,6 +285,9 @@ body::before {
     font-weight: 750;
     font-size: 20px;
     line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .court-meta {
     display: inline-flex;
@@ -1053,7 +1057,100 @@ body::before {
    ============================================================ */
 @media (max-width: 899px) {
     .court-body { grid-template-columns: 1fr; padding: 16px; }
+    /* On narrow screens the statement bar + transcript are the primary surface
+       — move them above the roster (and the long face-analysis panel below it). */
+    .court-floor { order: -1; }
     .court-header { padding: 14px 16px; }
     .court-header h1 { font-size: 17px; }
     .transcript { max-height: 50vh; }
+}
+
+/* Phones — compact header, stacked statement bar, thumb-friendly targets */
+@media (max-width: 640px) {
+    body { -webkit-tap-highlight-color: transparent; }
+
+    /* Header: icon-only actions so everything fits 360px-wide screens */
+    .court-header { padding: 10px 12px; gap: 8px; }
+    .court-title-block { gap: 10px; }
+    .court-emblem { width: 36px; height: 36px; }
+    .court-emblem i { width: 18px; height: 18px; }
+    .court-header h1 { font-size: 15px; }
+    .court-meta { font-size: 11px; }
+    .court-header-actions { gap: 6px; }
+    .court-header-actions .ghost-btn {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        justify-content: center;
+    }
+    .court-header-actions .btn-label { display: none; }
+
+    .court-body { padding: 12px; gap: 14px; }
+    .card { padding: 14px; }
+
+    /* Statement bar stacks: input on top, action buttons full-width below */
+    .statement-form { flex-wrap: wrap; }
+    .statement-form input[type="text"] {
+        flex: 1 1 100%;
+        font-size: 16px;   /* ≥16px prevents iOS auto-zoom on focus */
+        padding: 13px 16px;
+    }
+    .statement-form .push-to-talk-btn,
+    .statement-form .speak-btn {
+        flex: 1 1 calc(50% - 5px);
+        justify-content: center;
+        padding: 14px 10px;
+        font-size: 14px;
+    }
+    .push-to-talk-btn { touch-action: none; }
+
+    .quick-action { padding: 9px 14px; font-size: 12px; }
+    .you-are { font-size: 12px; }
+
+    /* Transcript */
+    .transcript { min-height: 220px; max-height: 44vh; }
+    .transcript-actions .link-btn { padding: 6px; }
+    .transcript-actions .btn-label { display: none; }
+    .entry { padding: 10px 12px; }
+
+    /* Roster tiles — roomier mic/video toggles for thumbs */
+    .tile-video { width: 52px; height: 52px; }
+    .tile-mic-btn, .tile-video-btn { padding: 9px; }
+    .tile-mic-btn i, .tile-video-btn i { width: 17px; height: 17px; }
+
+    /* Phase buttons fill the row (2-up) */
+    .phase-btn { flex: 1 1 calc(50% - 4px); padding: 11px 10px; }
+
+    /* Face analysis */
+    .face-source-field select { max-width: 150px; font-size: 13px; }
+    .face-actions .face-btn {
+        flex: 1 1 calc(50% - 4px);
+        justify-content: center;
+        padding: 11px 8px;
+    }
+
+    /* Join overlay — scrollable so the form survives the on-screen keyboard */
+    .join-overlay { padding: 12px; overflow-y: auto; }
+    .join-card { padding: 30px 20px 24px; }
+    .join-card h1 { font-size: 22px; }
+    .join-subtitle { margin-bottom: 20px; }
+    .back-link { top: 14px; left: 16px; }
+    .role-btn { padding: 11px 12px; }
+    .role-btn .role-name { font-size: 14px; }
+    .field input[type="text"] { font-size: 16px; padding: 12px 16px; }
+    .enter-btn { width: 100%; padding: 14px 20px; font-size: 15px; }
+    .join-note { font-size: 11px; }
+    .join-media-warning { font-size: 11px; }
+    .join-media-warning code { word-break: break-all; }
+    .session-ended-actions .ghost-btn { flex: 1 1 100%; justify-content: center; }
+
+    /* Toast reaches the thumb zone */
+    .toast {
+        left: 12px;
+        right: 12px;
+        bottom: 16px;
+        transform: translateY(20px);
+        text-align: center;
+    }
+    .toast.show { transform: translateY(0); }
 }

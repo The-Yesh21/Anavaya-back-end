@@ -6,8 +6,8 @@ import { WhyItMatters } from "@/components/landing/WhyItMatters";
 import { Features, TechStack } from "@/components/landing/Features";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
 import { PriorityRoadmap } from "@/components/landing/PriorityRoadmap";
-import { ThemeToggle } from "@/components/landing/ThemeToggle";
-
+import { ModelAccuracy } from "@/components/landing/ModelAccuracy";
+import { SiteHeader } from "@/components/landing/SiteHeader";
 
 const title = "Anavaya — AI-Powered Judicial Case Priority System";
 const description =
@@ -30,13 +30,17 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <>
-      <ThemeToggle />
-      <main className="relative z-10">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <SiteHeader />
+      <main id="main" className="relative z-10">
         <Hero />
         <ProblemBand />
         <StatsBar />
         <HowItWorks />
         <PriorityRoadmap />
+        <ModelAccuracy />
         <WhyItMatters />
         <Features />
         <TechStack />

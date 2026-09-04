@@ -1,10 +1,11 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# AGENTS.md
+
+Project guidance for coding agents lives in [`CLAUDE.md`](CLAUDE.md) — read that first.
+Current state and the change log are in [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md).
+
+Two rules that are easy to break and expensive to debug:
+
+- **The LLM never decides priority.** It extracts and summarizes only; the Decision Tree
+  alone assigns High/Medium/Low, and the constitutional analysis is rule-based.
+- **Run every command from the repo root** (`F:\major_project`), never from inside
+  `case_priority_system/` — the scripts use the `case_priority_system/` path prefix.

@@ -58,7 +58,9 @@
         ws: null,
         micEnabled: true,
         videoEnabled: true,
+        iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
+        localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
         peers: new Map(),          // participant_id -> { pc: RTCPeerConnection, audio, videoTrack }
         pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
     };
@@ -110,6 +112,7 @@
     async function init() {
         lucide.createIcons();
         await loadRoomPreview();
+        await loadRtcConfig();
         maybeShowMediaWarning();
         renderRolePicker();
         els.joinForm.addEventListener("submit", onJoin);
@@ -328,11 +331,51 @@
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
-            // TURN server would go here for strict NATs (out of scope for demo).
         ],
     };
 
+    // Merge the STUN defaults with any TURN relays the server advertises at
+    // /api/court/rtc-config. TURN is what lets remote participants on other
+    // networks / mobile data actually connect: carriers and many ISPs use
+    // symmetric NAT (CGNAT), which STUN hole-punching cannot traverse — the
+    // media then has to relay through a TURN server. Runs before any
+    // RTCPeerConnection is created, so every offer/answer carries the relays.
+    async function loadRtcConfig() {
+        try {
+            const res = await fetch("/api/court/rtc-config", { cache: "no-store" });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!Array.isArray(data.iceServers)) return;
+            const seen = new Set(RTC_CONFIG.iceServers.map((s) => JSON.stringify(s)));
+            for (const s of data.iceServers) {
+                if (!s || typeof s !== "object") continue;
+                const key = JSON.stringify(s);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                RTC_CONFIG.iceServers.push(s);
+            }
+        } catch (_) {
+            // Non-fatal: without a TURN relay the mesh still works for peers
+            // that can connect directly (same network / open NATs).
+        }
+    }
+
     async function ensureLocalStream() {
+        if (state.localStream) return state.localStream;
+        // Collapse concurrent requests (join-time + a Hold to Talk press in the
+        // same moment) into ONE getUserMedia call. Without this, two pending
+        // requests race on the permission prompt and can each resume into a
+        // half-set-up state — e.g. a recording that starts with nobody holding.
+        if (state.localStreamPromise) return state.localStreamPromise;
+        state.localStreamPromise = acquireLocalStream();
+        try {
+            return await state.localStreamPromise;
+        } finally {
+            state.localStreamPromise = null;
+        }
+    }
+
+    async function acquireLocalStream() {
         if (state.localStream) return state.localStream;
         if (mediaUnavailableReason()) {
             reportMicFailure(null, "Microphone unavailable on this connection.");
@@ -623,7 +666,9 @@
         renderPhaseButtons();
         initFacePanel();
         probeAsr();
-        els.statementInput.focus();
+        // Don't auto-focus on touch devices — it pops the on-screen keyboard
+        // the moment you enter, hiding the transcript behind it.
+        if (!("ontouchstart" in window)) els.statementInput.focus();
     }
 
     function renderRoster() {
@@ -957,33 +1002,46 @@
         // If we already have a stream, start synchronously (no race condition).
         let stream = state.localStream;
         if (!stream) {
-            // First time or after denial — acquire async. While we wait,
-            // the user might release the button (see ptt.releasedDuringInit).
-            stream = await ensureLocalStream();
-        }
-        // The shared stream can carry no audio (e.g. it was acquired as
-        // video-only, or the join-time prompt was dismissed). Hold to Talk
-        // needs a mic, so request a dedicated audio stream instead of failing
-        // with a vague message — this also re-triggers the browser's permission
-        // prompt when the earlier one was dismissed rather than blocked.
-        if (!stream || !stream.getAudioTracks().length) {
-            if (mediaUnavailableReason()) {
-                reportMicFailure(null, "Microphone unavailable on this connection.");
-                showMicFallback();
-                return;
-            }
+            // First time or after denial — acquire async. While the browser
+            // shows its permission prompt the button must still react, so flip
+            // it to a visible "waiting" state instead of appearing dead.
+            // If the user releases during the wait (typical: they let go of the
+            // mouse to click "Allow"), pttStop flags ptt.releasedDuringInit and
+            // we abort below — but first tell them the mic is now ready.
+            setPttLabel(true, "Waiting for microphone…");
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch (e) {
-                console.warn("Push-to-talk could not access the microphone:", e);
-                reportMicFailure(e, "Microphone unavailable — you can still type your statement.");
-                showMicFallback();
+                stream = await ensureLocalStream();
+            } finally {
+                if (!stream || ptt.releasedDuringInit) setPttLabel(false, "Hold to Talk");
+            }
+            if (!stream) {
+                // ensureLocalStream already reported the failure (toast + asr
+                // status) and enabled the typed-statement fallback.
+                ptt.releasedDuringInit = false;
                 return;
             }
+            // The shared stream can carry no audio (e.g. the join-time prompt
+            // was dismissed). Hold to Talk needs a mic, so ask for a dedicated
+            // audio stream — this re-triggers the browser's permission prompt
+            // when the earlier one was dismissed rather than blocked.
+            if (!stream.getAudioTracks().length) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch (e) {
+                    console.warn("Push-to-talk could not access the microphone:", e);
+                    setPttLabel(false, "Hold to Talk");
+                    reportMicFailure(e, "Microphone unavailable — you can still type your statement.");
+                    showMicFallback();
+                    return;
+                }
+            }
         }
-        // If the user released while we were waiting for the mic, abort.
+        // If the user released while we were waiting for the mic, abort — and
+        // say the mic is ready so they know to simply press again.
         if (ptt.releasedDuringInit) {
             ptt.releasedDuringInit = false;
+            setPttLabel(false, "Hold to Talk");
+            setAsrStatus("Microphone ready — press and hold again to speak.");
             return;
         }
         ptt.stream = stream;
@@ -1111,10 +1169,11 @@
     function requestEndSession() {
         if (!state.ws || !state.me || state.me.role !== "Judge") return;
         const ok = window.confirm(
-            "End this trial session for everyone? The transcript stays available for download, and no one will be able to rejoin."
+            "End this trial session for everyone? The transcript stays available for download, and no one will be able to rejoin.\n\nYou will be returned to the dashboard after the session ends."
         );
         if (!ok) return;
         if (els.endSessionBtn) els.endSessionBtn.disabled = true;
+        state.iEnded = true;
         state.ws.send(JSON.stringify({ type: "end_session" }));
     }
 
@@ -1154,6 +1213,44 @@
             state.ws = null;
         }
         toast("Session ended — the transcript is preserved.");
+        // The Judge who clicked "End Session" is sent back to the dashboard /
+        // analysis view they opened the trial from: a short countdown on the
+        // ended card, then close this tab and focus the opener (or navigate to
+        // the dashboard when there is no opener). Other participants keep the
+        // ended card with the record downloads.
+        if (state.iEnded) {
+            state.iEnded = false;
+            scheduleReturnToDashboard();
+        }
+    }
+
+    // Counts down on the ended card, then returns the Judge to the dashboard.
+    function scheduleReturnToDashboard() {
+        const base = els.joinSubtitle.textContent;
+        let n = 5;
+        els.joinSubtitle.textContent = `${base} Returning to the dashboard in ${n}s…`;
+        const timer = setInterval(() => {
+            n -= 1;
+            if (n <= 0) {
+                clearInterval(timer);
+                returnToDashboard();
+                return;
+            }
+            els.joinSubtitle.textContent = `${base} Returning to the dashboard in ${n}s…`;
+        }, 1000);
+    }
+
+    // Close this tab and hand focus back to the dashboard tab that opened the
+    // trial (script-opened tabs may self-close); otherwise just navigate there.
+    function returnToDashboard() {
+        try {
+            if (window.opener && !window.opener.closed) {
+                try { window.opener.focus(); } catch (_) {}
+                window.close();
+                return;
+            }
+        } catch (_) {}
+        window.location.href = "/";
     }
 
     // Ask the server whether whisper is installed. When it isn't, Hold to Talk

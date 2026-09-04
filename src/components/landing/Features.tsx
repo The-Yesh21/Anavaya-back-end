@@ -1,4 +1,5 @@
-import { Bot, Network, FolderKanban, ScanSearch, Video, FileText } from "lucide-react";
+import { useState } from "react";
+import { Bot, FileText, FolderKanban, Network, Pause, Play, ScanSearch, Video } from "lucide-react";
 import { Reveal } from "./Reveal";
 
 const features = [
@@ -87,22 +88,57 @@ const stack = [
 ];
 
 export function TechStack() {
+  const [paused, setPaused] = useState(false);
+
   return (
     <section className="snap-section border-y border-border bg-surface py-12">
-      <p className="px-6 text-center eyebrow md:px-10">
-        Built with
-      </p>
-      <div className="group relative mt-8 overflow-hidden">
-        <div className="animate-marquee flex w-max gap-4 group-hover:[animation-play-state:paused]">
-          {[...stack, ...stack].map((tech, i) => (
-            <span
-              key={`${tech}-${i}`}
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 px-6 md:px-10">
+        <p className="eyebrow">Built with</p>
+        {/* A real control, not hover-only: the marquee must be stoppable by keyboard
+            and pointer alike (and it halts on focus-within via the same state). */}
+        <button
+          type="button"
+          onClick={() => setPaused((v) => !v)}
+          aria-pressed={paused}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {paused ? (
+            <Play className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <Pause className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+          )}
+          {paused ? "Resume scrolling" : "Pause scrolling"}
+        </button>
+      </div>
+
+      <div
+        className="relative mt-8 overflow-hidden"
+        onFocusCapture={() => setPaused(true)}
+        onMouseEnter={() => setPaused(true)}
+      >
+        <ul
+          className="animate-marquee flex w-max list-none gap-4"
+          style={paused ? { animationPlayState: "paused" } : undefined}
+        >
+          {stack.map((tech) => (
+            <li
+              key={tech}
               className="rounded-full border border-primary/20 bg-background/60 px-6 py-2.5 text-sm whitespace-nowrap text-foreground/85"
             >
               {tech}
-            </span>
+            </li>
           ))}
-        </div>
+          {/* Duplicate set exists only to make the loop seamless — hidden from AT. */}
+          {stack.map((tech) => (
+            <li
+              key={`dup-${tech}`}
+              aria-hidden="true"
+              className="rounded-full border border-primary/20 bg-background/60 px-6 py-2.5 text-sm whitespace-nowrap text-foreground/85"
+            >
+              {tech}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
