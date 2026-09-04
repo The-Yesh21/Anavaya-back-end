@@ -83,7 +83,7 @@
   --priority-medium: oklch(0.552 0.148 55.5);
   --priority-low: oklch(0.5 0.115 163.2);
 
-  --grain-opacity: 0.22;
+  --grain-opacity: 0.14;
 
   --gradient-gold: linear-gradient(
     135deg,
@@ -133,7 +133,7 @@
   --priority-medium: oklch(0.73 0.155 60);
   --priority-low: oklch(0.7 0.13 163.2);
 
-  --grain-opacity: 0.35;
+  --grain-opacity: 0.22;
 
   --gradient-gold: linear-gradient(
     135deg,
@@ -214,6 +214,39 @@
   font-family: var(--font-serif);
   font-style: italic;
   color: var(--primary);
+}
+
+/* Tabular figures — keeps metric columns and count-ups from reflowing per digit. */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Keyboard-only shortcut to the main content, visible once focused. */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Anchor targets clear the sticky header instead of hiding beneath it. */
+:where(section[id], footer[id]) {
+  scroll-margin-top: 5.5rem;
 }
 
 /* Full-viewport scroll-snap sections */

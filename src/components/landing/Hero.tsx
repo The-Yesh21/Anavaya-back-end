@@ -28,12 +28,9 @@ function HeroVisual() {
       className="relative mx-auto aspect-square w-full max-w-[520px]"
       style={{ transform: "translate3d(var(--px, 0), var(--py, 0), 0)", transition: "transform 400ms ease-out" }}
     >
-      {/* glow */}
-      <div className="animate-pulse-glow absolute inset-[12%] rounded-full bg-primary/20 blur-[90px]" />
-
-      {/* rotating rings */}
+      {/* One slow ring only. The skill's motion budget is 1–2 animated elements
+          per view; a pulsing glow plus two counter-rotating rings blew past it. */}
       <div className="animate-spin-slow absolute inset-0 rounded-full border border-primary/20" />
-      <div className="animate-spin-slower absolute inset-[10%] rounded-full border border-dashed border-primary/15" />
 
       <svg viewBox="0 0 400 400" className="relative h-full w-full">
         <defs>
@@ -75,7 +72,7 @@ function HeroVisual() {
 
 
         {/* document glyphs */}
-        <g className="animate-float-slow" style={{ animationDelay: "3s", transformOrigin: "312px 110px" }}>
+        <g>
           <rect
             x="288"
             y="78"
@@ -92,7 +89,7 @@ function HeroVisual() {
             <line x1="298" y1="118" x2="314" y2="118" />
           </g>
         </g>
-        <g className="animate-float-slow" style={{ animationDelay: "4.4s", transformOrigin: "80px 300px" }}>
+        <g>
           <rect
             x="56"
             y="272"
@@ -121,7 +118,10 @@ function HeroVisual() {
 
 export function Hero() {
   return (
-    <section className="snap-section relative isolate items-center overflow-hidden px-6 py-24 md:px-10">
+    <section
+      id="top"
+      className="snap-section relative isolate items-center overflow-hidden px-6 pt-32 pb-24 md:px-10"
+    >
       <div
         aria-hidden="true"
         className="absolute -top-40 left-1/2 -z-10 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-primary/10 blur-[140px]"
@@ -165,7 +165,7 @@ export function Hero() {
                 Try Anavaya Now →
               </a>
               <a
-                href="#how-it-works"
+                href="#architecture"
                 className="inline-flex items-center justify-center rounded-md border border-primary/40 px-7 py-3.5 text-sm font-semibold text-primary transition-all hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 View Architecture

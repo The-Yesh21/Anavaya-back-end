@@ -21,7 +21,16 @@ ollama serve
 Run from the project root:
 
 ```powershell
-python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
+python case_priority_system/app.py
+```
+
+The dashboard serves over **https** automatically whenever the self-signed certs
+(`case_priority_system/certs/cert.pem` + `key.pem`) exist — the courtroom mic/video
+features need a secure context on phones, so https is required for cross-device
+courtrooms. Without the certs it falls back to plain http. Equivalent uvicorn command:
+
+```powershell
+python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0 --ssl-certfile case_priority_system/certs/cert.pem --ssl-keyfile case_priority_system/certs/key.pem
 ```
 
 > **Why `--host 0.0.0.0`?** The Live Courtroom invite links are shared with other
@@ -30,6 +39,9 @@ python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-p
 > machine's LAN IP automatically. If Windows Firewall prompts, allow Python on
 > **private networks**, otherwise phones on the same Wi-Fi/hotspot get
 > "This site can't be reached".
+> **Why https?** Browsers only grant microphone/video access on secure contexts
+> (`https` or `localhost`). A phone opening `http://<LAN-IP>:8000` gets no mic;
+> `https://<LAN-IP>:8000/court/<room>` does (after accepting the self-signed cert).
 > **Why `--ws-ping-interval 0`?** The Live Courtroom uses WebSockets. Uvicorn's default 20s
 > ping interval + 20s pong timeout silently kills any connection that doesn't answer a ping
 > within 40s — which drops courtroom participants that go quiet for a moment. `0` disables
@@ -60,19 +72,150 @@ The landing page opens at [http://localhost:8081](http://localhost:8081). Click 
 # Terminal 1 — Ollama (GPU)
 ollama serve
 
-# Terminal 2 — Backend dashboard
-python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0
+# Terminal 2 — Backend dashboard (serves https when case_priority_system/certs/ exists)
+python case_priority_system/app.py
 
 # Terminal 3 — Landing page
 npm run dev
 ```
 
-Open [http://localhost:8081](http://localhost:8081) for the landing page, or [http://127.0.0.1:8000](http://127.0.0.1:8000) for the dashboard directly.
+Open [http://localhost:8081](http://localhost:8081) for the landing page, or [https://127.0.0.1:8000](https://127.0.0.1:8000) for the dashboard directly (https when the certs are present, http otherwise).
 
 **Dashboard features:**
 - **Interactive Case Board:** Filter and search cases processed from the Excel sheet.
 - **Dynamic Decision Tree Graph:** Inspect the global decision structure and highlight active decision paths in glowing neon.
 - **Constitutional Trace:** Review case summaries and programmatic legal justifications based on the Constitution of India.
+
+---
+
+## 🌍 Remote Participants (anywhere in the world)
+
+The dashboard serves over https on the LAN, but remote counsel/witnesses on other
+networks (or mobile data) cannot reach a private IP — and browsers on phone data
+networks are almost always behind **symmetric NAT (CGNAT)**, which plain STUN
+hole-punching cannot traverse. Two small additions make the courtroom work for
+them:
+
+1. **A tunnel** exposes this machine's FastAPI server with a real public `https`
+   URL (mic/video work on any phone — no self-signed-cert dance).
+2. **A TURN relay** lets WebRTC media fall back to relaying through a public
+   server when direct peer-to-peer fails (required for mobile-data callers).
+
+### Step 1 — give the courtroom a TURN relay (one-time)
+
+The server advertises ICE config at `GET /api/court/rtc-config`. It always ships
+the STUN defaults and appends any TURN servers from the `COURTROOM_TURN_SERVERS`
+environment variable (JSON array of `{urls, username, credential}` objects) that
+must be set **before** starting the backend — or, to keep them across restarts,
+copy `case_priority_system/courtroom_turn.example.json` to
+`case_priority_system/courtroom_turn.json` (gitignored) and fill in your real
+credentials: the backend reads that file automatically on startup.
+
+Cloudflare Realtime TURN (recommended — ~1 TB/month free): create a TURN app in
+the Cloudflare dashboard, grab its static username/credential, then start the
+server with:
+
+```powershell
+$env:COURTROOM_TURN_SERVERS = '[{"urls": ["turn:turn.cloudflare.com:3478?transport=udp", "turn:turn.cloudflare.com:3478?transport=tcp", "turns:turn.cloudflare.com:5349?transport=tcp"], "username": "<TURN_USERNAME>", "credential": "<TURN_CREDENTIAL>"}]'
+python case_priority_system/app.py
+```
+
+Quick public test relay (Metered Open Relay, no sign-up — fine for demos only):
+
+```powershell
+$env:COURTROOM_TURN_SERVERS = '[{"urls": ["turn:openrelay.metered.ca:80"], "username": "openrelayproject", "credential": "openrelayproject"}]'
+python case_priority_system/app.py
+```
+
+Verify it is served: `curl https://127.0.0.1:8000/api/court/rtc-config` should
+list the STUN servers **plus** your TURN entry.
+
+### Step 2 — expose the server with a tunnel
+
+Download `cloudflared` (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+and run a quick tunnel from a terminal next to the backend. The origin cert is
+self-signed, so pass `--no-tls-verify`:
+
+```bash
+cloudflared tunnel --url https://localhost:8000 --no-tls-verify
+```
+
+It prints a public URL like `https://<random>.trycloudflare.com`. Remote
+participants open **`<that URL>/court/<room_id>`** (create the room from the
+dashboard first, as usual). Invite links built in the app already use the page's
+origin, so they become public automatically when the page is reached through the
+tunnel.
+
+> **Limits & notes**
+> - The hearing runs while this laptop stays on and online — the tunnel dies
+>   with the machine.
+> - No code change needed to switch STUN-only → TURN: the client fetches
+>   `/api/court/rtc-config` on load and merges the relays into every peer
+>   connection.
+> - Room ids are short and a public URL makes them guessable — for real use,
+>   share the room id privately and expect a join-PIN feature soon.
+
+### Option B — self-hosted with nginx (no Cloudflare, no third-party tunnel)
+
+> **One-click launcher (this machine):** `C:\nginx\Anavaya-Remote.exe` (source:
+> `deploy/start-anavaya.ps1`) starts backend + nginx + **ngrok** + the landing
+> page in one go, prints the public links, and opens the browser. It uses a
+> single stable ngrok dev-domain URL serving **both** apps — the landing page at
+> `…/landing/` and the dashboard at the root — which requires the landing dev
+> server to run with `VITE_BASE=/landing/` (supported by `vite.config.ts` +
+> `src/router.tsx` `basepath`). One-time setup: an ngrok account + authtoken
+> (`C:\nginx\ngrok.exe config add-authtoken <TOKEN>`). The steps below are the
+> manual equivalent if you're not on this machine.
+
+Prefer owning the whole path? nginx on this machine replaces the cloudflared
+tunnel: your router forwards one port to the PC and nginx terminates a real
+public `https` on :443, proxying to the app on :8000. This is verified working
+— dashboard, `/api/court/rtc-config`, the `/court/{id}` page, and the courtroom
+WebSocket handshake (101) all pass through the proxy. Only NAT/CGNAT blocks it:
+check first that your public IPv4 (whatismyip.com) is **not** in the CGNAT
+`100.64.0.0/10` range, and that the router's WAN IP matches it.
+
+> **GPU note:** keep the app on THIS machine — the whole point of the self-hosted
+> path is that Ollama + Whisper stay on the GPU. A plain VPS would lose them.
+
+**Current install (2026-09-04):** nginx 1.30.4 at `C:\nginx`, config at
+`C:\nginx\conf\nginx.conf` (repo copy: `deploy/nginx-anavaya.conf`), listening
+on :443 only. Backend keeps running exactly as before (https on :8000 with the
+repo's self-signed certs); nginx trusts that hop via `proxy_ssl_verify off`.
+
+**If you need to redo it from scratch:**
+
+1. **Public IPv4 check** — your router must NOT be behind CGNAT (see above).
+   This machine: public `106.192.227.10`, LAN `10.83.187.37`, dual-stack BSNL.
+2. **Free domain (DDNS)** — create `anavaya-court.duckdns.org` at duckdns.org,
+   install their Windows updater (the IPv4 is dynamic).
+3. **Router** — forward **TCP 443** → the PC's LAN IP. (Port 80 on this machine
+   is taken by IIS/http.sys, and the acme.sh DuckDNS flow doesn't need it.)
+4. **Install nginx** — `C:\nginx` (Windows build from nginx.org), copy
+   `deploy/nginx-anavaya.conf` to `C:\nginx\conf\nginx.conf`, change the
+   `server_name` to your DuckDNS name. Start with:
+   ```powershell
+   C:/nginx/nginx.exe -p C:/nginx/ -c C:/nginx/conf/nginx.conf
+   ```
+5. **Real TLS cert (free)** — in Git Bash, with the repo's self-signed certs in
+   place it already works (phones accept the warning once, same as LAN). For a
+   proper cert:
+   ```bash
+   curl https://get.acme.sh | sh
+   export DUCKDNS_TOKEN="<your-duckdns-token>"
+   ~/.acme.sh/acme.sh --issue --dns dns_duckdns -d anavaya-court.duckdns.org
+   ~/.acme.sh/acme.sh --install-cert -d anavaya-court.duckdns.org \
+     --key-file C:/nginx/conf/anavaya.key --fullchain-file C:/nginx/conf/anavaya.crt
+   ```
+   then swap the two `ssl_certificate*` lines in `nginx.conf` to those paths and
+   `nginx -s reload`. acme.sh auto-renews.
+6. **Test** — locally `curl -k https://127.0.0.1/`, then from a phone on mobile
+   data open `https://anavaya-court.duckdns.org/court/<room_id>`.
+
+> **Gotcha:** the dashboard's `invite_url` field still shows the LAN IP
+> (server-side `_lan_invite_url` uses the LAN IP). Cosmetic — the courtroom
+> page rebuilds invite links from `window.location.origin`, so anyone on the
+> public page copies the correct public link.
 
 ---
 

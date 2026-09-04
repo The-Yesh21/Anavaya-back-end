@@ -1,5 +1,6 @@
-import { Scale, Clock, Layers, Gavel } from "lucide-react";
+import { Clock, Gavel, Layers, Target } from "lucide-react";
 import { Reveal, CountUp } from "./Reveal";
+import { MODEL_METRICS } from "@/data/model-metrics";
 
 export function ProblemBand() {
   return (
@@ -26,29 +27,33 @@ export function ProblemBand() {
   );
 }
 
+/* Figures come from the evaluation run (src/data/model-metrics.ts), not from copy,
+   so the headline bar cannot drift from what the shipped model actually scored. */
+const { headline, corpus } = MODEL_METRICS;
+
 const stats = [
   {
+    icon: Target,
+    display: `${(headline.holdoutAccuracy * 100).toFixed(1)}%`,
+    label: `Accuracy on ${headline.holdoutRows} unseen real judgments`,
+    href: "#accuracy",
+  },
+  {
     icon: Layers,
-    value: 1000,
-    suffix: "+",
-    label: "Synthetic Cases Trained On",
+    value: corpus.total_rows,
+    suffix: "",
+    label: "Labelled cases in the training corpus",
   },
   {
     icon: Clock,
     display: "< 2 sec",
-    label: "Priority Classification Speed",
-  },
-  {
-    icon: Scale,
-    value: 3,
-    suffix: " Tiers",
-    label: "High · Medium · Low",
+    label: "Priority classification, start to finish",
   },
   {
     icon: Gavel,
     value: 8,
-    suffix: " Categories",
-    label: "Excise · Customs · Insolvency · Constitutional · Property · Criminal · Company · Civil",
+    suffix: "",
+    label: "Legal categories · Excise · Customs · Insolvency · Constitutional · Property · Criminal · Company · Civil",
   },
 ] as const;
 
@@ -58,21 +63,34 @@ export function StatsBar() {
       <div className="glass-panel mx-auto grid max-w-6xl grid-cols-1 rounded-xl sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
+          const body = (
+            <>
+              <Icon className="mx-auto h-6 w-6 text-primary" strokeWidth={1.5} aria-hidden="true" />
+              <p className="font-display tnum mt-5 text-4xl font-semibold text-foreground">
+                {"display" in stat ? stat.display : <CountUp value={stat.value} suffix={stat.suffix} />}
+              </p>
+              <p className="mt-3 text-[0.8125rem] leading-relaxed tracking-wide text-muted-foreground">
+                {stat.label}
+              </p>
+            </>
+          );
           return (
             <Reveal
               key={stat.label}
               delay={i * 140}
-              className="border-b border-border px-7 py-10 text-center last:border-b-0 sm:[&:nth-child(-n+2)]:border-b sm:[&:nth-child(n+3)]:border-b-0 lg:border-r lg:border-b-0 lg:last:border-r-0"
+              className="border-b border-border last:border-b-0 sm:[&:nth-child(-n+2)]:border-b sm:[&:nth-child(n+3)]:border-b-0 lg:border-r lg:border-b-0 lg:last:border-r-0"
             >
-              <Icon className="mx-auto h-6 w-6 text-primary" strokeWidth={1.5} aria-hidden="true" />
-              <p className="font-display mt-5 text-4xl font-semibold text-foreground">
-                {"display" in stat ? (
-                  stat.display
-                ) : (
-                  <CountUp value={stat.value} suffix={stat.suffix} />
-                )}
-              </p>
-              <p className="mt-3 text-[0.8125rem] leading-relaxed tracking-wide text-muted-foreground">{stat.label}</p>
+              {"href" in stat ? (
+                <a
+                  href={stat.href}
+                  className="block h-full cursor-pointer px-7 py-10 text-center transition-colors hover:bg-primary/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  {body}
+                  <span className="sr-only"> — see the full evaluation</span>
+                </a>
+              ) : (
+                <div className="px-7 py-10 text-center">{body}</div>
+              )}
             </Reveal>
           );
         })}

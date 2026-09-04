@@ -82,9 +82,9 @@ export function CountUp({
   }, [inView, value, duration]);
 
   return (
-    <span ref={ref}>
+    <span ref={ref} className="tnum">
       {prefix}
-      {display}
+      {display.toLocaleString("en-IN")}
       {suffix}
     </span>
   );

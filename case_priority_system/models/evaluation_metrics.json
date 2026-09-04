@@ -1,0 +1,144 @@
+{
+  "generated_at": "2026-09-03T20:10:36+00:00",
+  "model": {
+    "type": "DecisionTreeClassifier (CART)",
+    "max_depth": 8,
+    "actual_depth": 6,
+    "leaves": 9,
+    "n_features": 225,
+    "classes": [
+      "High",
+      "Low",
+      "Medium"
+    ]
+  },
+  "corpus": {
+    "total_rows": 3377,
+    "synthetic_and_templates": 1580,
+    "real_judgments": 265,
+    "constitutional": 1532,
+    "class_distribution": {
+      "Medium": 1656,
+      "High": 1089,
+      "Low": 632
+    }
+  },
+  "deployed_model": {
+    "accuracy": 0.9988155167308261,
+    "macro_f1": 0.9987645333778569,
+    "per_class": {
+      "High": {
+        "precision": 0.998166819431714,
+        "recall": 1.0,
+        "f1-score": 0.9990825688073395,
+        "support": 1089.0
+      },
+      "Low": {
+        "precision": 0.9968454258675079,
+        "recall": 1.0,
+        "f1-score": 0.9984202211690363,
+        "support": 632.0
+      },
+      "Medium": {
+        "precision": 1.0,
+        "recall": 0.9975845410628019,
+        "f1-score": 0.9987908101571947,
+        "support": 1656.0
+      },
+      "accuracy": 0.9988155167308261,
+      "macro avg": {
+        "precision": 0.9983374150997406,
+        "recall": 0.999194847020934,
+        "f1-score": 0.9987645333778569,
+        "support": 3377.0
+      },
+      "weighted avg": {
+        "precision": 0.9988184706868231,
+        "recall": 0.9988155167308261,
+        "f1-score": 0.9988155400741303,
+        "support": 3377.0
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "High",
+        "Low",
+        "Medium"
+      ],
+      "matrix": [
+        [
+          1089,
+          0,
+          0
+        ],
+        [
+          0,
+          632,
+          0
+        ],
+        [
+          2,
+          2,
+          1652
+        ]
+      ]
+    }
+  },
+  "cross_validation": {
+    "folds": 5,
+    "per_fold": [
+      1.0,
+      0.9970414201183432,
+      0.997037037037037,
+      0.9985185185185185,
+      1.0
+    ],
+    "mean_accuracy": 0.9985193951347797,
+    "std": 0.001324098031222601
+  },
+  "out_of_domain_holdout": {
+    "available": true,
+    "rows": 265,
+    "accuracy": 0.9924528301886792,
+    "macro_f1": 0.9800065552277942,
+    "per_class": {
+      "High": {
+        "precision": 0.8947368421052632,
+        "recall": 1.0,
+        "f1-score": 0.9444444444444444,
+        "support": 17.0
+      },
+      "Low": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 21.0
+      },
+      "Medium": {
+        "precision": 1.0,
+        "recall": 0.9911894273127754,
+        "f1-score": 0.995575221238938,
+        "support": 227.0
+      },
+      "accuracy": 0.9924528301886792,
+      "macro avg": {
+        "precision": 0.9649122807017544,
+        "recall": 0.9970631424375918,
+        "f1-score": 0.9800065552277942,
+        "support": 265.0
+      },
+      "weighted avg": {
+        "precision": 0.9932472691161868,
+        "recall": 0.9924528301886792,
+        "f1-score": 0.9926457765162056,
+        "support": 265.0
+      }
+    }
+  },
+  "baseline": {
+    "strategy": "majority_class",
+    "majority_class": "Medium",
+    "accuracy": 0.4903760734379627
+  },
+  "caveat": "Ground-truth labels are produced by infer_priority_label(), a codified court-priority policy derived from CONSTITUTION_GUIDELINES.md - not by human judicial annotation. These scores therefore measure how faithfully the tree reproduces that written policy, which is exactly the auditability property the system is designed for. They are not a claim about agreement with judges."
+}

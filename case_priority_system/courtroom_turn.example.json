@@ -1,0 +1,14 @@
+{
+  "comment": "Copy this file to courtroom_turn.json (gitignored) and fill in your real TURN credentials. Both forms are accepted: a bare list, or { \"servers\": [...] }.",
+  "servers": [
+    {
+      "urls": [
+        "turn:turn.cloudflare.com:3478?transport=udp",
+        "turn:turn.cloudflare.com:3478?transport=tcp",
+        "turns:turn.cloudflare.com:5349?transport=tcp"
+      ],
+      "username": "REPLACE_WITH_TURN_USERNAME",
+      "credential": "REPLACE_WITH_TURN_CREDENTIAL"
+    }
+  ]
+}

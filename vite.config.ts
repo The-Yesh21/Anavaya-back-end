@@ -1,12 +1,11 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig, loadEnv } from "vite";
 import fs from "node:fs";
 import path from "node:path";
+import tailwindcss from "@tailwindcss/vite";
+import tsConfigPaths from "vite-tsconfig-paths";
+import viteReact from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 
 // Serve the dev server over HTTPS whenever the app's self-signed certs exist
 // (case_priority_system/certs/), so the landing page is a secure context too —
@@ -17,22 +16,72 @@ const certFile = path.join(certDir, "cert.pem");
 const keyFile = path.join(certDir, "key.pem");
 const httpsEnabled = fs.existsSync(certFile) && fs.existsSync(keyFile);
 
-export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
-  },
-  ...(httpsEnabled
-    ? {
-        vite: {
-          server: {
-            https: {
-              key: fs.readFileSync(keyFile),
-              cert: fs.readFileSync(certFile),
-            },
-          },
+export default defineConfig(({ mode, command }) => {
+  // Expose VITE_*-prefixed vars as import.meta.env.* at build time.
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  // VITE_BASE also feeds the router basepath (src/router.tsx), so expose it
+  // to import.meta.env even though vite's own `base` config reads the env var
+  // directly above.
+  const envWithBase = { ...env, VITE_BASE: process.env["VITE_BASE"] ?? "/" };
+  const define = Object.fromEntries(
+    Object.entries(envWithBase).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]),
+  );
+
+  return {
+    define,
+    // Serve the app under a sub-path when set (e.g. VITE_BASE=/landing/ for the
+    // remote single-URL mode where the FastAPI dashboard owns the root and the
+    // landing page lives at /landing/). Default "/" keeps local dev unchanged.
+    base: process.env["VITE_BASE"] ?? "/",
+    css: { transformer: "lightningcss" },
+    server: {
+      // Remote (/landing/) mode is viewed through a tunnel — the dev HMR socket
+      // can't reach back, so it only spams console errors. Local dev (root)
+      // keeps hot reload.
+      ...(process.env["VITE_BASE"] ? { hmr: false } : {}),
+      host: "::",
+      port: 8080,
+      ...(httpsEnabled
+        ? { https: { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) } }
+        : {}),
+    },
+    resolve: {
+      alias: { "@": `${process.cwd()}/src` },
+      // A second copy of React or the query client silently breaks hooks and cache identity.
+      dedupe: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/query-core",
+      ],
+    },
+    optimizeDeps: {
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+      ],
+    },
+    // Order matters: tailwind and path resolution must run before TanStack Start
+    // generates the route tree and server entry, and React last.
+    plugins: [
+      tailwindcss(),
+      tsConfigPaths({ projects: ["./tsconfig.json"] }),
+      tanstackStart({
+        // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
+        server: { entry: "server" },
+        // Keep server-only modules out of the client bundle.
+        importProtection: {
+          behavior: "error",
+          client: { files: ["**/server/**"], specifiers: ["server-only"] },
         },
-      }
-    : {}),
+      }),
+      ...(command === "build" ? [nitro()] : []),
+      viteReact(),
+    ],
+  };
 });

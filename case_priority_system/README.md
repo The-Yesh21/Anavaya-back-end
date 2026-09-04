@@ -92,16 +92,27 @@ The system includes a premium web interface built with FastAPI, D3.js, and Vanil
 ### Start the Dashboard Server:
 Run the following command from the workspace root:
 ```powershell
-ff
+python case_priority_system/app.py
 ```
-Then, open your web browser and navigate to `http://127.0.0.1:8000`.
+The app serves over **https** automatically whenever the self-signed certs exist in
+`case_priority_system/certs/` (`cert.pem` + `key.pem`), so the courtroom mic/video work
+on phones over the LAN too. Without the certs it falls back to plain http. Equivalent
+uvicorn command:
+
+```powershell
+python -m uvicorn case_priority_system.app:app --host 0.0.0.0 --port 8000 --ws-ping-interval 0 --ssl-certfile case_priority_system/certs/cert.pem --ssl-keyfile case_priority_system/certs/key.pem
+```
+
+Then, open your web browser and navigate to `https://127.0.0.1:8000` (accept the self-signed
+cert warning). To start without TLS, delete/rename the certs or use plain uvicorn as before.
 
 > **Live Courtroom on other devices (same Wi-Fi/hotspot):**
 > - The server must be started with `--host 0.0.0.0` so other devices can reach it.
 > - Invite links are built automatically with the machine's LAN IP (see
 >   `/api/court/invite-info`), so a phone on the same network can join via
->   `http://<LAN-IP>:8000/court/<room_id>` — never `localhost`, which on the phone
->   points to the phone itself.
+>   `https://<LAN-IP>:8000/court/<room_id>` — never `localhost`, which on the phone
+>   points to the phone itself. The `https://` scheme (not `http://`) is what lets
+>   the phone's browser grant mic/video access.
 > - If Windows Firewall prompts, allow Python on **private networks**; otherwise
 >   phones get "This site can't be reached".
 
