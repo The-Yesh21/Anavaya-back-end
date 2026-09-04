@@ -1294,7 +1294,15 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
     try:
         text = transcribe_audio(audio_path)
         if not text:
-            raise HTTPException(status_code=500, detail="Speech recognition failed for this segment. Please speak again.")
+            # No speech detected (silence / too quiet / recorder blip): treat
+            # the segment as a no-op instead of an error — a quiet hold should
+            # not surface a "transcription failed" error to the speaker. The
+            # clip is removed so no orphan file stays behind.
+            try:
+                os.remove(audio_path)
+            except OSError:
+                pass
+            return {"entry": None, "raw": "", "note": "no_speech"}
         corrected, used_llm = correct_transcript_text(text)
         entry = courtroom_manager.record_statement(
             room_id, participant_id, corrected, audio_file=filename

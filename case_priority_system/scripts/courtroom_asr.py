@@ -35,6 +35,22 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 
+# Whisper is a general speech model with no courtroom bias, so domain words
+# like "Judge" / "Your Honour" can be misheard as phonetically similar words
+# ("George" for "Judge", "your honor" for "Your Honour", ...). Feeding the
+# decoder an initial_prompt of likely courtroom vocabulary strongly biases it
+# toward those tokens — a well-known whisper lever for fixing exactly this
+# class of error. Kept in plain English so it works for any English segment.
+COURT_ASR_PROMPT = (
+    "This is a recording of an Indian courtroom proceeding. Speakers address "
+    "the presiding officer as 'Your Honour' or 'Your Lordship'. People and "
+    "roles in the room: the Judge, Defence Counsel, Prosecution Counsel, the "
+    "accused, the Witness. Court vocabulary: objection, sustained, overruled, "
+    "examination-in-chief, cross-examination, affidavit, evidence, exhibit, "
+    "bail, adjourn, the court stands adjourned, verdict. "
+    "Transcribe the speech exactly as spoken, word for word."
+)
+
 # The whisper package is imported lazily (importing it pulls in torch, which
 # costs seconds and can fail on Windows). Availability is cached; negatives
 # are re-probed so an install mid-session is picked up without a restart.
@@ -114,6 +130,55 @@ def _read_wav_np(path: str):
     return data.astype(np.float32)
 
 
+def _make_room_for_asr():
+    """Free GPU memory held by Ollama's correction LLM before whisper runs.
+
+    On a 4 GiB GPU (RTX 2050), Ollama's qwen2.5:3b stays resident at ~2.16 GB
+    and can leave whisper almost no VRAM headroom (measured 79 MiB free once
+    both are loaded) — a real speech segment could then OOM mid-transcription,
+    which whisper reports as failure and the statement is silently dropped.
+
+    Unloading qwen (keep_alive=0) right before transcribing hands whisper the
+    whole GPU; the grammar-correction step that follows reloads qwen on demand.
+    On a 4 GiB GPU (RTX 2050) Ollama's qwen2.5:3b sits resident at ~2.16 GiB
+    and torch's CUDA context + whisper-small add ~1.7 GiB more — that leaves
+    almost no headroom (measured ~150 MiB free), and free memory also swings
+    with browser GPU usage. A real speech segment could then OOM
+    mid-transcription, which whisper reports as failure and the statement is
+    silently dropped. So whenever qwen is resident (checked via /api/ps) it is
+    unloaded before whisper runs; the grammar-correction step that follows
+    reloads it on demand. No-op when qwen is not loaded or there is no CUDA
+    torch (whisper is CPU-bound there).
+    """
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return
+    except Exception:
+        return
+    # Only bother unloading if the Ollama model is actually resident.
+    try:
+        r = requests.get(f"{OLLAMA_URL.rstrip('/')}/api/ps", timeout=8)
+        r.raise_for_status()
+        loaded = [m.get("name", "") for m in (r.json().get("models") or [])]
+        if not any(OLLAMA_MODEL in name for name in loaded):
+            return
+    except Exception:
+        return
+    try:
+        print(f"Unloading Ollama model '{OLLAMA_MODEL}' to free VRAM for ASR.")
+        r = requests.post(
+            f"{OLLAMA_URL.rstrip('/')}/api/generate",
+            json={"model": OLLAMA_MODEL, "keep_alive": 0},
+            timeout=8,
+        )
+        r.raise_for_status()
+        # Give llama-server a beat to release the VRAM context.
+        time.sleep(0.6)
+    except Exception as e:
+        print(f"Ollama VRAM pre-free skipped: {e}")
+
+
 def transcribe_audio(audio_path: str) -> str | None:
     """Transcribe a WAV file with openai-whisper. Returns text or None.
 
@@ -127,6 +192,9 @@ def transcribe_audio(audio_path: str) -> str | None:
         import whisper  # noqa: F401
     except ImportError:
         return None
+
+    # Free VRAM held by the Ollama correction model so whisper has room.
+    _make_room_for_asr()
 
     try:
         audio = _read_wav_np(audio_path)
@@ -143,6 +211,7 @@ def transcribe_audio(audio_path: str) -> str | None:
                 fp16=use_fp16,
                 task="transcribe",
                 temperature=0.0,
+                initial_prompt=COURT_ASR_PROMPT,
             )
         except Exception as e:
             print(f"Whisper transcription failed: {e}")
@@ -177,7 +246,14 @@ def correct_transcript_text(text: str) -> tuple[str, bool]:
         "garbled words with the word the speaker clearly intended, using the "
         "surrounding context (e.g. 'ware house' to 'warehouse', 'your honour' "
         "to 'Your Honour', 'he clearly seen the whole incident happened' to "
-        "'he clearly saw the incident take place').\n"
+        "'he clearly saw the incident take place'). "
+        "This is a courtroom, so when a word is a clear mishearing of a court "
+        "term (e.g. 'George' for 'Judge', 'on your' for 'Your Honour', 'cross "
+        "animation' for 'cross-examination'), restore the court term — court "
+        "vocabulary (Judge, Your Honour, Your Lordship, Defence Counsel, "
+        "Prosecution, the accused, Witness, objection, sustained, overruled, "
+        "cross-examination, bail, verdict) is far more likely here than "
+        "phonetically similar ordinary words.\n"
         "2. Correct all grammar: subject-verb agreement, tense, articles, "
         "pronouns, and word order.\n"
         "3. Remove fillers and repeated words ('uh', 'um', 'actually', 'you "
