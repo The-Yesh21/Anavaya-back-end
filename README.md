@@ -155,6 +155,58 @@ tunnel.
 > - Room ids are short and a public URL makes them guessable — for real use,
 >   share the room id privately and expect a join-PIN feature soon.
 
+### Option B — self-hosted with nginx (no Cloudflare, no third-party tunnel)
+
+Prefer owning the whole path? nginx on this machine replaces the cloudflared
+tunnel: your router forwards one port to the PC and nginx terminates a real
+public `https` on :443, proxying to the app on :8000. This is verified working
+— dashboard, `/api/court/rtc-config`, the `/court/{id}` page, and the courtroom
+WebSocket handshake (101) all pass through the proxy. Only NAT/CGNAT blocks it:
+check first that your public IPv4 (whatismyip.com) is **not** in the CGNAT
+`100.64.0.0/10` range, and that the router's WAN IP matches it.
+
+> **GPU note:** keep the app on THIS machine — the whole point of the self-hosted
+> path is that Ollama + Whisper stay on the GPU. A plain VPS would lose them.
+
+**Current install (2026-09-04):** nginx 1.30.4 at `C:\nginx`, config at
+`C:\nginx\conf\nginx.conf` (repo copy: `deploy/nginx-anavaya.conf`), listening
+on :443 only. Backend keeps running exactly as before (https on :8000 with the
+repo's self-signed certs); nginx trusts that hop via `proxy_ssl_verify off`.
+
+**If you need to redo it from scratch:**
+
+1. **Public IPv4 check** — your router must NOT be behind CGNAT (see above).
+   This machine: public `106.192.227.10`, LAN `10.83.187.37`, dual-stack BSNL.
+2. **Free domain (DDNS)** — create `anavaya-court.duckdns.org` at duckdns.org,
+   install their Windows updater (the IPv4 is dynamic).
+3. **Router** — forward **TCP 443** → the PC's LAN IP. (Port 80 on this machine
+   is taken by IIS/http.sys, and the acme.sh DuckDNS flow doesn't need it.)
+4. **Install nginx** — `C:\nginx` (Windows build from nginx.org), copy
+   `deploy/nginx-anavaya.conf` to `C:\nginx\conf\nginx.conf`, change the
+   `server_name` to your DuckDNS name. Start with:
+   ```powershell
+   C:/nginx/nginx.exe -p C:/nginx/ -c C:/nginx/conf/nginx.conf
+   ```
+5. **Real TLS cert (free)** — in Git Bash, with the repo's self-signed certs in
+   place it already works (phones accept the warning once, same as LAN). For a
+   proper cert:
+   ```bash
+   curl https://get.acme.sh | sh
+   export DUCKDNS_TOKEN="<your-duckdns-token>"
+   ~/.acme.sh/acme.sh --issue --dns dns_duckdns -d anavaya-court.duckdns.org
+   ~/.acme.sh/acme.sh --install-cert -d anavaya-court.duckdns.org \
+     --key-file C:/nginx/conf/anavaya.key --fullchain-file C:/nginx/conf/anavaya.crt
+   ```
+   then swap the two `ssl_certificate*` lines in `nginx.conf` to those paths and
+   `nginx -s reload`. acme.sh auto-renews.
+6. **Test** — locally `curl -k https://127.0.0.1/`, then from a phone on mobile
+   data open `https://anavaya-court.duckdns.org/court/<room_id>`.
+
+> **Gotcha:** the dashboard's `invite_url` field still shows the LAN IP
+> (server-side `_lan_invite_url` uses the LAN IP). Cosmetic — the courtroom
+> page rebuilds invite links from `window.location.origin`, so anyone on the
+> public page copies the correct public link.
+
 ---
 
 ## 📂 Project Architecture
