@@ -157,6 +157,16 @@ tunnel.
 
 ### Option B — self-hosted with nginx (no Cloudflare, no third-party tunnel)
 
+> **One-click launcher (this machine):** `C:\nginx\Anavaya-Remote.exe` (source:
+> `deploy/start-anavaya.ps1`) starts backend + nginx + **ngrok** + the landing
+> page in one go, prints the public links, and opens the browser. It uses a
+> single stable ngrok dev-domain URL serving **both** apps — the landing page at
+> `…/landing/` and the dashboard at the root — which requires the landing dev
+> server to run with `VITE_BASE=/landing/` (supported by `vite.config.ts` +
+> `src/router.tsx` `basepath`). One-time setup: an ngrok account + authtoken
+> (`C:\nginx\ngrok.exe config add-authtoken <TOKEN>`). The steps below are the
+> manual equivalent if you're not on this machine.
+
 Prefer owning the whole path? nginx on this machine replaces the cloudflared
 tunnel: your router forwards one port to the PC and nginx terminates a real
 public `https` on :443, proxying to the app on :8000. This is verified working

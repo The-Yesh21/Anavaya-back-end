@@ -19,12 +19,20 @@ const httpsEnabled = fs.existsSync(certFile) && fs.existsSync(keyFile);
 export default defineConfig(({ mode, command }) => {
   // Expose VITE_*-prefixed vars as import.meta.env.* at build time.
   const env = loadEnv(mode, process.cwd(), "VITE_");
+  // VITE_BASE also feeds the router basepath (src/router.tsx), so expose it
+  // to import.meta.env even though vite's own `base` config reads the env var
+  // directly above.
+  const envWithBase = { ...env, VITE_BASE: process.env["VITE_BASE"] ?? "/" };
   const define = Object.fromEntries(
-    Object.entries(env).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]),
+    Object.entries(envWithBase).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]),
   );
 
   return {
     define,
+    // Serve the app under a sub-path when set (e.g. VITE_BASE=/landing/ for the
+    // remote single-URL mode where the FastAPI dashboard owns the root and the
+    // landing page lives at /landing/). Default "/" keeps local dev unchanged.
+    base: process.env["VITE_BASE"] ?? "/",
     css: { transformer: "lightningcss" },
     server: {
       host: "::",
