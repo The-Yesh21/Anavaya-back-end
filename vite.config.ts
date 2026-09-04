@@ -35,6 +35,10 @@ export default defineConfig(({ mode, command }) => {
     base: process.env["VITE_BASE"] ?? "/",
     css: { transformer: "lightningcss" },
     server: {
+      // Remote (/landing/) mode is viewed through a tunnel — the dev HMR socket
+      // can't reach back, so it only spams console errors. Local dev (root)
+      // keeps hot reload.
+      ...(process.env["VITE_BASE"] ? { hmr: false } : {}),
       host: "::",
       port: 8080,
       ...(httpsEnabled
