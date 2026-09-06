@@ -190,9 +190,19 @@
       },
       "priority": "Low",
       "decision_report": "case_priority_system/decision_graphs\\A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800_decision_report.md"
+    },
+    {
+      "doc_id": "d_bb67585b",
+      "filename": "stock-photo-close-up-view-of-an-indian-railways-train-ticket-held-in-hand-with-blurred-natural-background-2677103969.jpg",
+      "doc_type": "Other",
+      "path": "case_priority_system/case_documents\\ANV-2026-0010\\d_bb67585b_stock-photo-close-up-view-of-an-indian-railways-train-ticket-held-in-hand-with-b",
+      "uploaded_at": "2026-09-06T16:04:19",
+      "analysis": {},
+      "priority": null,
+      "decision_report": ""
     }
   ],
   "aggregate_priority": "Low",
-  "aggregate_rationale": "Aggregate priority is Low — the highest priority among the case documents (safety-first: High > Medium > Low). Breakdown: A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800.PDF (FIR): Low.",
+  "aggregate_rationale": "Aggregate priority is Low — the highest priority among the case documents (safety-first: High > Medium > Low). Breakdown: A_K_Kaimal_vs_Sudarsen_Trading_Co_Ltd_And_Anr_on_1_January_1800.PDF (FIR): Low; stock-photo-close-up-view-of-an-indian-railways-train-ticket-held-in-hand-with-blurred-natural-background-2677103969.jpg (Other): not analysed.",
   "sessions": []
 }
