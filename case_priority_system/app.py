@@ -615,7 +615,7 @@ def get_cases():
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
 
 
-@app.delete("/api/cases/{case_file:path}")
+@app.delete("/api/cases/{case_file}")
 def delete_case(case_file: str):
     """Delete a case row from the Excel file by its Case_File name."""
     if not os.path.exists(EXCEL_PATH):
