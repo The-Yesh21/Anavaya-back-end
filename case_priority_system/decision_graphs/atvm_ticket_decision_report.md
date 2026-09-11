@@ -91,11 +91,11 @@
 
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
-  <h2>Sample_Medium_Priority_FIR.pdf</h2>
-  <p>Sample First Information Report (FIR) FIR No.: 2026/MP/0147 Date & Time of Report: 04 August 2026, 17:30 Police Station: Central City Police Station Case Priority: Medium Sections Invoked: Illustrative only: Theft and property damage related provisio Initial Police Action: Crime scene documented, CCTV footage requested, fingerprints to be collected, nearby patrol units alerted, FIR registered and investigation initiated. This falls under Property/Land as it involves property disputes, land matters, tenancy, or ownership issues. Primary constitutional articles engaged: Article 300A, Article 14, Article 21.</p>
+  <h2>atvm_ticket.jpg</h2>
+  <p>XYZ Party is contesting a tax assessment by the Revenue Department of ABC Corporation. The dispute involves the interpretation of tax laws and the assessment of tax liability. XYZ Party seeks a refund of taxes and relief against the assessment. The case is significant as it involves a major financial dispute and the interpretation of tax laws, which is a common issue in excise and tax cases.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Property/Land</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Property</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>General Civil</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>
@@ -151,4 +151,4 @@ Node 0: Severity is one of: Fatal, Major; case value = No Injury; result = No ->
 
 ## Raw Graph
 
-Raw DOT file: `case_priority_system/decision_graphs\Sample_Medium_Priority_FIR_decision_path.dot`
+Raw DOT file: `case_priority_system/decision_graphs\atvm_ticket_decision_path.dot`
