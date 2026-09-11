@@ -266,7 +266,44 @@ class CaseManager:
                 os.remove(doc.path)
         except OSError:
             pass
+        # Auto-delete the case when the last document goes away.
+        if not case.documents:
+            self.delete_case(case_id)
+            return doc
         return doc
+
+    def delete_case(self, case_id: str) -> Case:
+        """Permanently remove a case: JSON registry, evidence directory, sessions.
+
+        Raises ValueError when the case is not found. After this call the case
+        no longer exists in memory or on disk.
+        """
+        case = self.get_case(case_id)
+        if case is None:
+            raise ValueError(f"Case {case_id} not found.")
+        with self._lock:
+            del self._cases[case_id]
+        # Remove the persisted JSON.
+        try:
+            case_path = os.path.join(self.cases_dir, f"{case_id}.json")
+            if os.path.exists(case_path):
+                os.remove(case_path)
+        except OSError:
+            pass
+        # Remove every uploaded document file + its directory.
+        case_dir = os.path.join(self.documents_dir, case_id)
+        if os.path.isdir(case_dir):
+            for doc in case.documents:
+                try:
+                    if doc.path and os.path.exists(doc.path):
+                        os.remove(doc.path)
+                except OSError:
+                    pass
+            try:
+                os.rmdir(case_dir)
+            except OSError:
+                pass  # directory not empty (shouldn't happen, but be safe)
+        return case
 
     def analyze_document(self, case: Case, doc: CaseDocument, model_data=None) -> CaseDocument:
         """Run one document through the full Anavaya pipeline.

@@ -616,8 +616,37 @@ def get_cases():
 
 
 @app.delete("/api/cases/{case_file}")
-def delete_case(case_file: str):
-    """Delete a case row from the Excel file by its Case_File name."""
+def delete_case_by_file(case_file: str):
+    """Delete a case row from the Excel file by its Case_File name.
+
+    When case_file is actually a system-assigned case id (ANV-YYYY-NNNN)
+    this delegates to the registry delete so the full case (JSON + evidence
+    + sessions) is removed, not just the Excel rows.
+    """
+    # If it looks like a case id, handle it as a full case deletion.
+    if case_manager is not None and case_manager.valid_case_id(case_file):
+        case = _get_case_or_404(case_file)
+        try:
+            case_manager.delete_case(case_file)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        if os.path.exists(EXCEL_PATH):
+            try:
+                df = pd.read_excel(EXCEL_PATH)
+                before = len(df)
+                if "Case_ID" in df.columns:
+                    df = df[df["Case_ID"] != case_file]
+                doc_filenames = {d.filename for d in case.documents}
+                if "Case_File" in df.columns and doc_filenames:
+                    df = df[~df["Case_File"].isin(doc_filenames)]
+                if len(df) < before:
+                    df.to_excel(EXCEL_PATH, index=False)
+                    _cases_df_cache.update({"df": None})
+            except Exception as e:
+                print(f"case delete: Excel cleanup failed for {case_file}: {e}")
+        return {"deleted": case_file, "title": case.title}
+
+    # Otherwise it's a Case_File name — just remove the Excel row.
     if not os.path.exists(EXCEL_PATH):
         raise HTTPException(status_code=404, detail="Excel results file not found.")
     try:
@@ -850,6 +879,39 @@ def _get_case_or_404(case_id: str):
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found.")
     return case
+
+
+@app.delete("/api/cases/{case_id}")
+def delete_case_by_id(case_id: str):
+    """Delete a case from the registry (JSON + evidence files + sessions).
+
+    Also removes every Excel row tagged with this Case_ID so the dashboard
+    board stays in sync. The case id must be the system-assigned
+    ANV-YYYY-NNNN form.
+    """
+    case = _get_case_or_404(case_id)
+    try:
+        case_manager.delete_case(case_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    # Remove every Excel row that belonged to this case.
+    if os.path.exists(EXCEL_PATH):
+        try:
+            df = pd.read_excel(EXCEL_PATH)
+            before = len(df)
+            if "Case_ID" in df.columns:
+                df = df[df["Case_ID"] != case_id]
+            # Also drop any row whose Case_File matches a document filename
+            # from this case (belt-and-suspenders for single-upload cases).
+            doc_filenames = {d.filename for d in case.documents}
+            if "Case_File" in df.columns and doc_filenames:
+                df = df[~df["Case_File"].isin(doc_filenames)]
+            if len(df) < before:
+                df.to_excel(EXCEL_PATH, index=False)
+                _cases_df_cache.update({"df": None})
+        except Exception as e:
+            print(f"case delete: Excel cleanup failed for {case_id}: {e}")
+    return {"deleted": case_id, "title": case.title}
 
 
 @app.post("/api/cases")

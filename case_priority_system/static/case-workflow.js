@@ -75,11 +75,45 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="registry-doc-count">${(c.documents || []).length} docs</span>
                         <i data-lucide="chevron-down" class="registry-chevron"></i>
                     </div>
+                    <button class="registry-case-delete" data-case-id="${esc(c.case_id)}" title="Delete this case and all its evidence"><i data-lucide="trash-2"></i></button>
                 </div>
                 <ul class="registry-docs">${docs || `<li class="registry-doc-empty">No documents yet</li>`}</ul>
             </div>`;
         }).join("");
         if (typeof lucide !== "undefined") lucide.createIcons();
+
+        // Delete button on each registry card.
+        registryList.querySelectorAll(".registry-case-delete").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const caseId = btn.getAttribute("data-case-id");
+                if (!confirm(`Permanently delete case ${caseId} and all its evidence? This cannot be undone.`)) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || "Delete failed");
+                    }
+                    fetchRegistry();
+                    try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+                    // If this case was the currently open one, close the workspace.
+                    if (currentWorkspaceCaseId === caseId) {
+                        $("case-workspace").style.display = "none";
+                        $("case-workspace-empty").style.display = "block";
+                        currentWorkspaceCaseId = null;
+                        UI.setCurrentCaseId("");
+                    }
+                } catch (err) {
+                    alert("Failed to delete case: " + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="trash-2"></i>';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }
+            });
+        });
 
         // Head click → expand + open the case workspace + populate Analysis tab
         registryList.querySelectorAll(".registry-case-head").forEach((head) => {
@@ -410,6 +444,36 @@ document.addEventListener("DOMContentLoaded", () => {
             // Re-enable only when files are still queued (empty batch = done).
             btn.disabled = wsPending.length > 0;
             btn.innerHTML = '<i data-lucide="upload"></i> Upload Evidence';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    // Delete the open case (registry + evidence + Excel rows).
+    // Only the aggregate view is shown; the real removal is server-side.
+    $("workspace-delete-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        if (!confirm(`Permanently delete case ${currentWorkspaceCaseId} and all its evidence? This cannot be undone.`)) return;
+        const btn = $("workspace-delete-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Deleting…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}`, { method: "DELETE" });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Delete failed");
+            }
+            // Return to the dashboard; the case workspace will be empty.
+            $("case-workspace").style.display = "none";
+            $("case-workspace-empty").style.display = "block";
+            currentWorkspaceCaseId = null;
+            UI.setCurrentCaseId("");
+            fetchRegistry();
+            try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+        } catch (err) {
+            alert("Failed to delete case: " + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="trash-2"></i> Delete Case';
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
     });

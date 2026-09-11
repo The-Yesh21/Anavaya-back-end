@@ -112,6 +112,27 @@
 .registry-doc-count { font-size: 10px; color: var(--text-muted); font-weight: 700; }
 .registry-chevron { width: 14px; height: 14px; color: var(--text-muted); transition: transform 0.3s ease; }
 .registry-case.open .registry-chevron { transform: rotate(180deg); }
+
+.registry-case-delete {
+    flex-shrink: 0;
+    padding: 5px 7px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--color-danger-fg);
+    background: transparent;
+    border: 1.5px solid var(--color-danger);
+    border-radius: 99px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+    line-height: 1;
+}
+.registry-case-delete:hover:not(:disabled) { background: var(--color-danger); color: var(--color-danger-fg); }
+.registry-case-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+.registry-case-delete i { width: 13px; height: 13px; }
 .registry-docs { display: none; list-style: none; padding: 0 12px 10px; gap: 6px; flex-direction: column; }
 .registry-case.open .registry-docs { display: flex; }
 .registry-doc {
