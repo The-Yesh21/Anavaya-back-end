@@ -1071,14 +1071,26 @@ def fast_extract_features(text, pdf_file):
     })
 
 
-def call_ollama_api(text):
+def call_ollama_api(text, model=None):
     """Calls the locally installed Ollama LLM to extract structured features and a narrative summary.
 
     Uses the Ollama summarizer module (langchain_summarizer.py) for the full
     constitutional prompt and JSON repair. Falls back to a direct Ollama API
     call if that module is unavailable.
+
+    Args:
+        text: the document text to extract features from.
+        model: optional Ollama model override. Image documents pass the vision
+            model here so the checkpoint already loaded for OCR is reused for
+            extraction too — on a 4 GB GPU, swapping back to the text model
+            would cost a full reload. Defaults to OLLAMA_MODEL.
+
+    The model only extracts and summarizes; the Decision Tree alone assigns
+    the final priority.
     """
-    _ensure_model_available()  # lazy one-time `ollama list`/`pull` check
+    active_model = model or OLLAMA_MODEL
+    if model is None:
+        _ensure_model_available()  # lazy one-time `ollama list`/`pull` check
 
     try:
         from case_priority_system.scripts.langchain_summarizer import (
@@ -1100,9 +1112,9 @@ def call_ollama_api(text):
 
     if extract_with_ollama is not None:
         try:
-            result = extract_with_ollama(text)
+            result = extract_with_ollama(text, model_name=active_model)
             if result is not None:
-                print("Ollama extraction succeeded.")
+                print(f"Ollama extraction succeeded ({active_model}).")
                 return normalize_llm_data(result)
         except Exception as e:
             print(f"Ollama summarizer failed, falling back to direct API: {e}")
@@ -1119,7 +1131,7 @@ def call_ollama_api(text):
         return None
 
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": active_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": USER_PROMPT_TEMPLATE.format(text=text[:12000])},
@@ -1139,7 +1151,7 @@ def call_ollama_api(text):
             return None
         return normalize_llm_data(parse_llm_json(content))
     except Exception as e:
-        print(f"Ollama API Error with {OLLAMA_MODEL}: {e}")
+        print(f"Ollama API Error with {active_model}: {e}")
         if "response" in locals() and getattr(response, "text", ""):
             print(f"Ollama API response: {response.text[:500]}")
 

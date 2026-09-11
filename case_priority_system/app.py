@@ -379,17 +379,29 @@ async def upload_case(file: UploadFile = File(...)):
         if preload_ollama_model is not None:
             asyncio.create_task(asyncio.to_thread(preload_ollama_model))
 
-        # 1. Extract text (PDF via PyMuPDF, images via EasyOCR)
+        # 1. Extract text (PDF via PyMuPDF, images via the Qwen2.5-VL vision model)
+        extraction_model = None
         if is_image:
             try:
-                from case_priority_system.scripts.image_ocr import extract_text_from_image
+                from case_priority_system.scripts.image_ocr import (
+                    extract_text_from_image,
+                    no_text_message,
+                    extraction_model as _extraction_model,
+                )
             except ImportError:
-                from scripts.image_ocr import extract_text_from_image  # type: ignore
+                from scripts.image_ocr import (  # type: ignore
+                    extract_text_from_image,
+                    no_text_message,
+                    extraction_model as _extraction_model,
+                )
             text = extract_text_from_image(temp_path)
+            extraction_model = _extraction_model(True)
+            if not text.strip():
+                raise HTTPException(status_code=400, detail=no_text_message(filename))
         else:
             text = extract_text_from_pdf(temp_path)
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
+            if not text.strip():
+                raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
 
         # 2. Extract features. With an NVIDIA GPU present (or ANAVAYA_USE_LLM=1)
         # the local Ollama LLM runs on the GPU for richer extraction; otherwise
