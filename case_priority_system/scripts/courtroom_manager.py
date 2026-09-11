@@ -129,6 +129,13 @@ class Room:
     status: str = "live"       # "live" | "ended" — ended rooms reject new joins
     participants: list[Participant] = field(default_factory=list)
     transcript: list[TranscriptEntry] = field(default_factory=list)
+    # Optional link to a registered case (ANV-…). When set, the courtroom
+    # client is shown the case context (parties, evidence, links) and the
+    # session deception report can check statements against that case's
+    # collected evidence.
+    case_id: str = ""
+    case_context: dict = field(default_factory=dict)  # built by case_manager.build_case_context()
+    face_summaries: list[FaceSummary] = field(default_factory=list)
 
     # ---- roster helpers -------------------------------------------------
 
@@ -198,11 +205,14 @@ class Room:
         return {
             "room_id": self.room_id,
             "case_title": self.case_title,
+            "case_id": self.case_id,
+            "case_context": self.case_context,
             "phase": self.phase,
             "phase_options": TRIAL_PHASES,
             "status": self.status,
             "participants": [p.to_dict() for p in self.participants],
             "transcript": [e.to_dict() for e in self.transcript],
+            "face_summaries": [f.to_dict() for f in self.face_summaries],
         }
 
 
@@ -625,7 +635,11 @@ def room_to_markdown(room: Room) -> str:
         lines.append("")
         ctx = room.case_context
         lines.append(f"- **Case:** {ctx.get('title', '')} ({ctx.get('case_id', '')})")
-        if ctx.get("aggregate_priority"):
+        if ctx.get("case_level_priority"):
+            lines.append(f"- **Whole-case priority:** {ctx.get('case_level_priority')} (Decision Tree on merged evidence)")
+            if ctx.get("case_level_summary"):
+                lines.append(f"- **Whole-case summary:** {ctx.get('case_level_summary')}")
+        elif ctx.get("aggregate_priority"):
             lines.append(f"- **Aggregate priority:** {ctx.get('aggregate_priority')}")
         parties = ctx.get("parties") or []
         if parties:

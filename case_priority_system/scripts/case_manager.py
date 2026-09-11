@@ -11,6 +11,12 @@ The manager also stores Chakshu (lie-detection) sessions: the speech-to-text
 transcript, the physiological summary, and the hybrid fact-check report
 produced by fact_checker.py.
 
+The case's own verdict is the WHOLE-CASE analysis (``Case.case_level``): the
+per-document features are merged deterministically and the Decision Tree runs
+ONCE on the combined evidence — see scripts/whole_case_analysis.py.
+``aggregate_priority`` (highest document wins) is kept for backwards
+compatibility with the dashboard feed and courtroom context.
+
 Design mirrors scripts/courtroom_manager.py: framework-agnostic, thread-safe,
 persisted as one JSON file per case under case_priority_system/cases/, with
 uploaded PDFs stored under case_priority_system/case_documents/{case_id}/.
@@ -99,6 +105,11 @@ class Case:
     documents: list[CaseDocument] = field(default_factory=list)
     aggregate_priority: Optional[str] = None
     aggregate_rationale: str = ""
+    # Whole-case analysis: the Decision Tree run ONCE on features merged
+    # deterministically from ALL analysed documents (see
+    # scripts/whole_case_analysis.py). This — not the highest document — is
+    # the case's own verdict.
+    case_level: dict = field(default_factory=dict)
     sessions: list[CaseSession] = field(default_factory=list)
 
     # ---- helpers -----------------------------------------------------
@@ -121,6 +132,7 @@ class Case:
             "created_by": self.created_by,
             "source": self.source,
             "aggregate_priority": self.aggregate_priority,
+            "case_level_priority": (self.case_level or {}).get("priority"),
             "document_count": len(self.documents),
             "session_count": len(self.sessions),
             "documents": [
@@ -250,6 +262,10 @@ class CaseManager:
         Returns the removed CaseDocument on success. Raises ValueError if
         the case or document is not found. The caller should follow up with
         ``refresh_aggregate()`` to recompute the case priority.
+
+        When the last document is removed the case is automatically deleted
+        (its JSON + on-disk evidence directory are cleaned up) — there is no
+        point in keeping an empty case around.
         """
         case = self.get_case(case_id)
         if case is None:
@@ -326,30 +342,46 @@ class CaseManager:
             get_comprehensive_constitutional_analysis,
         )
 
-        # Extract text: PDFs via PyMuPDF, images via EasyOCR.
+        # Extract text: PDFs via PyMuPDF, images via the Qwen2.5-VL vision model.
         _IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff')
-        if doc.filename.lower().endswith(_IMAGE_EXTS):
+        is_image = doc.filename.lower().endswith(_IMAGE_EXTS)
+        extraction_model = None
+        if is_image:
             try:
-                from case_priority_system.scripts.image_ocr import extract_text_from_image
+                from case_priority_system.scripts.image_ocr import (
+                    extract_text_from_image,
+                    no_text_message,
+                    extraction_model as _extraction_model,
+                )
             except ImportError:
-                from scripts.image_ocr import extract_text_from_image  # type: ignore
+                from scripts.image_ocr import (  # type: ignore
+                    extract_text_from_image,
+                    no_text_message,
+                    extraction_model as _extraction_model,
+                )
             text = extract_text_from_image(doc.path)
+            extraction_model = _extraction_model(True)
+            if not text.strip():
+                raise ValueError(no_text_message(doc.filename))
         else:
             text = extract_text_from_pdf(doc.path)
-        if not text.strip():
-            raise ValueError(
-                f"'{doc.filename}' contains no extractable text. "
-                "For images, make sure the text is clearly visible. "
-                "For PDFs, ensure it is a searchable (not scanned) document."
-            )
+            if not text.strip():
+                raise ValueError(
+                    f"'{doc.filename}' contains no extractable text. "
+                    "Ensure it is a searchable (not scanned) PDF."
+                )
 
         # Same GPU/LLM mode as the web upload path: when an NVIDIA GPU is
         # present (or ANAVAYA_USE_LLM=1), extract features with the local
         # Ollama LLM running on the GPU; otherwise fall back to the fast
         # deterministic rule-based extractor.
+        #
+        # For images the vision model is already resident in VRAM from the OCR
+        # step, so reuse it for extraction rather than paying a model swap on
+        # a 4 GB GPU. It is a full Qwen2.5 text model with a vision encoder.
         features = None
         if llm_extraction_enabled():
-            features = call_ollama_api(text)
+            features = call_ollama_api(text, model=extraction_model)
         if not features:
             features = fast_extract_features(text, doc.filename)
         features = tune_case_features(features, text)
@@ -409,7 +441,15 @@ class CaseManager:
             self._persist(case)
 
     def analyze_case(self, case_id: str, model_data=None) -> Case:
-        """Analyse every unanalysed document, then refresh the aggregate."""
+        """Analyse every unanalysed document, then compute the whole-case analysis.
+
+        Two layers:
+        1. per-document pipeline (unchanged) — each document still gets its own
+           features, priority and report;
+        2. whole-case analysis — features merged deterministically across ALL
+           documents, Decision Tree run ONCE on the merged set. The case's own
+           verdict comes from layer 2 (see whole_case_analysis.py).
+        """
         case = self.get_case(case_id)
         if case is None:
             raise ValueError(f"Case {case_id} not found.")
@@ -422,12 +462,25 @@ class CaseManager:
         self.refresh_aggregate(case)
         return case
 
-    def refresh_aggregate(self, case: Case) -> None:
-        """Recompute the case aggregate priority from document priorities."""
+    def refresh_aggregate(self, case: Case, model_data=None) -> None:
+        """Recompute the case-level verdict + the legacy aggregate.
+
+        ``case_level`` (Decision Tree on merged features) is the headline
+        priority; ``aggregate_priority`` keeps the highest-document-wins value
+        for backwards compatibility with the dashboard and courtroom context.
+        """
         aggregate, rationale = self.compute_aggregate_priority(case)
+        case_level = {}
+        try:
+            from case_priority_system.scripts.whole_case_analysis import analyze_case_whole
+            case_level = analyze_case_whole(case, model_data=model_data)
+        except Exception as e:
+            print(f"Case {case.case_id}: whole-case analysis failed: {e}")
         with self._lock:
             case.aggregate_priority = aggregate
             case.aggregate_rationale = rationale
+            if case_level:
+                case.case_level = case_level
             self._persist(case)
 
     @staticmethod
@@ -486,6 +539,124 @@ class CaseManager:
         if case is None:
             return None
         return case_to_markdown(case)
+
+    # ---- case context (what the courtroom sees) ------------------------
+
+    def build_case_context(self, case_id: str) -> Optional[dict]:
+        """Build a compact, LLM-ready context snapshot of one case.
+
+        The courtroom (and the session deception report) consume this to know
+        what the case is about before the first word is spoken: the main
+        parties, what every piece of collected evidence says (from the stored
+        pipeline analysis), how the evidence corroborates each other, and the
+        aggregate priority. Everything here is extracted from the analysed
+        documents — the LLM never decides anything from it, it only reads it.
+        """
+        case = self.get_case(case_id)
+        if case is None:
+            return None
+
+        parties: list[str] = []
+        evidence: list[dict] = []
+        fact_summary = {"contradicted": 0, "consistent": 0, "unverified": 0}
+
+        for doc in case.documents:
+            f = doc.analysis or {}
+            summary = (f.get("plain_summary") or "").strip()
+            for p in f.get("main_parties") or []:
+                p = str(p).strip()
+                if p and p.lower() not in {x.lower() for x in parties}:
+                    parties.append(p)
+            evidence.append({
+                "doc_id": doc.doc_id,
+                "filename": doc.filename,
+                "doc_type": doc.doc_type,
+                "priority": doc.priority,
+                "category": f.get("case_category", ""),
+                "severity": f.get("severity", ""),
+                "summary": summary[:600],
+            })
+
+        # Chakshu fact-check totals, so the court knows what was already
+        # established about the statements before the trial starts.
+        for s in case.sessions:
+            fc = s.fact_check or {}
+            summ = fc.get("summary", {}) or {}
+            for k in fact_summary:
+                try:
+                    fact_summary[k] += int(summ.get(k, 0) or 0)
+                except (TypeError, ValueError):
+                    pass
+
+        # Evidence links: which documents share parties, dates or places.
+        # Deterministic only — same extraction used by the fact-checker.
+        try:
+            from case_priority_system.scripts.fact_checker import (
+                extract_dates,
+                _extract_locations,
+            )
+        except ImportError:
+            from scripts.fact_checker import (  # type: ignore
+                extract_dates,
+                _extract_locations,
+            )
+
+        doc_facts: dict[str, dict] = {}
+        for doc in case.documents:
+            text = (doc.analysis or {}).get("text_excerpt", "") or ""
+            dates = {norm for norm, _ in extract_dates(text)}
+            locs = {loc.lower() for loc in _extract_locations(text)}
+            doc_facts[doc.doc_id] = {"dates": dates, "locs": locs}
+
+        links: list[str] = []
+        for i, a in enumerate(case.documents):
+            for b in case.documents[i + 1:]:
+                fa, fb = doc_facts.get(a.doc_id), doc_facts.get(b.doc_id)
+                if not fa or not fb:
+                    continue
+                shared = []
+                if fa["dates"] & fb["dates"]:
+                    shared.append("dates")
+                if fa["locs"] & fb["locs"]:
+                    shared.append("places")
+                pa = (a.analysis or {}).get("main_parties") or []
+                pb = (b.analysis or {}).get("main_parties") or []
+                if {str(p).lower() for p in pa} & {str(p).lower() for p in pb}:
+                    shared.append("parties")
+                if shared:
+                    links.append(
+                        f"{a.filename} ↔ {b.filename}: shared {' and '.join(shared)}."
+                    )
+        if not links and len(case.documents) > 1:
+            links.append(
+                "No direct overlaps detected between the documents yet — each "
+                "piece of evidence stands alone."
+            )
+
+        cl = case.case_level or {}
+        cl_feats = cl.get("features", {}) or {}
+        return {
+            "case_id": case.case_id,
+            "title": case.title,
+            "created_at": case.created_at,
+            "aggregate_priority": case.aggregate_priority,
+            "aggregate_rationale": case.aggregate_rationale,
+            "case_level_priority": cl.get("priority"),
+            "case_level_rationale": cl.get("rationale", ""),
+            "case_level_summary": cl_feats.get("plain_summary", ""),
+            "case_level_features": {
+                k: cl_feats.get(k, "") for k in (
+                    "case_category", "crime_type", "severity",
+                    "vulnerability", "influence",
+                )
+            },
+            "parties": parties[:12],
+            "evidence": evidence,
+            "evidence_links": "\n".join(links),
+            "fact_check_totals": fact_summary,
+            "chakshu_sessions": len(case.sessions),
+            "built_at": _now_iso(),
+        }
 
     # ---- internals ---------------------------------------------------
 
@@ -550,6 +721,51 @@ def case_to_markdown(case: Case) -> str:
     if case.aggregate_rationale:
         lines.append(f"- **Rationale:** {case.aggregate_rationale}")
     lines.append("")
+
+    cl = case.case_level or {}
+    if cl:
+        lines.append("## Whole-Case Analysis")
+        lines.append("")
+        feats = cl.get("features", {}) or {}
+        lines.append(
+            f"- **Whole-case priority:** **{cl.get('priority', 'N/A')}** "
+            "(Decision Tree run once on the merged features of all documents)"
+        )
+        if cl.get("rationale"):
+            lines.append(f"- **Basis:** {cl['rationale']}")
+        if feats:
+            lines.append(
+                f"- Merged classification — Category: {feats.get('case_category', 'N/A')} | "
+                f"Case type: {feats.get('crime_type', 'N/A')} | Severity: {feats.get('severity', 'N/A')} | "
+                f"Vulnerability: {feats.get('vulnerability', 'N/A')} | Influence: {feats.get('influence', 'N/A')}"
+            )
+        if feats.get("main_parties"):
+            lines.append(f"- **Parties across the case:** {feats['main_parties']}")
+        if feats.get("plain_summary"):
+            lines.append("")
+            lines.append(f"**Whole-case narrative:** {feats['plain_summary']}")
+        if cl.get("corroboration_text"):
+            lines.append("")
+            lines.append("**Corroboration map:**")
+            lines.append(cl["corroboration_text"])
+        merge_info = cl.get("merge_info", {}) or {}
+        if merge_info:
+            lines.append("")
+            lines.append("**Merge rules applied (auditable):**")
+            for field_name in ("case_category", "crime_type", "severity",
+                               "vulnerability", "influence"):
+                info = merge_info.get(field_name)
+                if info:
+                    lines.append(
+                        f"- {field_name.replace('_', ' ').title()}: {info.get('value')} "
+                        f"({info.get('rule')}; driven by {', '.join(info.get('sources', [])[:3]) or '—'})"
+                    )
+        con = cl.get("constitutional", {}) or {}
+        if con.get("state_perspective_opinion"):
+            lines.append("")
+            lines.append("**Case-level constitutional opinion:**")
+            lines.append(con["state_perspective_opinion"])
+        lines.append("")
 
     if case.documents:
         lines.append("## Documents")
@@ -629,17 +845,19 @@ def _case_from_dict(data: dict) -> Case:
             transcript=s.get("transcript", []),
             fact_check=s.get("fact_check"),
         ))
+
     return Case(
-        case_id=data["case_id"],
-        title=data.get("title", "Untitled Case"),
-        created_at=data.get("created_at", _now_iso()),
-        created_by=data.get("created_by", "Officer"),
-        source=data.get("source", "AUTO_ID"),
-        documents=documents,
-        aggregate_priority=data.get("aggregate_priority"),
-        aggregate_rationale=data.get("aggregate_rationale", ""),
-        sessions=sessions,
-    )
+            case_id=data["case_id"],
+            title=data.get("title", "Untitled Case"),
+            created_at=data.get("created_at", _now_iso()),
+            created_by=data.get("created_by", "Officer"),
+            source=data.get("source", "AUTO_ID"),
+            documents=documents,
+            aggregate_priority=data.get("aggregate_priority"),
+            aggregate_rationale=data.get("aggregate_rationale", ""),
+            case_level=data.get("case_level", {}),
+            sessions=sessions,
+        )
 
 
 # Module-level singleton used by app.py (same pattern as courtroom_manager).

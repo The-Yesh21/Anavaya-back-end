@@ -663,3 +663,86 @@
    users on phones can see the inference backend status. The header wraps
    via .app-header { flex-wrap: wrap } at small sizes (style.css) so the
    badge never overflows. */
+
+/* ---- Whole-Case Analysis panel ------------------------------------- */
+.case-level-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.case-level-label {
+    font-size: 12px;
+    color: var(--text-secondary, #55503F);
+    font-style: italic;
+}
+.case-level-narrative {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text-primary, #2A2620);
+    margin: 0 0 12px;
+}
+.case-level-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.case-level-chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid var(--border-color, rgba(160, 140, 90, 0.28));
+    background: var(--bg-well, #F6F1E6);
+    font-size: 11.5px;
+    color: var(--text-secondary, #55503F);
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+.case-level-chip strong { color: var(--gold-600, #A87E2F); }
+.case-level-section {
+    border: 1px solid var(--border-color, rgba(160, 140, 90, 0.28));
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: var(--bg-card, #FFFFFF);
+}
+.case-level-section summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary, #2A2620);
+    list-style: none;
+}
+.case-level-section summary::-webkit-details-marker { display: none; }
+.case-level-section summary i { width: 15px; height: 15px; color: var(--gold-600, #A87E2F); }
+.case-level-corroboration,
+.case-level-merge {
+    margin: 8px 0 2px;
+    padding-left: 18px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-secondary, #55503F);
+}
+.case-level-corroboration li.standalone { color: var(--color-danger, #B3402E); }
+.case-level-opinion {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-secondary, #55503F);
+    margin: 8px 0 2px;
+    white-space: pre-line;
+}
+.case-level-actions { margin-top: 10px; }
+.case-level-report-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    font-size: 13px;
+    padding: 8px 16px;
+}
+.case-level-report-btn i { width: 15px; height: 15px; }

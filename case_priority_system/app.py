@@ -668,7 +668,7 @@ def delete_case_by_file(case_file: str):
         if len(df) == before:
             raise HTTPException(status_code=404, detail=f"Case '{case_file}' not found.")
         df.to_excel(EXCEL_PATH, index=False)
-        _cases_df_cache.update({"df": None})  # invalidate cache
+        _cases_df_cache.update({"df": None})
         return {"deleted": case_file, "remaining": len(df)}
     except HTTPException:
         raise
@@ -869,6 +869,35 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
         })
     if not rows:
         return
+    # Whole-case verdict row: the case's own analysis (Decision Tree run once
+    # on features merged across ALL documents). One row per case so the
+    # dashboard also shows the case as a whole, not only per-document rows.
+    cl = getattr(case, "case_level", None) or {}
+    cl_feats = cl.get("features", {}) or {}
+    if cl and cl_feats:
+        cl_con = cl.get("constitutional", {}) or {}
+        rows.append({
+            'Case_File': f"[WHOLE CASE] {case.title}",
+            'Case_ID': case_id,
+            'Document_Type': 'Whole Case',
+            'Main_Parties': cl_feats.get('main_parties', 'Unknown'),
+            'Plain_Language_Summary': cl_feats.get('plain_summary', 'N/A'),
+            'Constitutional_Justification': cl_con.get('state_perspective_opinion', ''),
+            'Priority_Rules_Applied': cl_con.get('priority_rules_detailed', ''),
+            'Decision_Report': cl.get('decision_report', ''),
+            'Decision_Path': cl.get('decision_report', ''),
+            'Predicted_Priority': cl.get('priority'),
+            'Category': cl_feats.get('case_category', 'N/A'),
+            'Broad_Model_Category': cl_feats.get('crime_type', 'N/A'),
+            'Severity': cl_feats.get('severity', 'N/A'),
+            'Vulnerability': cl_feats.get('vulnerability', 'N/A'),
+            'Influence': cl_feats.get('influence', 'N/A'),
+            'State_Duty_Analysis': cl_con.get('state_duty_analysis', ''),
+            'Rights_Balancing_Analysis': cl_con.get('balancing_analysis', ''),
+            'Constitutional_Rights_Engaged': cl_con.get('constitutional_rights_engaged', []),
+            'Applicable_Doctrines': cl_con.get('applicable_doctrines', []),
+            'Report_PDF': cl.get('report_pdf', ''),
+        })
     if os.path.exists(EXCEL_PATH):
         excel_df = pd.read_excel(EXCEL_PATH)
     else:
@@ -876,6 +905,11 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
     stale_files = {r['Case_File'] for r in rows}
     if 'Case_File' in excel_df.columns and not excel_df.empty:
         excel_df = excel_df[~excel_df['Case_File'].isin(stale_files)]
+        # Also drop any previous whole-case row for this case id (covers
+        # re-analysis after a title change).
+        if 'Case_ID' in excel_df.columns:
+            is_whole = excel_df['Case_File'].astype(str).str.startswith('[WHOLE CASE]')
+            excel_df = excel_df[~(is_whole & (excel_df['Case_ID'] == case_id))]
     new_df = pd.DataFrame(rows)
     excel_df = pd.concat([excel_df, new_df], ignore_index=True)
     excel_df.to_excel(EXCEL_PATH, index=False)
@@ -978,7 +1012,15 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
 
 @app.post("/api/cases/{case_id}/analyze")
 async def analyze_case(case_id: str):
-    """Analyse every unanalysed document and refresh the aggregate priority."""
+    """Analyse every unanalysed document, then compute the WHOLE-CASE analysis.
+
+    Two layers:
+    1. per-document pipeline (unchanged) — each document keeps its own
+       features, priority and report;
+    2. whole-case analysis (the case's own verdict) — per-document features
+       merged deterministically, Decision Tree run ONCE on the merged set
+       (see scripts/whole_case_analysis.py).
+    """
     # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
     if preload_ollama_model is not None:
         asyncio.create_task(asyncio.to_thread(preload_ollama_model))
@@ -991,12 +1033,68 @@ async def analyze_case(case_id: str):
                 case_manager.analyze_document(case, doc, model_data)
             except Exception as e:
                 errors.append(f"{doc.filename}: {str(e)}")
-    case_manager.refresh_aggregate(case)
+    case_manager.refresh_aggregate(case, model_data=model_data)
     _append_case_documents_to_excel(case, case_id)
     payload = case.to_dict()
     if errors:
         payload["analysis_errors"] = errors
     return payload
+
+
+@app.get("/api/cases/{case_id}/case-analysis")
+def get_case_analysis(case_id: str):
+    """Whole-case analysis: one verdict computed over ALL evidence.
+
+    The Decision Tree runs once on features merged deterministically from every
+    analysed document — plus the corroboration map (which documents support
+    each other) and the case-level constitutional opinion.
+    """
+    case = _get_case_or_404(case_id)
+    cl = case.case_level or {}
+    if not cl:
+        analysed = [d for d in case.documents if d.analysis]
+        if analysed:
+            # Documents analysed but the whole-case pass never ran (old data):
+            # compute it now so the panel is never silently empty.
+            case_manager.refresh_aggregate(case, model_data=model_data)
+            cl = case.case_level or {}
+    return {
+        "case_id": case.case_id,
+        "title": case.title,
+        "has_analysis": bool(cl),
+        "priority": cl.get("priority"),
+        "rationale": cl.get("rationale", ""),
+        "features": cl.get("features", {}),
+        "merge_info": cl.get("merge_info", {}),
+        "corroboration": cl.get("corroboration", {}),
+        "corroboration_text": cl.get("corroboration_text", ""),
+        "per_document": cl.get("per_document", []),
+        "constitutional": cl.get("constitutional", {}),
+        "report_pdf": cl.get("report_pdf", ""),
+        "computed_at": cl.get("computed_at", ""),
+        "aggregate": {
+            "priority": case.aggregate_priority,
+            "rationale": case.aggregate_rationale,
+        },
+    }
+
+
+@app.get("/api/cases/{case_id}/case-report.pdf")
+def get_case_level_report(case_id: str):
+    """Download the whole-case PDF report (all evidence, one verdict)."""
+    case = _get_case_or_404(case_id)
+    cl = case.case_level or {}
+    pdf_path = cl.get("report_pdf", "")
+    if not pdf_path or not os.path.exists(pdf_path):
+        if not [d for d in case.documents if d.analysis]:
+            raise HTTPException(status_code=404, detail="No analysed documents yet — run Analyze All Documents first.")
+        # Old case (analysed before whole-case reports existed): build now.
+        case_manager.refresh_aggregate(case, model_data=model_data)
+        cl = case.case_level or {}
+        pdf_path = cl.get("report_pdf", "")
+        if not pdf_path or not os.path.exists(pdf_path):
+            raise HTTPException(status_code=500, detail="Whole-case report generation failed.")
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"{case.case_id}_whole_case_report.pdf")
 
 
 @app.get("/api/cases/{case_id}")
