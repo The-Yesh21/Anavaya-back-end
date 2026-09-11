@@ -1191,6 +1191,29 @@ COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
 COURTROOM_AUDIO_DIR = os.path.join("case_priority_system", "courtrooms", "audio")
 
 
+def _court_context_hint(room) -> str:
+    """Compact case-context hint for the ASR correction LLM.
+
+    When the room is linked to a case, the correction model gets the case
+    title, the main parties and the evidence file names so ASR mishearings of
+    those specific names are restored instead of being treated as noise —
+    the model 'knows what the trial is about' before correcting a word.
+    """
+    ctx = getattr(room, "case_context", None) or {}
+    if not ctx:
+        return ""
+    parts = [f"Case: {ctx.get('title', '')} ({ctx.get('case_id', '')})"]
+    parties = ctx.get("parties") or []
+    if parties:
+        parts.append("Main parties: " + ", ".join(parties[:8]))
+    evidence = ctx.get("evidence") or []
+    if evidence:
+        parts.append("Evidence on record: " + ", ".join(
+            e.get("filename", "") for e in evidence[:8] if e.get("filename")
+        ))
+    return "\n".join(parts)
+
+
 def _detect_lan_ip() -> str:
     """Best-effort IPv4 of this machine on the LAN (for invite links).
 
@@ -1235,15 +1258,24 @@ def correct_transcript(payload: dict):
     """Clean up a dictated courtroom statement with the local Ollama LLM.
 
     Fixes punctuation/capitalization/grammar and makes the sentence flow
-    naturally without changing its meaning. If Ollama is unavailable the text
-    is returned unchanged (llm=false) so dictation never blocks on the LLM.
+    naturally without changing its meaning. When room_id is supplied and the
+    room is linked to a case, the correction model also receives the case
+    context so names/terms from the case file are restored accurately. If
+    Ollama is unavailable the text is returned unchanged (llm=false) so
+    dictation never blocks on the LLM.
     """
     text = str(payload.get("text", "")).strip()
     if not text:
         return {"corrected": "", "llm": False}
     if correct_transcript_text is None:
         return {"corrected": text, "llm": False}
-    corrected, used_llm = correct_transcript_text(text)
+    context_hint = ""
+    room_id = str(payload.get("room_id", "")).strip()
+    if room_id and courtroom_manager is not None:
+        room = courtroom_manager.get_room(room_id)
+        if room is not None:
+            context_hint = _court_context_hint(room)
+    corrected, used_llm = correct_transcript_text(text, context_hint=context_hint)
     return {"corrected": corrected, "llm": used_llm}
 
 
@@ -1377,7 +1409,7 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
             except OSError:
                 pass
             return {"entry": None, "raw": "", "note": "no_speech"}
-        corrected, used_llm = correct_transcript_text(text)
+        corrected, used_llm = correct_transcript_text(text, context_hint=_court_context_hint(room))
         entry = courtroom_manager.record_statement(
             room_id, participant_id, corrected, audio_file=filename
         )
@@ -1440,14 +1472,31 @@ def _lan_invite_url(request: Request, room_id: str) -> str:
 
 @app.post("/api/court/rooms")
 def create_courtroom(request: Request, payload: dict):
-    """Create a new trial room. Body: { case_title, created_by }."""
+    """Create a new trial room. Body: { case_title, created_by, case_id? }.
+
+    When case_id (ANV-…) is given, the room is linked to that case: the
+    courtroom page shows the case context (parties, evidence, links) and the
+    session deception report checks statements against that case's evidence.
+    The title may be empty then — the case title is used.
+    """
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
     case_title = str(payload.get("case_title", "")).strip()
     created_by = str(payload.get("created_by", "")).strip()
-    if not case_title:
+    case_id = str(payload.get("case_id", "")).strip()
+    if not case_title and not case_id:
         raise HTTPException(status_code=400, detail="case_title is required.")
-    room = courtroom_manager.create_room(case_title=case_title, created_by=created_by)
+    if case_id and not CaseManager.valid_case_id(case_id):
+        raise HTTPException(status_code=400, detail="Invalid case id format (expected ANV-YYYY-NNNN).")
+    try:
+        room = courtroom_manager.create_room(
+            case_title=case_title, created_by=created_by,
+            case_id=case_id, case_manager=case_manager,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if case_id and not room.case_id:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found.")
     # Include LAN IP and invite URL for cross-device access
     lan_invite_url = _lan_invite_url(request, room.room_id)
     result = room.to_dict()
@@ -1502,6 +1551,107 @@ def get_courtroom(request: Request, room_id: str):
         "lan_invite_url": lan_invite_url
     })
     return result
+
+
+@app.post("/api/court/rooms/{room_id}/face-summary")
+def post_face_summary(room_id: str, payload: dict):
+    """Record the whole-session face/expression aggregate for one analyzed feed.
+
+    The client sends this when the observer stops the analyzer (or on session
+    end): subject, duration, speaking/calm time, peak + mean index and the
+    per-cue totals. It replaces any earlier summary for the same source and is
+    included in the transcript exports and the session analysis report.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object body.")
+    fs = courtroom_manager.record_face_summary(room_id, payload)
+    if fs is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    return fs.to_dict()
+
+
+@app.post("/api/court/rooms/{room_id}/refresh-context")
+def refresh_court_context(room_id: str):
+    """Rebuild the linked case's context snapshot (evidence changed mid-trial)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    ctx = courtroom_manager.refresh_case_context(room_id, case_manager)
+    if ctx is None:
+        raise HTTPException(status_code=404, detail="Room has no linked case.")
+    return ctx
+
+
+@app.get("/api/court/rooms/{room_id}/session-report.pdf")
+def download_session_report_pdf(room_id: str):
+    """Downloadable session analysis report (deception + face aggregate) as PDF.
+
+    Computed fresh on every request from the stored transcript and the linked
+    case's evidence, so the report always reflects the full session record.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    try:
+        from case_priority_system.scripts.courtroom_deception import (
+            analyze_transcript, session_report_pdf_path,
+        )
+    except ImportError:
+        from scripts.courtroom_deception import (  # type: ignore
+            analyze_transcript, session_report_pdf_path,
+        )
+    report = analyze_transcript(
+        [e.to_dict() for e in room.transcript],
+        room.case_context or {},
+        use_llm=False,
+    )
+    try:
+        pdf_path = session_report_pdf_path(
+            report, room.case_title,
+            face_summaries=[f.to_dict() for f in room.face_summaries],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
+    safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
+    filename = f"{safe_title.strip()}_{room_id}_session_report.pdf"
+    return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
+
+
+@app.get("/api/court/rooms/{room_id}/session-report")
+def download_session_report(room_id: str):
+    """Downloadable session analysis report (Markdown version)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    try:
+        from case_priority_system.scripts.courtroom_deception import (
+            analyze_transcript, session_report_markdown,
+        )
+    except ImportError:
+        from scripts.courtroom_deception import (  # type: ignore
+            analyze_transcript, session_report_markdown,
+        )
+    report = analyze_transcript(
+        [e.to_dict() for e in room.transcript],
+        room.case_context or {},
+        use_llm=False,
+    )
+    md = session_report_markdown(
+        report, room.case_title,
+        face_summaries=[f.to_dict() for f in room.face_summaries],
+    )
+    safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
+    filename = f"{safe_title.strip()}_{room_id}_session_report.md"
+    return Response(
+        content=md,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/court/rooms/{room_id}/transcript")

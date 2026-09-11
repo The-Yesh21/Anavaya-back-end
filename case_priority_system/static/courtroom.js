@@ -72,6 +72,15 @@
     // Persistent <video> element per participant (roster tiles rebuild, streams don't).
     const videoEls = new Map();    // participant_id -> <video>
 
+    // Per-peer live volume, keyed by participant_id. Survives roster rebuilds
+    // and re-offer / reconnect cycles — a slider stays where you left it.
+    const peerVolumes = new Map();  // participant_id -> { gain: GainNode, level: number }
+
+    // Smallest sensible lift for a newly-joined participant whose mic level is
+    // unknown. Quieter-than-usual courtroom mics are common; a small boost makes
+    // them audible without making a loud participant painful.
+    const DEFAULT_PEER_GAIN = 1.4;  // ~ +3 dB; each tile's slider can raise it further.
+
     // ---- element refs ---------------------------------------------------
     const $ = (id) => document.getElementById(id);
     const els = {
@@ -107,6 +116,11 @@
         sessionEndedPanel: $("session-ended-panel"),
         endedMdLink: $("ended-md-link"),
         endedPdfLink: $("ended-pdf-link"),
+        endedReportLink: $("ended-report-link"),
+        sessionReportBtn: $("session-report-btn"),
+        downloadReportBtn: $("download-report-btn"),
+        caseContext: $("case-context"),
+        contextRefreshBtn: $("context-refresh-btn"),
         joinError: $("join-error"),
     };
 
@@ -125,6 +139,10 @@
         els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
         const pdfBtn = document.getElementById("download-transcript-pdf-btn");
         if (pdfBtn) pdfBtn.addEventListener("click", downloadTranscriptPdf);
+        if (els.downloadReportBtn) els.downloadReportBtn.addEventListener("click", () => {
+            window.location.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
+        });
+        if (els.contextRefreshBtn) els.contextRefreshBtn.addEventListener("click", refreshCaseContext);
         if (els.pushToTalkBtn) initPushToTalk();
         if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
         els.joinName.focus();
@@ -148,6 +166,8 @@
             els.roomId.textContent = room.room_id;
             els.phaseBadge.textContent = room.phase;
             state.participants = room.participants;
+            renderCaseContext(room.case_context);
+            setReportButtons(room.status);
             // A room the Judge already adjourned cannot be joined again —
             // show the ended card with the record download links instead.
             if (room.status === "ended") {
@@ -157,6 +177,78 @@
             renderTranscript(room.transcript);
         } catch (e) {
             console.error("Failed to load room preview:", e);
+        }
+    }
+
+    // ====================================================================
+    // CASE CONTEXT (linked case: parties, evidence, links)
+    // ====================================================================
+    function renderCaseContext(ctx) {
+        if (!els.caseContext) return;
+        if (!ctx || !ctx.case_id) {
+            els.caseContext.style.display = "none";
+            return;
+        }
+        els.caseContext.style.display = "flex";
+        const titleEl = document.getElementById("cc-case-title");
+        const idEl = document.getElementById("cc-case-id");
+        const partiesEl = document.getElementById("cc-parties");
+        const evidenceEl = document.getElementById("cc-evidence");
+        const linksEl = document.getElementById("cc-links");
+        if (titleEl) titleEl.textContent = ctx.title || "Case";
+        if (idEl) idEl.textContent = ctx.case_id || "";
+        const prio = ctx.case_level_priority
+            ? ` · whole-case priority ${ctx.case_level_priority}`
+            : (ctx.aggregate_priority
+                ? ` · aggregate priority ${ctx.aggregate_priority}` : "");
+        if (partiesEl) {
+            const parties = ctx.parties && ctx.parties.length
+                ? ctx.parties.join(", ") : "No parties extracted yet";
+            partiesEl.innerHTML = `<strong>Parties:</strong> ${escapeHtml(parties)}${prio}`;
+        }
+        if (evidenceEl) {
+            const evs = ctx.evidence || [];
+            evidenceEl.innerHTML = evs.length
+                ? evs.map((ev) => `
+                    <div class="cc-ev">
+                        <span class="cc-ev-name"><i data-lucide="file-text"></i> ${escapeHtml(ev.filename)}</span>
+                        <span class="cc-ev-type">${escapeHtml(ev.doc_type || "")}</span>
+                        <span class="cc-ev-prio ${escapeHtml((ev.priority || "none").toLowerCase())}">${escapeHtml(ev.priority || "not analysed")}</span>
+                        ${ev.summary ? `<p class="cc-ev-sum">${escapeHtml(ev.summary)}</p>` : ""}
+                    </div>`).join("")
+                : '<p class="cc-line">No evidence documents attached to this case yet.</p>';
+        }
+        if (linksEl) {
+            linksEl.innerHTML = ctx.evidence_links
+                ? `<strong>Evidence links:</strong> ${escapeHtml(ctx.evidence_links)}`
+                : "";
+        }
+        if (els.contextRefreshBtn) els.contextRefreshBtn.style.display = "";
+        lucide.createIcons();
+    }
+
+    async function refreshCaseContext() {
+        try {
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/refresh-context`, { method: "POST" });
+            if (!res.ok) throw new Error(res.statusText);
+            const ctx = await res.json();
+            renderCaseContext(ctx);
+            toast("Case context refreshed from the case file.");
+        } catch (e) {
+            toast("Could not refresh the case context.");
+        }
+    }
+
+    function setReportButtons(roomStatus) {
+        // The session analysis report is available as soon as the room exists;
+        // before joining it lives in the header (hidden until the court page).
+        if (els.sessionReportBtn) {
+            els.sessionReportBtn.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
+            els.sessionReportBtn.style.display = "";
+        }
+        if (els.downloadReportBtn) els.downloadReportBtn.style.display = "";
+        if (roomStatus === "ended" && els.sessionReportBtn) {
+            els.sessionReportBtn.style.display = "none"; // ended card has its own link
         }
     }
 
@@ -251,6 +343,8 @@
                 renderTranscript(msg.room.transcript);
                 renderPhase(msg.room.phase);
                 renderQuickActions();
+                renderCaseContext(msg.room.case_context);
+                setReportButtons(msg.room.status);
                 // Offer to every existing participant (newcomer initiates).
                 for (const p of state.participants) {
                     if (p.participant_id !== state.me.participant_id) {
@@ -448,6 +542,16 @@
         }
     }
 
+    // Pick the starting gain for a participant whose volume we haven't seen yet.
+    // If we already persisted a level for this pid (e.g. from a previous session
+    // render or a reconnect), use it; otherwise apply the small default lift.
+    function previousLevelFor(participantId) {
+        if (peerVolumes.has(participantId)) {
+            return peerVolumes.get(participantId).level;
+        }
+        return DEFAULT_PEER_GAIN;
+    }
+
     function videoElFor(participantId) {
         let v = videoEls.get(participantId);
         if (!v) {
@@ -463,9 +567,15 @@
     function attachSelfVideo() {
         if (!state.me) return;
         const v = videoElFor(state.me.participant_id);
-        v.srcObject = state.localStream && state.localStream.getVideoTracks().length
+        const stream = (state.localStream && state.localStream.getVideoTracks().length)
             ? state.localStream
             : null;
+        v.srcObject = stream;
+        if (stream) {
+            startVideoKeepalive(v, stream, () => videoHasSrc(v));
+        } else {
+            stopVideoKeepalive(v);
+        }
     }
 
     function createPeerConnection(remotePid) {
@@ -482,7 +592,37 @@
         audio.playsInline = true;
         els.remoteAudioHost.appendChild(audio);
 
-        const peer = { pc, audio, videoTrack: null };
+        // Per-peer live volume (WebRTC voice gain). Each peer gets its own
+        // AudioContext + GainNode so participants with quiet mics can be turned
+        // up independently without affecting the others.
+        let peerGain = null;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            ctx.resume().catch(() => {});
+            const gain = ctx.createGain();
+            const prev = peerVolumes.get(remotePid);
+            if (prev && prev.gainNode) {
+                // Restore the level this participant had before (e.g. after a
+                // re-offer / reconnect).
+                gain.gain.value = prev.level;
+            } else {
+                // New participant — small lift so quiet mics are usable out of
+                // the gate instead of inaudible. The user can pull it down if
+                // they want it quieter.
+                gain.gain.value = previousLevelFor(remotePid);
+            }
+            peerGain = { ctx, gain, level: gain.gain.value };
+            // Route the peer's incoming audio through the gain before the speakers.
+            const src = ctx.createMediaElementSource(audio);
+            src.connect(gain);
+            gain.connect(ctx.destination);
+        } catch (e) {
+            // AudioContext may fail on some browsers/contexts — non-fatal, audio
+            // still plays through the element directly (no per-peer boost).
+            console.warn("Peer audio gain setup failed for", remotePid, "-", e);
+        }
+
+        const peer = { pc, audio, videoTrack: null, gain: peerGain };
         state.peers.set(remotePid, peer);
 
         pc.ontrack = (event) => {
@@ -491,8 +631,18 @@
                 // audio plays through the hidden <audio> element above).
                 peer.videoTrack = event.track;
                 const v = videoElFor(remotePid);
-                v.srcObject = new MediaStream([event.track]);
+                const stream = new MediaStream([event.track]);
+                v.srcObject = stream;
                 v.play().catch(() => {});
+                // Keep this tile's video alive: if the tile goes black while the
+                // mesh still owns the track, re-play it. The tile is watched until
+                // the track is removed (closePeer) or a new track replaces it.
+                startVideoKeepalive(v, stream, () => {
+                    // Tile is still "live" if the peer is still here and still owns
+                    // this video track (or a newer one).
+                    const p = state.peers.get(remotePid);
+                    return p && (p.videoTrack === event.track || !!p.videoTrack);
+                });
                 refreshFaceSourceIfPending(remotePid);
                 return;
             }
@@ -601,8 +751,17 @@
         if (!entry) return;
         try { entry.pc.close(); } catch (_) {}
         if (entry.audio && entry.audio.parentNode) entry.audio.parentNode.removeChild(entry.audio);
+        // Tear down this peer's gain node so we don't leak AudioContexts.
+        if (entry.gain) {
+            try { entry.gain.ctx.close(); } catch (_) {}
+            peerVolumes.delete(remotePid);
+        }
         const v = videoEls.get(remotePid);
-        if (v) { v.srcObject = null; if (v.parentNode) v.parentNode.removeChild(v); }
+        if (v) {
+            stopVideoKeepalive(v);
+            v.srcObject = null;
+            if (v.parentNode) v.parentNode.removeChild(v);
+        }
         videoEls.delete(remotePid);
         state.peers.delete(remotePid);
         // If the face analyzer was watching this participant, fall back to self.
@@ -611,33 +770,6 @@
             const sel = faceEl("face-source");
             if (sel) sel.value = "self";
             attachFaceSource();
-        }
-    }
-
-    // Simple active-speaker detection via WebAudio analyser (visual glow only).
-    function attachSpeakerDetection(audioEl, remotePid) {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            // createMediaElementSource reroutes the element's audio through this
-            // graph, so it is silent unless we also connect it to the speakers.
-            ctx.resume().catch(() => {}); // context may start suspended (autoplay policy)
-            const src = ctx.createMediaElementSource(audioEl);
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 256;
-            src.connect(analyser);
-            analyser.connect(ctx.destination);
-            const data = new Uint8Array(analyser.frequencyBinCount);
-            const tick = () => {
-                if (!state.peers.has(remotePid)) return;
-                analyser.getByteFrequencyData(data);
-                const avg = data.reduce((a, b) => a + b, 0) / data.length;
-                const tile = document.querySelector(`.participant-tile[data-pid="${remotePid}"]`);
-                if (tile) tile.classList.toggle("speaking", avg > 18);
-                requestAnimationFrame(tick);
-            };
-            tick();
-        } catch (e) {
-            // AudioContext may fail if not user-gesture-activated; non-fatal.
         }
     }
 
@@ -682,6 +814,9 @@
         if (els.endSessionBtn) els.endSessionBtn.style.display = isJudge ? "inline-flex" : "none";
         renderPhaseButtons();
         initFacePanel();
+        // Re-affirm every live video element after the courtroom root is shown,
+        // so feeds that went black while covered by another panel recover now.
+        reaffirmAllRoomVideos();
         probeAsr();
         // Don't auto-focus on touch devices — it pops the on-screen keyboard
         // the moment you enter, hiding the transcript behind it.
@@ -719,6 +854,9 @@
                     ${isMe ? `<button class="tile-video-btn ${state.videoEnabled ? "" : "off"}" title="${state.videoEnabled ? "Hide my video" : "Show my video"}">
                         <i data-lucide="${state.videoEnabled ? "video" : "video-off"}"></i>
                     </button>` : ""}
+                    ${!isMe ? `<div class="tile-vol" title="Live voice volume for ${escapeHtml(p.name)}">
+                        <input type="range" min="0" max="3" step="0.05" value="${peerLevelFor(p.participant_id)}" aria-label="Volume for ${escapeHtml(p.name)}">
+                    </div>` : ""}
                 </div>
             `;
             // Move the persistent video element (already fed by the mesh) into
@@ -730,11 +868,166 @@
                 const vbtn = tile.querySelector(".tile-video-btn");
                 if (vbtn) vbtn.addEventListener("click", toggleVideo);
                 if (!state.micEnabled) tile.querySelector(".avatar").classList.add("muted");
+            } else {
+                // Bind the per-peer live-volume slider, if the peer's gain node
+                // was created successfully.
+                const volEl = tile.querySelector(".tile-vol input");
+                if (volEl) {
+                    const peer = state.peers.get(p.participant_id);
+                    if (peer && peer.gain) {
+                        volEl.addEventListener("input", () => {
+                            const v = parseFloat(volEl.value);
+                            peer.gain.gain.setValueAtTime(v, ctxTime(peer.gain.ctx));
+                            peerVolumes.set(p.participant_id, { gain: peer.gain, level: v });
+                        });
+                    } else {
+                        // No gain node (AudioContext unavailable) — hide the slider
+                        // since it can't do anything.
+                        volEl.remove();
+                    }
+                }
             }
             els.rosterList.appendChild(tile);
         }
         lucide.createIcons();
         populateFaceSourceSelect();
+    }
+
+    // Current value we want this participant's live voice to play at.
+    // Reads the persisted level if we have one, otherwise the small default lift.
+    function peerLevelFor(participantId) {
+        const prev = peerVolumes.get(participantId);
+        if (prev && typeof prev.level === "number") return prev.level;
+        return DEFAULT_PEER_GAIN;
+    }
+
+    // Convenience for setValueAtTime / linearRamp calls.
+    function ctxTime(ctx) {
+        try { return ctx.currentTime; } catch (_) { return 0; }
+    }
+
+    // ---- video keepalive (face monitor + roster / self tiles) ----------
+    // A live camera feed can look "gone" for a few reasons that are all
+    // recoverable without making the user re-enable the camera:
+    //   - the <video> element was fed a srcObject but its playback stalled /
+    //     went black while the underlying track is still live;
+    //   - the mesh replaced a track (re-offer / renegotiation) and the tile's
+    //     srcObject wasn't refreshed;
+    //   - the tab or the face panel was covered by another panel for a while,
+    //     and the browser quieted the media element.
+    // A keepalive per <video> watches for these and re-attaches / re-plays.
+    const videoKeepalive = new Map();  // videoEl -> { timer, streamRef }
+
+    // Start or refresh a keepalive on a <video> that should show a live camera feed.
+    // `stream` is the MediaStream to attach (may be null to clear the element).
+    // `onLive` is an optional predicate: the keepalive only re-plays while it
+    // returns true (e.g. the stream still has video tracks / the mesh still owns
+    // a track for this participant).
+    function startVideoKeepalive(video, stream, onLive) {
+        if (!video) return;
+        const prev = videoKeepalive.get(video);
+        if (prev) {
+            // Update the stream we're watching without restarting the loop.
+            prev.streamRef = stream;
+            prev.onLive = onLive || null;
+            return;
+        }
+        const keep = { timer: null, streamRef: stream, onLive: onLive || null };
+        videoKeepalive.set(video, keep);
+
+        const tick = () => {
+            const still = keep.streamRef && (!keep.onLive || keep.onLive());
+            if (!still) {
+                // Feed gone — clear the element and stop watching.
+                if (video.srcObject) {
+                    try { video.srcObject = null; } catch (_) {}
+                }
+                stopVideoKeepalive(video);
+                return;
+            }
+
+            // If the element has a stream but isn't playing, re-attach + re-play.
+            const hasSrc = video.srcObject != null;
+            const playing = !!(video.readyState >= 2 && (video.paused === false));
+            if (hasSrc && !playing) {
+                // The underlying track is fine; the element just went quiet.
+                // Re-attach the same object and re-ask for playback.
+                try {
+                    video.play().catch(() => {});
+                } catch (_) {}
+            }
+
+            keep.timer = requestAnimationFrame(tick);
+        };
+
+        // Start the loop on the next frame so we don't burn a frame on setup.
+        keep.timer = requestAnimationFrame(tick);
+    }
+
+    function stopVideoKeepalive(video) {
+        const keep = videoKeepalive.get(video);
+        if (!keep) return;
+        if (keep.timer) {
+            try { cancelAnimationFrame(keep.timer); } catch (_) {}
+        }
+        videoKeepalive.delete(video);
+    }
+
+    // Default "is this <video> feed still live?" predicate: it has a non-empty
+    // MediaStream (or a track) attached.
+    function videoHasSrc(video) {
+        if (!video || !video.srcObject) return false;
+        try {
+            const tracks = video.srcObject.getVideoTracks ? video.srcObject.getVideoTracks() : [];
+            return tracks.length > 0;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    // Re-affirm every live video element for this room (face monitor + roster /
+    // self tiles) so a feed that went black while covered by another panel recovers
+    // on the next frame instead of waiting for a source change.
+    function reaffirmAllRoomVideos() {
+        // Face monitor.
+        const faceVideo = faceEl("face-video");
+        if (faceVideo && faceVideo.srcObject && videoHasSrc(faceVideo)) {
+            affirmVideo(faceVideo, faceVideo.srcObject);
+        }
+        // Self + remote roster tiles.
+        for (const [pid, v] of videoEls) {
+            if (v && v.srcObject && videoHasSrc(v)) {
+                // Find the peer so we can use its current track stream if present.
+                const peer = state.peers.get(pid);
+                let stream = v.srcObject;
+                if (peer && peer.videoTrack) {
+                    try { stream = new MediaStream([peer.videoTrack]); } catch (_) {}
+                }
+                affirmVideo(v, stream);
+            }
+        }
+    }
+
+    // Force a <video> to show a live feed again, even if it currently has a
+    // srcObject but went black/paused (e.g. because its container was hidden
+    // for a while). Safe to call repeatedly.
+    function affirmVideo(video, stream) {
+        if (!video) return;
+        if (!stream) {
+            if (video.srcObject) {
+                try { video.srcObject = null; } catch (_) {}
+            }
+            return;
+        }
+        try {
+            video.srcObject = stream;
+        } catch (_) {
+            return;
+        }
+        // Force a fresh playback request so a stalled/black monitor recovers.
+        // This is deliberately redone on each affirm — browsers can leave a
+        // video paused after its container was hidden for a while.
+        video.play().catch(() => {});
     }
 
     function displayRoleFor(p) {
@@ -1218,11 +1511,12 @@
         els.joinForm.style.display = "none";
         const warn = document.getElementById("join-media-warning");
         if (warn) warn.style.display = "none";
-        const md = els.endedMdLink, pdf = els.endedPdfLink;
+        const md = els.endedMdLink, pdf = els.endedPdfLink, rep = els.endedReportLink;
         if (md) md.href = `/api/court/rooms/${ROOM_ID}/transcript`;
         if (pdf) pdf.href = `/api/court/rooms/${ROOM_ID}/transcript.pdf`;
+        if (rep) rep.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
         if (els.sessionEndedPanel) els.sessionEndedPanel.style.display = "block";
-        if (md || pdf) lucide.createIcons();
+        if (md || pdf || rep) lucide.createIcons();
     }
 
     function handleSessionEnded(room) {
@@ -1230,9 +1524,17 @@
         for (const pid of [...state.peers.keys()]) closePeer(pid);
         try { if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
         state.localStream = null;
+        // Stop watching the self tile's video — the stream is gone now.
+        if (state.me) {
+            const selfV = videoElFor(state.me.participant_id);
+            stopVideoKeepalive(selfV);
+        }
         try { stopAutoDictation(); } catch (_) {}
         try { if (ptt.sr) ptt.sr.abort(); } catch (_) {}
         ptt.sr = null;
+        // If face analysis is still running, log its session summary to the
+        // record before the teardown — the aggregate must survive the adjournment.
+        try { stopFaceAnalysis(); } catch (_) {}
         disableFaceCamera();
         // Back to the join card, now showing the ended state.
         els.root.style.display = "none";
@@ -1562,6 +1864,30 @@
 
     // ---- audio playback of recorded clips in the transcript ----
     const clipPlayer = new Audio();
+
+    // Shared playback gain for transcript clips. A quiet courtroom recording
+    // (or a distant mic) is often inaudible at unity; a small fixed lift makes
+    // the attached .wav clips listenable without touching each clip.
+    let clipGain = null;
+    const CLIP_GAIN = 1.4;  // ~ +3 dB, same default lift as the live peers
+
+    function ensureClipGain() {
+        if (clipGain) return clipGain;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            ctx.resume().catch(() => {});
+            const gain = ctx.createGain();
+            gain.gain.value = CLIP_GAIN;
+            const src = ctx.createMediaElementSource(clipPlayer);
+            src.connect(gain);
+            gain.connect(ctx.destination);
+            clipGain = { ctx, gain };
+        } catch (e) {
+            console.warn("Transcript clip playback gain unavailable -", e);
+        }
+        return clipGain;
+    }
+
     let activeClipBtn = null;
 
     function toggleClipPlay(btn) {
@@ -1573,6 +1899,9 @@
             activeClipBtn = null;
             return;
         }
+        // Make sure the playback gain node is set up on this user gesture
+        // (AudioContext may be suspended until a gesture).
+        ensureClipGain();
         clipPlayer.src = url;
         clipPlayer.play().catch(() => {});
         if (activeClipBtn) activeClipBtn.innerHTML = '<i data-lucide="play"></i>';
@@ -1622,8 +1951,15 @@
     };
 
     const CALIBRATION_FRAMES = 120; // ~4 s of neutral face
-    const CUE_PERSIST_FRAMES = 6;   // a cue must persist this long to count
-    const CUE_LOG_INTERVAL_MS = 12000;
+    const CUE_PERSIST_FRAMES = 45;  // a cue must persist ~0.75 s to count (rejects momentary twitches)
+    const CUE_LOG_INTERVAL_MS = 25000;
+    // Calm-face suppression: brief spikes are noise. The reported index is an
+    // EMA over frames, and the transcript only carries cues that held on long
+    // enough to be deliberate. A session aggregate — not the peak — defines
+    // the person's demeanor in the record.
+    const SCORE_EMA_ALPHA = 0.06;   // ~16-frame time constant (≈0.27 s)
+    const SPEECH_GRACE_MS = 3000;   // no cue logging until speech has been seen
+    const CUE_LOG_MIN_CUES = 2;     // need ≥2 concurrent cues before logging
 
     const face = {
         source: "self",          // "self" or a remote participant_id to analyze
@@ -1648,12 +1984,25 @@
             gazeMean: 0.5, gazeStd: 0.03,
             lipJitterMean: 0.001, lipJitterStd: 0.0005,
         },
-        stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0 },
+        stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0, peakAtSpeaking: false },
         history: { lipOpen: [] },
         activeCues: new Set(),
         cueStreak: {},
+        cueDurations: {},           // cue name -> seconds active this session
+        lastFrameAt: 0,
         logCooldownUntil: 0,
         gauge: 0,
+        emaScore: 0,
+        emaStarted: false,
+        indexSum: 0,
+        indexFrames: 0,
+        speaking: false,            // currently speaking (self mic / remote audio level)
+        speakingAcc: { frames: 0, samples: 0 },
+        lastSpeakingSeenAt: 0,
+        speechSeenAt: 0,            // first time speech was detected this session
+        meter: null,                // { ctx, analyser, buf, source } for self mic level
+        remoteMeter: null,          // { ctx, analyser, buf, stream } for remote feed level
+        sessionStartIso: "",
     };
 
     const CUE_LABELS = {
@@ -1672,6 +2021,10 @@
         const panel = faceEl("face-analysis");
         if (!panel) return;
         panel.style.display = "flex";
+        // If the panel was covered by another panel (e.g. the transcript/PDF)
+        // while the camera was supposed to keep running, re-affirm the monitor so
+        // it recovers rather than staying black until a source change.
+        reaffirmAllRoomVideos();
         const camBtn = faceEl("face-camera-btn");
         if (camBtn) camBtn.addEventListener("click", enableFaceCamera);
         const startBtn = faceEl("face-start-btn");
@@ -1683,6 +2036,9 @@
             srcSel.addEventListener("change", () => {
                 face.source = srcSel.value;
                 if (face.camera) attachFaceSource();  // already monitoring → switch feed
+                // The speech meter watches a different stream now — rebuild it
+                // so the speaking gate follows the analyzed feed.
+                if (face.analyzing) attachSpeechMeter();
             });
         }
         lucide.createIcons();
@@ -1747,9 +2103,13 @@
         if (face.source === "self") {
             // Reuse the shared mesh stream when it has a camera; otherwise fall
             // back to the dedicated stream requested by enableFaceCamera().
-            video.srcObject = (state.localStream && state.localStream.getVideoTracks().length)
+            const selfStream = (state.localStream && state.localStream.getVideoTracks().length)
                 ? state.localStream
                 : (face.ownStream || null);
+            affirmVideo(video, selfStream);
+            // Keep the monitor alive: if the self tile's stream is live but the
+            // monitor goes black, re-play it. Stop watching if the feed disappears.
+            startVideoKeepalive(video, selfStream, () => videoHasSrc(video));
             return;
         }
 
@@ -1757,9 +2117,14 @@
         const peer = state.peers.get(face.source);
         const track = peer && peer.videoTrack;
         if (track) {
-            video.srcObject = new MediaStream([track]);
+            const stream = new MediaStream([track]);
+            affirmVideo(video, stream);
+            startVideoKeepalive(video, stream, () => videoHasSrc(video));
         } else {
-            video.srcObject = null;
+            // No track yet — clear the monitor and keep watching until one lands
+            // (refreshFaceSourceIfPending will re-attach when it does).
+            affirmVideo(video, null);
+            stopVideoKeepalive(video);
             if (status) {
                 status.textContent = "Waiting for video from the selected participant…";
                 status.hidden = false;
@@ -1821,8 +2186,24 @@
         }
         face.ownStream = null;
         face.ownsStream = false;
+        // Only clear the face monitor if there is no live feed left to show.
+        // If the mesh still has a self camera (or we still have a dedicated stream
+        // we did not create), keep feeding the monitor instead of killing it.
         const video = faceEl("face-video");
-        if (video) video.srcObject = null;
+        if (video) {
+            const meshHasVideo = !!(state.localStream && state.localStream.getVideoTracks().length);
+            const hasDedicated = !!(face.ownStream && face.ownsStream && face.ownStream.getVideoTracks().length);
+            if (!meshHasVideo && !hasDedicated) {
+                stopVideoKeepalive(video);
+                affirmVideo(video, null);
+            } else {
+                // Re-affirm so a blackout that happened while the panel was covered
+                // recovers now that the camera is supposedly "disabled" in name only.
+                const keep = meshHasVideo ? state.localStream : face.ownStream;
+                affirmVideo(video, keep);
+                startVideoKeepalive(video, keep, () => videoHasSrc(video));
+            }
+        }
         const placeholder = faceEl("face-placeholder");
         if (placeholder) placeholder.style.display = "flex";
         const statePill = faceEl("face-state");
@@ -1908,8 +2289,20 @@
         face.history = { lipOpen: [] };
         face.activeCues.clear();
         face.cueStreak = {};
+        face.cueDurations = {};
+        face.lastFrameAt = 0;
         face.logCooldownUntil = 0;
         face.gauge = 0;
+        face.emaScore = 0;
+        face.emaStarted = false;
+        face.indexSum = 0;
+        face.indexFrames = 0;
+        face.speaking = false;
+        face.speakingAcc = { frames: 0, samples: 0 };
+        face.lastSpeakingSeenAt = 0;
+        face.speechSeenAt = 0;
+        face.sessionStartIso = new Date().toISOString();
+        attachSpeechMeter();
 
         const startBtn = faceEl("face-start-btn");
         if (startBtn) startBtn.disabled = true;
@@ -1928,9 +2321,10 @@
         renderFaceCueChips();
     }
 
-    function stopFaceAnalysis() {
+    function stopFaceAnalysis(sendSummary = true) {
         if (!face.analyzing) return;
         face.analyzing = false;
+        detachSpeechMeter();
         const startBtn = faceEl("face-start-btn");
         if (startBtn) startBtn.disabled = false;
         const stopBtn = faceEl("face-stop-btn");
@@ -1939,13 +2333,76 @@
         if (statePill) { statePill.textContent = "Camera on"; statePill.classList.remove("live"); statePill.classList.add("on"); }
         const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
         const peak = face.stats.peakScore;
-        let summary = `Face analysis ended — peak nervousness index ${peak}%.`;
-        if (names.length) summary += ` Cues observed: ${names.join(", ")}.`;
-        else summary += " No notable nervousness cues detected.";
+        const mean = face.indexFrames ? Math.round(face.indexSum / face.indexFrames) : 0;
+        const calmPct = sessionSummary().calmPct;
+        let summary =
+            `Face analysis ended — session aggregate: mean index ${mean}%, peak ${peak}%, ` +
+            `calm ${calmPct}% of the session.`;
+        if (names.length) summary += ` Cues at stop: ${names.join(", ")}.`;
+        else summary += " No persistent nervousness cues.";
         face.activeCues.clear();
+        face.cueStreak = {};
         renderFaceCueChips();
-        sendBehaviorEntry(summary);
-        toast("Face analysis stopped — result logged to the transcript.");
+        if (sendSummary) {
+            sendBehaviorEntry(summary);
+            sendFaceSummary();
+            toast("Face analysis stopped — session aggregate logged.");
+        }
+    }
+
+    // Aggregates the whole analysis run into one object (also sent to the
+    // server so the session report and the record carry the balanced view).
+    function sessionSummary() {
+        const durationSec = Math.max(1, Math.round((Date.now() - face.stats.startedAt) / 1000));
+        let cueSec = 0;
+        for (const v of Object.values(face.cueDurations)) cueSec += v;
+        const calmSec = Math.max(0, durationSec - Math.round(cueSec));
+        const subject = subjectInfo();
+        return {
+            subject: subject.name,
+            subject_role: subject.role,
+            observer: state.me ? state.me.name : "",
+            analyzed_source: face.source,
+            started_at: face.sessionStartIso || "",
+            ended_at: new Date().toISOString(),
+            duration_sec: durationSec,
+            time_speaking_sec: face.speakingAcc.samples,
+            calm_sec: calmSec,
+            calmPct: Math.round((calmSec / durationSec) * 100),
+            peak_index: face.stats.peakScore || 0,
+            mean_index: face.indexFrames ? Math.round(face.indexSum / face.indexFrames) : 0,
+            end_index: face.gauge || 0,
+            peak_during_speech: !!(face.stats.peakAtSpeaking),
+            counters: { ...face.cueDurations },
+            active_durations: { ...face.cueDurations },
+            cue_events: face.stats.cueEvents || 0,
+        };
+    }
+
+    function sendFaceSummary() {
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        const summary = sessionSummary();
+        // Fire-and-forget; the server persists it on the room.
+        fetch(`/api/court/rooms/${ROOM_ID}/face-summary`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(summary),
+        }).catch(() => {});
+    }
+
+    // Who is being analyzed — name + display role for the record.
+    function subjectInfo() {
+        if (face.source === "self") {
+            return { name: state.me ? state.me.name : "Me", role: state.me ? state.me.display_role : "" };
+        }
+        const p = (state.participants || []).find((x) => x.participant_id === face.source);
+        if (p) {
+            return {
+                name: p.name,
+                role: displayRoleFor(p) || p.role,
+            };
+        }
+        return { name: "Participant", role: "" };
     }
 
     function finishFaceCalibration() {
@@ -1960,9 +2417,11 @@
         b.lipJitterMean = meanOf(face.calibAcc.lipJitter); b.lipJitterStd = Math.max(0.0002, stddev(face.calibAcc.lipJitter));
         face.calibrated = true;
         face.stats.startedAt = Date.now();
+        face.sessionStartIso = new Date().toISOString();
         const statePill = faceEl("face-state");
         if (statePill) { statePill.textContent = "Analyzing"; statePill.classList.remove("on"); statePill.classList.add("live"); }
-        sendBehaviorEntry("Face analysis started — baseline calibrated. Monitoring for nervousness cues.");
+        const subj = subjectInfo();
+        sendBehaviorEntry(`Face analysis started — baseline calibrated for ${subj.name} (${subj.role}). Cues count only while the subject is speaking and only when persistent.`);
     }
 
     // ---- per-frame signal extraction ------------------------------------
@@ -2044,6 +2503,8 @@
         const zLipJitter = z(lipJitter, b.lipJitterMean, b.lipJitterStd);
         const zEar = z(ear, b.earMean, b.earStd);
 
+        updateSpeakingState();
+
         // Blink counting: EAR dropping well below baseline = a blink.
         if (zEar < -2.2) {
             if (face.stats.lastEarState === "open") {
@@ -2056,23 +2517,38 @@
         const elapsedSec = Math.max(1, (Date.now() - face.stats.startedAt) / 1000);
         const bpm = Math.round((face.stats.blinks / elapsedSec) * 60);
 
-        // ---- cue detection with persistence gating ----
+        // ---- cue detection: strict thresholds + persistence gating ----
+        // Cues only accumulate while the subject is SPEAKING — a person
+        // listening quietly (blinking, looking around, shifting) is not
+        // "nervous". Thresholds raised from the old 2.0–2.2σ (which fired
+        // constantly on calm faces) to 2.8–3.0σ, well into deliberate-motion
+        // territory.
+        const S = face.speaking;
         const frame = {
-            rapid_blink: bpm > 26,
-            gaze_avoid: Math.abs(zGaze) > 2.2,
-            lip_press: zLipOpen < -2.0 && lipOpen < b.lipOpenMean * 0.85,
-            lip_tremor: zLipJitter > 2.0,
-            frown: zFrown > 2.0,
-            brow_furrow: zBrowGap < -2.0,
-            brow_raise: zBrowRaise > 2.0,
+            rapid_blink: S && bpm > 30,
+            gaze_avoid: S && Math.abs(zGaze) > 3.0,
+            lip_press: S && zLipOpen < -3.0 && lipOpen < b.lipOpenMean * 0.7,
+            lip_tremor: S && zLipJitter > 2.8,
+            frown: S && zFrown > 2.8,
+            brow_furrow: S && zBrowGap < -2.8,
+            brow_raise: S && zBrowRaise > 2.8,
         };
+        // Persistence gating + per-cue duration accounting. A cue must hold
+        // for CUE_PERSIST_FRAMES (~0.75 s) before it counts at all; its total
+        // active time feeds the session aggregate.
+        const nowMs = Date.now();
+        const dtSec = face.lastFrameAt ? Math.min(0.5, (nowMs - face.lastFrameAt) / 1000) : 0;
+        face.lastFrameAt = nowMs;
         for (const key of Object.keys(frame)) {
             face.cueStreak[key] = frame[key] ? (face.cueStreak[key] || 0) + 1 : 0;
-            if (frame[key] && face.cueStreak[key] >= CUE_PERSIST_FRAMES) face.activeCues.add(key);
-            else if (!frame[key]) face.activeCues.delete(key);
+            if (frame[key] && face.cueStreak[key] >= CUE_PERSIST_FRAMES) {
+                face.activeCues.add(key);
+                face.cueDurations[key] = (face.cueDurations[key] || 0) + dtSec;
+            } else if (!frame[key]) face.activeCues.delete(key);
         }
 
-        // ---- nervousness index (0-100) ----
+        // ---- nervousness index (0-100), speech-gated + EMA-smoothed ----
+        // Raw instantaneous score first...
         const zPool = [
             Math.abs(zGaze),
             Math.max(0, zLipJitter),
@@ -2082,11 +2558,25 @@
             Math.max(0, zBrowRaise),
         ];
         const avgZ = zPool.reduce((a, v) => a + v, 0) / zPool.length;
-        let score = Math.min(100, Math.max(0, Math.round(((avgZ - 0.6) / 2.0) * 100)));
-        score = Math.min(100, score + face.activeCues.size * 6);
-        if (bpm > 28 || bpm < 6) score = Math.min(100, score + 8);
+        let raw = Math.min(100, Math.max(0, Math.round(((avgZ - 1.0) / 2.4) * 100)));
+        raw = Math.min(100, raw + face.activeCues.size * 8);
+        if (bpm > 32) raw = Math.min(100, raw + 8);
+        // ...but a calm face must READ calm: the reported index is a slow
+        // EMA, so a two-frame eyebrow twitch cannot swing the gauge, and
+        // while the subject is not speaking the index decays toward zero
+        // instead of idling at some elevated value.
+        if (!face.emaStarted) { face.emaScore = raw; face.emaStarted = true; }
+        face.emaScore = face.emaScore + SCORE_EMA_ALPHA * (raw - face.emaScore);
+        let score = Math.round(face.emaScore);
+        if (!S) score = Math.round(score * 0.9);          // decay when quiet
+        if (score < 3) score = 0;                          // floor: calm is calm
         face.gauge = score;
-        face.stats.peakScore = Math.max(face.stats.peakScore, score);
+        face.indexSum += score;
+        face.indexFrames += 1;
+        if (score > face.stats.peakScore) {
+            face.stats.peakScore = score;
+            face.stats.peakAtSpeaking = S;
+        }
 
         renderFaceLive(score, bpm);
         maybeLogFaceCues();
@@ -2199,10 +2689,88 @@
         const now = Date.now();
         if (now < face.logCooldownUntil) return;
         if (!face.activeCues.size) return;
+        // Calm-face suppression: at most one brief flare is noise — require
+        // ≥2 concurrent persistent cues and a minimum speech history before
+        // anything reaches the official record. The session aggregate
+        // (logged on stop) remains the authoritative summary.
+        if (face.activeCues.size < CUE_LOG_MIN_CUES) return;
+        if (!face.speechSeenAt || now - face.speechSeenAt < SPEECH_GRACE_MS) return;
+        if (face.gauge < 25) return;
         const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
-        sendBehaviorEntry(`Nervousness cues detected: ${names.join(", ")} — nervousness index ${face.gauge}%.`);
+        sendBehaviorEntry(`Nervousness cues detected while speaking: ${names.join(", ")} — nervousness index ${face.gauge}%.`);
         face.logCooldownUntil = now + CUE_LOG_INTERVAL_MS;
         face.stats.cueEvents++;
+    }
+
+    // ---- speech detection (is the analyzed feed actually talking?) ----
+    // Self: the local mic track's level via an AnalyserNode. Remote: the
+    // peer's incoming <audio> element through the same mechanism. Speech
+    // gates every cue: a silent, listening face is a calm face.
+    function attachSpeechMeter() {
+        detachSpeechMeter();
+        try {
+            if (face.source === "self") {
+                const stream = (state.localStream && state.localStream.getAudioTracks().length)
+                    ? state.localStream : null;
+                if (!stream) return;
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                ctx.resume().catch(() => {});
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 512;
+                ctx.createMediaStreamSource(stream).connect(analyser);
+                face.meter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize), source: stream };
+            } else {
+                const peer = state.peers.get(face.source);
+                if (!peer || !peer.audio) return;
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                ctx.resume().catch(() => {});
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 512;
+                ctx.createMediaElementSource(peer.audio).connect(analyser);
+                face.remoteMeter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize) };
+            }
+        } catch (e) {
+            console.warn("Face speech meter unavailable — cues gated OFF for this run.", e);
+            // No meter ⇒ face.speaking stays false ⇒ no cues logged. That is
+            // the safe direction: never accuse based on a face alone.
+        }
+    }
+
+    function detachSpeechMeter() {
+        for (const key of ["meter", "remoteMeter"]) {
+            const m = face[key];
+            if (m) {
+                try { m.ctx.close(); } catch (_) {}
+                face[key] = null;
+            }
+        }
+    }
+
+    function updateSpeakingState() {
+        const now = Date.now();
+        let level = 0;
+        const m = face.source === "self" ? face.meter : face.remoteMeter;
+        if (m && m.analyser) {
+            m.analyser.getByteTimeDomainData(m.buf);
+            let sum = 0;
+            for (let i = 0; i < m.buf.length; i++) {
+                const v = (m.buf[i] - 128) / 128;
+                sum += v * v;
+            }
+            level = Math.sqrt(sum / m.buf.length); // RMS 0..1
+        }
+        const SPEAK_RMS = 0.045;                     // talking, not breathing
+        const HOLD_MS = 900;                          // speech lag before "quiet"
+        if (level > SPEAK_RMS) {
+            face.speaking = true;
+            face.lastSpeakingSeenAt = now;
+            if (!face.speechSeenAt) face.speechSeenAt = now;
+            face.speakingAcc.frames++;
+            // Rough speaking-time accounting (sampled every other frame).
+            if (face.speakingAcc.frames % 2 === 0) face.speakingAcc.samples += 1;
+        } else if (face.speaking && now - (face.lastSpeakingSeenAt || 0) > HOLD_MS) {
+            face.speaking = false;
+        }
     }
 
     function sendBehaviorEntry(text) {
@@ -2277,7 +2845,16 @@
         stopAutoTranscription();
         stopAutoDictation();
         try { clipPlayer.pause(); } catch (_) {}
+        if (clipGain) {
+            try { clipGain.ctx.close(); } catch (_) {}
+            clipGain = null;
+        }
         disableFaceCamera();
+        // Stop any keepalive still running on the self tile.
+        if (state.me) {
+            const selfV = videoElFor(state.me.participant_id);
+            stopVideoKeepalive(selfV);
+        }
     });
 
     init();

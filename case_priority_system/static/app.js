@@ -1688,8 +1688,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const roomsListContainer = document.getElementById("rooms-list-container");
     const newRoomTitle = document.getElementById("new-room-title");
     const newRoomHost = document.getElementById("new-room-host");
+    const newRoomCase = document.getElementById("new-room-case");
 
     let lastCreatedRoomId = null;
+
+    // Case files for the courtroom's "link a case" select — a linked trial
+    // starts with the case context (parties, evidence, links) on screen and
+    // its session report checks statements against the collected evidence.
+    async function populateRoomCaseSelect() {
+        if (!newRoomCase) return;
+        try {
+            const res = await fetch("/api/case-registry");
+            if (!res.ok) return;
+            const cases = await res.json();
+            newRoomCase.innerHTML = '<option value="">No linked case — free-form trial</option>';
+            for (const c of cases) {
+                const opt = document.createElement("option");
+                opt.value = c.case_id;
+                opt.textContent = `${c.case_id} — ${c.title} (${c.document_count} doc${c.document_count === 1 ? "" : "s"})`;
+                newRoomCase.appendChild(opt);
+            }
+        } catch (e) {
+            console.warn("Case registry unavailable for courtroom lobby:", e);
+        }
+    }
+    populateRoomCaseSelect();
 
     function escapeHtml(s) {
         return String(s == null ? "" : s)
@@ -1734,6 +1757,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span><i data-lucide="users"></i> ${r.participant_count} participant${r.participant_count !== 1 ? "s" : ""}</span>
                     <span><i data-lucide="scroll-text"></i> ${r.transcript_entries} entries</span>
                     <span><i data-lucide="clock"></i> ${new Date(r.created_at).toLocaleDateString()}</span>
+                    ${r.case_id ? `<span class="cc-linked-case" title="Linked case file — the trial runs with this case's evidence context"><i data-lucide="folder-open"></i> ${escapeHtml(r.case_id)}</span>` : ""}
                 </div>
                 <div class="cc-actions">
                     <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
@@ -1798,6 +1822,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     case_title: newRoomTitle.value.trim(),
                     created_by: newRoomHost.value.trim(),
+                    case_id: newRoomCase ? newRoomCase.value : "",
                 }),
             });
             if (!res.ok) {

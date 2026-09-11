@@ -224,16 +224,29 @@ def transcribe_audio(audio_path: str) -> str | None:
     return " ".join(text.split())
 
 
-def correct_transcript_text(text: str) -> tuple[str, bool]:
+def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, bool]:
     """Clean up a spoken statement with the Ollama chat LLM.
 
     Fixes punctuation/capitalization/grammar and makes the sentence flow
-    naturally without changing its meaning. Returns (corrected_text,
-    used_llm). If Ollama is unavailable the text is returned unchanged.
+    naturally without changing its meaning. context_hint (optional) carries
+    the case context (title, parties, key evidence terms) so the model knows
+    which names/terms are likely to appear in *this* trial — names that match
+    the case file are restored instead of being treated as mishearings.
+    Returns (corrected_text, used_llm). If Ollama is unavailable the text is
+    returned unchanged.
     """
     text = (text or "").strip()
     if not text:
         return "", False
+
+    context_block = ""
+    if context_hint:
+        context_block = (
+            "\nCASE CONTEXT (this specific trial — treat these names and terms "
+            "as highly likely to appear; restore them when the audio is a close "
+            "mishearing, but never invent them when absent):\n"
+            f"{context_hint.strip()[:1200]}\n"
+        )
 
     system_prompt = (
         "You are a senior court reporter finalizing the official record of an "
@@ -263,6 +276,7 @@ def correct_transcript_text(text: str) -> tuple[str, bool]:
         "5. Rewrite informal or fragmented phrasing into clear, formal, neutral "
         "language fit for an official record, keeping the speaker's sequence of "
         "events intact. Do not summarize, shorten, or omit anything.\n\n"
+        f"{context_block}"
         "HARD RULES:\n"
         "- Keep every proper name (persons, companies, courts, places), date, "
         "number, amount, and legal citation EXACTLY as recognised. Never "

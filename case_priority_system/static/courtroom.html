@@ -70,6 +70,7 @@
                 <div class="session-ended-actions">
                     <a class="ghost-btn" id="ended-md-link" href="#"><i data-lucide="download"></i> Export Transcript (.md)</a>
                     <a class="ghost-btn pdf-btn" id="ended-pdf-link" href="#"><i data-lucide="file-text"></i> Download PDF</a>
+                    <a class="ghost-btn report-btn" id="ended-report-link" href="#"><i data-lucide="scan-search"></i> Session Analysis Report</a>
                 </div>
             </div>
             <p class="join-note">
@@ -95,6 +96,9 @@
                 </div>
             </div>
             <div class="court-header-actions">
+                <a class="ghost-btn report-btn" id="session-report-btn" href="/api/court/rooms/PLACEHOLDER/session-report.pdf" title="Download the session analysis report (deception check + face aggregate)" style="display:none;">
+                    <i data-lucide="scan-search"></i><span class="btn-label">Session Report</span>
+                </a>
                 <button class="ghost-btn end-session-btn" id="end-session-btn" title="End the trial session for everyone" aria-label="End session" style="display:none;">
                     <i data-lucide="power"></i><span class="btn-label">End Session</span>
                 </button>
@@ -119,6 +123,21 @@
                 </div>
                 <div id="roster-list" class="roster-list">
                     <!-- participant tiles injected here -->
+                </div>
+
+                <!-- Case context (linked case: parties, evidence, links) -->
+                <div id="case-context" class="case-context card" style="display:none;">
+                    <div class="panel-header">
+                        <h2><i data-lucide="folder-open"></i> Case Context</h2>
+                        <button type="button" class="cc-refresh" id="context-refresh-btn" title="Re-read the case file (new evidence?)" aria-label="Refresh case context" style="display:none;">
+                            <i data-lucide="refresh-cw"></i>
+                        </button>
+                    </div>
+                    <p class="cc-title"><strong id="cc-case-title">—</strong> <span id="cc-case-id" class="cc-id"></span></p>
+                    <p class="cc-line" id="cc-parties"></p>
+                    <div id="cc-evidence" class="cc-evidence"></div>
+                    <p class="cc-line" id="cc-links"></p>
+                    <p class="cc-note"><i data-lucide="info"></i> The court reads every statement against this evidence — anything asserted without support here is flagged in the Session Report.</p>
                 </div>
 
                 <!-- Phase controls (judge only) -->
@@ -166,7 +185,7 @@
                         <button type="button" id="face-start-btn" class="face-btn primary" disabled><i data-lucide="play"></i> Start Analysis</button>
                         <button type="button" id="face-stop-btn" class="face-btn danger" disabled><i data-lucide="square"></i> Stop</button>
                     </div>
-                    <p class="face-note"><i data-lucide="info"></i> Analyzes the selected feed via MediaPipe — your camera or a remote participant's video. Detected nervousness cues (lip pressing, rapid blinking, gaze avoidance, …) are logged to the official transcript.</p>
+                    <p class="face-note"><i data-lucide="info"></i> Analyzes the selected feed via MediaPipe — your camera or a remote participant's video. Cues are counted only while the subject is <strong>speaking</strong> and only when they <strong>persist</strong>; the whole session is aggregated into one summary for the record.</p>
                 </div>
             </section>
 
@@ -199,6 +218,9 @@
                             </button>
                             <button class="link-btn pdf-btn" id="download-transcript-pdf-btn" title="Download full court transcript as PDF">
                                 <i data-lucide="file-text"></i><span class="btn-label">Download PDF</span>
+                            </button>
+                            <button class="link-btn report-btn" id="download-report-btn" title="Download the session analysis report — deception check + face aggregate">
+                                <i data-lucide="scan-search"></i><span class="btn-label">Session Report</span>
                             </button>
                         </div>
                     </div>

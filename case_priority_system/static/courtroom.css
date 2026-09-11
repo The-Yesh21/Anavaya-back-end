@@ -538,6 +538,40 @@ body::before {
 .tile-mic-btn i,
 .tile-video-btn i { width: 16px; height: 16px; }
 
+/* Per-peer live voice volume (roster tile slider) */
+.tile-vol {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+.tile-vol input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 48px;
+    height: 4px;
+    background: var(--color-muted);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+}
+.tile-vol input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    border: 1px solid var(--bg-app);
+}
+.tile-vol input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    border: 1px solid var(--bg-app);
+}
+
 /* Phase controls */
 .phase-controls .phase-buttons {
     display: flex;
@@ -761,6 +795,74 @@ body::before {
     margin: 0;
 }
 .face-note i { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
+
+/* ============================================================
+   CASE CONTEXT (linked case: parties, evidence, links)
+   ============================================================ */
+.case-context { display: flex; flex-direction: column; gap: 10px; }
+.cc-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.cc-id { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-left: 6px; }
+.cc-line { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-secondary); }
+.cc-line strong { color: var(--text-primary); }
+.cc-evidence { display: flex; flex-direction: column; gap: 6px; }
+.cc-ev {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 0.7rem;
+    background: var(--bg-app);
+}
+.cc-ev-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.cc-ev-name i { width: 12px; height: 12px; flex-shrink: 0; }
+.cc-ev-type { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.cc-ev-prio {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 8px;
+    border-radius: var(--radius-pill);
+    margin-left: auto;
+}
+.cc-ev-prio.high { color: var(--color-high); background: var(--color-high-bg); }
+.cc-ev-prio.medium { color: var(--color-medium); background: var(--color-medium-bg); }
+.cc-ev-prio.low { color: var(--color-low); background: var(--color-low-bg); }
+.cc-ev-prio.none { color: var(--text-muted); background: var(--color-muted); }
+.cc-ev-sum { flex-basis: 100%; margin: 2px 0 0; font-size: 11px; line-height: 1.45; color: var(--text-secondary); }
+.cc-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    margin: 0;
+}
+.cc-note i { width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px; }
+.cc-refresh {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 0.5rem;
+    display: inline-flex;
+}
+.cc-refresh:hover { color: var(--color-primary); }
+.cc-refresh i { width: 14px; height: 14px; }
+
+.report-btn { color: var(--color-primary); }
+.report-btn:hover { border-color: var(--color-primary); }
 
 /* ============================================================
    COURT FLOOR (action bar + transcript)
