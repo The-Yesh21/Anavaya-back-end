@@ -1,10 +1,15 @@
 """
-OCR text extraction from images using EasyOCR.
+Text extraction from images.
 
-Extracts readable text from JPG, PNG, WEBP, and BMP images so that
+Extracts readable text from JPG, PNG, WEBP, BMP and TIFF images so that
 evidence documents (train tickets, invoices, receipts, photos of
 physical documents, etc.) can be fed into the case priority pipeline
 and the Chakshu fact-checker.
+
+Engine order (first available wins):
+    1. Qwen2.5-VL via the local Ollama GPU  -- see vision_ocr.py
+    2. EasyOCR                              -- only if the package is installed
+    3. Tesseract via pytesseract            -- only if the binary is installed
 
 Usage:
     from case_priority_system.scripts.image_ocr import extract_text_from_image
@@ -18,6 +23,18 @@ from typing import Optional
 
 # Lazy-loaded EasyOCR reader (model downloads on first use, ~100 MB).
 _reader = None
+
+
+def _vision_ocr():
+    """Return the vision_ocr module, or None when it cannot be imported."""
+    try:
+        from case_priority_system.scripts import vision_ocr
+    except ImportError:
+        try:
+            from scripts import vision_ocr  # type: ignore
+        except ImportError:
+            return None
+    return vision_ocr
 
 
 def _get_reader():
@@ -60,13 +77,32 @@ def _convert_to_png(path: str) -> str:
 
 
 def extract_text_from_image(path: str) -> str:
-    """Extract text from an image file using EasyOCR.
+    """Extract text from an image file.
 
-    Returns the full extracted text as a single string, or an empty
-    string if OCR fails or the image contains no readable text.
+    Tries the Qwen2.5-VL vision model on the local Ollama GPU first, then
+    falls back to EasyOCR and Tesseract if either is installed.
+
+    Returns the full extracted text as a single string, or an empty string
+    if every engine fails or the image contains no readable text.
     """
     if not os.path.exists(path):
         return ""
+
+    # 1. Vision model (Qwen2.5-VL). Reads photographed and scanned documents
+    # far more reliably than classical OCR, and needs no extra Python deps.
+    vision = _vision_ocr()
+    if vision is not None and vision.vision_model_available():
+        try:
+            text = vision.transcribe_image(path)
+            if text.strip():
+                return text
+            # Model ran and found nothing legible: don't burn time on OCR
+            # engines that are almost certainly weaker on the same image.
+            return ""
+        except vision.VisionUnavailable as e:
+            print(f"image_ocr: vision model unavailable ({e}); trying OCR fallbacks.")
+        except Exception as e:
+            print(f"image_ocr: vision model failed on {path}: {e}")
 
     reader = _get_reader()
     if reader is None:
@@ -113,3 +149,55 @@ def _fallback_tesseract(path: str) -> str:
 def is_image_file(filename: str) -> bool:
     """Check if a filename has an image extension we can OCR."""
     return filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"))
+
+
+def image_text_engine() -> str:
+    """Name the engine that extract_text_from_image() would actually use.
+
+    Returns the vision model tag, "easyocr", "tesseract", or "none". Callers
+    use this to tell the user whether an empty result means "your image is
+    unreadable" or "no text engine is installed at all".
+    """
+    vision = _vision_ocr()
+    if vision is not None and vision.vision_model_available():
+        return vision.VISION_MODEL
+    try:
+        import easyocr  # noqa: F401
+        return "easyocr"
+    except ImportError:
+        pass
+    try:
+        import pytesseract
+        pytesseract.get_tesseract_version()
+        return "tesseract"
+    except Exception:
+        pass
+    return "none"
+
+
+def extraction_model(is_image: bool) -> Optional[str]:
+    """Ollama model override for feature extraction, or None for the default.
+
+    Thin passthrough to vision_ocr.extraction_model() that tolerates the
+    vision module being absent, so callers need only import from image_ocr.
+    """
+    vision = _vision_ocr()
+    if vision is None:
+        return None
+    return vision.extraction_model(is_image)
+
+
+def no_text_message(filename: str) -> str:
+    """Build the user-facing error for an image that yielded no text."""
+    engine = image_text_engine()
+    if engine == "none":
+        vision = _vision_ocr()
+        model = vision.VISION_MODEL if vision is not None else "qwen2.5vl:3b"
+        return (
+            f"'{filename}' could not be read: no image text engine is available. "
+            f"Start Ollama and run `ollama pull {model}` to enable image reading."
+        )
+    return (
+        f"'{filename}' contains no extractable text ({engine} found nothing legible). "
+        "Make sure the text in the image is in focus and not cropped."
+    )

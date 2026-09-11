@@ -1,0 +1,10 @@
+digraph DecisionPath {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fillcolor="#F7FBFF", color="#4B5563", fontname="Arial"];
+  edge [color="#6B7280", fontname="Arial"];
+  n0 [label="Node 0\nSeverity is one of: Fatal, Major\nCase value: 3 (No Injury)\nDecision: No"];
+  n4 [label="Node 4\nInfluence / power imbalance is one of: High\nCase value: 0 (High)\nDecision: Yes"];
+  n0 -> n4 [label="step 1"];
+  n5 [label="Leaf node 5\nPredicted priority: Medium\nSamples: 435"];
+  n4 -> n5 [label="step 2"];
+}

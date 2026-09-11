@@ -228,9 +228,44 @@
                                 <p id="workspace-rationale" class="workspace-rationale"></p>
                                 <div class="workspace-actions">
                                     <button class="lobby-create-btn" id="workspace-analyze-btn" style="width:auto;"><i data-lucide="sparkles"></i> Analyze All Documents</button>
+                                    <button class="lobby-delete-btn" id="workspace-delete-btn" style="width:auto;"><i data-lucide="trash-2"></i> Delete Case</button>
                                 </div>
                             </div>
                             <div class="workspace-columns">
+                                <div class="workspace-card card">
+                                    <div class="panel-header">
+                                        <h2><i data-lucide="scale"></i> Whole-Case Analysis</h2>
+                                        <span id="workspace-case-level-count" class="roster-count"></span>
+                                    </div>
+                                    <div id="case-level-empty" class="transcript-empty" style="display:none;">
+                                        Run “Analyze All Documents” — every document's facts are merged and the Decision Tree runs once on the combined evidence to give one whole-case verdict.
+                                    </div>
+                                    <div id="case-level-body" style="display:none;">
+                                        <div class="case-level-head">
+                                            <span id="case-level-priority-badge" class="priority-pill">—</span>
+                                            <span class="case-level-label">whole-case verdict · tree on merged evidence</span>
+                                        </div>
+                                        <p id="case-level-narrative" class="case-level-narrative"></p>
+                                        <div id="case-level-chips" class="case-level-chips"></div>
+                                        <details class="case-level-section" open>
+                                            <summary><i data-lucide="link-2"></i> Corroboration map</summary>
+                                            <ul id="case-level-corroboration" class="case-level-corroboration"></ul>
+                                        </details>
+                                        <details class="case-level-section">
+                                            <summary><i data-lucide="git-merge"></i> How features were merged</summary>
+                                            <ul id="case-level-merge" class="case-level-merge"></ul>
+                                        </details>
+                                        <details class="case-level-section">
+                                            <summary><i data-lucide="scale-3d"></i> Case-level constitutional opinion</summary>
+                                            <p id="case-level-opinion" class="case-level-opinion"></p>
+                                        </details>
+                                        <div class="case-level-actions">
+                                            <a id="case-level-report-btn" class="lobby-create-btn case-level-report-btn" href="#" download>
+                                                <i data-lucide="file-down"></i> Whole-Case PDF Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="workspace-card card">
                                     <div class="panel-header">
                                         <h2><i data-lucide="folder-open"></i> Documents &amp; Evidence</h2>
@@ -527,14 +562,21 @@
                                 <p class="lobby-desc">Create a courtroom session. Share the invite link with the other counsel to join the live trial.</p>
                                 <form id="create-room-form" class="lobby-form">
                                     <label class="lobby-field">
+                                        <span>Case file (optional — links the trial to a case)</span>
+                                        <select id="new-room-case">
+                                            <option value="">No linked case — free-form trial</option>
+                                        </select>
+                                    </label>
+                                    <label class="lobby-field">
                                         <span>Trial title</span>
-                                        <input type="text" id="new-room-title" placeholder="e.g. State vs. Accused — Theft Trial" required maxlength="100" autocomplete="off">
+                                        <input type="text" id="new-room-title" placeholder="e.g. State vs. Accused — Theft Trial" maxlength="100" autocomplete="off">
                                     </label>
                                     <label class="lobby-field">
                                         <span>Your name (as Host/Judge)</span>
                                         <input type="text" id="new-room-host" placeholder="e.g. Justice Rao" required maxlength="60" autocomplete="off">
                                     </label>
                                     <button type="submit" class="lobby-create-btn"><i data-lucide="gavel"></i> Create Courtroom</button>
+                                    <p class="lobby-hint"><i data-lucide="info"></i> Link a case file and the courtroom starts with the evidence context on screen — every statement is then checked against the collected evidence in the Session Report.</p>
                                 </form>
                                 <div id="lobby-create-success" class="lobby-success" style="display:none;">
                                     <p><i data-lucide="check-circle"></i> <span id="success-text">Room created!</span></p>

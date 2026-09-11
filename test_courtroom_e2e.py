@@ -26,7 +26,7 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "websocket-client", "-q"])
     import websocket
 
-BASE_HTTP = "http://127.0.0.1:8000"
+BASE_HTTP = os.environ.get("ANAVAYA_TEST_BASE", "http://127.0.0.1:8000")
 WS_TIMEOUT = 6
 
 
@@ -118,7 +118,7 @@ clients = []
 for name, role in participants:
     ws = websocket.WebSocket()
     ws.settimeout(WS_TIMEOUT)
-    ws.connect(f"ws://127.0.0.1:8000/ws/court/{rid}")
+    ws.connect(BASE_HTTP.replace("http","ws") + f"/ws/court/{rid}")
     ws.send(json.dumps({"type": "join", "name": name, "role": role}))
     m = json.loads(ws.recv())
     assert m["type"] == "room_state", f"Expected room_state, got {m['type']}"
@@ -232,7 +232,7 @@ assert relayed, "WebRTC signal was not relayed to the target!"
 print("\n== Step 14: Duplicate role rejection ==")
 ws2 = websocket.WebSocket()
 ws2.settimeout(WS_TIMEOUT)
-ws2.connect(f"ws://127.0.0.1:8000/ws/court/{rid}")
+ws2.connect(BASE_HTTP.replace("http","ws") + f"/ws/court/{rid}")
 ws2.send(json.dumps({"type": "join", "name": "Imposter", "role": "Judge"}))
 m = json.loads(ws2.recv())
 assert m["type"] == "error", f"Expected error for duplicate role, got {m['type']}"

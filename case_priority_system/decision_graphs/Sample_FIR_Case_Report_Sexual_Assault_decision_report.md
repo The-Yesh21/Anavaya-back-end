@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>Sample_FIR_Case_Report_Sexual_Assault.pdf</h2>
-  <p>The complainant reports that the victim, a female aged [Age], was subjected to a sexual assault without her consent. The incident occurred at [Location] on [Date & Time]. The victim informed a trusted individual and the matter was brought before the police. The complainant requests the investigation of the allegations, appropriate medical care, and legal action against the accused if the allegations are substantiated. This case falls under the Criminal/Violent category as it involves a serious assault on a vulnerable female victim.</p>
+  <p>Following the alleged assault, the victim informed a trusted individual, and the matter was brought before the police. The complainant requests that the allegations be investigated, evidence be collected in accordance with law, the victim receive appropriate medical care and support. This is a major-severity matter. This falls under Criminal/Violent as it involves criminal offenses, violence, or matters affecting life and liberty. Primary constitutional articles engaged: Article 21, Article 22, Article 20.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>

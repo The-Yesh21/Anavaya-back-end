@@ -87,6 +87,37 @@ class TranscriptEntry:
 
 
 @dataclass
+class FaceSummary:
+    """Whole-session face/expression result for one analyzed feed.
+
+    Recorded once when the observer stops the analyzer (or the session
+    ends). counters/peak/active_durations carry the *aggregate* evidence for
+    the whole run — a brief spike never defines the person; the court record
+    keeps the balanced, session-long view.
+    """
+
+    subject: str                  # participant name of the analyzed feed
+    subject_role: str             # display role of that participant
+    observer: str = ""            # who ran the analysis
+    analyzed_source: str = ""     # "self" or participant_id
+    started_at: str = ""
+    ended_at: str = ""
+    duration_sec: int = 0
+    time_speaking_sec: int = 0    # portion where the subject was actually talking
+    calm_sec: int = 0             # session time with no active cue
+    peak_index: int = 0           # peak nervousness index (0-100)
+    mean_index: int = 0           # session-average index (only while a face was visible)
+    end_index: int = 0            # last index before stop
+    peak_during_speech: bool = False  # whether the peak coincided with speech
+    counters: dict = field(default_factory=dict)   # cue name -> seconds active
+    active_durations: dict = field(default_factory=dict)  # kept for the PDF renderer
+    cue_events: int = 0           # number of distinct cue episodes
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class Room:
     """A single trial session."""
 
@@ -98,6 +129,13 @@ class Room:
     status: str = "live"       # "live" | "ended" — ended rooms reject new joins
     participants: list[Participant] = field(default_factory=list)
     transcript: list[TranscriptEntry] = field(default_factory=list)
+    # Optional link to a registered case (ANV-…). When set, the courtroom
+    # client is shown the case context (parties, evidence, links) and the
+    # session deception report can check statements against that case's
+    # collected evidence.
+    case_id: str = ""
+    case_context: dict = field(default_factory=dict)  # built by case_manager.build_case_context()
+    face_summaries: list[FaceSummary] = field(default_factory=list)
 
     # ---- roster helpers -------------------------------------------------
 
@@ -157,6 +195,9 @@ class Room:
             "status": self.status,
             "participants": [p.to_dict() for p in self.participants],
             "transcript": [e.to_dict() for e in self.transcript],
+            "case_id": self.case_id,
+            "case_context": self.case_context,
+            "face_summaries": [f.to_dict() for f in self.face_summaries],
         }
 
     def public_state(self) -> dict:
@@ -164,11 +205,14 @@ class Room:
         return {
             "room_id": self.room_id,
             "case_title": self.case_title,
+            "case_id": self.case_id,
+            "case_context": self.case_context,
             "phase": self.phase,
             "phase_options": TRIAL_PHASES,
             "status": self.status,
             "participants": [p.to_dict() for p in self.participants],
             "transcript": [e.to_dict() for e in self.transcript],
+            "face_summaries": [f.to_dict() for f in self.face_summaries],
         }
 
 
@@ -187,21 +231,57 @@ class CourtroomManager:
 
     # ---- room lifecycle ------------------------------------------------
 
-    def create_room(self, case_title: str, created_by: str) -> Room:
+    def create_room(self, case_title: str, created_by: str, case_id: str = "",
+                    case_manager=None) -> Room:
+        """Open a trial room, optionally linked to a registered case (ANV-…).
+
+        When case_id is given and resolvable, the room stores the id and a
+        case context snapshot (parties, evidence, how the evidence links
+        together) so every participant sees what the trial is about and the
+        deception report can check statements against the actual evidence.
+        """
         room_id = self._new_room_id()
         room = Room(
             room_id=room_id,
             case_title=case_title.strip() or "Untitled Trial",
             created_at=_now_iso(),
             created_by=created_by.strip() or "Host",
+            case_id=(case_id or "").strip(),
         )
+        if room.case_id and case_manager is not None:
+            case = case_manager.get_case(room.case_id)
+            if case is not None:
+                room.case_context = case_manager.build_case_context(room.case_id)
+                # A linked trial is titled after the case unless the host typed one.
+                if not case_title.strip():
+                    room.case_title = case.title
+            else:
+                room.case_id = ""
         # Seed the transcript with a system line.
         room.add_entry("System", "system", "system",
                        f"Trial '{room.case_title}' opened by {room.created_by}.")
+        if room.case_id:
+            room.add_entry("System", "system", "system",
+                           f"Linked to case {room.case_id} — the court record now has the case file context.")
         with self._lock:
             self._rooms[room_id] = room
             self._persist(room)
         return room
+
+    def refresh_case_context(self, room_id: str, case_manager=None) -> Optional[dict]:
+        """Rebuild the linked case's context snapshot (evidence changed).
+        Returns the fresh context, or None when the room has no (valid) link."""
+        room = self.get_room(room_id)
+        if room is None or not room.case_id or case_manager is None:
+            return None
+        case = case_manager.get_case(room.case_id)
+        if case is None:
+            return None
+        ctx = case_manager.build_case_context(room.case_id)
+        with self._lock:
+            room.case_context = ctx
+            self._persist(room)
+        return ctx
 
     def get_room(self, room_id: str) -> Optional[Room]:
         """Active room by id, falling back to disk if the server restarted."""
@@ -391,6 +471,47 @@ class CourtroomManager:
             self._persist(room)
         return entry
 
+    def record_face_summary(self, room_id: str, summary: dict) -> Optional[FaceSummary]:
+        """Store the whole-session face/expression result for one analyzed feed.
+
+        Called when the observer stops the analyzer (or the session ends) so
+        the official record carries the balanced, session-long aggregate
+        instead of only momentary cue logs.
+        """
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        try:
+            fs = FaceSummary(
+                subject=str(summary.get("subject", "Unknown")),
+                subject_role=str(summary.get("subject_role", "")),
+                observer=str(summary.get("observer", "")),
+                analyzed_source=str(summary.get("analyzed_source", "")),
+                started_at=str(summary.get("started_at", "")),
+                ended_at=str(summary.get("ended_at", "")),
+                duration_sec=int(summary.get("duration_sec", 0) or 0),
+                time_speaking_sec=int(summary.get("time_speaking_sec", 0) or 0),
+                calm_sec=int(summary.get("calm_sec", 0) or 0),
+                peak_index=int(summary.get("peak_index", 0) or 0),
+                mean_index=int(summary.get("mean_index", 0) or 0),
+                end_index=int(summary.get("end_index", 0) or 0),
+                peak_during_speech=bool(summary.get("peak_during_speech", False)),
+                counters=dict(summary.get("counters", {}) or {}),
+                active_durations=dict(summary.get("active_durations", {}) or {}),
+                cue_events=int(summary.get("cue_events", 0) or 0),
+            )
+        except (TypeError, ValueError):
+            return None
+        # Replace a previous summary for the same analyzed source (re-runs).
+        with self._lock:
+            room.face_summaries = [
+                f for f in room.face_summaries
+                if f.analyzed_source != fs.analyzed_source
+            ]
+            room.face_summaries.append(fs)
+            self._persist(room)
+        return fs
+
     def record_behavior(self, room_id: str, participant_id: str, text: str) -> Optional[TranscriptEntry]:
         """Log a face/expression analysis observation (nervousness cue).
 
@@ -459,6 +580,7 @@ class CourtroomManager:
             "transcript_entries": len(room.transcript),
             "status": room.status,
             "active": room.room_id in self._rooms,
+            "case_id": room.case_id,
         }
 
     def _persist(self, room: Room) -> None:
@@ -504,7 +626,40 @@ def room_to_markdown(room: Room) -> str:
     lines.append(f"- **Opened:** {_format_dt(room.created_at)}")
     lines.append(f"- **Opened by:** {room.created_by}")
     lines.append(f"- **Final phase:** {room.phase}")
+    if room.case_id:
+        lines.append(f"- **Linked case:** {room.case_id}")
     lines.append("")
+
+    if room.case_context:
+        lines.append("## Case Context")
+        lines.append("")
+        ctx = room.case_context
+        lines.append(f"- **Case:** {ctx.get('title', '')} ({ctx.get('case_id', '')})")
+        if ctx.get("case_level_priority"):
+            lines.append(f"- **Whole-case priority:** {ctx.get('case_level_priority')} (Decision Tree on merged evidence)")
+            if ctx.get("case_level_summary"):
+                lines.append(f"- **Whole-case summary:** {ctx.get('case_level_summary')}")
+        elif ctx.get("aggregate_priority"):
+            lines.append(f"- **Aggregate priority:** {ctx.get('aggregate_priority')}")
+        parties = ctx.get("parties") or []
+        if parties:
+            lines.append(f"- **Main parties:** {', '.join(parties)}")
+        lines.append("")
+        if ctx.get("evidence"):
+            lines.append("### Evidence on record")
+            lines.append("")
+            for ev in ctx["evidence"]:
+                lines.append(
+                    f"- **{ev.get('filename', '')}** ({ev.get('doc_type', '')}) — "
+                    f"{ev.get('priority') or 'not analysed'}. {ev.get('summary', '')}"
+                )
+            lines.append("")
+        if ctx.get("evidence_links"):
+            lines.append("### How the evidence links together")
+            lines.append("")
+            lines.append(ctx["evidence_links"])
+            lines.append("")
+
     if room.participants:
         lines.append("## Participants")
         lines.append("")
@@ -530,6 +685,29 @@ def room_to_markdown(room: Room) -> str:
             if entry.audio_file:
                 lines.append(f"    🎙 _audio: {entry.audio_file}_")
         lines.append("")
+
+    if room.face_summaries:
+        lines.append("## Face & Expression — Session Summary")
+        lines.append("")
+        for f in room.face_summaries:
+            lines.append(f"### {f.subject} ({f.subject_role})")
+            lines.append("")
+            lines.append(
+                f"- Observed for {f.duration_sec}s ({f.time_speaking_sec}s speaking) — "
+                f"peak index {f.peak_index}%, session average {f.mean_index}%."
+            )
+            lines.append(
+                f"- Calm {f.calm_sec}s of {f.duration_sec}s; "
+                f"{f.cue_events} cue episode(s)."
+            )
+            if f.counters:
+                totals = ", ".join(
+                    f"{name.replace('_', ' ')} {int(sec)}s"
+                    for name, sec in sorted(f.counters.items(), key=lambda kv: -kv[1])
+                )
+                lines.append(f"- Cues: {totals}.")
+            lines.append("")
+
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -556,6 +734,7 @@ def _new_id(prefix: str) -> str:
 def _room_from_dict(data: dict) -> Room:
     participants = [Participant(**p) for p in data.get("participants", [])]
     transcript = [TranscriptEntry(**e) for e in data.get("transcript", [])]
+    face_summaries = [FaceSummary(**f) for f in data.get("face_summaries", [])]
     return Room(
         room_id=data["room_id"],
         case_title=data.get("case_title", "Untitled Trial"),
@@ -565,6 +744,9 @@ def _room_from_dict(data: dict) -> Room:
         status=data.get("status", "live"),
         participants=participants,
         transcript=transcript,
+        case_id=data.get("case_id", ""),
+        case_context=data.get("case_context", {}),
+        face_summaries=face_summaries,
     )
 
 

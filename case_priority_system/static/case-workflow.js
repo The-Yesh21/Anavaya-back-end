@@ -75,11 +75,45 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="registry-doc-count">${(c.documents || []).length} docs</span>
                         <i data-lucide="chevron-down" class="registry-chevron"></i>
                     </div>
+                    <button class="registry-case-delete" data-case-id="${esc(c.case_id)}" title="Delete this case and all its evidence"><i data-lucide="trash-2"></i></button>
                 </div>
                 <ul class="registry-docs">${docs || `<li class="registry-doc-empty">No documents yet</li>`}</ul>
             </div>`;
         }).join("");
         if (typeof lucide !== "undefined") lucide.createIcons();
+
+        // Delete button on each registry card.
+        registryList.querySelectorAll(".registry-case-delete").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const caseId = btn.getAttribute("data-case-id");
+                if (!confirm(`Permanently delete case ${caseId} and all its evidence? This cannot be undone.`)) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || "Delete failed");
+                    }
+                    fetchRegistry();
+                    try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+                    // If this case was the currently open one, close the workspace.
+                    if (currentWorkspaceCaseId === caseId) {
+                        $("case-workspace").style.display = "none";
+                        $("case-workspace-empty").style.display = "block";
+                        currentWorkspaceCaseId = null;
+                        UI.setCurrentCaseId("");
+                    }
+                } catch (err) {
+                    alert("Failed to delete case: " + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="trash-2"></i>';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }
+            });
+        });
 
         // Head click → expand + open the case workspace + populate Analysis tab
         registryList.querySelectorAll(".registry-case-head").forEach((head) => {
@@ -324,6 +358,107 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         }
         if (typeof lucide !== "undefined") lucide.createIcons();
+        renderCaseLevelPanel(c);
+    }
+
+    // ---- Whole-Case Analysis panel ---------------------------------
+    // One verdict over ALL evidence: features merged deterministically,
+    // Decision Tree run once on the merged set (see whole_case_analysis.py).
+    async function renderCaseLevelPanel(c) {
+        const emptyEl = $("case-level-empty");
+        const bodyEl = $("case-level-body");
+        const countEl = $("workspace-case-level-count");
+        if (!emptyEl || !bodyEl) return;
+        const analysed = (c.documents || []).filter((d) => d.priority).length;
+        const total = (c.documents || []).length;
+        countEl.textContent = analysed === total && total > 0 ? `${analysed}/${total} docs analysed` : (total ? `${analysed}/${total} docs analysed` : "");
+        if (!analysed) {
+            emptyEl.style.display = "block";
+            bodyEl.style.display = "none";
+            return;
+        }
+        emptyEl.style.display = "none";
+        bodyEl.style.display = "block";
+        let cl = null;
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(c.case_id)}/case-analysis`);
+            if (!res.ok) throw new Error("failed");
+            const data = await res.json();
+            if (data.has_analysis) cl = data;
+        } catch (_) { /* panel stays with what the case payload carries */ }
+        // Fallback: the case detail payload itself carries case_level.
+        if (!cl && c.case_level && c.case_level.priority) {
+            cl = {
+                priority: c.case_level.priority,
+                rationale: c.case_level.rationale || "",
+                features: c.case_level.features || {},
+                merge_info: c.case_level.merge_info || {},
+                corroboration: c.case_level.corroboration || {},
+                corroboration_text: c.case_level.corroboration_text || "",
+                report_pdf: c.case_level.report_pdf || "",
+                constitutional: c.case_level.constitutional || {},
+            };
+        }
+        if (!cl) {
+            emptyEl.style.display = "block";
+            bodyEl.style.display = "none";
+            return;
+        }
+        const prioEl = $("case-level-priority-badge");
+        prioEl.className = `priority-pill ${prioClass(cl.priority)}`;
+        prioEl.textContent = `${cl.priority} Priority`;
+        $("case-level-narrative").textContent = (cl.features && cl.features.plain_summary) || cl.rationale || "";
+
+        // Merged classification chips.
+        const chipsEl = $("case-level-chips");
+        const f = cl.features || {};
+        chipsEl.innerHTML = [
+            ["Category", f.case_category],
+            ["Case type", f.crime_type],
+            ["Severity", f.severity],
+            ["Vulnerability", f.vulnerability],
+            ["Influence", f.influence],
+            ["Parties", f.main_parties],
+        ].filter(([, v]) => v).map(([label, v]) =>
+            `<span class="case-level-chip"><strong>${esc(label)}:</strong> ${esc(String(v))}</span>`
+        ).join("");
+
+        // Corroboration map.
+        const corrEl = $("case-level-corroboration");
+        let corrHtml = "";
+        const pairs = (cl.corroboration && cl.corroboration.pairs) || [];
+        const standalone = (cl.corroboration && cl.corroboration.standalone) || [];
+        pairs.forEach((p) => {
+            corrHtml += `<li><strong>${esc(p.a)}</strong> ↔ <strong>${esc(p.b)}</strong> — shared ${esc(p.shared.join(", "))}` +
+                (p.shared_dates && p.shared_dates.length ? ` (dates: ${esc(p.shared_dates.join(", "))})` : "") +
+                (p.shared_places && p.shared_places.length ? ` (places: ${esc(p.shared_places.join(", "))})` : "") +
+                (p.shared_parties && p.shared_parties.length ? ` (parties: ${esc(p.shared_parties.join(", "))})` : "") +
+                `</li>`;
+        });
+        standalone.forEach((s) => {
+            corrHtml += `<li class="standalone"><strong>${esc(s.filename)}</strong> stands alone — no shared date, place or party with any other document.</li>`;
+        });
+        corrEl.innerHTML = corrHtml || "<li>Not enough analysed documents to cross-compare yet.</li>";
+
+        // Merge provenance.
+        const mergeEl = $("case-level-merge");
+        const mi = cl.merge_info || {};
+        const mergeRows = ["case_category", "crime_type", "severity", "vulnerability", "influence"]
+            .map((k) => mi[k]).filter(Boolean)
+            .map((info) => `<li><strong>${esc(info.value)}</strong> — ${esc(info.rule)}; driven by ${esc((info.sources || []).join(", ")) || "—"}</li>`)
+            .join("");
+        mergeEl.innerHTML = mergeRows || "<li>Provenance unavailable.</li>";
+
+        // Case-level constitutional opinion.
+        const con = cl.constitutional || {};
+        $("case-level-opinion").textContent = con.state_perspective_opinion || "Not available yet.";
+
+        // PDF report link.
+        const reportBtn = $("case-level-report-btn");
+        reportBtn.href = `/api/cases/${encodeURIComponent(c.case_id)}/case-report.pdf`;
+        reportBtn.style.display = "inline-flex";
+
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     // ---- Evidence upload (from inside the case workspace) -----------
@@ -410,6 +545,36 @@ document.addEventListener("DOMContentLoaded", () => {
             // Re-enable only when files are still queued (empty batch = done).
             btn.disabled = wsPending.length > 0;
             btn.innerHTML = '<i data-lucide="upload"></i> Upload Evidence';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    // Delete the open case (registry + evidence + Excel rows).
+    // Only the aggregate view is shown; the real removal is server-side.
+    $("workspace-delete-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        if (!confirm(`Permanently delete case ${currentWorkspaceCaseId} and all its evidence? This cannot be undone.`)) return;
+        const btn = $("workspace-delete-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Deleting…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}`, { method: "DELETE" });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Delete failed");
+            }
+            // Return to the dashboard; the case workspace will be empty.
+            $("case-workspace").style.display = "none";
+            $("case-workspace-empty").style.display = "block";
+            currentWorkspaceCaseId = null;
+            UI.setCurrentCaseId("");
+            fetchRegistry();
+            try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+        } catch (err) {
+            alert("Failed to delete case: " + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="trash-2"></i> Delete Case';
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
     });

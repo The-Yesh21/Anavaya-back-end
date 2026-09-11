@@ -379,17 +379,29 @@ async def upload_case(file: UploadFile = File(...)):
         if preload_ollama_model is not None:
             asyncio.create_task(asyncio.to_thread(preload_ollama_model))
 
-        # 1. Extract text (PDF via PyMuPDF, images via EasyOCR)
+        # 1. Extract text (PDF via PyMuPDF, images via the Qwen2.5-VL vision model)
+        extraction_model = None
         if is_image:
             try:
-                from case_priority_system.scripts.image_ocr import extract_text_from_image
+                from case_priority_system.scripts.image_ocr import (
+                    extract_text_from_image,
+                    no_text_message,
+                    extraction_model as _extraction_model,
+                )
             except ImportError:
-                from scripts.image_ocr import extract_text_from_image  # type: ignore
+                from scripts.image_ocr import (  # type: ignore
+                    extract_text_from_image,
+                    no_text_message,
+                    extraction_model as _extraction_model,
+                )
             text = extract_text_from_image(temp_path)
+            extraction_model = _extraction_model(True)
+            if not text.strip():
+                raise HTTPException(status_code=400, detail=no_text_message(filename))
         else:
             text = extract_text_from_pdf(temp_path)
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
+            if not text.strip():
+                raise HTTPException(status_code=400, detail="The PDF contains no text. Please upload a searchable PDF.")
 
         # 2. Extract features. With an NVIDIA GPU present (or ANAVAYA_USE_LLM=1)
         # the local Ollama LLM runs on the GPU for richer extraction; otherwise
@@ -616,8 +628,37 @@ def get_cases():
 
 
 @app.delete("/api/cases/{case_file}")
-def delete_case(case_file: str):
-    """Delete a case row from the Excel file by its Case_File name."""
+def delete_case_by_file(case_file: str):
+    """Delete a case row from the Excel file by its Case_File name.
+
+    When case_file is actually a system-assigned case id (ANV-YYYY-NNNN)
+    this delegates to the registry delete so the full case (JSON + evidence
+    + sessions) is removed, not just the Excel rows.
+    """
+    # If it looks like a case id, handle it as a full case deletion.
+    if case_manager is not None and case_manager.valid_case_id(case_file):
+        case = _get_case_or_404(case_file)
+        try:
+            case_manager.delete_case(case_file)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        if os.path.exists(EXCEL_PATH):
+            try:
+                df = pd.read_excel(EXCEL_PATH)
+                before = len(df)
+                if "Case_ID" in df.columns:
+                    df = df[df["Case_ID"] != case_file]
+                doc_filenames = {d.filename for d in case.documents}
+                if "Case_File" in df.columns and doc_filenames:
+                    df = df[~df["Case_File"].isin(doc_filenames)]
+                if len(df) < before:
+                    df.to_excel(EXCEL_PATH, index=False)
+                    _cases_df_cache.update({"df": None})
+            except Exception as e:
+                print(f"case delete: Excel cleanup failed for {case_file}: {e}")
+        return {"deleted": case_file, "title": case.title}
+
+    # Otherwise it's a Case_File name — just remove the Excel row.
     if not os.path.exists(EXCEL_PATH):
         raise HTTPException(status_code=404, detail="Excel results file not found.")
     try:
@@ -627,7 +668,7 @@ def delete_case(case_file: str):
         if len(df) == before:
             raise HTTPException(status_code=404, detail=f"Case '{case_file}' not found.")
         df.to_excel(EXCEL_PATH, index=False)
-        _cases_df_cache.update({"df": None})  # invalidate cache
+        _cases_df_cache.update({"df": None})
         return {"deleted": case_file, "remaining": len(df)}
     except HTTPException:
         raise
@@ -828,6 +869,35 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
         })
     if not rows:
         return
+    # Whole-case verdict row: the case's own analysis (Decision Tree run once
+    # on features merged across ALL documents). One row per case so the
+    # dashboard also shows the case as a whole, not only per-document rows.
+    cl = getattr(case, "case_level", None) or {}
+    cl_feats = cl.get("features", {}) or {}
+    if cl and cl_feats:
+        cl_con = cl.get("constitutional", {}) or {}
+        rows.append({
+            'Case_File': f"[WHOLE CASE] {case.title}",
+            'Case_ID': case_id,
+            'Document_Type': 'Whole Case',
+            'Main_Parties': cl_feats.get('main_parties', 'Unknown'),
+            'Plain_Language_Summary': cl_feats.get('plain_summary', 'N/A'),
+            'Constitutional_Justification': cl_con.get('state_perspective_opinion', ''),
+            'Priority_Rules_Applied': cl_con.get('priority_rules_detailed', ''),
+            'Decision_Report': cl.get('decision_report', ''),
+            'Decision_Path': cl.get('decision_report', ''),
+            'Predicted_Priority': cl.get('priority'),
+            'Category': cl_feats.get('case_category', 'N/A'),
+            'Broad_Model_Category': cl_feats.get('crime_type', 'N/A'),
+            'Severity': cl_feats.get('severity', 'N/A'),
+            'Vulnerability': cl_feats.get('vulnerability', 'N/A'),
+            'Influence': cl_feats.get('influence', 'N/A'),
+            'State_Duty_Analysis': cl_con.get('state_duty_analysis', ''),
+            'Rights_Balancing_Analysis': cl_con.get('balancing_analysis', ''),
+            'Constitutional_Rights_Engaged': cl_con.get('constitutional_rights_engaged', []),
+            'Applicable_Doctrines': cl_con.get('applicable_doctrines', []),
+            'Report_PDF': cl.get('report_pdf', ''),
+        })
     if os.path.exists(EXCEL_PATH):
         excel_df = pd.read_excel(EXCEL_PATH)
     else:
@@ -835,6 +905,11 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
     stale_files = {r['Case_File'] for r in rows}
     if 'Case_File' in excel_df.columns and not excel_df.empty:
         excel_df = excel_df[~excel_df['Case_File'].isin(stale_files)]
+        # Also drop any previous whole-case row for this case id (covers
+        # re-analysis after a title change).
+        if 'Case_ID' in excel_df.columns:
+            is_whole = excel_df['Case_File'].astype(str).str.startswith('[WHOLE CASE]')
+            excel_df = excel_df[~(is_whole & (excel_df['Case_ID'] == case_id))]
     new_df = pd.DataFrame(rows)
     excel_df = pd.concat([excel_df, new_df], ignore_index=True)
     excel_df.to_excel(EXCEL_PATH, index=False)
@@ -850,6 +925,39 @@ def _get_case_or_404(case_id: str):
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found.")
     return case
+
+
+@app.delete("/api/cases/{case_id}")
+def delete_case_by_id(case_id: str):
+    """Delete a case from the registry (JSON + evidence files + sessions).
+
+    Also removes every Excel row tagged with this Case_ID so the dashboard
+    board stays in sync. The case id must be the system-assigned
+    ANV-YYYY-NNNN form.
+    """
+    case = _get_case_or_404(case_id)
+    try:
+        case_manager.delete_case(case_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    # Remove every Excel row that belonged to this case.
+    if os.path.exists(EXCEL_PATH):
+        try:
+            df = pd.read_excel(EXCEL_PATH)
+            before = len(df)
+            if "Case_ID" in df.columns:
+                df = df[df["Case_ID"] != case_id]
+            # Also drop any row whose Case_File matches a document filename
+            # from this case (belt-and-suspenders for single-upload cases).
+            doc_filenames = {d.filename for d in case.documents}
+            if "Case_File" in df.columns and doc_filenames:
+                df = df[~df["Case_File"].isin(doc_filenames)]
+            if len(df) < before:
+                df.to_excel(EXCEL_PATH, index=False)
+                _cases_df_cache.update({"df": None})
+        except Exception as e:
+            print(f"case delete: Excel cleanup failed for {case_id}: {e}")
+    return {"deleted": case_id, "title": case.title}
 
 
 @app.post("/api/cases")
@@ -904,7 +1012,15 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
 
 @app.post("/api/cases/{case_id}/analyze")
 async def analyze_case(case_id: str):
-    """Analyse every unanalysed document and refresh the aggregate priority."""
+    """Analyse every unanalysed document, then compute the WHOLE-CASE analysis.
+
+    Two layers:
+    1. per-document pipeline (unchanged) — each document keeps its own
+       features, priority and report;
+    2. whole-case analysis (the case's own verdict) — per-document features
+       merged deterministically, Decision Tree run ONCE on the merged set
+       (see scripts/whole_case_analysis.py).
+    """
     # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
     if preload_ollama_model is not None:
         asyncio.create_task(asyncio.to_thread(preload_ollama_model))
@@ -917,12 +1033,68 @@ async def analyze_case(case_id: str):
                 case_manager.analyze_document(case, doc, model_data)
             except Exception as e:
                 errors.append(f"{doc.filename}: {str(e)}")
-    case_manager.refresh_aggregate(case)
+    case_manager.refresh_aggregate(case, model_data=model_data)
     _append_case_documents_to_excel(case, case_id)
     payload = case.to_dict()
     if errors:
         payload["analysis_errors"] = errors
     return payload
+
+
+@app.get("/api/cases/{case_id}/case-analysis")
+def get_case_analysis(case_id: str):
+    """Whole-case analysis: one verdict computed over ALL evidence.
+
+    The Decision Tree runs once on features merged deterministically from every
+    analysed document — plus the corroboration map (which documents support
+    each other) and the case-level constitutional opinion.
+    """
+    case = _get_case_or_404(case_id)
+    cl = case.case_level or {}
+    if not cl:
+        analysed = [d for d in case.documents if d.analysis]
+        if analysed:
+            # Documents analysed but the whole-case pass never ran (old data):
+            # compute it now so the panel is never silently empty.
+            case_manager.refresh_aggregate(case, model_data=model_data)
+            cl = case.case_level or {}
+    return {
+        "case_id": case.case_id,
+        "title": case.title,
+        "has_analysis": bool(cl),
+        "priority": cl.get("priority"),
+        "rationale": cl.get("rationale", ""),
+        "features": cl.get("features", {}),
+        "merge_info": cl.get("merge_info", {}),
+        "corroboration": cl.get("corroboration", {}),
+        "corroboration_text": cl.get("corroboration_text", ""),
+        "per_document": cl.get("per_document", []),
+        "constitutional": cl.get("constitutional", {}),
+        "report_pdf": cl.get("report_pdf", ""),
+        "computed_at": cl.get("computed_at", ""),
+        "aggregate": {
+            "priority": case.aggregate_priority,
+            "rationale": case.aggregate_rationale,
+        },
+    }
+
+
+@app.get("/api/cases/{case_id}/case-report.pdf")
+def get_case_level_report(case_id: str):
+    """Download the whole-case PDF report (all evidence, one verdict)."""
+    case = _get_case_or_404(case_id)
+    cl = case.case_level or {}
+    pdf_path = cl.get("report_pdf", "")
+    if not pdf_path or not os.path.exists(pdf_path):
+        if not [d for d in case.documents if d.analysis]:
+            raise HTTPException(status_code=404, detail="No analysed documents yet — run Analyze All Documents first.")
+        # Old case (analysed before whole-case reports existed): build now.
+        case_manager.refresh_aggregate(case, model_data=model_data)
+        cl = case.case_level or {}
+        pdf_path = cl.get("report_pdf", "")
+        if not pdf_path or not os.path.exists(pdf_path):
+            raise HTTPException(status_code=500, detail="Whole-case report generation failed.")
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"{case.case_id}_whole_case_report.pdf")
 
 
 @app.get("/api/cases/{case_id}")
@@ -1117,6 +1289,29 @@ COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
 COURTROOM_AUDIO_DIR = os.path.join("case_priority_system", "courtrooms", "audio")
 
 
+def _court_context_hint(room) -> str:
+    """Compact case-context hint for the ASR correction LLM.
+
+    When the room is linked to a case, the correction model gets the case
+    title, the main parties and the evidence file names so ASR mishearings of
+    those specific names are restored instead of being treated as noise —
+    the model 'knows what the trial is about' before correcting a word.
+    """
+    ctx = getattr(room, "case_context", None) or {}
+    if not ctx:
+        return ""
+    parts = [f"Case: {ctx.get('title', '')} ({ctx.get('case_id', '')})"]
+    parties = ctx.get("parties") or []
+    if parties:
+        parts.append("Main parties: " + ", ".join(parties[:8]))
+    evidence = ctx.get("evidence") or []
+    if evidence:
+        parts.append("Evidence on record: " + ", ".join(
+            e.get("filename", "") for e in evidence[:8] if e.get("filename")
+        ))
+    return "\n".join(parts)
+
+
 def _detect_lan_ip() -> str:
     """Best-effort IPv4 of this machine on the LAN (for invite links).
 
@@ -1161,15 +1356,24 @@ def correct_transcript(payload: dict):
     """Clean up a dictated courtroom statement with the local Ollama LLM.
 
     Fixes punctuation/capitalization/grammar and makes the sentence flow
-    naturally without changing its meaning. If Ollama is unavailable the text
-    is returned unchanged (llm=false) so dictation never blocks on the LLM.
+    naturally without changing its meaning. When room_id is supplied and the
+    room is linked to a case, the correction model also receives the case
+    context so names/terms from the case file are restored accurately. If
+    Ollama is unavailable the text is returned unchanged (llm=false) so
+    dictation never blocks on the LLM.
     """
     text = str(payload.get("text", "")).strip()
     if not text:
         return {"corrected": "", "llm": False}
     if correct_transcript_text is None:
         return {"corrected": text, "llm": False}
-    corrected, used_llm = correct_transcript_text(text)
+    context_hint = ""
+    room_id = str(payload.get("room_id", "")).strip()
+    if room_id and courtroom_manager is not None:
+        room = courtroom_manager.get_room(room_id)
+        if room is not None:
+            context_hint = _court_context_hint(room)
+    corrected, used_llm = correct_transcript_text(text, context_hint=context_hint)
     return {"corrected": corrected, "llm": used_llm}
 
 
@@ -1303,7 +1507,7 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
             except OSError:
                 pass
             return {"entry": None, "raw": "", "note": "no_speech"}
-        corrected, used_llm = correct_transcript_text(text)
+        corrected, used_llm = correct_transcript_text(text, context_hint=_court_context_hint(room))
         entry = courtroom_manager.record_statement(
             room_id, participant_id, corrected, audio_file=filename
         )
@@ -1366,14 +1570,31 @@ def _lan_invite_url(request: Request, room_id: str) -> str:
 
 @app.post("/api/court/rooms")
 def create_courtroom(request: Request, payload: dict):
-    """Create a new trial room. Body: { case_title, created_by }."""
+    """Create a new trial room. Body: { case_title, created_by, case_id? }.
+
+    When case_id (ANV-…) is given, the room is linked to that case: the
+    courtroom page shows the case context (parties, evidence, links) and the
+    session deception report checks statements against that case's evidence.
+    The title may be empty then — the case title is used.
+    """
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
     case_title = str(payload.get("case_title", "")).strip()
     created_by = str(payload.get("created_by", "")).strip()
-    if not case_title:
+    case_id = str(payload.get("case_id", "")).strip()
+    if not case_title and not case_id:
         raise HTTPException(status_code=400, detail="case_title is required.")
-    room = courtroom_manager.create_room(case_title=case_title, created_by=created_by)
+    if case_id and not CaseManager.valid_case_id(case_id):
+        raise HTTPException(status_code=400, detail="Invalid case id format (expected ANV-YYYY-NNNN).")
+    try:
+        room = courtroom_manager.create_room(
+            case_title=case_title, created_by=created_by,
+            case_id=case_id, case_manager=case_manager,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if case_id and not room.case_id:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found.")
     # Include LAN IP and invite URL for cross-device access
     lan_invite_url = _lan_invite_url(request, room.room_id)
     result = room.to_dict()
@@ -1428,6 +1649,107 @@ def get_courtroom(request: Request, room_id: str):
         "lan_invite_url": lan_invite_url
     })
     return result
+
+
+@app.post("/api/court/rooms/{room_id}/face-summary")
+def post_face_summary(room_id: str, payload: dict):
+    """Record the whole-session face/expression aggregate for one analyzed feed.
+
+    The client sends this when the observer stops the analyzer (or on session
+    end): subject, duration, speaking/calm time, peak + mean index and the
+    per-cue totals. It replaces any earlier summary for the same source and is
+    included in the transcript exports and the session analysis report.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object body.")
+    fs = courtroom_manager.record_face_summary(room_id, payload)
+    if fs is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    return fs.to_dict()
+
+
+@app.post("/api/court/rooms/{room_id}/refresh-context")
+def refresh_court_context(room_id: str):
+    """Rebuild the linked case's context snapshot (evidence changed mid-trial)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    ctx = courtroom_manager.refresh_case_context(room_id, case_manager)
+    if ctx is None:
+        raise HTTPException(status_code=404, detail="Room has no linked case.")
+    return ctx
+
+
+@app.get("/api/court/rooms/{room_id}/session-report.pdf")
+def download_session_report_pdf(room_id: str):
+    """Downloadable session analysis report (deception + face aggregate) as PDF.
+
+    Computed fresh on every request from the stored transcript and the linked
+    case's evidence, so the report always reflects the full session record.
+    """
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    try:
+        from case_priority_system.scripts.courtroom_deception import (
+            analyze_transcript, session_report_pdf_path,
+        )
+    except ImportError:
+        from scripts.courtroom_deception import (  # type: ignore
+            analyze_transcript, session_report_pdf_path,
+        )
+    report = analyze_transcript(
+        [e.to_dict() for e in room.transcript],
+        room.case_context or {},
+        use_llm=False,
+    )
+    try:
+        pdf_path = session_report_pdf_path(
+            report, room.case_title,
+            face_summaries=[f.to_dict() for f in room.face_summaries],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
+    safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
+    filename = f"{safe_title.strip()}_{room_id}_session_report.pdf"
+    return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
+
+
+@app.get("/api/court/rooms/{room_id}/session-report")
+def download_session_report(room_id: str):
+    """Downloadable session analysis report (Markdown version)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    try:
+        from case_priority_system.scripts.courtroom_deception import (
+            analyze_transcript, session_report_markdown,
+        )
+    except ImportError:
+        from scripts.courtroom_deception import (  # type: ignore
+            analyze_transcript, session_report_markdown,
+        )
+    report = analyze_transcript(
+        [e.to_dict() for e in room.transcript],
+        room.case_context or {},
+        use_llm=False,
+    )
+    md = session_report_markdown(
+        report, room.case_title,
+        face_summaries=[f.to_dict() for f in room.face_summaries],
+    )
+    safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
+    filename = f"{safe_title.strip()}_{room_id}_session_report.md"
+    return Response(
+        content=md,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/court/rooms/{room_id}/transcript")

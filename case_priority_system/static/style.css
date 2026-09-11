@@ -2420,6 +2420,27 @@ body::before {
 .lobby-create-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .lobby-create-btn i { width: 17px; height: 17px; }
 
+.lobby-delete-btn {
+    padding: 13px 20px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--color-danger-fg);
+    background: var(--color-danger);
+    border: none;
+    border-radius: 99px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s, transform 0.15s;
+    box-shadow: var(--shadow-soft);
+}
+.lobby-delete-btn:hover:not(:disabled) { background: var(--color-danger-dark); transform: translateY(-1px); }
+.lobby-delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.lobby-delete-btn i { width: 17px; height: 17px; }
+
 .lobby-success {
     background: rgba(168, 126, 47, 0.06);
     border: 1.5px solid var(--color-primary);
@@ -2561,6 +2582,17 @@ body::before {
     gap: 4px;
 }
 .cc-meta i { width: 13px; height: 13px; }
+.cc-meta .cc-linked-case { color: var(--color-primary); font-weight: 700; }
+.lobby-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+.lobby-hint i { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
 .cc-actions {
     display: flex;
     gap: 8px;
