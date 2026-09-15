@@ -42,22 +42,28 @@ def snapshot_artifacts():
     return backups
 
 
-def restore_artifacts(backups):
-    """Restore Excel/index and remove every case JSON + uploaded document created by the test."""
+def restore_artifacts(backups, test_case_ids=()):
+    """Restore Excel/index and remove ONLY the data this test created.
+
+    The test may run against a live data directory, so cleanup must be
+    surgical: only the case JSONs listed in ``test_case_ids`` and their own
+    document subdirectories are removed. Wiping every case JSON or the whole
+    ``case_documents/`` tree would destroy the user's real cases.
+    """
     for src, dst in backups.items():
         if os.path.exists(dst):
             shutil.copy(dst, src)
             os.remove(dst)
-    if os.path.isdir(CASES_DIR):
-        for f in os.listdir(CASES_DIR):
-            if f.endswith(".json") and f != "_index.json":
-                try:
-                    os.remove(os.path.join(CASES_DIR, f))
-                except OSError:
-                    pass
-    if os.path.isdir(DOCS_DIR):
-        shutil.rmtree(DOCS_DIR, ignore_errors=True)
-        os.makedirs(DOCS_DIR, exist_ok=True)
+    for case_id in test_case_ids:
+        case_json = os.path.join(CASES_DIR, f"{case_id}.json")
+        if os.path.exists(case_json):
+            try:
+                os.remove(case_json)
+            except OSError:
+                pass
+        case_docs = os.path.join(DOCS_DIR, case_id)
+        if os.path.isdir(case_docs):
+            shutil.rmtree(case_docs, ignore_errors=True)
     # Remove analysis artifacts generated for the synthetic evidence PDF.
     for pattern in ("e2e_evidence_decision_path.dot", "e2e_evidence_decision_report.md"):
         p = os.path.join("case_priority_system", "decision_graphs", pattern)
@@ -66,7 +72,6 @@ def restore_artifacts(backups):
     p = os.path.join("case_priority_system", "reports", "_e2e_evidence_report.pdf")
     if os.path.exists(p):
         os.remove(p)
-
 
 def http(method, path, data=None, headers=None, files=None, raw_body=None):
     """Minimal HTTP helper (std lib only)."""
@@ -138,11 +143,14 @@ def main():
             sys.exit(1)
         print("server ready")
 
+        created_case_ids = []  # only these are cleaned up at the end
+
         # 1. Create a case WITHOUT a FIR -> auto-assigned id
         status, case = http("POST", "/api/cases",
                             data={"case_title": "E2E Test Theft Case", "created_by": "Officer Rao"})
         assert status == 200 and case["case_id"].startswith("ANV-"), (status, case)
         case_id = case["case_id"]
+        created_case_ids.append(case_id)
         print(f"1. created case {case_id} (source={case['source']})")
 
         # 2. Attach the FIR document
@@ -237,7 +245,7 @@ def main():
             server.wait(timeout=10)
         except Exception:
             server.kill()
-        restore_artifacts(backups)
+        restore_artifacts(backups, test_case_ids=created_case_ids)
 
 
 if __name__ == "__main__":

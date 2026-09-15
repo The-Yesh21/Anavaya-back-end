@@ -1,0 +1,3 @@
+The 6 original uploaded evidence files were lost in an e2e cleanup bug on 2026-09-12.
+This case was rebuilt from case_results.xlsx + committed decision reports.
+Re-upload the source files to restore downloads/corroboration-from-text.
