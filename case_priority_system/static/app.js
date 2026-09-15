@@ -262,10 +262,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const categoryBarsEl = document.getElementById("category-bars");
 
     function updateStats(cases) {
-        const total = cases.length;
-        const high = cases.filter(c => c.Predicted_Priority === "High").length;
-        const medium = cases.filter(c => c.Predicted_Priority === "Medium").length;
-        const low = cases.filter(c => c.Predicted_Priority === "Low").length;
+        // Stats count CASES, not raw Excel rows — the whole-case row represents
+        // the case; its evidence rows are per-document detail.
+        const casesOnly = groupBoardCases(cases);
+        const total = casesOnly.length;
+        const high = casesOnly.filter(c => c.Predicted_Priority === "High").length;
+        const medium = casesOnly.filter(c => c.Predicted_Priority === "Medium").length;
+        const low = casesOnly.filter(c => c.Predicted_Priority === "Low").length;
 
         statTotalVal.textContent = total;
         if (donutTotalVal) donutTotalVal.textContent = total;
@@ -274,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
         statLowVal.textContent = low;
 
         renderDonut(high, medium, low, total);
-        renderCategoryBars(cases);
+        renderCategoryBars(casesOnly);
     }
 
     function renderDonut(high, medium, low, total) {
@@ -333,17 +336,50 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Group raw Excel rows into ONE board entry per case. A registry case with a
+    // whole-case verdict collapses all its evidence rows into that verdict row, so
+    // the board shows the case's combined priority (Decision Tree over ALL
+    // evidence) instead of one card per evidence. Per-evidence rows are attached
+    // as ``_evidence_rows`` (auditable detail — they never decide the case).
+    function groupBoardCases(rows) {
+        const groups = new Map();   // Case_ID -> rows
+        const singles = [];         // rows without a Case_ID (standalone PDF uploads)
+        rows.forEach(r => {
+            if (r && r.Case_ID) {
+                if (!groups.has(r.Case_ID)) groups.set(r.Case_ID, []);
+                groups.get(r.Case_ID).push(r);
+            } else {
+                singles.push(r);
+            }
+        });
+        const entries = [];
+        groups.forEach(groupRows => {
+            const whole = groupRows.find(r => String(r.Document_Type || "").toLowerCase() === "whole case");
+            if (whole) {
+                entries.push({ ...whole, _evidence_rows: groupRows.filter(r => r !== whole) });
+            } else {
+                entries.push(groupRows[0]);
+            }
+        });
+        entries.push(...singles);
+        return entries;
+    }
+
     // Render Cases Sidebar
     function renderCasesList(cases) {
         const query = searchInput.value.toLowerCase().trim();
         const priorityVal = filterPriority.value;
         const categoryVal = filterCategory.value;
 
-        const filtered = cases.filter(c => {
-            const matchesQuery = 
-                (c.Case_File && c.Case_File.toLowerCase().includes(query)) ||
-                (c.Main_Parties && c.Main_Parties.toLowerCase().includes(query)) ||
-                (c.Plain_Language_Summary && c.Plain_Language_Summary.toLowerCase().includes(query));
+        // Filter grouped CASES (not raw rows): the query also matches any
+        // evidence row's text, while priority/category match the case's own
+        // (whole-case) verdict.
+        const filtered = groupBoardCases(cases).filter(c => {
+            const evRows = c._evidence_rows || [];
+            const matchesQuery = query === "" || [
+                c.Case_File, c.Main_Parties, c.Plain_Language_Summary,
+                ...evRows.map(d => `${d.Case_File || ""} ${d.Main_Parties || ""} ${d.Plain_Language_Summary || ""}`),
+            ].some(h => h && String(h).toLowerCase().includes(query));
 
             const matchesPriority = priorityVal === "all" || c.Predicted_Priority === priorityVal;
             const matchesCategory = categoryVal === "all" || c.Category === categoryVal;
@@ -362,13 +398,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         filtered.forEach(c => {
-            const cleanTitle = (c.Case_File || "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+            const evidenceRows = c._evidence_rows || [];
+            const cleanTitle = (c.Case_File || "").replace(/_/g, " ").replace(/\[WHOLE CASE\]\s*/i, "").replace(/\.[Pp][Dd][Ff]$/, "");
             const item = document.createElement("div");
             item.className = `case-item ${selectedCase && selectedCase.Case_File === c.Case_File ? "active" : ""}`;
             item.setAttribute("data-case-file", c.Case_File || "");
             item.setAttribute("tabindex", "0");
             item.setAttribute("role", "button");
             item.setAttribute("aria-label", `Select case ${cleanTitle}`);
+            // Per-evidence chips: the badge above is the case's combined verdict;
+            // these show each evidence's own (evidence-level) priority only.
+            const evidenceChips = evidenceRows.length
+                ? evidenceRows.map(d =>
+                    `<span class="badge-priority ${String(d.Predicted_Priority || "medium").toLowerCase()} case-evidence-chip" title="${escHtml(String(d.Case_File || "").replace(/\.[Pp][Dd][Ff]$/, ""))}">${escHtml(d.Predicted_Priority)}</span>`
+                ).join("")
+                : "";
             item.innerHTML = `
                 <div class="case-item-title">${escHtml(cleanTitle) || "Unknown Case"}</div>
                 <div class="case-item-desc">${escHtml(c.Main_Parties) || "Unknown Parties"}</div>
@@ -377,10 +421,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="badge-priority ${String(c.Predicted_Priority || "medium").toLowerCase()}">${escHtml(c.Predicted_Priority)}</span>
                         <span class="case-item-category">${escHtml(c.Category) || "General Civil"}</span>
                     </div>
+                    ${evidenceChips ? `
+                    <div class="case-evidence-strip-wrap">
+                        <span class="case-evidence-strip-label"><i data-lucide="layers"></i> ${evidenceRows.length} evidence</span>
+                        <span class="case-evidence-strip">${evidenceChips}</span>
+                    </div>` : ""}
                 </div>
                 <div class="case-item-hover-actions">
                     <button class="case-action-btn open-btn" title="Open this case"><i data-lucide="file-text"></i> Open</button>
-                    <button class="case-action-btn remove-btn" title="Remove this case"><i data-lucide="trash-2"></i> Remove</button>
+                    <button class="case-action-btn remove-btn" title="Remove this case and all its evidence"><i data-lucide="trash-2"></i> Remove</button>
                 </div>
             `;
             // Hover overlay action handlers
@@ -393,16 +442,22 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             removeBtn.addEventListener("click", async (e) => {
                 e.stopPropagation();
-                if (!confirm(`Remove "${cleanTitle}" from the list?`)) return;
+                // Removing a case card removes ALL its rows (verdict + evidence).
+                const groupFiles = [c.Case_File, ...(c._evidence_rows || []).map(r => r.Case_File)].filter(Boolean);
+                if (!confirm(`Remove "${cleanTitle}" and all its evidence from the list?`)) return;
                 try {
-                    const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}`, { method: "DELETE" });
-                    if (!res.ok) {
-                        const d = await res.json().catch(() => ({}));
-                        alert(d.detail || "Failed to delete.");
+                    let failed = 0;
+                    for (const f of groupFiles) {
+                        const res = await fetch(`/api/cases/${encodeURIComponent(f)}`, { method: "DELETE" });
+                        if (!res.ok) failed++;
+                    }
+                    if (failed) {
+                        alert(`${failed} of ${groupFiles.length} row(s) could not be deleted.`);
                         return;
                     }
-                    casesData = casesData.filter(x => x.Case_File !== c.Case_File);
-                    if (selectedCase && selectedCase.Case_File === c.Case_File) {
+                    const removed = new Set(groupFiles);
+                    casesData = casesData.filter(x => !removed.has(x.Case_File));
+                    if (selectedCase && removed.has(selectedCase.Case_File)) {
                         selectedCase = null;
                         showEmptyDetail();
                     }
@@ -639,6 +694,22 @@ document.addEventListener("DOMContentLoaded", () => {
         // Set Details Values
         document.getElementById("case-title-name").textContent = (c.Case_File || "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
         document.getElementById("case-parties").innerHTML = `<strong>Parties:</strong> ${escHtml(c.Main_Parties) || "Unknown"}`;
+
+        // For a whole-case row, also show each evidence's own priority as chips —
+        // auditable detail only; the case verdict badge above is the decision.
+        const evidenceChipsEl = document.getElementById("case-evidence-chips");
+        if (evidenceChipsEl) {
+            const evRows = c._evidence_rows || [];
+            if (evRows.length) {
+                evidenceChipsEl.style.display = "flex";
+                evidenceChipsEl.innerHTML = evRows.map(d =>
+                    `<span class="badge-priority ${String(d.Predicted_Priority || "medium").toLowerCase()} case-evidence-chip" title="${escHtml(String(d.Case_File || "").replace(/\.[Pp][Dd][Ff]$/, ""))}"><i data-lucide="file-text"></i>${escHtml(String(d.Case_File || "").replace(/\.[Pp][Dd][Ff]$/, ""))}</span>`
+                ).join("");
+            } else {
+                evidenceChipsEl.style.display = "none";
+                evidenceChipsEl.innerHTML = "";
+            }
+        }
         document.getElementById("case-summary").textContent = c.Plain_Language_Summary || "Summary unavailable.";
         
         // Enable PDF report download link
@@ -971,7 +1042,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const bannerCaseName = document.getElementById("active-path-case-name");
         if (selectedCase) {
             banner.style.display = "block";
-            bannerCaseName.textContent = selectedCase.Case_File;
+            bannerCaseName.textContent = (selectedCase.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "Whole case: ").replace(/_/g, " ");
         } else {
             banner.style.display = "none";
         }
