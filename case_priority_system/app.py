@@ -1704,7 +1704,7 @@ def download_session_report_pdf(room_id: str):
     report = analyze_transcript(
         [e.to_dict() for e in room.transcript],
         room.case_context or {},
-        use_llm=False,
+        use_llm=True,
     )
     try:
         pdf_path = session_report_pdf_path(
@@ -1737,7 +1737,7 @@ def download_session_report(room_id: str):
     report = analyze_transcript(
         [e.to_dict() for e in room.transcript],
         room.case_context or {},
-        use_llm=False,
+        use_llm=True,
     )
     md = session_report_markdown(
         report, room.case_title,

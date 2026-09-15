@@ -602,8 +602,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function showEmptyDetail() {
-        noCaseSelectedEl.style.display = "flex";
         caseDetailsContentEl.style.display = "none";
+        // Keep the "No Case Selected" placeholder hidden while the Analysis tab
+        // is showing the whole-case verdict for the case open in the workspace.
+        const wholeCase = document.getElementById("analysis-whole-case");
+        const wholeCaseVisible = wholeCase && wholeCase.style.display !== "none";
+        noCaseSelectedEl.style.display = wholeCaseVisible ? "none" : "flex";
     }
 
     // Case Selection

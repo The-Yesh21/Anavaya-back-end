@@ -388,6 +388,27 @@
 .workspace-card .wizard-dropzone { margin-bottom: 12px; }
 .workspace-card .lobby-field { margin-bottom: 12px; }
 
+/* Whole-Case Analysis block in the Analysis tab (moved out of the Case tab). */
+.analysis-whole-case { margin-bottom: 18px; }
+
+/* The per-document panel below it is EVIDENCE-LEVEL detail; the case's decision
+   is the Whole-Case Analysis block, so label the document view clearly. */
+.detail-scope {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 10px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-color, rgba(160, 140, 90, 0.28));
+    border-radius: 999px;
+    background: var(--gold-50, #FBF6EA);
+    color: var(--text-secondary, #55503F);
+    font-family: var(--font-body, inherit);
+    font-size: 11px;
+    line-height: 1.35;
+}
+.detail-scope i { width: 13px; height: 13px; flex: none; }
+
 .workspace-doc-list { display: flex; flex-direction: column; gap: 10px; }
 .ws-doc-item {
     display: flex;

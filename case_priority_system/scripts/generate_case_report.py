@@ -267,9 +267,6 @@ def build_report_html(case_file, features, priority, analysis):
         "automatically by software for triage assistance only. It does not constitute legal "
         "advice or a judicial determination. Final priority and legal interpretation rest with "
         "the court.</div>",
-
-        f'<div class="page-footer">Anavaya — AI-Powered Case Priority System · '
-        f"Generated {esc(now)} · Case file: {esc(case_file)}</div>",
     ])
 
     return (
@@ -278,16 +275,64 @@ def build_report_html(case_file, features, priority, analysis):
     )
 
 
-def render_pdf(html, out_path):
-    """Renders HTML to a multi-page A4 PDF using PyMuPDF's Story engine."""
+# Space reserved at the bottom of every page for the pinned footer. The body
+# story is laid out in a rect that STOPS above this band, so flowing content
+# can never collide with the footer (it did while the body used the full page).
+# NOTE: PyMuPDF's Story silently draws nothing when given a rect shorter than
+# ~34pt, so the band must comfortably exceed the footer line's natural height.
+_FOOTER_BAND = 66
+
+
+def _footer_for(priority):
+    """Build footer HTML drawn inside the reserved band at the bottom of every page.
+
+    Rendered as normal flow inside the footer band rect (no absolute
+    positioning), so it can neither overflow onto the next page nor overlap
+    the body content, which is laid out above the band.
+    """
+    now = datetime.now().strftime("%d %B %Y, %H:%M")
+    return (
+        '<div style="'
+        "font-family:Helvetica,Arial,sans-serif;font-size:9px;color:#9CA3AF;"
+        "border-top:1px solid #E5E7EB;padding-top:6px;"
+        '">'
+        "Anavaya — AI-Powered Case Priority System · "
+        f"Generated {esc(now)}"
+        "</div>"
+    )
+
+
+def render_pdf(html, out_path, priority="Medium"):
+    """Renders HTML to a multi-page A4 PDF using PyMuPDF's Story engine.
+
+    Layout is split into two non-overlapping bands per page: the body story
+    flows in a rect that stops above the footer band, and the footer is drawn
+    at the bottom of that band. This keeps the footer clear of page content
+    and off the following page, however much text the body carries.
+    """
     story = fitz.Story(html=html, user_css=CSS, em=12)
     writer = fitz.DocumentWriter(out_path)
-    rect = fitz.paper_rect("a4")
+    page_rect = fitz.paper_rect("a4")
+    body_rect = fitz.Rect(
+        page_rect.x0, page_rect.y0, page_rect.x1, page_rect.y1 - _FOOTER_BAND
+    )
+    footer_rect = fitz.Rect(
+        page_rect.x0 + 26, page_rect.y1 - _FOOTER_BAND + 10,
+        page_rect.x1 - 26, page_rect.y1 - 8,
+    )
+    footer_html = _footer_for(priority)
     more = 1
     while more:
-        dev = writer.begin_page(rect)
-        more, _ = story.place(rect)
+        dev = writer.begin_page(page_rect)
+        more, _ = story.place(body_rect)
         story.draw(dev)
+        # Draw the footer inside its reserved band (never over the body).
+        try:
+            footer_story = fitz.Story(html=footer_html, user_css=CSS, em=12)
+            footer_story.place(footer_rect)
+            footer_story.draw(dev)
+        except Exception:
+            pass
         writer.end_page()
     writer.close()
     return out_path
@@ -303,7 +348,7 @@ def save_case_report(case_file, features, priority, analysis, reports_dir=REPORT
     base_name = os.path.splitext(case_file)[0]
     out_path = os.path.join(reports_dir, f"{base_name}_report.pdf")
     html = build_report_html(case_file, features, priority, analysis)
-    render_pdf(html, out_path)
+    render_pdf(html, out_path, priority=priority)
     return out_path
 
 
@@ -359,7 +404,7 @@ def main():
 
     # 5. Render the PDF report
     html = build_report_html(case_file, features, priority, analysis)
-    render_pdf(html, out_path)
+    render_pdf(html, out_path, priority=priority)
 
     print(f"\nReport saved: {out_path}")
     doc = fitz.open(out_path)

@@ -517,7 +517,7 @@ class CourtroomManager:
 
         Produced by the client-side MediaPipe analyzer and appended to the
         official transcript so the court's record captures behavioural cues
-        (lip pressing, rapid blinking, gaze avoidance, ...).
+        (lip pressing, rapid blinking, directional lateral gaze, ...).
         """
         room = self.get_room(room_id)
         if room is None:

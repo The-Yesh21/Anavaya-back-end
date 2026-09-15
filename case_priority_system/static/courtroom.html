@@ -76,7 +76,8 @@
             <p class="join-note">
                 <i data-lucide="info"></i>
                 Live audio and video connect you to the other counsel. Others hear you
-                <strong>only while you hold the “Hold to Talk” button</strong> (or keep the mic
+                <strong>only while you hold the Space bar</strong> — or the “Hold to Talk”
+                button — (or keep the mic
                 toggle in your tile on). While holding, your words are transcribed,
                 grammar-corrected by the local LLM, and added to the official transcript — with
                 the audio recording attached.
@@ -115,84 +116,24 @@
         </header>
 
         <main class="court-body">
-            <!-- LEFT: Roster + audio tiles -->
-            <section class="court-roster">
-                <div class="panel-header">
-                    <h2><i data-lucide="users"></i> The Court</h2>
-                    <span class="roster-count"><span id="roster-online">0</span> present</span>
-                </div>
-                <div id="roster-list" class="roster-list">
-                    <!-- participant tiles injected here -->
-                </div>
-
-                <!-- Case context (linked case: parties, evidence, links) -->
-                <div id="case-context" class="case-context card" style="display:none;">
-                    <div class="panel-header">
-                        <h2><i data-lucide="folder-open"></i> Case Context</h2>
-                        <button type="button" class="cc-refresh" id="context-refresh-btn" title="Re-read the case file (new evidence?)" aria-label="Refresh case context" style="display:none;">
-                            <i data-lucide="refresh-cw"></i>
-                        </button>
+            <!-- ─────────── MAIN COLUMN: video stage → composer → transcript dock ─────────── -->
+            <div class="court-main">
+                <!-- VIDEO STAGE — every participant's feed, the centrepiece of the room -->
+                <section class="court-stage card" aria-label="Participant video gallery">
+                    <div class="stage-head">
+                        <h2 class="stage-title"><i data-lucide="video"></i> The Court</h2>
+                        <span class="roster-count"><span id="roster-online">0</span> present</span>
                     </div>
-                    <p class="cc-title"><strong id="cc-case-title">—</strong> <span id="cc-case-id" class="cc-id"></span></p>
-                    <p class="cc-line" id="cc-parties"></p>
-                    <div id="cc-evidence" class="cc-evidence"></div>
-                    <p class="cc-line" id="cc-links"></p>
-                    <p class="cc-note"><i data-lucide="info"></i> The court reads every statement against this evidence — anything asserted without support here is flagged in the Session Report.</p>
-                </div>
-
-                <!-- Phase controls (judge only) -->
-                <div id="phase-controls" class="phase-controls" style="display:none;">
-                    <div class="panel-header"><h2><i data-lucide="git-branch"></i> Trial Phase</h2></div>
-                    <div class="phase-buttons" id="phase-buttons">
-                        <!-- phase buttons injected by JS -->
-                    </div>
-                </div>
-
-                <!-- Witness Face & Expression Analysis (local camera; cues logged to the record) -->
-                <div id="face-analysis" class="face-analysis card" style="display:none;">
-                    <div class="panel-header">
-                        <h2><i data-lucide="scan-face"></i> Face &amp; Expression</h2>
-                        <span id="face-state" class="face-state">Off</span>
-                    </div>
-                    <label class="face-source-field" title="Which camera feed to analyze">
-                        <span>Analyze</span>
-                        <select id="face-source">
-                            <option value="self">My camera</option>
-                        </select>
-                    </label>
-                    <p id="face-source-status" class="face-source-status" hidden></p>
-                    <div class="face-video-wrap mirror">
-                        <video id="face-video" autoplay playsinline muted></video>
-                        <canvas id="face-overlay"></canvas>
-                        <div id="face-placeholder" class="face-placeholder">
-                            <i data-lucide="user-round"></i>
-                            <span>Feed off</span>
+                    <div id="video-stage" class="video-stage">
+                        <div class="stage-empty">
+                            <i data-lucide="users"></i>
+                            <span>Waiting for the court to assemble…</span>
                         </div>
                     </div>
-                    <div class="face-metrics">
-                        <div class="fm"><span class="fm-label">Expression</span><strong id="fm-expression">—</strong></div>
-                        <div class="fm"><span class="fm-label">Lips</span><strong id="fm-lips">—</strong></div>
-                        <div class="fm"><span class="fm-label">Brows</span><strong id="fm-brows">—</strong></div>
-                        <div class="fm"><span class="fm-label">Blinks</span><strong id="fm-blinks">0</strong></div>
-                    </div>
-                    <div class="face-gauge">
-                        <div class="face-gauge-track"><div id="face-gauge-fill" class="face-gauge-fill"></div></div>
-                        <div class="face-gauge-readout"><strong id="face-score">0%</strong><span>nervousness</span></div>
-                    </div>
-                    <div id="face-cues" class="face-cues"></div>
-                    <div class="face-actions">
-                        <button type="button" id="face-camera-btn" class="face-btn"><i data-lucide="video"></i> Enable Camera</button>
-                        <button type="button" id="face-start-btn" class="face-btn primary" disabled><i data-lucide="play"></i> Start Analysis</button>
-                        <button type="button" id="face-stop-btn" class="face-btn danger" disabled><i data-lucide="square"></i> Stop</button>
-                    </div>
-                    <p class="face-note"><i data-lucide="info"></i> Analyzes the selected feed via MediaPipe — your camera or a remote participant's video. Cues are counted only while the subject is <strong>speaking</strong> and only when they <strong>persist</strong>; the whole session is aggregated into one summary for the record.</p>
-                </div>
-            </section>
+                </section>
 
-            <!-- CENTER: Statement input + live transcript -->
-            <section class="court-floor">
-                <!-- Action bar -->
-                <div class="action-bar card">
+                <!-- Composer: statement input + role actions -->
+                <section class="action-bar card">
                     <div class="action-bar-top">
                         <span class="you-are">You are <strong id="you-are-role">—</strong></span>
                         <div class="quick-actions" id="quick-actions">
@@ -201,17 +142,22 @@
                     </div>
                     <form id="statement-form" class="statement-form">
                         <input type="text" id="statement-input" placeholder="State your argument for the record…" maxlength="500" autocomplete="off">
-                        <button type="button" id="push-to-talk-btn" class="push-to-talk-btn" title="Hold to talk — the room hears you while you hold, and your words are recorded into the transcript"><i data-lucide="mic"></i> Hold to Talk</button>
+                        <button type="button" id="push-to-talk-btn" class="push-to-talk-btn" title="Hold the SPACE bar (or this button) to talk — the room hears you while you hold, and your words are recorded into the transcript"><i data-lucide="mic"></i> Hold to Talk</button>
                         <button type="submit" class="speak-btn"><i data-lucide="send"></i> Speak</button>
                     </form>
                     <p id="dictate-status" class="dictate-status" hidden></p>
                     <p id="asr-status" class="asr-status" hidden></p>
-                </div>
+                </section>
 
-                <!-- Live transcript -->
-                <div class="transcript card">
+                <!-- Live transcript — compact dock; collapse it to just its header -->
+                <section class="transcript card collapsible-panel" id="transcript-panel">
                     <div class="panel-header">
-                        <h2><i data-lucide="scroll-text"></i> Live Transcript</h2>
+                        <button class="rail-toggle" id="transcript-toggle" type="button" aria-expanded="true" aria-controls="transcript-body">
+                            <i data-lucide="scroll-text"></i>
+                            <span class="rail-title">Live Transcript</span>
+                            <span class="rail-sub" id="transcript-count"></span>
+                            <i data-lucide="chevron-down" class="rail-chevron"></i>
+                        </button>
                         <div class="transcript-actions">
                             <button class="link-btn" id="download-transcript-btn" title="Download transcript as Markdown">
                                 <i data-lucide="download"></i><span class="btn-label">Export</span>
@@ -224,11 +170,120 @@
                             </button>
                         </div>
                     </div>
-                    <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
-                        <div class="transcript-empty">The court is in session. Statements will appear here.</div>
+                    <div class="panel-collapse" id="transcript-body">
+                        <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
+                            <div class="transcript-empty">The court is in session. Statements will appear here.</div>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </div>
+
+            <!-- ─────────── RAILS: compact, collapsible control panels ─────────── -->
+            <aside class="court-rails" aria-label="Court controls">
+                <!-- Roster + per-peer audio controls -->
+                <section class="rail-panel card collapsible-panel" id="roster-panel">
+                    <div class="rail-head">
+                        <button class="rail-toggle" id="roster-toggle" type="button" aria-expanded="true" aria-controls="roster-body">
+                            <i data-lucide="users"></i>
+                            <span class="rail-title">Participants</span>
+                            <i data-lucide="chevron-down" class="rail-chevron"></i>
+                        </button>
+                    </div>
+                    <div class="panel-collapse" id="roster-body">
+                        <div id="roster-list" class="roster-list">
+                            <!-- participant rows injected here -->
+                        </div>
+                        <p class="rail-hint"><i data-lucide="info"></i> Your mic stays closed until you hold <strong>Space</strong> (or the Hold to Talk button) or switch the tile mic on.</p>
+                    </div>
+                </section>
+
+                <!-- Case context (linked case: parties, evidence, links) -->
+                <section class="rail-panel card collapsible-panel" id="case-context" style="display:none;">
+                    <div class="rail-head">
+                        <button class="rail-toggle" id="context-toggle" type="button" aria-expanded="true" aria-controls="context-body">
+                            <i data-lucide="folder-open"></i>
+                            <span class="rail-title">Case Context</span>
+                            <span class="rail-sub" id="context-head-sub"></span>
+                            <i data-lucide="chevron-down" class="rail-chevron"></i>
+                        </button>
+                        <button type="button" class="cc-refresh" id="context-refresh-btn" title="Re-read the case file (new evidence?)" aria-label="Refresh case context" style="display:none;">
+                            <i data-lucide="refresh-cw"></i>
+                        </button>
+                    </div>
+                    <div class="panel-collapse" id="context-body">
+                        <p class="cc-title"><strong id="cc-case-title">—</strong> <span id="cc-case-id" class="cc-id"></span></p>
+                        <p class="cc-line" id="cc-parties"></p>
+                        <div id="cc-evidence" class="cc-evidence"></div>
+                        <p class="cc-line" id="cc-links"></p>
+                        <p class="cc-note"><i data-lucide="info"></i> The court reads every statement against this evidence — anything asserted without support here is flagged in the Session Report.</p>
+                    </div>
+                </section>
+
+                <!-- Phase controls (judge only) -->
+                <section id="phase-controls" class="rail-panel card collapsible-panel" style="display:none;">
+                    <div class="rail-head">
+                        <button class="rail-toggle" id="phase-toggle" type="button" aria-expanded="true" aria-controls="phase-body">
+                            <i data-lucide="git-branch"></i>
+                            <span class="rail-title">Trial Phase</span>
+                            <span class="rail-sub" id="phase-head-sub"></span>
+                            <i data-lucide="chevron-down" class="rail-chevron"></i>
+                        </button>
+                    </div>
+                    <div class="panel-collapse" id="phase-body">
+                        <div class="phase-buttons" id="phase-buttons">
+                            <!-- phase buttons injected by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Witness Face & Expression Analysis (local camera; cues logged to the record) -->
+                <section id="face-analysis" class="rail-panel card collapsible-panel face-analysis" style="display:none;">
+                    <div class="rail-head">
+                        <button class="rail-toggle" id="face-toggle" type="button" aria-expanded="true" aria-controls="face-body">
+                            <i data-lucide="scan-face"></i>
+                            <span class="rail-title">Face &amp; Expression</span>
+                            <i data-lucide="chevron-down" class="rail-chevron"></i>
+                        </button>
+                        <span id="face-state" class="face-state">Off</span>
+                    </div>
+                    <div class="panel-collapse face-body" id="face-body">
+                        <label class="face-source-field" title="Which camera feed to analyze">
+                            <span>Analyze</span>
+                            <select id="face-source">
+                                <option value="self">My camera</option>
+                            </select>
+                        </label>
+                        <p id="face-source-status" class="face-source-status" hidden></p>
+                        <div class="face-video-wrap mirror">
+                            <video id="face-video" autoplay playsinline muted></video>
+                            <canvas id="face-overlay"></canvas>
+                            <div id="face-placeholder" class="face-placeholder">
+                                <i data-lucide="user-round"></i>
+                                <span>Feed off</span>
+                            </div>
+                        </div>
+                        <div class="face-metrics">
+                            <div class="fm"><span class="fm-label">Expression</span><strong id="fm-expression">—</strong></div>
+                            <div class="fm"><span class="fm-label">Lips</span><strong id="fm-lips">—</strong></div>
+                            <div class="fm"><span class="fm-label">Brows</span><strong id="fm-brows">—</strong></div>
+                            <div class="fm"><span class="fm-label">Blinks</span><strong id="fm-blinks">0</strong></div>
+                            <div class="fm"><span class="fm-label">Gaze</span><strong id="fm-gaze">—</strong></div>
+                            <div class="fm"><span class="fm-label">Speaking</span><strong id="fm-speaking">—</strong></div>
+                        </div>
+                        <div class="face-gauge">
+                            <div class="face-gauge-track"><div id="face-gauge-fill" class="face-gauge-fill"></div></div>
+                            <div class="face-gauge-readout"><strong id="face-score">0%</strong><span>nervousness</span></div>
+                        </div>
+                        <div id="face-cues" class="face-cues"></div>
+                        <div class="face-actions">
+                            <button type="button" id="face-camera-btn" class="face-btn"><i data-lucide="video"></i> Enable Camera</button>
+                            <button type="button" id="face-start-btn" class="face-btn primary" disabled><i data-lucide="play"></i> Start Analysis</button>
+                            <button type="button" id="face-stop-btn" class="face-btn danger" disabled><i data-lucide="square"></i> Stop</button>
+                        </div>
+                        <p class="face-note"><i data-lucide="info"></i> Analyzes the selected feed via MediaPipe — your camera or a remote participant's video. Gaze is tracked per eye: a held look to the subject's <strong>own left</strong> is flagged as a construction/deception cue, to their right as recall. Cues count only while the subject is <strong>speaking</strong> (by voice, or by visible mouth movement when the mic is closed) and only when they <strong>persist</strong>; the whole session is aggregated into one summary for the record. Behavioural cues are indicators, not findings.</p>
+                    </div>
+                </section>
+            </aside>
         </main>
 
         <!-- Hidden container holds remote <audio> elements (one per peer) -->

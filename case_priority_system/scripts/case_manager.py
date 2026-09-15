@@ -463,13 +463,22 @@ class CaseManager:
         return case
 
     def refresh_aggregate(self, case: Case, model_data=None) -> None:
-        """Recompute the case-level verdict + the legacy aggregate.
+        """Recompute a case's decision and persist it.
 
-        ``case_level`` (Decision Tree on merged features) is the headline
-        priority; ``aggregate_priority`` keeps the highest-document-wins value
-        for backwards compatibility with the dashboard and courtroom context.
+        A case's decision IS ``case_level``: the Decision Tree run ONCE on
+        features merged deterministically across ALL its documents (see
+        whole_case_analysis.py). ``aggregate_priority`` / ``aggregate_rationale``
+        keep their field names for API + dashboard compatibility but now CARRY
+        that case-level verdict, so every consumer (dashboard cards, case
+        workspace, dossier, courtroom context) shows the whole-case decision
+        instead of the highest single document.
+
+        They fall back to highest-document-wins only when there is no case-level
+        verdict (e.g. nothing analysed yet). The per-document priorities are kept
+        in the rationale (and on each document) as auditable detail — they never
+        decide the case.
         """
-        aggregate, rationale = self.compute_aggregate_priority(case)
+        fallback_priority, fallback_rationale = self.compute_aggregate_priority(case)
         case_level = {}
         try:
             from case_priority_system.scripts.whole_case_analysis import analyze_case_whole
@@ -477,28 +486,42 @@ class CaseManager:
         except Exception as e:
             print(f"Case {case.case_id}: whole-case analysis failed: {e}")
         with self._lock:
-            case.aggregate_priority = aggregate
-            case.aggregate_rationale = rationale
-            if case_level:
+            if case_level and case_level.get("priority"):
                 case.case_level = case_level
+                case.aggregate_priority = case_level["priority"]
+                case.aggregate_rationale = (
+                    f"{(case_level.get('rationale') or '').strip()}"
+                    " Per-document breakdown (detail only, not the decision): "
+                    + self._document_breakdown(case)
+                ).strip()
+            else:
+                case.aggregate_priority = fallback_priority
+                case.aggregate_rationale = fallback_rationale
             self._persist(case)
 
     @staticmethod
-    def compute_aggregate_priority(case: Case) -> tuple[Optional[str], str]:
-        """Highest document priority wins; rationale lists the breakdown."""
-        priorities = [d.priority for d in case.documents if d.priority]
-        if not priorities:
-            return None, "No documents analysed yet."
-        best = max(priorities, key=lambda p: PRIORITY_RANK.get(p, 0))
+    def _document_breakdown(case: Case) -> str:
+        """Per-document "file (Type): Low; …" detail — never the case decision."""
         parts = [
             f"{d.filename} ({d.doc_type}): {d.priority or 'not analysed'}"
             for d in case.documents
         ]
+        return ("; ".join(parts) + ".") if parts else "no documents."
+
+    @staticmethod
+    def compute_aggregate_priority(case: Case) -> tuple[Optional[str], str]:
+        """Legacy fallback: highest document priority wins.
+
+        Only used when a case has no whole-case verdict yet (nothing analysed).
+        """
+        priorities = [d.priority for d in case.documents if d.priority]
+        if not priorities:
+            return None, "No documents analysed yet."
+        best = max(priorities, key=lambda p: PRIORITY_RANK.get(p, 0))
         rationale = (
             f"Aggregate priority is {best} — the highest priority among the case "
             f"documents (safety-first: High > Medium > Low). Breakdown: "
-            + "; ".join(parts)
-            + "."
+            + CaseManager._document_breakdown(case)
         )
         return best, rationale
 
@@ -717,7 +740,9 @@ def case_to_markdown(case: Case) -> str:
     lines.append(f"- **Created:** {case.created_at}")
     lines.append(f"- **Created by:** {case.created_by}")
     lines.append(f"- **Source:** {case.source}")
-    lines.append(f"- **Aggregate priority:** {case.aggregate_priority or 'Not analysed'}")
+    # The case's decision is the whole-case verdict (Decision Tree over ALL
+    # evidence); per-document priorities appear only as detail below.
+    lines.append(f"- **Case priority (whole-case verdict):** {case.aggregate_priority or 'Not analysed'}")
     if case.aggregate_rationale:
         lines.append(f"- **Rationale:** {case.aggregate_rationale}")
     lines.append("")

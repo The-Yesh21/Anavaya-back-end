@@ -291,7 +291,12 @@ def analyze_transcript(transcript: list, context: dict,
                 key = idx * 1000 + j
                 claim_owners[key] = idx
                 entries.append((key, claim))
-        llm_results = _ollama_verify(entries, evidence)
+        # Full evidence document texts (summaries), not just per-claim excerpt
+        # selection: the structured extractor often finds nothing for a claim
+        # (denials of narrated acts like "I did not transfer the money"), but
+        # the LLM can still see the transfer is recorded in the documents.
+        context_blocks = _evidence_text_blocks(context)
+        llm_results = _ollama_verify(entries, evidence, context_blocks=context_blocks)
         by_statement: dict[int, list[str]] = {}
         reasons: dict[int, str] = {}
         for key, r in llm_results.items():
@@ -368,8 +373,9 @@ def analyze_transcript(transcript: list, context: dict,
             "credibility": None,
         })
         sp["statements"] += 1
-        if v["verdict"] in sp:
-            sp[v["verdict"]] += 1
+        count_key = "lies" if v["verdict"] == "lie" else v["verdict"]
+        if count_key in sp:
+            sp[count_key] += 1
     decided = lambda sp: sp["lies"] + sp["evasive"] + sp["missing_evidence"] + sp["consistent"]
     for sp in speakers.values():
         d = decided(sp)

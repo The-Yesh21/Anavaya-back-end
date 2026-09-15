@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (currentWorkspaceCaseId === caseId) {
                         $("case-workspace").style.display = "none";
                         $("case-workspace-empty").style.display = "block";
+                        setAnalysisWholeCaseVisible(false);
                         currentWorkspaceCaseId = null;
                         UI.setCurrentCaseId("");
                     }
@@ -115,7 +116,11 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Head click → expand + open the case workspace + populate Analysis tab
+        // Head click → expand + open the case workspace. The Analysis tab leads
+        // with the CASE-level verdict (the whole-case analysis), so we do NOT
+        // auto-select a single document — the officer must never mistake one
+        // piece of evidence for the case decision. Clicking a document (the doc
+        // list below, or a sidebar row) still opens its evidence-level analysis.
         registryList.querySelectorAll(".registry-case-head").forEach((head) => {
             head.addEventListener("click", async (e) => {
                 const card = head.closest(".registry-case");
@@ -124,34 +129,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 UI.setCurrentCaseId(caseId);
                 renderRegistry();
                 updateTranscriptCaseBadge();
-                // Open the case site for this case.
                 await openCaseWorkspace(caseId);
-                // Auto-populate the Analysis tab: find the first analyzed
-                // document in this case's Excel rows and feed it to selectCase.
-                // selectCaseFn activates the Analysis (details) tab automatically.
-                let foundAnalysis = false;
+                let hasAnalysis = false;
                 try {
                     const caseRes = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
                     if (caseRes.ok) {
                         const caseData = await caseRes.json();
-                        const docs = caseData.documents || [];
-                        for (const d of docs) {
-                            const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
-                            if (row) {
-                                UI.selectCaseFn(row);
-                                foundAnalysis = true;
-                                break;
-                            }
-                        }
+                        hasAnalysis = (caseData.documents || []).some((d) => d.priority);
                     }
                 } catch (_) { /* non-fatal */ }
-                // If no analyzed document was found, stay on the Case workspace tab
-                // so the officer can upload evidence. If selectCaseFn was called,
-                // the Analysis tab is already active.
-                if (!foundAnalysis) {
-                    const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
-                    if (caseTabBtn) caseTabBtn.click();
-                }
+                // Evidence analysed → open the case verdict. Nothing analysed yet
+                // → stay on the Case tab so the officer can upload + run it.
+                const tabBtn = document.querySelector(
+                    `.tab-btn[data-tab='${hasAnalysis ? "details-tab" : "case-tab"}']`);
+                if (tabBtn) tabBtn.click();
             });
         });
         // Doc click → select the matching Excel row if present
@@ -246,14 +237,16 @@ document.addEventListener("DOMContentLoaded", () => {
             // Refresh the sidebar registry + Excel-backed list.
             try { await UI.refreshCases(); } catch (e) { /* non-fatal */ }
             fetchRegistry();
-            // Auto-populate the Analysis tab if a FIR was analysed during creation.
+            // Show the CASE-level verdict if the FIR was analysed during creation.
+            // (No single-document auto-select — the case decision comes from the
+            // whole-case analysis over all evidence.)
             try {
                 const cr = await fetch(`/api/cases/${encodeURIComponent(caseData.case_id)}`);
                 if (cr.ok) {
                     const cd = await cr.json();
-                    for (const d of (cd.documents || [])) {
-                        const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
-                        if (row) { UI.selectCaseFn(row); break; }
+                    if ((cd.documents || []).some((d) => d.priority)) {
+                        const detailsTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+                        if (detailsTabBtn) detailsTabBtn.click();
                     }
                 }
             } catch (_) { /* non-fatal */ }
@@ -361,14 +354,32 @@ document.addEventListener("DOMContentLoaded", () => {
         renderCaseLevelPanel(c);
     }
 
+    // Show/hide the whole-case analysis block that lives in the Analysis tab.
+    // It is driven by the case open in the workspace (not the sidebar
+    // selection), and while it is on screen the "No Case Selected" placeholder
+    // would only be redundant — so keep that placeholder out of the way.
+    function setAnalysisWholeCaseVisible(visible) {
+        const el = $("analysis-whole-case");
+        if (!el) return;
+        el.style.display = visible ? "block" : "none";
+        const noCase = $("no-case-selected");
+        const details = $("case-details-content");
+        if (noCase) {
+            const detailsVisible = details && details.style.display !== "none";
+            noCase.style.display = (visible || detailsVisible) ? "none" : "flex";
+        }
+    }
+
     // ---- Whole-Case Analysis panel ---------------------------------
     // One verdict over ALL evidence: features merged deterministically,
     // Decision Tree run once on the merged set (see whole_case_analysis.py).
+    // Rendered into the Analysis tab (see setAnalysisWholeCaseVisible above).
     async function renderCaseLevelPanel(c) {
         const emptyEl = $("case-level-empty");
         const bodyEl = $("case-level-body");
-        const countEl = $("workspace-case-level-count");
+        const countEl = $("analysis-case-level-count");
         if (!emptyEl || !bodyEl) return;
+        setAnalysisWholeCaseVisible(true);
         const analysed = (c.documents || []).filter((d) => d.priority).length;
         const total = (c.documents || []).length;
         countEl.textContent = analysed === total && total > 0 ? `${analysed}/${total} docs analysed` : (total ? `${analysed}/${total} docs analysed` : "");
@@ -567,6 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Return to the dashboard; the case workspace will be empty.
             $("case-workspace").style.display = "none";
             $("case-workspace-empty").style.display = "block";
+            setAnalysisWholeCaseVisible(false);
             currentWorkspaceCaseId = null;
             UI.setCurrentCaseId("");
             fetchRegistry();

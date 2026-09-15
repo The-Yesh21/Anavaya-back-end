@@ -175,7 +175,7 @@
     }
   ],
   "aggregate_priority": "Medium",
-  "aggregate_rationale": "Aggregate priority is Medium — the highest priority among the case documents (safety-first: High > Medium > Low). Breakdown: 03_Exhibit_P2_Bank_Transfers.png (Other): Low; 04_Exhibit_P3_Disputed_Invoices.png (Other): Low; 05_Exhibit_P4_Bank_Statement.png (Other): Low; 06_Exhibit_P5_GST_Certificate.png (Other): Medium; 07_Exhibit_P6_Forensic_Report.png (Other): Low; 09_Evidence_Booklet.pdf (Other): Medium.",
+  "aggregate_rationale": "Case-level priority Medium — the Decision Tree run ONCE on the merged features of all 6 analysed document(s) (severity No Injury, vulnerability Low, category Excise/Tax). Per-document breakdown (detail only, not the decision): 03_Exhibit_P2_Bank_Transfers.png (Other): Low; 04_Exhibit_P3_Disputed_Invoices.png (Other): Low; 05_Exhibit_P4_Bank_Statement.png (Other): Low; 06_Exhibit_P5_GST_Certificate.png (Other): Medium; 07_Exhibit_P6_Forensic_Report.png (Other): Low; 09_Evidence_Booklet.pdf (Other): Medium.",
   "case_level": {
     "priority": "Medium",
     "rationale": "Case-level priority Medium — the Decision Tree run ONCE on the merged features of all 6 analysed document(s) (severity No Injury, vulnerability Low, category Excise/Tax).",
@@ -502,7 +502,7 @@
       "priority_rules_detailed": "**RULE 1 — No Physical Injury → Standard Priority:** Article 21 (right to life) is not directly engaged through physical harm. Priority is determined by other factors.\n\n**RULE 3 — Power Imbalance → Ensure Level Playing Field (Article 14):** A significant power imbalance between parties triggers Article 14's equality guarantee. The court must take active measures to prevent the influential party from exploiting its position.\n\n**RULE 4 — Regulatory/Commercial Matter → Property & Economic Rights:** Articles 14, 19(1)(g), and 300A govern this matter. Priority is based on economic impact and procedural fairness concerns, not life-and-liberty urgency.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **Medium**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
     },
     "report_pdf": "case_priority_system/reports\\ANV-2026-0019_whole_case_report.pdf",
-    "computed_at": "2026-09-12T00:41:23"
+    "computed_at": "2026-09-15T20:33:48"
   },
   "sessions": []
 }

@@ -476,11 +476,18 @@ def _evidence_context(claim: dict, evidence: list, limit: int = 3) -> str:
 
 
 def _ollama_verify(undecided: list, evidence: list, ollama_url: str = OLLAMA_URL,
-                   ollama_model: str = OLLAMA_MODEL, chunk_size: int = 20) -> dict:
+                   ollama_model: str = OLLAMA_MODEL, chunk_size: int = 20,
+                   context_blocks: list | None = None) -> dict:
     """Ask the local Ollama LLM to judge undecided claims. Never raises.
 
     Claims are processed in bounded chunks so the prompt (and the JSON schema
     instruction at its tail) always fits.
+
+    context_blocks: optional [(doc_name, text)] pairs. When given, the prompt
+    shows the LLM these fuller document texts instead of the per-claim excerpt
+    selection — needed when the structured evidence extraction found nothing
+    for the claim but the documents still record the relevant facts (e.g. a
+    witness denying a bank transfer the summaries describe).
     """
     if requests is None or not undecided:
         return {}
@@ -499,14 +506,22 @@ def _ollama_verify(undecided: list, evidence: list, ollama_url: str = OLLAMA_URL
             "You compare a witness's statements against case documents and decide "
             "whether each statement is consistent, contradicted, or unverified. "
             "Return ONLY a JSON object of the form "
-            '{"verdicts": [{"index": 0, "verdict": "consistent|contradicted|unverified", "reason": "..."}]}. '
-            "Use 'contradicted' only when a document explicitly asserts the opposite "
-            "of a negated claim or the two cannot both be true."
+            '{"verdicts": [{"index": 0, "verdict": "consistent|contradicted|unverified", "reason": "...", "document": "name of the document that supports or contradicts the statement, or null"}]}. '
+            "Use 'contradicted' when a document and the statement cannot both be true — "
+            "in particular, a statement that DENIES an act (a transfer, payment, meeting, "
+            "delivery, presence) that a document records is contradicted by that document. "
+            "Use 'unverified' only when no document touches the asserted facts at all."
         )
+        if context_blocks:
+            evidence_block = "\n".join(
+                f"- [{name}] {str(text)[:1200]}" for name, text in context_blocks
+            )
+        else:
+            evidence_block = "\n".join(_evidence_context(c, evidence) for _, c in chunk)
         user_prompt = (
             "Witness statements to check:\n" + claims_block +
             "\n\nEvidence from case documents:\n" +
-            "\n".join(_evidence_context(c, evidence) for _, c in chunk) +
+            evidence_block +
             "\n\nJudge each statement and return the JSON verdict object only."
         )
         payload = {
@@ -530,7 +545,11 @@ def _ollama_verify(undecided: list, evidence: list, ollama_url: str = OLLAMA_URL
                 idx = v.get("index")
                 verdict = str(v.get("verdict", "")).lower()
                 if isinstance(idx, int) and verdict in VERDICTS:
-                    results[idx] = {"verdict": verdict, "reason": str(v.get("reason", ""))}
+                    results[idx] = {
+                        "verdict": verdict,
+                        "reason": str(v.get("reason", "")),
+                        "document": str(v.get("document") or "").strip() or None,
+                    }
         except Exception as e:
             print(f"fact_checker: Ollama verification unavailable: {e}")
     return results
