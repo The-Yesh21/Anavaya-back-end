@@ -1017,6 +1017,7 @@ def get_case_insights(case_id: str):
         from case_priority_system.scripts.whole_case_analysis import (
             analyze_case_whole,
             merge_case_features,
+            build_corroboration_map,
         )
         from case_priority_system.scripts.inference_pipeline import (
             trace_decision_steps,
@@ -1026,8 +1027,9 @@ def get_case_insights(case_id: str):
         from scripts.whole_case_analysis import (
             analyze_case_whole,
             merge_case_features,
+            build_corroboration_map,
         )
-        from scripts.inference_pipeline import (
+        from scripts.inference_pipeline import (  # type: ignore
             trace_decision_steps,
             load_model,
         )
@@ -1038,15 +1040,33 @@ def get_case_insights(case_id: str):
             case_manager.refresh_aggregate(case, model_data=model_data)
             cl = case.case_level or {}
 
+    con = cl.get("constitutional", {}) or {}
+    feats = cl.get("features", {}) or {}
+    parties = feats.get("main_parties") or []
+    if isinstance(parties, str):
+        parties = [parties]
     verdict = {
         "priority": cl.get("priority"),
         "rationale": cl.get("rationale", ""),
-        "features": cl.get("features", {}),
+        "features": feats,
         "merge_info": cl.get("merge_info", {}),
         "corroboration": cl.get("corroboration", {}),
         "corroboration_text": cl.get("corroboration_text", ""),
-        "constitutional": cl.get("constitutional", {}),
+        "constitutional": con,
+        # Structured constitutional grounding for the "Articles that apply"
+        # section: every engaged article with WHY it applies + the doctrines.
+        "rights": con.get("constitutional_rights_engaged", []),
+        "doctrines": con.get("applicable_doctrines", []),
         "computed_at": cl.get("computed_at", ""),
+    }
+    overview = {
+        "title": case.title,
+        "case_id": case.case_id,
+        "parties": [str(p).strip() for p in parties if str(p).strip()],
+        "case_category": feats.get("case_category", ""),
+        "crime_type": feats.get("crime_type", ""),
+        "narrative": feats.get("plain_summary", ""),
+        "document_count": len(case.documents),
     }
 
     # ---- Per-evidence cards -------------------------------------------
@@ -1115,6 +1135,35 @@ def get_case_insights(case_id: str):
             * (0.6 + 0.4 * (ev.get("gravity") or 0) / 100.0)
         ))) if (drives or ev.get("gravity") is not None) else None
 
+    # ---- How the evidence connects ------------------------------------
+    # Reuse the corroboration map's pairwise links (same deterministic
+    # definition of "shared" everywhere): WHAT ties each document to the
+    # case's other evidence — shared dates / places / parties.
+    analysed_all = [d for d in case.documents if d.analysis]
+    corr = cl.get("corroboration") or {}
+    if not corr and analysed_all:
+        try:
+            corr = build_corroboration_map(case)
+        except Exception as e:
+            print(f"case-insights: corroboration map failed (non-fatal): {e}")
+            corr = {}
+    links = {}
+    for pair in (corr.get("pairs") or []):
+        link_a = {
+            "with": pair.get("b", ""),
+            "shared": pair.get("shared", []),
+            "dates": (pair.get("shared_dates") or [])[:3],
+            "places": (pair.get("shared_places") or [])[:3],
+            "parties": (pair.get("shared_parties") or [])[:4],
+        }
+        links.setdefault(pair.get("a", ""), []).append(link_a)
+        links.setdefault(pair.get("b", ""), []).append({**link_a, "with": pair.get("a", "")})
+    for ev in evidence:
+        ev["connects"] = links.get(ev.get("filename"), [])
+        # The document's own one-line story (what it says), from its analysis.
+        src = next((d for d in analysed_all if d.doc_id == ev.get("doc_id")), None)
+        ev["summary"] = ((src.analysis or {}).get("plain_summary", "") or "")[:420] if src else ""
+
     # ---- Decision Tree trace for the merged features -------------------
     path = cl.get("path_steps") or None
     if not path and cl.get("features"):
@@ -1131,6 +1180,7 @@ def get_case_insights(case_id: str):
         "case_id": case.case_id,
         "title": case.title,
         "has_analysis": bool(cl),
+        "overview": overview,
         "verdict": verdict,
         "evidence": evidence,
         "path": path,

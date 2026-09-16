@@ -75,6 +75,35 @@ const CASE_ID = process.env.CASE_ID || 'ANV-2026-0019';
       chips: document.querySelectorAll('#case-level-chips .case-level-chip').length,
     }));
 
+    // 3b. The case overview (parties + narrative).
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#case-level-overview .ov-party').length > 0,
+      { timeout: 15000 });
+    out.checks.overview = await page.evaluate(() => ({
+      parties: [...document.querySelectorAll('#case-level-overview .ov-party')]
+        .map((e) => e.textContent.trim()).slice(0, 6),
+      narrative: (document.querySelector('#case-level-overview .ov-narrative')?.textContent || '').slice(0, 100),
+    }));
+
+    // 3c. Articles that apply + doctrines.
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#case-level-articles .ev-article').length > 0,
+      { timeout: 15000 });
+    out.checks.articles = await page.evaluate(() => ({
+      articles: document.querySelectorAll('#case-level-articles .ev-article').length,
+      primary: document.querySelectorAll('#case-level-articles .ev-article.primary').length,
+      withWhy: document.querySelectorAll('#case-level-articles .ev-article-why').length,
+      doctrines: document.querySelectorAll('#case-level-articles .ev-doctrine').length,
+      firstArticle: (document.querySelector('#case-level-articles .ev-article-num')?.textContent || '').trim(),
+    }));
+
+    // 3d. Evidence cards show what they say + how they connect.
+    out.checks.connects = await page.evaluate(() => ({
+      withSummary: document.querySelectorAll('#case-level-evidence .ev-says').length,
+      withConnects: document.querySelectorAll('#case-level-evidence .ev-connects').length,
+      linkSample: (document.querySelector('#case-level-evidence .ev-link')?.textContent || '').trim().slice(0, 120),
+    }));
+
     // 4. Click a document in the registry → Analysis tab again.
     await page.click(`.registry-case[data-case-id="${CASE_ID}"] .registry-case-head`); // collapse
     await page.click(`.registry-case[data-case-id="${CASE_ID}"] .registry-case-head`); // re-open (expands doc list)

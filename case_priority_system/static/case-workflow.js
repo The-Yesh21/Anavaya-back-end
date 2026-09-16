@@ -469,6 +469,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const con = cl.constitutional || {};
         $("case-level-opinion").textContent = con.state_perspective_opinion || "Not available yet.";
 
+        // Articles that apply + doctrines (structured rule-based grounding).
+        renderCaseArticles(con);
+
         // PDF report link.
         const reportBtn = $("case-level-report-btn");
         reportBtn.href = `/api/cases/${encodeURIComponent(c.case_id)}/case-report.pdf`;
@@ -481,12 +484,73 @@ document.addEventListener("DOMContentLoaded", () => {
             if (res.ok) {
                 const data = await res.json();
                 if (currentWorkspaceCaseId !== c.case_id) return; // stale response guard
+                renderCaseOverview(data.overview || null, data.verdict || null);
                 renderEvidenceWeights(data.evidence || []);
                 renderCasePathTrace(data.path || null, cl.priority);
             }
         } catch (_) { /* sections keep their placeholder text */ }
 
         if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // "The case" overview: what the case is about, the parties, and the
+    // classification that feeds the Decision Tree (all from the merged
+    // whole-case features — the same facts the tree saw).
+    function renderCaseOverview(overview, verdict) {
+        const wrap = $("case-level-overview");
+        if (!wrap) return;
+        if (!overview) { wrap.innerHTML = ""; return; }
+        // Merged parties can arrive as one comma-joined string — show one chip each.
+        const rawParties = (overview.parties || [])
+            .flatMap((p) => String(p).split(","))
+            .map((p) => p.trim())
+            .filter(Boolean);
+        const parties = rawParties.map((p) => `<span class="ov-party">${esc(p)}</span>`).join("");
+        const chips = [
+            ["Category", overview.case_category],
+            ["Case type", overview.crime_type],
+            ["Evidence", overview.document_count ? `${overview.document_count} documents` : ""],
+            ["Priority", verdict && verdict.priority ? `${verdict.priority} Priority` : ""],
+        ].filter(([, v]) => v)
+            .map(([k, v]) => `<span class="ov-fact"><em>${esc(k)}:</em> ${esc(String(v))}</span>`)
+            .join("");
+        wrap.innerHTML = `
+            ${parties ? `<div class="ov-parties">${parties}</div>` : ""}
+            <p class="ov-narrative">${esc(overview.narrative || "")}</p>
+            ${chips ? `<div class="ov-facts">${chips}</div>` : ""}
+        `;
+    }
+
+    // "Articles that apply": every engaged constitutional article with WHY it
+    // applies (rule-based, from the constitutional analysis), primary first,
+    // plus the doctrines the analysis invokes. Never LLM-generated.
+    function renderCaseArticles(con) {
+        const wrap = $("case-level-articles");
+        if (!wrap) return;
+        const rights = (con && con.constitutional_rights_engaged) || [];
+        const doctrines = (con && con.applicable_doctrines) || [];
+        if (!rights.length && !doctrines.length) {
+            wrap.innerHTML = `<div class="ev-empty">Constitutional analysis appears here once the case is analysed.</div>`;
+            return;
+        }
+        const rightsHtml = rights.map((r) => `
+            <div class="ev-article ${r.primary ? "primary" : "secondary"}">
+                <div class="ev-article-head">
+                    <span class="ev-article-num">${esc(r.article || "")}</span>
+                    <span class="ev-article-title">${esc(r.title || "")}</span>
+                    ${r.primary ? `<span class="ev-article-tag">primary</span>` : `<span class="ev-article-tag sec">secondary</span>`}
+                </div>
+                ${r.why_applies ? `<div class="ev-article-why">${esc(r.why_applies)}</div>` : ""}
+                ${Array.isArray(r.principles) && r.principles.length
+                    ? `<div class="ev-article-principles">${r.principles.map((p) => `<span>${esc(p)}</span>`).join("")}</div>` : ""}
+            </div>`).join("");
+        const doctrinesHtml = doctrines.length ? `
+            <div class="ev-doctrines">
+                <div class="ev-doctrines-title">Doctrines the court would apply</div>
+                ${doctrines.map((d) => `
+                    <div class="ev-doctrine"><strong>${esc(d.name || "")}</strong>${d.application ? ` — ${esc(d.application)}` : ""}</div>`).join("")}
+            </div>` : "";
+        wrap.innerHTML = rightsHtml + doctrinesHtml;
     }
 
     // Per-evidence strength cards: what each document contributes to the
@@ -525,6 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="ev-type">${esc(it.doc_type || "")}</span>
                         ${status}
                     </div>
+                    ${it.summary ? `<div class="ev-says">${esc(it.summary)}</div>` : ""}
                     <div class="ev-weight-row">
                         <div class="ev-bar" role="meter" aria-valuenow="${hasWeight ? it.weight : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Evidence weight of ${esc(it.filename)}">
                             <div class="ev-bar-fill ${weightCls}" style="width:${weightPct}%"></div>
@@ -533,6 +598,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                     ${signals ? `<div class="ev-signals">${signals}</div>` : ""}
                     ${drives.length ? `<div class="ev-drives">Sets the case's <strong>${esc(drives.join(", "))}</strong></div>` : ""}
+                    ${(it.connects || []).length ? `<div class="ev-connects"><em>Connects to:</em>${(it.connects || []).map((cnn) => `<span class="ev-link"><strong>${esc(cnn.with)}</strong>${(cnn.shared || []).length ? ` — shared ${esc(cnn.shared.join(", "))}` : ""}${(cnn.dates && cnn.dates.length) ? ` · ${esc(cnn.dates.join(", "))}` : ""}${(cnn.parties && cnn.parties.length) ? ` · ${esc(cnn.parties.join(", "))}` : ""}</span>`).join("")}</div>` : ""}
                 </div>`;
         }).join("");
     }

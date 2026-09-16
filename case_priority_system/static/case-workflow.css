@@ -768,6 +768,23 @@
 }
 .case-level-report-btn i { width: 15px; height: 15px; }
 
+/* ---- The case overview ------------------------------------------- */
+.case-level-overview { margin-top: 8px; }
+.ov-parties { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ov-party {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary, #2B2620);
+    background: var(--bg-color, #F7F3E8);
+    border: 1px solid var(--border-color, #E5E0D4);
+    border-radius: 999px;
+    padding: 2px 10px;
+}
+.ov-narrative { font-size: 12.5px; line-height: 1.55; color: var(--text-secondary, #55503F); margin: 0 0 8px; }
+.ov-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.ov-fact { font-size: 11.5px; color: var(--text-secondary, #55503F); }
+.ov-fact em { font-style: normal; font-weight: 600; color: var(--text-primary, #2B2620); }
+
 /* ---- Evidence & weight cards ------------------------------------- */
 .case-level-evidence {
     display: flex;
@@ -863,6 +880,78 @@
 .ev-signal em { font-style: normal; color: var(--text-primary, #2B2620); font-weight: 600; }
 .ev-drives { margin-top: 5px; font-size: 11.5px; color: var(--text-secondary, #55503F); }
 .ev-drives strong { color: var(--gold-600, #A87E2F); }
+
+.ev-says {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-secondary, #55503F);
+    margin-top: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.ev-connects {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11.5px;
+}
+.ev-connects em { font-style: normal; font-weight: 700; color: var(--gold-600, #A87E2F); margin-bottom: 1px; }
+.ev-link { color: var(--text-secondary, #55503F); overflow-wrap: anywhere; }
+.ev-link strong { color: var(--text-primary, #2B2620); }
+
+/* ---- Articles that apply ------------------------------------------ */
+.case-level-articles { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.ev-article {
+    border: 1px solid var(--border-color, #E5E0D4);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--surface-color, #FFFCF5);
+}
+.ev-article.primary { border-left: 3px solid var(--gold-600, #A87E2F); }
+.ev-article.secondary { opacity: 0.85; }
+.ev-article-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ev-article-num {
+    font-weight: 800;
+    font-size: 12px;
+    color: var(--gold-600, #A87E2F);
+    white-space: nowrap;
+}
+.ev-article-title { font-size: 12.5px; font-weight: 600; color: var(--text-primary, #2B2620); min-width: 0; }
+.ev-article-tag {
+    flex: none;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-radius: 999px;
+    padding: 1px 7px;
+    background: rgba(168, 126, 47, 0.14);
+    color: var(--gold-600, #A87E2F);
+}
+.ev-article-tag.sec { background: var(--bg-color, #EFEAD9); color: var(--text-secondary, #55503F); }
+.ev-article-why { font-size: 12px; line-height: 1.5; color: var(--text-secondary, #55503F); margin-top: 4px; }
+.ev-article-principles { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.ev-article-principles span {
+    font-size: 10.5px;
+    color: var(--text-secondary, #55503F);
+    background: var(--bg-color, #F7F3E8);
+    border-radius: 999px;
+    padding: 1px 8px;
+}
+.ev-doctrines { border-top: 1px dashed var(--border-color, #E5E0D4); padding-top: 8px; }
+.ev-doctrines-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary, #55503F);
+    margin-bottom: 5px;
+}
+.ev-doctrine { font-size: 12px; line-height: 1.5; color: var(--text-secondary, #55503F); margin-bottom: 4px; overflow-wrap: anywhere; }
+.ev-doctrine strong { color: var(--text-primary, #2B2620); }
 
 /* ---- Decision path trace ------------------------------------------ */
 .case-level-path { margin-top: 8px; }
