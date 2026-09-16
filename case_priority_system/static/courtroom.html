@@ -124,6 +124,14 @@
                         <h2 class="stage-title"><i data-lucide="video"></i> The Court</h2>
                         <span class="roster-count"><span id="roster-online">0</span> present</span>
                     </div>
+                    <!-- Media-path notice: a tile that stays blank because the
+                         peer connection never established is called out here
+                         instead of looking like a silent rendering glitch. -->
+                    <div id="media-notice" class="media-notice" role="status" aria-live="polite" hidden>
+                        <i data-lucide="wifi-off"></i>
+                        <span id="media-notice-text"></span>
+                        <button type="button" id="media-retry-btn" class="media-retry-btn">Retry</button>
+                    </div>
                     <div id="video-stage" class="video-stage">
                         <div class="stage-empty">
                             <i data-lucide="users"></i>

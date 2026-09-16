@@ -522,6 +522,71 @@ body::before {
 .stage-tile.speaking .stage-live { opacity: 1; }
 .stage-live i { width: 13px; height: 13px; color: var(--gold-300); }
 
+/* Connection state of a remote feed. A tile with no frames is otherwise
+   indistinguishable from a broken renderer, so say what is actually wrong. */
+.stage-conn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    display: none;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gold-50);
+    background: color-mix(in srgb, var(--webcam-bg) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold-50) 20%, transparent);
+    pointer-events: none;
+}
+.stage-tile.conn-connecting .stage-conn,
+.stage-tile.conn-failed .stage-conn { display: inline-flex; }
+.stage-tile.conn-failed .stage-conn {
+    color: var(--gold-50);
+    background: color-mix(in srgb, var(--color-high) 80%, transparent);
+    border-color: transparent;
+}
+.stage-tile.is-me .stage-conn { display: none; }
+
+/* Room-level media notice (stage header area): names the unreachable
+   participants and offers a retry. */
+.media-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 9px 12px;
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--color-high) 10%, var(--bg-well));
+    border: 1px solid color-mix(in srgb, var(--color-high) 30%, transparent);
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.media-notice[hidden] { display: none; }
+.media-notice i { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-high); }
+.media-notice #media-notice-text { min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; }
+.media-retry-btn {
+    margin-left: auto;
+    flex: 0 0 auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-high) 45%, transparent);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+.media-retry-btn:hover { background: var(--color-muted); }
+
 /* ============================================================
    RAIL PANELS + COLLAPSIBLE SECTIONS
    Every rail panel (and the transcript dock) collapses to its header.

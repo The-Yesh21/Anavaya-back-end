@@ -3218,6 +3218,28 @@ button, a, input, select {
 .path-trace-wrap.collapsed .path-trace-toggle .collapse-chevron { transform: rotate(-90deg); }
 .path-trace-wrap.collapsed #decision-path-steps, .path-trace-wrap.collapsed .path-breadcrumb { display: none; }
 
+/* Why-this-split effect chips (decision-path timeline + tree node panel) */
+.step-effect {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-left: 6px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.step-effect.raised { background: rgba(179, 64, 46, 0.12); color: #B3402E; }
+.step-effect.lowered { background: rgba(124, 138, 90, 0.16); color: #5C6B3C; }
+.step-effect.neutral { background: var(--bg-color, #EFEAD9); color: var(--text-secondary, #55503F); }
+.step-branch, .node-panel-branch {
+    font-size: 11.5px;
+    color: var(--text-secondary, #55503F);
+    margin-top: 3px;
+    overflow-wrap: anywhere;
+}
+.node-panel-branch strong { margin-right: 6px; }
+
 .path-breadcrumb {
     display: flex;
     flex-wrap: wrap;

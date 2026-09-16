@@ -65,7 +65,7 @@
         iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
         localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
-        peers: new Map(),          // participant_id -> { pc: RTCPeerConnection, audio, videoTrack }
+        peers: new Map(),          // participant_id -> { pc, audio, videoTrack, status, … }
         pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
     };
 
@@ -99,6 +99,9 @@
         rosterList: $("roster-list"),
         rosterOnline: $("roster-online"),
         videoStage: $("video-stage"),
+        mediaNotice: $("media-notice"),
+        mediaNoticeText: $("media-notice-text"),
+        mediaRetryBtn: $("media-retry-btn"),
         transcriptCount: $("transcript-count"),
         contextHeadSub: $("context-head-sub"),
         phaseHeadSub: $("phase-head-sub"),
@@ -150,6 +153,7 @@
         initCollapsiblePanels();
         if (els.pushToTalkBtn) initPushToTalk();
         if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
+        if (els.mediaRetryBtn) els.mediaRetryBtn.addEventListener("click", () => restartMediaConnections());
         els.joinName.focus();
     }
 
@@ -437,19 +441,40 @@
     // WEBRTC MESH
     // ====================================================================
     const RTC_CONFIG = {
+        turnConfigured: false,   // server advertises a relay (set by loadRtcConfig)
+        relaySeen: false,        // a relay candidate was actually gathered (see onicecandidate)
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
         ],
     };
 
-    // Merge the STUN defaults with any TURN relays the server advertises at
-    // /api/court/rtc-config. TURN is what lets remote participants on other
-    // networks / mobile data actually connect: carriers and many ISPs use
-    // symmetric NAT (CGNAT), which STUN hole-punching cannot traverse — the
-    // media then has to relay through a TURN server. Runs before any
-    // RTCPeerConnection is created, so every offer/answer carries the relays.
+    // Merge the STUN defaults with TURN relays from the server. Preferred
+    // source is /api/court/turn-credentials, which mints short-lived
+    // per-session credentials (Cloudflare Realtime TURN) server-side — the
+    // long-term secret never reaches the browser. When that is not configured
+    // we fall back to /api/court/rtc-config's static relays, and finally to
+    // STUN-only. TURN is what lets remote participants on other networks /
+    // mobile data actually connect: carriers and many ISPs use symmetric NAT
+    // (CGNAT), which STUN hole-punching cannot traverse — media then has to
+    // relay. Runs before any RTCPeerConnection is created, so every
+    // offer/answer carries the relays.
     async function loadRtcConfig() {
+        // 1) Dynamic short-lived credentials (Cloudflare) — freshest source.
+        try {
+            const res = await fetch("/api/court/turn-credentials", { cache: "no-store" });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.enabled && Array.isArray(data.iceServers) && data.iceServers.length) {
+                    RTC_CONFIG.iceServers.push(...data.iceServers.filter((s) => s && typeof s === "object"));
+                    RTC_CONFIG.turnConfigured = true;
+                    return; // dynamic creds are sufficient on their own
+                }
+            }
+        } catch (_) {
+            // Fall through to the static config.
+        }
+        // 2) Static relays (env var / courtroom_turn.json) as fallback.
         try {
             const res = await fetch("/api/court/rtc-config", { cache: "no-store" });
             if (!res.ok) return;
@@ -462,6 +487,10 @@
                 if (seen.has(key)) continue;
                 seen.add(key);
                 RTC_CONFIG.iceServers.push(s);
+                // A relay is only useful if it can actually allocate; recording
+                // that the server configured one lets the media notice tell the
+                // user to retry instead of blaming their network.
+                if (key.includes("turn")) RTC_CONFIG.turnConfigured = true;
             }
         } catch (_) {
             // Non-fatal: without a TURN relay the mesh still works for peers
@@ -584,6 +613,127 @@
         }
     }
 
+    // ---- media-path health ---------------------------------------------
+    // A peer connection that never establishes (or drops) used to look like an
+    // ordinary blank tile: the participant's video simply stayed on the avatar
+    // with nothing to explain it. That is indistinguishable from a broken feed,
+    // and it is what a remote participant sees when the two browsers share no
+    // reachable path (different networks / CGNAT with no TURN relay available).
+    // Every peer now carries a status, surfaced on its tile + in a room-level
+    // notice, and a failed connection is retried with an ICE restart.
+    const MEDIA_MAX_ICE_RESTARTS = 3;
+    // A peer that gathers no usable candidates (the classic "the other network
+    // is unreachable and there is no working relay" case) does not fail on its
+    // own — Chrome just sits there. Past this long, say so on the tile/notice
+    // rather than showing a blank feed with no explanation.
+    const MEDIA_CONNECT_TIMEOUT_MS = 15000;
+
+    function peerStatusOf(entry) {
+        if (!entry || !entry.pc) return "closed";
+        const pc = entry.pc;
+        const ice = pc.iceConnectionState;
+        const conn = pc.connectionState;
+        if (conn === "closed" || ice === "closed") return "closed";
+        if (conn === "failed" || ice === "failed") return "failed";
+        if (conn === "connected" || conn === "completed"
+            || ice === "connected" || ice === "completed") return "connected";
+        // Still negotiating. "disconnected" is usually transient (ICE probing),
+        // so both it and a stalled "new" only become a failure on timeout.
+        if (entry.timedOut) return "failed";
+        return "connecting";
+    }
+
+    // Reflect one peer's status onto its stage tile. The tile is rebuilt by
+    // renderStage(), so this is called both on state changes and after a
+    // rebuild.
+    function applyPeerStatusUi(remotePid, tileEl = null) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const status = peerStatusOf(entry);
+        entry.status = status;
+        const tile = tileEl || document.querySelector(`.stage-tile[data-pid="${remotePid}"]`);
+        if (tile) {
+            tile.classList.toggle("conn-connecting", status === "connecting");
+            tile.classList.toggle("conn-failed", status === "failed");
+            const chip = tile.querySelector(".stage-conn");
+            if (chip) {
+                chip.textContent = status === "failed" ? "Not connected"
+                    : status === "connecting" ? "Connecting…" : "";
+            }
+        }
+        updateMediaNotice();
+    }
+
+    // Room-level banner: names the participants we cannot reach and, when the
+    // server has no relay configured, says why — so "blank tile" stops being
+    // silent. Returns how many peers are currently unreachable.
+    function updateMediaNotice() {
+        if (!els.mediaNotice) return 0;
+        const failed = [];
+        for (const [pid, entry] of state.peers) {
+            if (peerStatusOf(entry) !== "failed") continue;
+            const p = state.participants.find((x) => x.participant_id === pid);
+            failed.push((p && p.name) || "a participant");
+        }
+        if (!failed.length) {
+            els.mediaNotice.hidden = true;
+            return 0;
+        }
+        const names = failed.length <= 2
+            ? failed.join(", ")
+            : `${failed.slice(0, 2).join(", ")} +${failed.length - 2} more`;
+        let text = `No media connection with ${names} — their video and voice can't reach you.`;
+        if (RTC_CONFIG.relaySeen) {
+            text += " Retrying through the relay; you can also try again.";
+        } else if (RTC_CONFIG.turnConfigured) {
+            // A relay is configured but never produced a relay candidate, so the
+            // two sides share no reachable path and the relay isn't the way out.
+            text += " The configured TURN relay isn't answering, so a participant on another network or mobile data can't connect — retry, use the same network, or check the relay credentials.";
+        } else {
+            text += " This room has no TURN relay, so participants on a different network or mobile data can't connect — use the same network, or configure one in case_priority_system/courtroom_turn.json.";
+        }
+        els.mediaNoticeText.textContent = text;
+        els.mediaNotice.hidden = false;
+        return failed.length;
+    }
+
+    // Re-negotiate a peer's ICE: the usual cure for a path that went stale (the
+    // network changed, a NAT binding expired, a relay was added). Serialized
+    // through negotiateWith() like every other SDP change, so it can't race
+    // with a track sync or an offer/answer exchange.
+    function scheduleIceRestart(remotePid, delay = 0) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || state.iEnded) return;
+        const attempts = entry.iceRestartAttempts || 0;
+        if (attempts >= MEDIA_MAX_ICE_RESTARTS) return;
+        if (entry.restartTimer) return;                     // already queued
+        entry.iceRestartAttempts = attempts + 1;
+        entry.restartTimer = setTimeout(async () => {
+            entry.restartTimer = null;
+            if (state.peers.get(remotePid) !== entry) return;
+            if (peerStatusOf(entry) === "connected") return;   // recovered on its own
+            if (!state.localStream) return;                    // nothing to send yet
+            await negotiateWith(remotePid, { iceRestart: true });
+        }, delay);
+    }
+
+    // "Retry" in the media notice: forget the backoff and re-attempt every
+    // unreachable peer right now (the user usually fixes the network first).
+    function restartMediaConnections() {
+        let n = 0;
+        for (const [pid, entry] of state.peers) {
+            if (peerStatusOf(entry) === "failed") {
+                entry.iceRestartAttempts = 0;
+                entry.timedOut = false;   // give the retry a fresh window
+                if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+                scheduleIceRestart(pid);
+                n++;
+            }
+        }
+        if (n) toast(`Retrying the media connection for ${n} participant${n === 1 ? "" : "s"}…`);
+        return n;
+    }
+
     // Make one peer connection send our current audio (+ video). Returns true
     // once the mic carried by this connection is negotiated out (or an offer
     // carrying it just went out), false when the attempt had to wait for an
@@ -656,19 +806,22 @@
     // offer that isn't preceded by its answer ("the order of m-lines doesn't
     // match"), and two racing createOffer() calls used to leave a participant
     // with no media at all — so every path serializes here.
-    async function negotiateWith(remotePid) {
+    async function negotiateWith(remotePid, opts = {}) {
         const entry = state.peers.get(remotePid);
         if (!entry) return false;
         const pc = entry.pc;
-        if (pc.connectionState === "closed" || pc.connectionState === "failed") return false;
+        // A failed connection is still negotiable — that is exactly what an ICE
+        // restart re-negotiates — so only a closed one is a hard stop here.
+        if (pc.connectionState === "closed") return false;
         if (entry.negotiating || pc.signalingState !== "stable") {
             // Busy — queue it; onsignalingstatechange flushes when we settle.
             entry.negotiationQueued = true;
+            if (opts.iceRestart) entry.iceRestartQueued = true;
             return false;
         }
         entry.negotiating = true;
         try {
-            const offer = await pc.createOffer();
+            const offer = await pc.createOffer(opts.iceRestart ? { iceRestart: true } : undefined);
             await pc.setLocalDescription(offer);
             state.ws.send(JSON.stringify({
                 type: "sdp_offer",
@@ -706,6 +859,12 @@
         if (!state.localStream) return;
         for (const [pid, entry] of [...state.peers]) {
             if (entry.pc.signalingState !== "stable") continue;   // still busy
+            if (entry.iceRestartQueued) {
+                entry.iceRestartQueued = false;
+                entry.negotiationQueued = false;
+                negotiateWith(pid, { iceRestart: true });
+                continue;
+            }
             if (entry.negotiationQueued) {
                 entry.negotiationQueued = false;
                 trackSyncPending.add(pid);
@@ -878,6 +1037,12 @@
             pc, audio, videoTrack: null, gain: peerGain,
             negotiating: false,      // an offer/answer of ours is in flight
             negotiationQueued: false,
+            iceRestartQueued: false,
+            iceRestartAttempts: 0,
+            restartTimer: null,
+            connectTimer: setTimeout(() => onPeerConnectTimeout(remotePid), MEDIA_CONNECT_TIMEOUT_MS),
+            timedOut: false,
+            status: "connecting",
         };
         state.peers.set(remotePid, peer);
 
@@ -915,6 +1080,7 @@
 
         // Trickle ICE: send every candidate to the remote peer.
         pc.onicecandidate = (event) => {
+            if (event.candidate && event.candidate.type === "relay") RTC_CONFIG.relaySeen = true;
             if (event.candidate && state.ws && state.ws.readyState === WebSocket.OPEN) {
                 state.ws.send(JSON.stringify({
                     type: "ice_candidate",
@@ -931,15 +1097,10 @@
             if (pc.signalingState === "stable") scheduleTrackSyncFlush();
         };
 
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === "connected" || pc.connectionState === "completed") {
-                if (trackSyncPending.has(remotePid)) scheduleTrackSyncFlush();
-                return;
-            }
-            if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-                // WebRTC will retry naturally on next interaction; nothing to do here.
-            }
-        };
+        pc.onconnectionstatechange = () => onPeerStateChange(remotePid);
+        // ICE state moves before the aggregate connection state and is where a
+        // dead path actually shows up (failed/disconnected).
+        pc.oniceconnectionstatechange = () => onPeerStateChange(remotePid);
 
         // Our tracks ride on the transceivers above (offerer), or are attached
         // to the offer's m-lines by attachLocalTracks() (answerer). If the
@@ -948,6 +1109,37 @@
         trackSyncPending.add(remotePid);
         scheduleTrackSyncFlush();
         return pc;
+    }
+
+    // No candidate path settled in time — surface it and try an ICE restart.
+    function onPeerConnectTimeout(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        entry.connectTimer = null;
+        if (peerStatusOf(entry) === "connected") return;
+        entry.timedOut = true;
+        applyPeerStatusUi(remotePid);
+        scheduleIceRestart(remotePid);
+    }
+
+    // One place for every connection-state transition: refresh the tile/banner,
+    // resume a pending track sync once we connect, and retry a dead path.
+    function onPeerStateChange(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const status = peerStatusOf(entry);
+        if (status === "connected") {
+            entry.iceRestartAttempts = 0;
+            entry.timedOut = false;
+            if (entry.connectTimer) { clearTimeout(entry.connectTimer); entry.connectTimer = null; }
+            if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+            if (trackSyncPending.has(remotePid)) scheduleTrackSyncFlush();
+        } else if (status === "failed") {
+            // Retry with a short backoff: a transient NAT/relay hiccup often
+            // recovers, and when it can't the notice tells the user why.
+            scheduleIceRestart(remotePid, 1200 + 1800 * (entry.iceRestartAttempts || 0));
+        }
+        applyPeerStatusUi(remotePid);
     }
 
     // Live audio-level "speaking" glow for a remote participant's roster tile.
@@ -1117,6 +1309,8 @@
             try { entry.gain.ctx.close(); } catch (_) {}
             peerVolumes.delete(remotePid);
         }
+        if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+        if (entry.connectTimer) { clearTimeout(entry.connectTimer); entry.connectTimer = null; }
         const v = videoEls.get(remotePid);
         if (v) {
             stopVideoKeepalive(v);
@@ -1125,6 +1319,7 @@
         }
         videoEls.delete(remotePid);
         state.peers.delete(remotePid);
+        updateMediaNotice();
         // If the face analyzer was watching this participant, fall back to self.
         if (face.source === remotePid) {
             face.source = "self";
@@ -1252,6 +1447,7 @@
     function renderCourt() {
         renderStage();
         renderRoster();
+        updateMediaNotice();
     }
 
     // "Me" first, then everyone else in join order.
@@ -1294,6 +1490,7 @@
                     <span class="stage-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</span>
                     <span class="stage-role">${escapeHtml(camOff ? "Camera off" : displayRole)}</span>
                 </div>
+                <span class="stage-conn" data-conn=""></span>
             `;
             // The persistent, mesh-fed <video> sits on top of the avatar — the
             // avatar shows through whenever the element has no frames.
@@ -1307,6 +1504,10 @@
                 v.play().catch(() => {});
             }
             els.videoStage.appendChild(tile);
+            // The status has to be applied once the tile is in the document
+            // (it is looked up by data-pid); a blank remote tile then says
+            // whether we are still connecting or cannot reach them at all.
+            if (!isMe) applyPeerStatusUi(p.participant_id, tile);
         }
         lucide.createIcons();
     }

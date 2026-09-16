@@ -6,6 +6,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let d3Zoom = null;
     let svgContainer = null;
     let activePathNodes = [];
+    // node_id → why-this-split effect for the active case ('raised' | 'lowered'
+    // | 'neutral'): what THIS split contributed to the case's priority — the
+    // verdict the tree gives with this one signal swapped to the other branch.
+    let activePathEffects = {};
     let courtroomsLoaded = false;
     let lanIp = null;
 
@@ -895,6 +899,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const pathInfo = await res.json();
             
             activePathNodes = pathInfo.path_node_ids || [];
+            activePathEffects = {};
+            (pathInfo.steps || []).forEach((s) => { if (s && s.node_id != null) activePathEffects[s.node_id] = s; });
             renderPathTimeline(pathInfo.steps);
             renderBreadcrumb(pathInfo.steps);
             const traceWrap = document.getElementById("path-trace-wrap");
@@ -940,6 +946,19 @@ document.addEventListener("DOMContentLoaded", () => {
             html += `<div class="node-panel-row"><strong>Split rule</strong>${escHtml(d.name)}</div>`;
             html += `<div class="node-panel-row"><strong>Feature</strong>${escHtml(d.feature_clean || "—")}</div>`;
             html += `<div class="node-panel-row"><strong>Samples</strong>${d.samples}</div>`;
+        }
+        // Why-this-split line for nodes on the active case's path.
+        const step = activePathEffects[d.id];
+        if (step && step.effect && step.effect !== "outcome") {
+            const meta = {
+                raised: { label: "raised priority", cls: "raised" },
+                lowered: { label: "lowered priority", cls: "lowered" },
+                neutral: { label: "no effect here", cls: "neutral" },
+            }[step.effect] || { label: step.effect, cls: "neutral" };
+            html += `<div class="node-panel-row"><strong>For the selected case</strong><span class="step-effect ${meta.cls}">${escHtml(meta.label)}</span></div>`;
+            if (step.branch_priorities && step.branch_priorities.left !== undefined) {
+                html += `<div class="node-panel-row node-panel-branch"><strong>Other branch would give</strong>${escHtml(step.branch_priorities.left)} / ${escHtml(step.branch_priorities.right)} (left / right)</div>`;
+            }
         }
         html += `<div class="node-panel-row"><strong>Class distribution</strong>${Object.entries(d.class_counts || {}).map(([k, v]) => `${escHtml(k)}: ${v}`).join(" · ")}</div>`;
         panel.innerHTML = html;
@@ -993,14 +1012,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 resultLabel = `<span class="step-match-label no">Match: No</span>`;
             }
 
+            // Why-this-split chip + the other branch's counterfactual verdict.
+            const effectMeta = {
+                raised: { label: "raised priority", cls: "raised" },
+                lowered: { label: "lowered priority", cls: "lowered" },
+                neutral: { label: "no effect here", cls: "neutral" },
+            }[step.effect] || null;
+            const effectChip = effectMeta
+                ? `<span class="step-effect ${effectMeta.cls}">${effectMeta.label}</span>` : "";
+            const branchNote = (step.branch_priorities && step.branch_priorities.left !== undefined)
+                ? `<div class="step-branch">Other branch → ${escHtml(step.branch_priorities.left)} / ${escHtml(step.branch_priorities.right)} (left / right)</div>` : "";
+
             stepEl.className = `step-item ${classType}`;
             stepEl.innerHTML = `
                 <div class="step-info">
-                    <div class="step-title">Node ${step.node_id}: ${step.title}</div>
-                    <div class="step-cond">${step.condition}</div>
+                    <div class="step-title">Node ${step.node_id}: ${escHtml(step.title)} ${effectChip}</div>
+                    <div class="step-cond">${escHtml(step.condition)}</div>
+                    ${branchNote}
                 </div>
                 <div class="step-outcome">
-                    <div class="step-val">Actual: ${step.case_value}</div>
+                    <div class="step-val">Actual: ${escHtml(step.case_value)}</div>
                     ${resultLabel}
                 </div>
             `;

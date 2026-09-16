@@ -9,6 +9,7 @@ import tempfile
 import traceback
 import uuid
 import asyncio
+import urllib.request
 import logging
 from datetime import datetime
 import pandas as pd
@@ -692,137 +693,47 @@ def get_tree():
 
 @app.get("/api/cases/{case_file}/decision-path")
 def get_case_decision_path(case_file: str):
+    """Decision Tree trace for one Excel row (per-document or [WHOLE CASE]).
+
+    Delegates to ``trace_decision_steps`` so the response carries the same
+    raised/lowered effect annotations and branch counterfactuals as the
+    whole-case ``/case-insights`` endpoint.
+    """
     if model_data is None:
         raise HTTPException(status_code=404, detail="Decision tree model not loaded.")
     if not os.path.exists(EXCEL_PATH):
         raise HTTPException(status_code=404, detail="Excel results file not found.")
-        
+
     try:
+        try:
+            from case_priority_system.scripts.inference_pipeline import trace_decision_steps
+        except ImportError:
+            from scripts.inference_pipeline import trace_decision_steps
+
         df = _read_cases_df()
         case_rows = df[df['Case_File'] == case_file]
         if case_rows.empty:
             raise HTTPException(status_code=404, detail=f"Case file {case_file} not found.")
-            
+
         case_data = case_rows.iloc[0].to_dict()
-        
-        # Extract features and map back to inputs
-        category = case_data.get('Category', 'General Civil')
-        crime_type = case_data.get('Broad_Model_Category', 'Non-Violent')
-        severity = case_data.get('Severity', 'No Injury')
-        vulnerability = case_data.get('Vulnerability', 'Low')
-        influence = case_data.get('Influence', 'Low')
-        plain_summary = case_data.get('Plain_Language_Summary', '')
-        main_parties = case_data.get('Main_Parties', '')
-        
-        # Build X vector
-        clf = model_data['model']
-        tfidf = model_data['tfidf']
-        encoders = model_data['encoders']
-        feature_names = model_data['feature_names']
-        
-        structured_values = {}
-        if 'category' in encoders:
-            structured_values['case_category_enc'] = safe_transform_encoder(
-                encoders, 'category', category
-            )
-        structured_values.update({
-            'crime_type_enc': safe_transform_encoder(encoders, 'crime', crime_type),
-            'severity_enc': safe_transform_encoder(encoders, 'severity', severity),
-            'vulnerability_enc': safe_transform_encoder(encoders, 'vulnerability', vulnerability),
-            'influence_enc': safe_transform_encoder(encoders, 'influence', influence),
-        })
-        
-        description_text = f"{plain_summary} {main_parties}"
-        text_feat = tfidf.transform([description_text]).toarray()
-        text_df = pd.DataFrame(text_feat, columns=tfidf.get_feature_names_out())
-        
-        structured_data = pd.DataFrame([structured_values])
-        X = pd.concat([structured_data, text_df], axis=1)
-        
-        if feature_names:
-            for column in feature_names:
-                if column not in X.columns:
-                    X[column] = 0
-            X = X[feature_names]
-            
-        node_indicator = clf.decision_path(X)
-        leaf_id = clf.apply(X)[0]
-        path_node_ids = [int(nid) for nid in node_indicator.indices[
-            node_indicator.indptr[0]:node_indicator.indptr[1]
-        ]]
-        
-        # Compile path details
-        tree = clf.tree_
-        path_details = []
-        
-        for idx, node_id in enumerate(path_node_ids):
-            is_leaf = node_id == leaf_id
-            if is_leaf:
-                class_counts = tree.value[node_id][0]
-                pred_idx = int(np.argmax(class_counts))
-                pred_class = list(encoders['priority'].classes_)[pred_idx]
-                path_details.append({
-                    "node_id": node_id,
-                    "type": "leaf",
-                    "title": f"Final Priority: {pred_class}",
-                    "condition": "Decision Tree leaf reached.",
-                    "case_value": f"{int(sum(class_counts))} samples in training leaf",
-                    "result": pred_class,
-                    "direction": "final"
-                })
-            else:
-                feature_idx = tree.feature[node_id]
-                threshold = tree.threshold[node_id]
-                feature_name = feature_names[feature_idx]
-                val = float(X.iloc[0, feature_idx])
-                
-                # Check outcome direction
-                went_left = val <= threshold
-                direction = "left" if went_left else "right"
-                
-                encoder_keys = {
-                    'case_category_enc': 'category',
-                    'crime_type_enc': 'crime',
-                    'severity_enc': 'severity',
-                    'vulnerability_enc': 'vulnerability',
-                    'influence_enc': 'influence',
-                }
-                
-                encoder_key = encoder_keys.get(feature_name)
-                encoder = encoders.get(encoder_key)
-                
-                if encoder is not None:
-                    # Categorical feature
-                    left_labels = [
-                        str(label) for i, label in enumerate(encoder.classes_) if i <= threshold
-                    ]
-                    condition = f"{display_feature_name(feature_name)} is in: [{', '.join(left_labels)}]"
-                    case_val_str = str(encoder.classes_[int(round(val))]) if 0 <= int(round(val)) < len(encoder.classes_) else str(val)
-                    result_str = "Yes" if went_left else "No"
-                else:
-                    # TF-IDF feature
-                    condition = f"Keyword '{feature_name}' score <= {threshold:.4f}"
-                    case_val_str = f"{val:.4f}"
-                    result_str = "Yes" if went_left else "No"
-                    
-                path_details.append({
-                    "node_id": node_id,
-                    "type": "decision",
-                    "title": f"Split on {display_feature_name(feature_name)}",
-                    "condition": condition,
-                    "case_value": case_val_str,
-                    "result": result_str,
-                    "direction": direction
-                })
-                
-        return {
-            "case_file": case_file,
-            "predicted_priority": case_data.get('Predicted_Priority', 'Unknown'),
-            "path_node_ids": path_node_ids,
-            "leaf_id": int(leaf_id),
-            "steps": path_details
+        features = {
+            'case_category': case_data.get('Category', 'General Civil'),
+            'crime_type': case_data.get('Broad_Model_Category', 'Non-Violent'),
+            'severity': case_data.get('Severity', 'No Injury'),
+            'vulnerability': case_data.get('Vulnerability', 'Low'),
+            'influence': case_data.get('Influence', 'Low'),
+            'plain_summary': case_data.get('Plain_Language_Summary', ''),
+            'main_parties': case_data.get('Main_Parties', ''),
         }
-        
+        text = f"{features['plain_summary']} {features['main_parties']}"
+
+        trace = trace_decision_steps(model_data, features, text)
+        trace["case_file"] = case_file
+        trace["predicted_priority"] = case_data.get('Predicted_Priority', 'Unknown')
+        return trace
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error tracing decision path: {str(e)}")
 
@@ -1076,6 +987,153 @@ def get_case_analysis(case_id: str):
             "priority": case.aggregate_priority,
             "rationale": case.aggregate_rationale,
         },
+    }
+
+
+@app.get("/api/cases/{case_id}/case-insights")
+def get_case_insights(case_id: str):
+    """One-call dashboard payload: verdict + evidence weights + tree trace.
+
+    Powers the Analysis tab's case view when a case is clicked:
+    - ``verdict``  — the whole-case analysis (priority, merged features,
+      corroboration, constitutional opinion) — re-computed on demand when the
+      case predates the whole-case pass.
+    - ``evidence`` — every analysed document with its own priority, the merge
+      signal it contributed, a 0-100 ``weight`` (deterministic: 5 points per
+      merge decision it drives, scaled by the decision's importance, 60-85
+      band from its own severity/vulnerability/influence), and the analysis
+      error when its extraction failed.
+    - ``path``     — the Decision Tree trace for the merged features: each
+      split labelled raised/lowered/neutral so the UI can say WHY the case is
+      at its priority and why it is not higher.
+
+    The LLM is never involved: weights come from the deterministic merge
+    provenance (whole_case_analysis.merge_case_features) and the trace from
+    the trained Decision Tree itself.
+    """
+    case = _get_case_or_404(case_id)
+
+    try:
+        from case_priority_system.scripts.whole_case_analysis import (
+            analyze_case_whole,
+            merge_case_features,
+        )
+        from case_priority_system.scripts.inference_pipeline import (
+            trace_decision_steps,
+            load_model,
+        )
+    except ImportError:
+        from scripts.whole_case_analysis import (
+            analyze_case_whole,
+            merge_case_features,
+        )
+        from scripts.inference_pipeline import (
+            trace_decision_steps,
+            load_model,
+        )
+
+    cl = case.case_level or {}
+    if not cl:
+        if [d for d in case.documents if d.analysis]:
+            case_manager.refresh_aggregate(case, model_data=model_data)
+            cl = case.case_level or {}
+
+    verdict = {
+        "priority": cl.get("priority"),
+        "rationale": cl.get("rationale", ""),
+        "features": cl.get("features", {}),
+        "merge_info": cl.get("merge_info", {}),
+        "corroboration": cl.get("corroboration", {}),
+        "corroboration_text": cl.get("corroboration_text", ""),
+        "constitutional": cl.get("constitutional", {}),
+        "computed_at": cl.get("computed_at", ""),
+    }
+
+    # ---- Per-evidence cards -------------------------------------------
+    SIGNAL_KEYS = ["case_category", "crime_type", "severity",
+                   "vulnerability", "influence"]
+    SIGNAL_WEIGHTS = {
+        "severity": 30, "vulnerability": 20, "influence": 15,
+        "crime_type": 15, "case_category": 10,
+    }
+    # A document's own gravity (0-100) from its worst extracted facts —
+    # how hard THIS document argues for a high priority on its own.
+    def _doc_gravity(feat: dict) -> int:
+        severity = str(feat.get("severity") or "No Injury")
+        vulnerability = str(feat.get("vulnerability") or "Low")
+        influence = str(feat.get("influence") or "Low")
+        base = 45
+        base += {"Fatal": 40, "Major": 25, "Minor": 10, "No Injury": 0}.get(severity, 0)
+        base += {"High": 15, "Medium": 8, "Low": 0}.get(vulnerability, 0)
+        base += {"High": 15, "Low": 0}.get(influence, 0)
+        return max(0, min(100, base))
+
+    evidence = []
+    for d in case.documents:
+        feat = d.analysis or {}
+        if not feat:
+            evidence.append({
+                "doc_id": d.doc_id, "filename": d.filename, "doc_type": d.doc_type,
+                "priority": None, "weight": None, "gravity": None, "signals": {},
+                "drives": [], "analysis_error": d.analysis.get("analysis_error", "")
+                            if isinstance(d.analysis, dict) else "",
+            })
+            continue
+        evidence.append({
+            "doc_id": d.doc_id,
+            "filename": d.filename,
+            "doc_type": d.doc_type,
+            "priority": d.priority,
+            "gravity": _doc_gravity(feat),
+            "signals": {k: feat.get(k, "") for k in SIGNAL_KEYS},
+            "analysis_error": feat.get("analysis_error", ""),
+        })
+
+    # Merge-decision influence: recompute the deterministic merge once per
+    # document (solo) to see which of the case's merged decisions it drives.
+    analysed_docs = [d for d in case.documents if d.analysis]
+    drives_by_doc = {d.doc_id: set() for d in analysed_docs}
+    if analysed_docs:
+        try:
+            for d in analysed_docs:
+                solo = type(case)(
+                    case_id=case.case_id, title=case.title,
+                    created_at=case.created_at, created_by=case.created_by,
+                    source=case.source, documents=[d],
+                )
+                _, solo_info = merge_case_features(solo)
+                for key, info in solo_info.items():
+                    if isinstance(info, dict) and info.get("value") and d.filename in (info.get("sources") or []):
+                        drives_by_doc[d.doc_id].add(key)
+        except Exception as e:
+            print(f"case-insights: merge attribution failed (non-fatal): {e}")
+    for ev in evidence:
+        drives = sorted(drives_by_doc.get(ev.get("doc_id"), ()))
+        ev["drives"] = drives
+        ev["weight"] = max(0, min(100, round(
+            sum(SIGNAL_WEIGHTS.get(k, 5) for k in drives)
+            * (0.6 + 0.4 * (ev.get("gravity") or 0) / 100.0)
+        ))) if (drives or ev.get("gravity") is not None) else None
+
+    # ---- Decision Tree trace for the merged features -------------------
+    path = cl.get("path_steps") or None
+    if not path and cl.get("features"):
+        try:
+            model_data_loaded = model_data if model_data is not None else load_model()
+            tuned = cl.get("features") or {}
+            text = f"{tuned.get('plain_summary', '')} {tuned.get('main_parties', '')}"
+            path = trace_decision_steps(model_data_loaded, tuned, text)
+        except Exception as e:
+            print(f"case-insights: tree trace failed (non-fatal): {e}")
+            path = None
+
+    return {
+        "case_id": case.case_id,
+        "title": case.title,
+        "has_analysis": bool(cl),
+        "verdict": verdict,
+        "evidence": evidence,
+        "path": path,
     }
 
 
@@ -1389,6 +1447,28 @@ def court_asr_status():
     return {"available": available}
 
 
+def _courtroom_turn_config_path() -> str:
+    """Path of the gitignored courtroom TURN config (env-overridable)."""
+    return os.getenv(
+        "COURTROOM_TURN_CONFIG",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "courtroom_turn.json"),
+    )
+
+
+def _load_courtroom_turn_config() -> dict:
+    """The raw courtroom TURN config file as a dict ({} when missing/invalid)."""
+    cfg_path = _courtroom_turn_config_path()
+    if not os.path.exists(cfg_path):
+        return {}
+    try:
+        with open(cfg_path, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return cfg if isinstance(cfg, dict) else {}
+    except Exception as e:
+        print(f"courtroom TURN config file ignored: {e}")
+        return {}
+
+
 def _load_courtroom_turn_servers():
     """TURN relays for the courtroom, from COURTROOM_TURN_SERVERS env first,
     else the gitignored config file case_priority_system/courtroom_turn.json
@@ -1398,10 +1478,7 @@ def _load_courtroom_turn_servers():
     raw = os.getenv("COURTROOM_TURN_SERVERS", "").strip()
     source = "env"
     if not raw:
-        cfg_path = os.getenv(
-            "COURTROOM_TURN_CONFIG",
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "courtroom_turn.json"),
-        )
+        cfg_path = _courtroom_turn_config_path()
         if os.path.exists(cfg_path):
             try:
                 with open(cfg_path, encoding="utf-8") as f:
@@ -1448,6 +1525,224 @@ def court_rtc_config():
                 s["urls"] = s["url"]
             servers.append(s)
     return {"iceServers": servers}
+
+
+# ----------------------------------------------------------------------
+# Metered Open Relay — free managed TURN for the courtroom (no card needed).
+#
+# The courtroom needs a relay for any participant that cannot be reached
+# directly (mobile data / CGNAT / another ISP) — WebRTC media is peer-to-peer
+# and never rides the ngrok tunnel. Metered's free tier needs only an email
+# signup (no card): 20 GB/month of relay traffic. The credentials are minted
+# and fetched server-side, so nothing secret reaches the browser. Static
+# credentials from the same dashboard can equivalently be dropped into the
+# gitignored case_priority_system/courtroom_turn.json ("servers").
+#   METERED_TURN_DOMAIN     - the <app>.metered.live host from the dashboard
+#   METERED_TURN_SECRET_KEY - "Secret Key" (Developers page): mints credentials
+#   METERED_TURN_API_KEY    - optional, a single credential's API key instead
+#
+# Both routes are supported. With the Secret Key we POST a fresh credential
+# (labelled, expiring) and then resolve its iceServers via that credential's
+# API key; with just an API key we fetch its iceServers directly. The Secret
+# Key must never be sent to the browser — Metered's docs are explicit that this
+# API is backend-only.
+# ----------------------------------------------------------------------
+
+_METERED_CRED_TTL_SECONDS = 86400         # lifetime of a credential we mint
+_METERED_CREDS_REFRESH_SECONDS = 43200    # re-mint after 12h — far from the cutoff
+_metered_creds_cache: dict = {"servers": None, "fetched_at": 0.0, "failed_at": 0.0, "error": ""}
+
+
+def _metered_config() -> tuple[str, str, str]:
+    """(api_key, domain, secret_key) for Metered, env first then the config file."""
+    def from_env(name):
+        return os.getenv(name, "").strip()
+
+    api_key = from_env("METERED_TURN_API_KEY")
+    domain = from_env("METERED_TURN_DOMAIN")
+    secret_key = from_env("METERED_TURN_SECRET_KEY")
+    if not (api_key and domain) or not secret_key:
+        metered = _load_courtroom_turn_config().get("metered")
+        if isinstance(metered, dict):
+            api_key = api_key or str(metered.get("api_key", "")).strip()
+            domain = domain or str(metered.get("domain", "")).strip()
+            secret_key = secret_key or str(metered.get("secret_key", "")).strip()
+    return api_key, domain.removeprefix("https://").rstrip("/"), secret_key
+
+
+def _metered_json(url: str, body: dict | None = None) -> object:
+    """GET (body=None) or POST JSON to the Metered API, 5s timeout.
+
+    The API's own error message is preserved (e.g. "please subscribe to a TURN
+    Server plan before using this API"): a bare "HTTP Error 400" tells the
+    operator nothing, and that message is the whole diagnosis.
+    """
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    headers = {"Accept": "application/json"}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            payload = json.loads(e.read().decode("utf-8"))
+            if isinstance(payload, dict):
+                detail = str(payload.get("message") or payload.get("error") or "")
+        except Exception:
+            pass
+        raise RuntimeError(f"HTTP {e.code}" + (f": {detail}" if detail else "")) from None
+
+
+def _metered_turn_ice_servers() -> list:
+    """Managed TURN iceServers for this account, from the Metered REST API.
+
+    Returns the ``iceServers`` list (TURN entries carrying a username/credential,
+    geo-routed to the region picked in the dashboard), cached and backed off
+    while the API is failing. Returns [] when unconfigured or the call fails —
+    the caller then falls back to the static relay config, and the client to
+    STUN-only.
+
+    Configured by env vars (METERED_TURN_DOMAIN + METERED_TURN_SECRET_KEY or
+    METERED_TURN_API_KEY) or by a ``"metered"`` block in the gitignored
+    courtroom_turn.json, so the demo launcher needs no env plumbing.
+    """
+    api_key, domain, secret_key = _metered_config()
+    if not domain or not (api_key or secret_key):
+        return []
+
+    import time
+    now = time.time()
+    cache = _metered_creds_cache
+    if (cache["servers"] is not None
+            and now - cache["fetched_at"] < _METERED_CREDS_REFRESH_SECONDS):
+        return cache["servers"]
+    if now - cache["failed_at"] < _TURN_CREDS_FAILURE_BACKOFF:
+        return []
+
+    try:
+        if not api_key and secret_key:
+            # Mint a credential with the backend-only Secret Key. Its expiry is a
+            # hard cutoff mid-call, so it lasts a day while we refresh every 12h.
+            created = _metered_json(
+                f"https://{domain}/api/v1/turn/credential?secretKey={secret_key}",
+                {"label": "anavaya-courtroom", "expiryInSeconds": _METERED_CRED_TTL_SECONDS},
+            )
+            api_key = str(created.get("apiKey", "")) if isinstance(created, dict) else ""
+            if not api_key:
+                raise ValueError("credential response has no apiKey")
+        ice = _metered_json(f"https://{domain}/api/v1/turn/credentials?apiKey={api_key}")
+        if not isinstance(ice, list) or not ice:
+            raise ValueError("response has no iceServers list")
+        cleaned = [s for s in ice if isinstance(s, dict) and s.get("urls")]
+        if not cleaned:
+            raise ValueError("response has no usable iceServers")
+        cache.update(servers=cleaned, fetched_at=now, failed_at=0.0, error="")
+        print(f"courtroom TURN: fetched {len(cleaned)} iceServers from Metered")
+        return cleaned
+    except Exception as e:
+        cache.update(failed_at=now, error=str(e))
+        print(f"courtroom TURN: Metered credential fetch failed: {e}")
+        return []
+
+
+# ----------------------------------------------------------------------
+# Cloudflare Realtime TURN — dynamic short-lived credentials.
+#
+# The static relays in courtroom_turn.json are long-lived credentials in a
+# config file; Cloudflare instead issues a server-side TURN key that mints
+# per-session credentials (TTL 24h) so nothing secret ever ships to the
+# browser. Needs two env vars (see PROJECT_HANDOFF.md):
+#   CF_TURN_KEY_ID        - the TURN key id from the Cloudflare dashboard
+#   CF_TURN_KEY_API_TOKEN - an API token allowed to use that key
+# ----------------------------------------------------------------------
+
+_TURN_CREDS_TTL_SECONDS = 86400          # 24h credential lifetime
+_TURN_CREDS_CACHE_MARGIN = 3600          # re-mint 1h before expiry
+_TURN_CREDS_FAILURE_BACKOFF = 60         # don't hammer the API while broken
+_turn_creds_cache: dict = {"servers": None, "fetched_at": 0.0, "failed_at": 0.0}
+
+
+def _cloudflare_turn_ice_servers() -> list:
+    """Mint short-lived TURN credentials from the Cloudflare Realtime TURN API.
+
+    Returns the response's ``iceServers`` list (STUN + TURN entries with
+    username/credential baked in), cached for the credential lifetime so a
+    page refresh doesn't re-mint. Returns [] when the env vars are unset or
+    the minting call fails — the caller then falls back to the static relay
+    config, and the client to STUN-only.
+    """
+    key_id = os.getenv("CF_TURN_KEY_ID", "").strip()
+    api_token = os.getenv("CF_TURN_KEY_API_TOKEN", "").strip()
+    if not key_id or not api_token:
+        return []
+
+    import time
+    now = time.time()
+    cache = _turn_creds_cache
+    if (cache["servers"] is not None
+            and now - cache["fetched_at"] < _TURN_CREDS_TTL_SECONDS - _TURN_CREDS_CACHE_MARGIN):
+        return cache["servers"]
+    if now - cache["failed_at"] < _TURN_CREDS_FAILURE_BACKOFF:
+        return []
+
+    url = f"https://rtc.live.cloudflare.com/v1/turn/keys/{key_id}/credentials/generate-ice-servers"
+    body = json.dumps({"ttl": _TURN_CREDS_TTL_SECONDS}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Authorization": f"Bearer {api_token}",
+                 "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        ice = data.get("iceServers") if isinstance(data, dict) else None
+        if not isinstance(ice, list) or not ice:
+            raise ValueError("response has no iceServers list")
+        # Cloudflare returns an alternate on port 53 which browsers block; drop
+        # it so a non-trickle gather doesn't sit waiting for that timeout.
+        cleaned = []
+        for entry in ice:
+            urls = entry.get("urls") if isinstance(entry, dict) else None
+            if isinstance(urls, str):
+                urls = [u for u in urls.split(",") if not u.startswith("turn") or ":53?" not in u]
+                entry = {**entry, "urls": ",".join(urls)}
+            elif isinstance(urls, list):
+                urls = [u for u in urls if not (u.startswith("turn") and ":53?" in u)]
+                entry = {**entry, "urls": urls}
+            cleaned.append(entry)
+        cache.update(servers=cleaned, fetched_at=now, failed_at=0.0)
+        print(f"courtroom TURN: minted {len(cleaned)} iceServers from Cloudflare (ttl {_TURN_CREDS_TTL_SECONDS}s)")
+        return cleaned
+    except Exception as e:
+        cache["failed_at"] = now
+        print(f"courtroom TURN: Cloudflare credential minting failed: {e}")
+        return []
+
+
+@app.get("/api/court/turn-credentials")
+def court_turn_credentials():
+    """Managed TURN iceServers for the courtroom client.
+
+    Tries the free Metered Open Relay first (METERED_TURN_API_KEY +
+    METERED_TURN_DOMAIN — signup needs no card) and then Cloudflare Realtime
+    (CF_TURN_KEY_ID + CF_TURN_KEY_API_TOKEN). Returns
+    ``{"enabled": true, "iceServers": [...]}`` on success; otherwise
+    ``{"enabled": false, "iceServers": []}`` and the client keeps using the
+    static /api/court/rtc-config relays (or STUN-only). Credentials never
+    touch the browser until this endpoint hands them out per session.
+    """
+    ice = _metered_turn_ice_servers()
+    if not ice:
+        ice = _cloudflare_turn_ice_servers()
+    # "reason" explains an empty list (unsubscribed plan, bad key, no relay
+    # configured) and never contains a credential.
+    reason = "" if ice else (_metered_creds_cache.get("error") or "")
+    return {"enabled": bool(ice), "iceServers": ice, "reason": reason}
 
 
 @app.post("/api/court/transcribe")
