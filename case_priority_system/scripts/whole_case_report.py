@@ -203,8 +203,6 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
         "advice or a judicial determination. Final priority and legal interpretation rest with "
         "the court.</div>",
 
-        f'<div class="page-footer">Anavaya — AI-Powered Case Priority System · '
-        f"Whole-case report {esc(case_id)} · Generated {esc(now)}</div>",
     ])
 
     return (
@@ -231,4 +229,4 @@ def save_whole_case_report(case_id, title, features, priority, analysis,
         merge_info=merge_info, corroboration=corroboration,
         per_doc=per_doc, computed_at=computed_at,
     )
-    return render_pdf(html, out_path)
+    return render_pdf(html, out_path, priority=priority)

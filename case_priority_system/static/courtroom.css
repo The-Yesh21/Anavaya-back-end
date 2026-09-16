@@ -355,17 +355,316 @@ body::before {
 }
 .session-ended-actions .ghost-btn { background: var(--bg-card); }
 
-/* Body grid */
+/* ============================================================
+   BODY LAYOUT — video-first
+   The stage, the composer and a compact transcript dock fill the main
+   column; the control panels live in a rail of collapsible cards.
+   ============================================================ */
 .court-body {
     flex: 1;
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 20px;
-    padding: 20px 28px 28px;
-    max-width: 1400px;
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 18px;
+    padding: 18px 28px 26px;
+    max-width: 1560px;
     width: 100%;
     margin: 0 auto;
+    align-items: start;
 }
+.court-main {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+/* The rail stays in view while the stage and the record scroll. */
+.court-rails {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100dvh - 96px);
+    overflow-y: auto;
+    padding-right: 2px;
+}
+.court-rails::-webkit-scrollbar { width: 8px; }
+.court-rails::-webkit-scrollbar-track { background: transparent; }
+.court-rails::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--gold-500) 30%, transparent);
+    border-radius: 99px;
+}
+
+/* ============================================================
+   VIDEO STAGE — every participant's feed, the centrepiece
+   ============================================================ */
+.court-stage { display: flex; flex-direction: column; gap: 14px; }
+.stage-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.stage-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+.stage-title i { width: 17px; height: 17px; color: var(--color-secondary); }
+
+.video-stage {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 12px;
+    max-height: min(56vh, 620px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+/* One or two feeds shouldn't stretch across the whole stage — cap and centre
+   them so a solo self-view stays a reasonable size. */
+.video-stage[data-count="1"] {
+    grid-template-columns: minmax(0, 620px);
+    justify-content: center;
+}
+.video-stage[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.video-stage::-webkit-scrollbar { width: 8px; }
+.video-stage::-webkit-scrollbar-track { background: transparent; }
+.video-stage::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--gold-500) 35%, transparent);
+    border-radius: 99px;
+}
+
+.stage-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--bg-well);
+    border: 1.5px dashed var(--border-color);
+    border-radius: 1.2rem;
+}
+.stage-empty i { width: 30px; height: 30px; opacity: 0.6; }
+
+.stage-tile {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    border-radius: 1.1rem;
+    overflow: hidden;
+    background: var(--webcam-bg);
+    border: 1.5px solid var(--border-color);
+    transition: border-color 0.25s, box-shadow 0.25s;
+}
+.stage-tile.is-me { border-color: color-mix(in srgb, var(--color-primary) 55%, var(--border-color)); }
+.stage-tile.speaking {
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-500) 26%, transparent);
+}
+.stage-tile video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: var(--webcam-bg);
+}
+/* The avatar sits behind the feed — it shows whenever the tile has no frames. */
+.stage-avatar {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+}
+.stage-avatar .avatar { width: 54px; height: 54px; font-size: 21px; }
+.stage-avatar .avatar.muted::after { border-color: var(--webcam-bg); }
+.stage-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 24px 12px 9px;
+    background: linear-gradient(to top, color-mix(in srgb, var(--webcam-bg) 90%, transparent), transparent);
+    color: var(--gold-50);
+    pointer-events: none;
+}
+.stage-name {
+    font-size: 12.5px;
+    font-weight: 800;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.stage-role {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    opacity: 0.92;
+}
+.stage-live { display: inline-flex; align-items: center; opacity: 0; transition: opacity 0.2s; }
+.stage-tile.speaking .stage-live { opacity: 1; }
+.stage-live i { width: 13px; height: 13px; color: var(--gold-300); }
+
+/* Connection state of a remote feed. A tile with no frames is otherwise
+   indistinguishable from a broken renderer, so say what is actually wrong. */
+.stage-conn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    display: none;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gold-50);
+    background: color-mix(in srgb, var(--webcam-bg) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold-50) 20%, transparent);
+    pointer-events: none;
+}
+.stage-tile.conn-connecting .stage-conn,
+.stage-tile.conn-failed .stage-conn { display: inline-flex; }
+.stage-tile.conn-failed .stage-conn {
+    color: var(--gold-50);
+    background: color-mix(in srgb, var(--color-high) 80%, transparent);
+    border-color: transparent;
+}
+.stage-tile.is-me .stage-conn { display: none; }
+
+/* Room-level media notice (stage header area): names the unreachable
+   participants and offers a retry. */
+.media-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 9px 12px;
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--color-high) 10%, var(--bg-well));
+    border: 1px solid color-mix(in srgb, var(--color-high) 30%, transparent);
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.media-notice[hidden] { display: none; }
+.media-notice i { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-high); }
+.media-notice #media-notice-text { min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; }
+.media-retry-btn {
+    margin-left: auto;
+    flex: 0 0 auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-high) 45%, transparent);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+.media-retry-btn:hover { background: var(--color-muted); }
+
+/* ============================================================
+   RAIL PANELS + COLLAPSIBLE SECTIONS
+   Every rail panel (and the transcript dock) collapses to its header.
+   Panels are clipped rather than display:none so a running face analysis
+   keeps rendering while its panel is folded away.
+   ============================================================ */
+.rail-panel { display: flex; flex-direction: column; }
+.rail-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.rail-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 0;
+    font-family: var(--font-body);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: left;
+}
+.rail-toggle > i:first-child { width: 17px; height: 17px; color: var(--color-secondary); flex-shrink: 0; }
+.rail-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.rail-sub {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rail-chevron {
+    width: 16px;
+    height: 16px;
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--color-primary);
+    transition: transform 0.3s var(--ease-out);
+}
+.collapsed .rail-chevron { transform: rotate(-90deg); }
+.rail-toggle:hover .rail-title { color: var(--color-primary); }
+
+/* Animated clip wrapper for every collapsible body. */
+.panel-collapse {
+    margin-top: 12px;
+    max-height: 2400px;
+    overflow: hidden;
+    opacity: 1;
+    transition: max-height 0.4s var(--ease-out), margin-top 0.3s var(--ease-out), opacity 0.25s var(--ease-out);
+}
+.collapsed > .panel-collapse {
+    max-height: 0;
+    margin-top: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+.rail-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 10px 0 0;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+.rail-hint i { width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px; }
 
 /* Generic card + panel header */
 .card {
@@ -423,76 +722,42 @@ body::before {
 .link-btn.pdf-btn i { width: 14px; height: 14px; }
 
 /* ============================================================
-   ROSTER + audio tiles
+   ROSTER — compact participant control rows (video lives on the stage)
    ============================================================ */
-.court-roster { display: flex; flex-direction: column; gap: 16px; }
-.roster-list { display: flex; flex-direction: column; gap: 10px; }
+.roster-list { display: flex; flex-direction: column; gap: 8px; }
 
 .participant-tile {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    gap: 10px;
+    padding: 8px 10px;
     background: var(--bg-app);
     border: 1.5px solid var(--border-color);
-    border-radius: 1.1rem 1.4rem 1rem 1.3rem;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 0.9rem;
+    transition: border-color 0.25s, box-shadow 0.25s;
 }
-.participant-tile.is-me { border-color: var(--color-primary); background: color-mix(in srgb, var(--gold-600) 6%, transparent); }
+.participant-tile.is-me { border-color: color-mix(in srgb, var(--color-primary) 55%, var(--border-color)); background: color-mix(in srgb, var(--gold-600) 6%, transparent); }
 .participant-tile.speaking {
     border-color: var(--color-secondary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-500) 25%, transparent);
-}
-/* Live video preview slot in each roster tile — the avatar doubles as the
-   fallback until the video track delivers its first frame. */
-.tile-video {
-    position: relative;
-    width: 60px;
-    height: 60px;
-    flex-shrink: 0;
-    border-radius: 0.9rem;
-    overflow: hidden;
-    background: var(--bg-well);
-    border: 1px solid var(--border-color);
-    display: grid;
-    place-items: center;
-}
-.tile-video video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    background: var(--webcam-bg);
-}
-.tile-video .avatar {
-    position: static;
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-    background: inherit;
-}
-.tile-video .avatar.muted::after {
-    width: 12px; height: 12px;
-    border-color: var(--bg-well);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold-500) 25%, transparent);
 }
 .avatar {
     position: relative;
-    width: 42px; height: 42px;
+    width: 34px; height: 34px;
     border-radius: 50%;
     display: grid;
     place-items: center;
     color: var(--color-primary-fg);
     font-family: var(--font-heading);
     font-weight: 700;
-    font-size: 16px;
+    font-size: 14px;
     flex-shrink: 0;
 }
 .avatar.muted::after {
     content: "";
     position: absolute;
     bottom: -1px; right: -1px;
-    width: 14px; height: 14px;
+    width: 12px; height: 12px;
     background: var(--color-high);
     border: 2px solid var(--bg-app);
     border-radius: 50%;
@@ -500,14 +765,14 @@ body::before {
 .tile-info { flex: 1; min-width: 0; }
 .tile-name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .tile-role {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -515,7 +780,7 @@ body::before {
 }
 .tile-controls {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 2px;
     align-items: center;
 }
@@ -543,7 +808,6 @@ body::before {
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-top: 2px;
 }
 .tile-vol input[type="range"] {
     -webkit-appearance: none;
@@ -573,7 +837,7 @@ body::before {
 }
 
 /* Phase controls */
-.phase-controls .phase-buttons {
+.phase-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -600,7 +864,7 @@ body::before {
 /* ============================================================
    FACE & EXPRESSION ANALYSIS (local camera → nervousness cues)
    ============================================================ */
-.face-analysis { display: flex; flex-direction: column; gap: 12px; }
+.face-body { display: flex; flex-direction: column; gap: 12px; }
 .face-state {
     font-size: 11px;
     font-weight: 800;
@@ -799,7 +1063,7 @@ body::before {
 /* ============================================================
    CASE CONTEXT (linked case: parties, evidence, links)
    ============================================================ */
-.case-context { display: flex; flex-direction: column; gap: 10px; }
+#context-body { display: flex; flex-direction: column; gap: 10px; }
 .cc-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); }
 .cc-id { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-left: 6px; }
 .cc-line { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-secondary); }
@@ -865,10 +1129,8 @@ body::before {
 .report-btn:hover { border-color: var(--color-primary); }
 
 /* ============================================================
-   COURT FLOOR (action bar + transcript)
+   COMPOSER (statement input + role actions)
    ============================================================ */
-.court-floor { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-
 .action-bar-top {
     display: flex;
     align-items: center;
@@ -988,8 +1250,10 @@ body::before {
     min-height: 14px;
 }
 
-/* Transcript */
-.transcript { flex: 1; display: flex; flex-direction: column; min-height: 300px; max-height: calc(100vh - 340px); }
+/* Transcript — a compact dock: roughly six lines tall, collapse it to just
+   the header when the stage or the rail needs the room. */
+.transcript { display: flex; flex-direction: column; }
+.transcript .panel-header { margin-bottom: 0; }
 .link-btn {
     background: none;
     border: none;
@@ -1006,11 +1270,11 @@ body::before {
 .link-btn i { width: 14px; height: 14px; }
 
 .transcript-feed {
-    flex: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    height: clamp(140px, 22vh, 208px);
     padding-right: 6px;
 }
 /* Custom scrollbar (matches dashboard) */
@@ -1022,14 +1286,14 @@ body::before {
     text-align: center;
     color: var(--text-muted);
     font-style: italic;
-    padding: 40px 0;
-    font-size: 14px;
+    padding: 28px 0;
+    font-size: 13px;
 }
 
 .entry {
     display: flex;
-    gap: 12px;
-    padding: 11px 14px;
+    gap: 10px;
+    padding: 9px 12px;
     border-radius: 1rem 1.3rem 1rem 1.2rem;
     background: var(--bg-app);
     border: 1px solid var(--border-color);
@@ -1069,7 +1333,7 @@ body::before {
 }
 .entry-time { font-size: 11px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; white-space: nowrap; }
 .entry-name { font-size: 12px; color: var(--text-muted); min-width: 0; overflow-wrap: anywhere; }
-.entry-text { font-size: 14px; color: var(--text-primary); line-height: 1.45; word-wrap: break-word; }
+.entry-text { font-size: 13.5px; color: var(--text-primary); line-height: 1.45; word-wrap: break-word; }
 
 /* recorded speech clip controls on spoken entries */
 .entry-audio {
@@ -1161,14 +1425,29 @@ body::before {
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+@media (max-width: 1199px) {
+    .court-body { grid-template-columns: minmax(0, 1fr) 310px; padding: 16px 20px 22px; }
+    .video-stage { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+}
+
+/* Tablet / phone — one column: stage → composer → transcript → rail panels. */
 @media (max-width: 899px) {
-    .court-body { grid-template-columns: 1fr; padding: 16px; }
-    /* On narrow screens the statement bar + transcript are the primary surface
-       — move them above the roster (and the long face-analysis panel below it). */
-    .court-floor { order: -1; }
+    .court-body { grid-template-columns: 1fr; padding: 14px; gap: 14px; }
     .court-header { padding: 14px 16px; }
     .court-header h1 { font-size: 17px; }
-    .transcript { max-height: 50vh; }
+    .court-rails {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+    .video-stage,
+    .video-stage[data-count="1"],
+    .video-stage[data-count="2"] {
+        max-height: none;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+    .transcript-feed { height: clamp(130px, 30vh, 220px); }
 }
 
 /* Phones — compact header, stacked statement bar, thumb-friendly targets */
@@ -1214,13 +1493,12 @@ body::before {
     .you-are { font-size: 12px; }
 
     /* Transcript */
-    .transcript { min-height: 220px; max-height: 44vh; }
+    .transcript-feed { height: clamp(120px, 28vh, 190px); }
     .transcript-actions .link-btn { padding: 6px; }
     .transcript-actions .btn-label { display: none; }
     .entry { padding: 10px 12px; }
 
-    /* Roster tiles — roomier mic/video toggles for thumbs */
-    .tile-video { width: 52px; height: 52px; }
+    /* Roster rows — roomier mic/video toggles for thumbs */
     .tile-mic-btn, .tile-video-btn { padding: 9px; }
     .tile-mic-btn i, .tile-video-btn i { width: 17px; height: 17px; }
 

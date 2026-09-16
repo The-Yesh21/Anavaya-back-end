@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (currentWorkspaceCaseId === caseId) {
                         $("case-workspace").style.display = "none";
                         $("case-workspace-empty").style.display = "block";
+                        setAnalysisWholeCaseVisible(false);
                         currentWorkspaceCaseId = null;
                         UI.setCurrentCaseId("");
                     }
@@ -115,7 +116,11 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Head click → expand + open the case workspace + populate Analysis tab
+        // Head click → expand + open the case workspace. The Analysis tab leads
+        // with the CASE-level verdict (the whole-case analysis), so we do NOT
+        // auto-select a single document — the officer must never mistake one
+        // piece of evidence for the case decision. Clicking a document (the doc
+        // list below, or a sidebar row) still opens its evidence-level analysis.
         registryList.querySelectorAll(".registry-case-head").forEach((head) => {
             head.addEventListener("click", async (e) => {
                 const card = head.closest(".registry-case");
@@ -124,34 +129,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 UI.setCurrentCaseId(caseId);
                 renderRegistry();
                 updateTranscriptCaseBadge();
-                // Open the case site for this case.
                 await openCaseWorkspace(caseId);
-                // Auto-populate the Analysis tab: find the first analyzed
-                // document in this case's Excel rows and feed it to selectCase.
-                // selectCaseFn activates the Analysis (details) tab automatically.
-                let foundAnalysis = false;
+                let hasAnalysis = false;
                 try {
                     const caseRes = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
                     if (caseRes.ok) {
                         const caseData = await caseRes.json();
-                        const docs = caseData.documents || [];
-                        for (const d of docs) {
-                            const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
-                            if (row) {
-                                UI.selectCaseFn(row);
-                                foundAnalysis = true;
-                                break;
-                            }
-                        }
+                        hasAnalysis = (caseData.documents || []).some((d) => d.priority);
                     }
                 } catch (_) { /* non-fatal */ }
-                // If no analyzed document was found, stay on the Case workspace tab
-                // so the officer can upload evidence. If selectCaseFn was called,
-                // the Analysis tab is already active.
-                if (!foundAnalysis) {
-                    const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
-                    if (caseTabBtn) caseTabBtn.click();
-                }
+                // Evidence analysed → open the case verdict. Nothing analysed yet
+                // → stay on the Case tab so the officer can upload + run it.
+                const tabBtn = document.querySelector(
+                    `.tab-btn[data-tab='${hasAnalysis ? "details-tab" : "case-tab"}']`);
+                if (tabBtn) tabBtn.click();
             });
         });
         // Doc click → select the matching Excel row if present
@@ -169,6 +160,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Keep the Case workspace + Chakshu badge on the same case.
                 const docCaseId = li.getAttribute("data-case");
                 if (docCaseId) openCaseWorkspace(docCaseId);
+                // Clicking a document takes the officer straight to the case's
+                // Analysis tab: whole-case verdict on top, then evidence
+                // weights and the Decision Tree path underneath.
+                const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+                if (analysisTabBtn) analysisTabBtn.click();
                 updateTranscriptCaseBadge();
             });
         });
@@ -246,14 +242,16 @@ document.addEventListener("DOMContentLoaded", () => {
             // Refresh the sidebar registry + Excel-backed list.
             try { await UI.refreshCases(); } catch (e) { /* non-fatal */ }
             fetchRegistry();
-            // Auto-populate the Analysis tab if a FIR was analysed during creation.
+            // Show the CASE-level verdict if the FIR was analysed during creation.
+            // (No single-document auto-select — the case decision comes from the
+            // whole-case analysis over all evidence.)
             try {
                 const cr = await fetch(`/api/cases/${encodeURIComponent(caseData.case_id)}`);
                 if (cr.ok) {
                     const cd = await cr.json();
-                    for (const d of (cd.documents || [])) {
-                        const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
-                        if (row) { UI.selectCaseFn(row); break; }
+                    if ((cd.documents || []).some((d) => d.priority)) {
+                        const detailsTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+                        if (detailsTabBtn) detailsTabBtn.click();
                     }
                 }
             } catch (_) { /* non-fatal */ }
@@ -361,14 +359,32 @@ document.addEventListener("DOMContentLoaded", () => {
         renderCaseLevelPanel(c);
     }
 
+    // Show/hide the whole-case analysis block that lives in the Analysis tab.
+    // It is driven by the case open in the workspace (not the sidebar
+    // selection), and while it is on screen the "No Case Selected" placeholder
+    // would only be redundant — so keep that placeholder out of the way.
+    function setAnalysisWholeCaseVisible(visible) {
+        const el = $("analysis-whole-case");
+        if (!el) return;
+        el.style.display = visible ? "block" : "none";
+        const noCase = $("no-case-selected");
+        const details = $("case-details-content");
+        if (noCase) {
+            const detailsVisible = details && details.style.display !== "none";
+            noCase.style.display = (visible || detailsVisible) ? "none" : "flex";
+        }
+    }
+
     // ---- Whole-Case Analysis panel ---------------------------------
     // One verdict over ALL evidence: features merged deterministically,
     // Decision Tree run once on the merged set (see whole_case_analysis.py).
+    // Rendered into the Analysis tab (see setAnalysisWholeCaseVisible above).
     async function renderCaseLevelPanel(c) {
         const emptyEl = $("case-level-empty");
         const bodyEl = $("case-level-body");
-        const countEl = $("workspace-case-level-count");
+        const countEl = $("analysis-case-level-count");
         if (!emptyEl || !bodyEl) return;
+        setAnalysisWholeCaseVisible(true);
         const analysed = (c.documents || []).filter((d) => d.priority).length;
         const total = (c.documents || []).length;
         countEl.textContent = analysed === total && total > 0 ? `${analysed}/${total} docs analysed` : (total ? `${analysed}/${total} docs analysed` : "");
@@ -453,12 +469,186 @@ document.addEventListener("DOMContentLoaded", () => {
         const con = cl.constitutional || {};
         $("case-level-opinion").textContent = con.state_perspective_opinion || "Not available yet.";
 
+        // Articles that apply + doctrines (structured rule-based grounding).
+        renderCaseArticles(con);
+
         // PDF report link.
         const reportBtn = $("case-level-report-btn");
         reportBtn.href = `/api/cases/${encodeURIComponent(c.case_id)}/case-report.pdf`;
         reportBtn.style.display = "inline-flex";
 
+        // Evidence & weight + decision-path trace come from the one-call
+        // insights endpoint (deterministic: merge provenance + tree trace).
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(c.case_id)}/case-insights`, { cache: "no-store" });
+            if (res.ok) {
+                const data = await res.json();
+                if (currentWorkspaceCaseId !== c.case_id) return; // stale response guard
+                renderCaseOverview(data.overview || null, data.verdict || null);
+                renderEvidenceWeights(data.evidence || []);
+                renderCasePathTrace(data.path || null, cl.priority);
+            }
+        } catch (_) { /* sections keep their placeholder text */ }
+
         if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // "The case" overview: what the case is about, the parties, and the
+    // classification that feeds the Decision Tree (all from the merged
+    // whole-case features — the same facts the tree saw).
+    function renderCaseOverview(overview, verdict) {
+        const wrap = $("case-level-overview");
+        if (!wrap) return;
+        if (!overview) { wrap.innerHTML = ""; return; }
+        // Merged parties can arrive as one comma-joined string — show one chip each.
+        const rawParties = (overview.parties || [])
+            .flatMap((p) => String(p).split(","))
+            .map((p) => p.trim())
+            .filter(Boolean);
+        const parties = rawParties.map((p) => `<span class="ov-party">${esc(p)}</span>`).join("");
+        const chips = [
+            ["Category", overview.case_category],
+            ["Case type", overview.crime_type],
+            ["Evidence", overview.document_count ? `${overview.document_count} documents` : ""],
+            ["Priority", verdict && verdict.priority ? `${verdict.priority} Priority` : ""],
+        ].filter(([, v]) => v)
+            .map(([k, v]) => `<span class="ov-fact"><em>${esc(k)}:</em> ${esc(String(v))}</span>`)
+            .join("");
+        wrap.innerHTML = `
+            ${parties ? `<div class="ov-parties">${parties}</div>` : ""}
+            <p class="ov-narrative">${esc(overview.narrative || "")}</p>
+            ${chips ? `<div class="ov-facts">${chips}</div>` : ""}
+        `;
+    }
+
+    // "Articles that apply": every engaged constitutional article with WHY it
+    // applies (rule-based, from the constitutional analysis), primary first,
+    // plus the doctrines the analysis invokes. Never LLM-generated.
+    function renderCaseArticles(con) {
+        const wrap = $("case-level-articles");
+        if (!wrap) return;
+        const rights = (con && con.constitutional_rights_engaged) || [];
+        const doctrines = (con && con.applicable_doctrines) || [];
+        if (!rights.length && !doctrines.length) {
+            wrap.innerHTML = `<div class="ev-empty">Constitutional analysis appears here once the case is analysed.</div>`;
+            return;
+        }
+        const rightsHtml = rights.map((r) => `
+            <div class="ev-article ${r.primary ? "primary" : "secondary"}">
+                <div class="ev-article-head">
+                    <span class="ev-article-num">${esc(r.article || "")}</span>
+                    <span class="ev-article-title">${esc(r.title || "")}</span>
+                    ${r.primary ? `<span class="ev-article-tag">primary</span>` : `<span class="ev-article-tag sec">secondary</span>`}
+                </div>
+                ${r.why_applies ? `<div class="ev-article-why">${esc(r.why_applies)}</div>` : ""}
+                ${Array.isArray(r.principles) && r.principles.length
+                    ? `<div class="ev-article-principles">${r.principles.map((p) => `<span>${esc(p)}</span>`).join("")}</div>` : ""}
+            </div>`).join("");
+        const doctrinesHtml = doctrines.length ? `
+            <div class="ev-doctrines">
+                <div class="ev-doctrines-title">Doctrines the court would apply</div>
+                ${doctrines.map((d) => `
+                    <div class="ev-doctrine"><strong>${esc(d.name || "")}</strong>${d.application ? ` — ${esc(d.application)}` : ""}</div>`).join("")}
+            </div>` : "";
+        wrap.innerHTML = rightsHtml + doctrinesHtml;
+    }
+
+    // Per-evidence strength cards: what each document contributes to the
+    // merged verdict (weight 0-100, the merge signals it drives, its own
+    // priority, and which documents corroborate it).
+    function renderEvidenceWeights(items) {
+        const wrap = $("case-level-evidence");
+        if (!wrap) return;
+        if (!items.length) {
+            wrap.innerHTML = `<div class="ev-empty">No evidence uploaded yet.</div>`;
+            return;
+        }
+        const signalLabels = {
+            case_category: "Category", crime_type: "Case type", severity: "Severity",
+            vulnerability: "Vulnerability", influence: "Influence",
+        };
+        wrap.innerHTML = items.map((it) => {
+            const hasWeight = it.weight !== null && it.weight !== undefined;
+            const weightPct = hasWeight ? Math.max(4, it.weight) : 0;
+            const weightCls = !hasWeight ? "none" : it.weight >= 70 ? "high" : it.weight >= 40 ? "mid" : "low";
+            const drives = (it.drives || []).map((k) => signalLabels[k] || k);
+            const signals = Object.entries(it.signals || {})
+                .filter(([, v]) => v)
+                .map(([k, v]) => `<span class="ev-signal"><em>${esc(signalLabels[k] || k)}:</em> ${esc(String(v))}</span>`)
+                .join("");
+            const status = it.analysis_error
+                ? `<span class="ev-error" title="${esc(it.analysis_error)}">error</span>`
+                : it.priority
+                    ? prioBadge(it.priority)
+                    : `<span class="ev-pending">not analysed</span>`;
+            return `
+                <div class="ev-card ${hasWeight ? "" : "ev-unanalysed"}">
+                    <div class="ev-card-top">
+                        <i data-lucide="${it.doc_type && it.doc_type.toLowerCase().includes("image") ? "image" : "file-text"}"></i>
+                        <span class="ev-name" title="${esc(it.filename)}">${esc(it.filename)}</span>
+                        <span class="ev-type">${esc(it.doc_type || "")}</span>
+                        ${status}
+                    </div>
+                    ${it.summary ? `<div class="ev-says">${esc(it.summary)}</div>` : ""}
+                    <div class="ev-weight-row">
+                        <div class="ev-bar" role="meter" aria-valuenow="${hasWeight ? it.weight : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Evidence weight of ${esc(it.filename)}">
+                            <div class="ev-bar-fill ${weightCls}" style="width:${weightPct}%"></div>
+                        </div>
+                        <span class="ev-weight-num ${weightCls}">${hasWeight ? it.weight : "—"}</span>
+                    </div>
+                    ${signals ? `<div class="ev-signals">${signals}</div>` : ""}
+                    ${drives.length ? `<div class="ev-drives">Sets the case's <strong>${esc(drives.join(", "))}</strong></div>` : ""}
+                    ${(it.connects || []).length ? `<div class="ev-connects"><em>Connects to:</em>${(it.connects || []).map((cnn) => `<span class="ev-link"><strong>${esc(cnn.with)}</strong>${(cnn.shared || []).length ? ` — shared ${esc(cnn.shared.join(", "))}` : ""}${(cnn.dates && cnn.dates.length) ? ` · ${esc(cnn.dates.join(", "))}` : ""}${(cnn.parties && cnn.parties.length) ? ` · ${esc(cnn.parties.join(", "))}` : ""}</span>`).join("")}</div>` : ""}
+                </div>`;
+        }).join("");
+    }
+
+    // The Decision Tree's actual path for this case, annotated with WHY each
+    // step raised or lowered the priority (counterfactual branch compare —
+    // the tree is asked what the other branch would have decided).
+    function renderCasePathTrace(path, casePriority) {
+        const wrap = $("case-level-path");
+        if (!wrap) return;
+        if (!path || !Array.isArray(path.steps) || !path.steps.length) {
+            wrap.innerHTML = `<div class="ev-empty">Decision path unavailable for this case.</div>`;
+            return;
+        }
+        const effectMeta = {
+            raised: { label: "raised priority", cls: "raised" },
+            lowered: { label: "lowered priority", cls: "lowered" },
+            neutral: { label: "no effect here", cls: "neutral" },
+            outcome: { label: "outcome", cls: "outcome" },
+        };
+        const stepsHtml = path.steps.map((s, idx) => {
+            const eff = effectMeta[s.effect] || effectMeta.neutral;
+            const branch = s.branch_priorities
+                ? `<div class="ev-branch">Had the case answered the other way → <strong>${esc(s.branch_priorities.left === undefined ? "" : (s.direction === "left" ? s.branch_priorities.right : s.branch_priorities.left))} Priority</strong></div>`
+                : "";
+            return `
+                <div class="ev-step ev-step-${eff.cls}">
+                    <div class="ev-step-rail"><span class="ev-step-num">${idx + 1}</span></div>
+                    <div class="ev-step-body">
+                        <div class="ev-step-head">
+                            <strong>${esc(s.title || "")}</strong>
+                            <span class="ev-effect ${eff.cls}">${eff.label}</span>
+                        </div>
+                        <div class="ev-step-cond">${esc(s.condition || "")} — <em>this case: ${esc(String(s.case_value ?? ""))}</em></div>
+                        ${branch}
+                    </div>
+                </div>`;
+        }).join("");
+        const lowered = path.steps.filter((s) => s.effect === "lowered")
+            .map((s) => `“${s.title || s.condition}”`);
+        const raised = path.steps.filter((s) => s.effect === "raised")
+            .map((s) => `“${s.title || s.condition}”`);
+        let summary = "";
+        if (casePriority) {
+            const bits = [];
+            if (raised.length) bits.push(`Pulled the priority UP: ${raised.join(", ")}.`);
+            if (lowered.length) bits.push(`Kept it from being higher: ${lowered.join(", ")}.`);
+            if (bits.length) summary = `<div class="ev-path-summary"><i data-lucide="info"></i> ${bits.join(" ")}</div>`;
+        }
+        wrap.innerHTML = summary + stepsHtml;
     }
 
     // ---- Evidence upload (from inside the case workspace) -----------
@@ -567,6 +757,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Return to the dashboard; the case workspace will be empty.
             $("case-workspace").style.display = "none";
             $("case-workspace-empty").style.display = "block";
+            setAnalysisWholeCaseVisible(false);
             currentWorkspaceCaseId = null;
             UI.setCurrentCaseId("");
             fetchRegistry();

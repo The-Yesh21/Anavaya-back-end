@@ -65,7 +65,7 @@
         iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
         localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
-        peers: new Map(),          // participant_id -> { pc: RTCPeerConnection, audio, videoTrack }
+        peers: new Map(),          // participant_id -> { pc, audio, videoTrack, status, … }
         pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
     };
 
@@ -98,6 +98,13 @@
         phaseBadge: $("court-phase-badge"),
         rosterList: $("roster-list"),
         rosterOnline: $("roster-online"),
+        videoStage: $("video-stage"),
+        mediaNotice: $("media-notice"),
+        mediaNoticeText: $("media-notice-text"),
+        mediaRetryBtn: $("media-retry-btn"),
+        transcriptCount: $("transcript-count"),
+        contextHeadSub: $("context-head-sub"),
+        phaseHeadSub: $("phase-head-sub"),
         phaseControls: $("phase-controls"),
         phaseButtons: $("phase-buttons"),
         youAreRole: $("you-are-role"),
@@ -143,8 +150,10 @@
             window.location.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
         });
         if (els.contextRefreshBtn) els.contextRefreshBtn.addEventListener("click", refreshCaseContext);
+        initCollapsiblePanels();
         if (els.pushToTalkBtn) initPushToTalk();
         if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
+        if (els.mediaRetryBtn) els.mediaRetryBtn.addEventListener("click", () => restartMediaConnections());
         els.joinName.focus();
     }
 
@@ -189,7 +198,7 @@
             els.caseContext.style.display = "none";
             return;
         }
-        els.caseContext.style.display = "flex";
+        els.caseContext.style.display = "";
         const titleEl = document.getElementById("cc-case-title");
         const idEl = document.getElementById("cc-case-id");
         const partiesEl = document.getElementById("cc-parties");
@@ -205,6 +214,12 @@
             const parties = ctx.parties && ctx.parties.length
                 ? ctx.parties.join(", ") : "No parties extracted yet";
             partiesEl.innerHTML = `<strong>Parties:</strong> ${escapeHtml(parties)}${prio}`;
+        }
+        if (els.contextHeadSub) {
+            const evCount = (ctx.evidence || []).length;
+            els.contextHeadSub.textContent = evCount
+                ? `${ctx.case_id} · ${evCount} evidence`
+                : ctx.case_id;
         }
         if (evidenceEl) {
             const evs = ctx.evidence || [];
@@ -339,7 +354,7 @@
                 state.me = msg.me;
                 state.participants = msg.room.participants;
                 enterCourtroom();
-                renderRoster();
+                renderCourt();
                 renderTranscript(msg.room.transcript);
                 renderPhase(msg.room.phase);
                 renderQuickActions();
@@ -357,7 +372,7 @@
             }
             case "participant_joined": {
                 state.participants.push(msg.participant);
-                renderRoster();
+                renderCourt();
                 appendTranscript(msg.transcript_entry);
                 // The NEW participant initiates the offer; existing peers just
                 // wait for it. So here we do NOT initiate — we only prepare an
@@ -367,7 +382,7 @@
             case "participant_left": {
                 state.participants = msg.room.participants;
                 closePeer(msg.participant_id);
-                renderRoster();
+                renderCourt();
                 // The leave system-entry was already broadcast + persisted.
                 if (msg.room.transcript && msg.room.transcript.length) {
                     renderTranscript(msg.room.transcript);
@@ -426,19 +441,40 @@
     // WEBRTC MESH
     // ====================================================================
     const RTC_CONFIG = {
+        turnConfigured: false,   // server advertises a relay (set by loadRtcConfig)
+        relaySeen: false,        // a relay candidate was actually gathered (see onicecandidate)
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
         ],
     };
 
-    // Merge the STUN defaults with any TURN relays the server advertises at
-    // /api/court/rtc-config. TURN is what lets remote participants on other
-    // networks / mobile data actually connect: carriers and many ISPs use
-    // symmetric NAT (CGNAT), which STUN hole-punching cannot traverse — the
-    // media then has to relay through a TURN server. Runs before any
-    // RTCPeerConnection is created, so every offer/answer carries the relays.
+    // Merge the STUN defaults with TURN relays from the server. Preferred
+    // source is /api/court/turn-credentials, which mints short-lived
+    // per-session credentials (Cloudflare Realtime TURN) server-side — the
+    // long-term secret never reaches the browser. When that is not configured
+    // we fall back to /api/court/rtc-config's static relays, and finally to
+    // STUN-only. TURN is what lets remote participants on other networks /
+    // mobile data actually connect: carriers and many ISPs use symmetric NAT
+    // (CGNAT), which STUN hole-punching cannot traverse — media then has to
+    // relay. Runs before any RTCPeerConnection is created, so every
+    // offer/answer carries the relays.
     async function loadRtcConfig() {
+        // 1) Dynamic short-lived credentials (Cloudflare) — freshest source.
+        try {
+            const res = await fetch("/api/court/turn-credentials", { cache: "no-store" });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.enabled && Array.isArray(data.iceServers) && data.iceServers.length) {
+                    RTC_CONFIG.iceServers.push(...data.iceServers.filter((s) => s && typeof s === "object"));
+                    RTC_CONFIG.turnConfigured = true;
+                    return; // dynamic creds are sufficient on their own
+                }
+            }
+        } catch (_) {
+            // Fall through to the static config.
+        }
+        // 2) Static relays (env var / courtroom_turn.json) as fallback.
         try {
             const res = await fetch("/api/court/rtc-config", { cache: "no-store" });
             if (!res.ok) return;
@@ -451,6 +487,10 @@
                 if (seen.has(key)) continue;
                 seen.add(key);
                 RTC_CONFIG.iceServers.push(s);
+                // A relay is only useful if it can actually allocate; recording
+                // that the server configured one lets the media notice tell the
+                // user to retry instead of blaming their network.
+                if (key.includes("turn")) RTC_CONFIG.turnConfigured = true;
             }
         } catch (_) {
             // Non-fatal: without a TURN relay the mesh still works for peers
@@ -504,42 +544,391 @@
         // unless the user explicitly opened the mic / is holding to talk).
         applyMicGate();
         if (state.me) {
-            renderRoster();
+            renderCourt();
             // Stream resolved after peers were already negotiated → send tracks now.
             drainPendingOffers();
-            for (const pid of [...state.peers.keys()]) upgradePeerWithTracks(pid);
+            await assertMicOnPeers();
         }
         return state.localStream;
     }
 
-    // (Re)negotiate with an established peer once our stream gains tracks that
-    // weren't there when the original offer/answer was negotiated.
-    async function upgradePeerWithTracks(remotePid) {
-        const entry = state.peers.get(remotePid);
-        if (!entry || !state.localStream) return;
+    // ====================================================================
+    // MIC ROUTING — keeping the room able to HEAR us
+    // ====================================================================
+    // Hold to Talk does two independent things: it opens the local mic gate
+    // (the recorder gets audio → the transcript) and it must make sure our
+    // audio track is attached to every peer connection (the room hears us).
+    // The second half used to break silently, so a participant would speak,
+    // see their words transcribed, and be inaudible to some or all of the
+    // room. Three ways that happened:
+    //   1. the track upgrade ran while another offer/answer was in flight
+    //      (signalling glare — common when several people join together), and
+    //      it simply returned with no retry, so the offer never carried audio;
+    //   2. a re-negotiation carried a *different* track object than the one in
+    //      state.localStream (mic re-acquired / stream swapped), so the gate
+    //      opened a track nobody was sending;
+    //   3. Hold to Talk had to fetch a dedicated audio stream (join-time mic
+    //      prompt dismissed), which was recorded and transcribed but never
+    //      attached to any peer at all.
+    // syncTracksToPeer() now covers all three: it swaps a stale track in place
+    // (no renegotiation), adds missing tracks, and DEFERS instead of dropping
+    // when signalling is busy — flushPendingTrackSyncs() retries the moment the
+    // connection settles.
+    const trackSyncPending = new Set();   // pids whose mic still needs (re)sending
+
+    // The m-line that carries this kind on a peer connection, whether or not its
+    // sender currently holds a track. Found through the *receiver* (the
+    // receiver's track kind is the m-line's kind), so a sender emptied by
+    // replaceTrack(null) is still found and can be refilled in place — calling
+    // addTrack() there would create a SECOND m-line of that kind, which browsers
+    // reject with "the order of m-lines doesn't match".
+    function transceiverFor(pc, kind) {
+        try {
+            return pc.getTransceivers().find((t) => {
+                const received = t.receiver && t.receiver.track && t.receiver.track.kind;
+                const sent = t.sender && t.sender.track && t.sender.track.kind;
+                return received === kind || sent === kind;
+            }) || null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    // Is our mic actually part of the NEGOTIATED session with this peer? A
+    // sender that exists locally is not enough: addTrack() on a not-yet-
+    // negotiated transceiver, or an offer that glare rolled back, leaves a
+    // sender that is attached but never carried in the SDP — audio silently
+    // dropped while everything locally still looks fine.
+    //   sending     → in the SDP and we are allowed to send
+    //   negotiating → sender exists but its m-line isn't agreed yet
+    //   absent      → no audio sender at all
+    function micRouteState(pc) {
+        try {
+            const tx = transceiverFor(pc, "audio");
+            if (!tx || !tx.sender.track) return "absent";
+            if (tx.mid === null || !tx.currentDirection) return "negotiating";
+            return String(tx.currentDirection).includes("send") ? "sending" : "absent";
+        } catch (_) {
+            return "negotiating";
+        }
+    }
+
+    // ---- media-path health ---------------------------------------------
+    // A peer connection that never establishes (or drops) used to look like an
+    // ordinary blank tile: the participant's video simply stayed on the avatar
+    // with nothing to explain it. That is indistinguishable from a broken feed,
+    // and it is what a remote participant sees when the two browsers share no
+    // reachable path (different networks / CGNAT with no TURN relay available).
+    // Every peer now carries a status, surfaced on its tile + in a room-level
+    // notice, and a failed connection is retried with an ICE restart.
+    const MEDIA_MAX_ICE_RESTARTS = 3;
+    // A peer that gathers no usable candidates (the classic "the other network
+    // is unreachable and there is no working relay" case) does not fail on its
+    // own — Chrome just sits there. Past this long, say so on the tile/notice
+    // rather than showing a blank feed with no explanation.
+    const MEDIA_CONNECT_TIMEOUT_MS = 15000;
+
+    function peerStatusOf(entry) {
+        if (!entry || !entry.pc) return "closed";
         const pc = entry.pc;
-        if (pc.signalingState !== "stable" || pc.connectionState === "closed") return;
-        const kinds = new Set(pc.getSenders().map((s) => s.track && s.track.kind).filter(Boolean));
-        let added = false;
-        for (const track of state.localStream.getTracks()) {
-            if (!kinds.has(track.kind)) {
-                pc.addTrack(track, state.localStream);
-                kinds.add(track.kind);
-                added = true;
+        const ice = pc.iceConnectionState;
+        const conn = pc.connectionState;
+        if (conn === "closed" || ice === "closed") return "closed";
+        if (conn === "failed" || ice === "failed") return "failed";
+        if (conn === "connected" || conn === "completed"
+            || ice === "connected" || ice === "completed") return "connected";
+        // Still negotiating. "disconnected" is usually transient (ICE probing),
+        // so both it and a stalled "new" only become a failure on timeout.
+        if (entry.timedOut) return "failed";
+        return "connecting";
+    }
+
+    // Reflect one peer's status onto its stage tile. The tile is rebuilt by
+    // renderStage(), so this is called both on state changes and after a
+    // rebuild.
+    function applyPeerStatusUi(remotePid, tileEl = null) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const status = peerStatusOf(entry);
+        entry.status = status;
+        const tile = tileEl || document.querySelector(`.stage-tile[data-pid="${remotePid}"]`);
+        if (tile) {
+            tile.classList.toggle("conn-connecting", status === "connecting");
+            tile.classList.toggle("conn-failed", status === "failed");
+            const chip = tile.querySelector(".stage-conn");
+            if (chip) {
+                chip.textContent = status === "failed" ? "Not connected"
+                    : status === "connecting" ? "Connecting…" : "";
             }
         }
-        if (!added) return;
+        updateMediaNotice();
+    }
+
+    // Room-level banner: names the participants we cannot reach and, when the
+    // server has no relay configured, says why — so "blank tile" stops being
+    // silent. Returns how many peers are currently unreachable.
+    function updateMediaNotice() {
+        if (!els.mediaNotice) return 0;
+        const failed = [];
+        for (const [pid, entry] of state.peers) {
+            if (peerStatusOf(entry) !== "failed") continue;
+            const p = state.participants.find((x) => x.participant_id === pid);
+            failed.push((p && p.name) || "a participant");
+        }
+        if (!failed.length) {
+            els.mediaNotice.hidden = true;
+            return 0;
+        }
+        const names = failed.length <= 2
+            ? failed.join(", ")
+            : `${failed.slice(0, 2).join(", ")} +${failed.length - 2} more`;
+        let text = `No media connection with ${names} — their video and voice can't reach you.`;
+        if (RTC_CONFIG.relaySeen) {
+            text += " Retrying through the relay; you can also try again.";
+        } else if (RTC_CONFIG.turnConfigured) {
+            // A relay is configured but never produced a relay candidate, so the
+            // two sides share no reachable path and the relay isn't the way out.
+            text += " The configured TURN relay isn't answering, so a participant on another network or mobile data can't connect — retry, use the same network, or check the relay credentials.";
+        } else {
+            text += " This room has no TURN relay, so participants on a different network or mobile data can't connect — use the same network, or configure one in case_priority_system/courtroom_turn.json.";
+        }
+        els.mediaNoticeText.textContent = text;
+        els.mediaNotice.hidden = false;
+        return failed.length;
+    }
+
+    // Re-negotiate a peer's ICE: the usual cure for a path that went stale (the
+    // network changed, a NAT binding expired, a relay was added). Serialized
+    // through negotiateWith() like every other SDP change, so it can't race
+    // with a track sync or an offer/answer exchange.
+    function scheduleIceRestart(remotePid, delay = 0) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || state.iEnded) return;
+        const attempts = entry.iceRestartAttempts || 0;
+        if (attempts >= MEDIA_MAX_ICE_RESTARTS) return;
+        if (entry.restartTimer) return;                     // already queued
+        entry.iceRestartAttempts = attempts + 1;
+        entry.restartTimer = setTimeout(async () => {
+            entry.restartTimer = null;
+            if (state.peers.get(remotePid) !== entry) return;
+            if (peerStatusOf(entry) === "connected") return;   // recovered on its own
+            if (!state.localStream) return;                    // nothing to send yet
+            await negotiateWith(remotePid, { iceRestart: true });
+        }, delay);
+    }
+
+    // "Retry" in the media notice: forget the backoff and re-attempt every
+    // unreachable peer right now (the user usually fixes the network first).
+    function restartMediaConnections() {
+        let n = 0;
+        for (const [pid, entry] of state.peers) {
+            if (peerStatusOf(entry) === "failed") {
+                entry.iceRestartAttempts = 0;
+                entry.timedOut = false;   // give the retry a fresh window
+                if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+                scheduleIceRestart(pid);
+                n++;
+            }
+        }
+        if (n) toast(`Retrying the media connection for ${n} participant${n === 1 ? "" : "s"}…`);
+        return n;
+    }
+
+    // Make one peer connection send our current audio (+ video). Returns true
+    // once the mic carried by this connection is negotiated out (or an offer
+    // carrying it just went out), false when the attempt had to wait for an
+    // in-flight renegotiation.
+    async function syncTracksToPeer(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || !state.localStream) return false;
+        const pc = entry.pc;
+        if (pc.connectionState === "closed" || pc.connectionState === "failed") return false;
+
+        await attachLocalTracks(remotePid);
+        if (micRouteState(pc) === "sending") {
+            trackSyncPending.delete(remotePid);
+            entry.trackSyncAttempts = 0;
+            return true;
+        }
+        // Not audible yet: the SDP has to change (direction was receive-only, or
+        // the m-line was never negotiated). One serialized offer per peer.
+        const attempts = (entry.trackSyncAttempts || 0) + 1;
+        entry.trackSyncAttempts = attempts;
+        if (attempts > 6) {
+            console.error(`Could not route the microphone to ${remotePid} after ${attempts} attempts`);
+            trackSyncPending.delete(remotePid);
+            return false;
+        }
+        trackSyncPending.add(remotePid);
+        return await negotiateWith(remotePid);
+    }
+
+    // Attach our current local tracks to a connection's audio/video m-lines.
+    // replaceTrack() refills an existing sender without touching the SDP, so a
+    // re-acquired mic (or a swapped camera) becomes live immediately; creating a
+    // transceiver is only the fallback when the kind has no m-line at all.
+    // Returns true when the description must be renegotiated.
+    async function attachLocalTracks(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || !state.localStream) return false;
+        const pc = entry.pc;
+        let needsSignaling = false;
+        for (const track of state.localStream.getTracks()) {
+            const tx = transceiverFor(pc, track.kind);
+            if (!tx) {
+                try {
+                    pc.addTransceiver(track, { direction: "sendrecv", streams: [state.localStream] });
+                    needsSignaling = true;
+                } catch (e) {
+                    console.warn(`Could not create a ${track.kind} m-line for ${remotePid}:`, e);
+                }
+                continue;
+            }
+            if (tx.sender.track !== track) {
+                try {
+                    await tx.sender.replaceTrack(track);
+                } catch (e) {
+                    console.warn(`Could not attach the ${track.kind} track for ${remotePid}:`, e);
+                }
+            }
+            if (!String(tx.direction || "").includes("send")) {
+                // Negotiated receive-only (typically the answerer's m-line when
+                // the connection was built before we had a mic): ask to send
+                // too, otherwise our audio is dropped by the far side.
+                tx.direction = "sendrecv";
+                needsSignaling = true;
+            }
+        }
+        return needsSignaling;
+    }
+
+    // The single funnel for "the SDP must change". Browsers reject a second
+    // offer that isn't preceded by its answer ("the order of m-lines doesn't
+    // match"), and two racing createOffer() calls used to leave a participant
+    // with no media at all — so every path serializes here.
+    async function negotiateWith(remotePid, opts = {}) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return false;
+        const pc = entry.pc;
+        // A failed connection is still negotiable — that is exactly what an ICE
+        // restart re-negotiates — so only a closed one is a hard stop here.
+        if (pc.connectionState === "closed") return false;
+        if (entry.negotiating || pc.signalingState !== "stable") {
+            // Busy — queue it; onsignalingstatechange flushes when we settle.
+            entry.negotiationQueued = true;
+            if (opts.iceRestart) entry.iceRestartQueued = true;
+            return false;
+        }
+        entry.negotiating = true;
         try {
-            const offer = await pc.createOffer();
+            const offer = await pc.createOffer(opts.iceRestart ? { iceRestart: true } : undefined);
             await pc.setLocalDescription(offer);
             state.ws.send(JSON.stringify({
                 type: "sdp_offer",
                 target_participant_id: remotePid,
                 data: pc.localDescription,
             }));
+            return true;
         } catch (e) {
-            console.error(`Track upgrade offer to ${remotePid} failed:`, e);
+            console.error(`Offer to ${remotePid} failed:`, e);
+            // A stale local description (a rolled-back offer) leaves the
+            // connection unusable until it is cleaned up.
+            try {
+                if (pc.signalingState === "have-local-offer") {
+                    await pc.setLocalDescription({ type: "rollback" });
+                }
+            } catch (_) {}
+            return false;
+        } finally {
+            entry.negotiating = false;
         }
+    }
+
+    // Deterministic glare rule: both sides must agree on who yields, and a
+    // stable id comparison gives that with no server-side ordering. The
+    // "polite" peer rolls its own offer back and answers; the other one's offer
+    // wins. Without this, simultaneous offers wedged a connection permanently.
+    function isPoliteWith(remotePid) {
+        const me = state.me && state.me.participant_id;
+        return String(me) < String(remotePid);
+    }
+
+    // Retry every track sync whose connection has settled, and every offer a
+    // busy connection had to postpone.
+    function flushPendingTrackSyncs() {
+        if (!state.localStream) return;
+        for (const [pid, entry] of [...state.peers]) {
+            if (entry.pc.signalingState !== "stable") continue;   // still busy
+            if (entry.iceRestartQueued) {
+                entry.iceRestartQueued = false;
+                entry.negotiationQueued = false;
+                negotiateWith(pid, { iceRestart: true });
+                continue;
+            }
+            if (entry.negotiationQueued) {
+                entry.negotiationQueued = false;
+                trackSyncPending.add(pid);
+            }
+            if (trackSyncPending.has(pid)) syncTracksToPeer(pid);
+        }
+    }
+
+    // Flush shortly AFTER signalling settles: currentDirection (whether the
+    // mic is really part of the negotiated session) is only settled once the
+    // SDP exchange has finished, so checking synchronously would re-offer for
+    // a connection that was already fine.
+    let trackSyncFlushTimer = null;
+    function scheduleTrackSyncFlush(delay = 250) {
+        if (trackSyncFlushTimer) clearTimeout(trackSyncFlushTimer);
+        trackSyncFlushTimer = setTimeout(() => {
+            trackSyncFlushTimer = null;
+            flushPendingTrackSyncs();
+        }, delay);
+    }
+
+    // Re-assert our mic on every peer connection and report how many peers
+    // still can't hear us. Called on each Hold to Talk press, so the words
+    // being transcribed are also the words the room hears — and if they aren't
+    // yet, the speaker is told instead of silently talking to a deaf room.
+    async function assertMicOnPeers() {
+        if (!state.localStream || !state.localStream.getAudioTracks().length) return 0;
+        let unreachable = 0;
+        for (const pid of [...state.peers.keys()]) {
+            await syncTracksToPeer(pid);
+            const entry = state.peers.get(pid);
+            if (entry && micRouteState(entry.pc) !== "sending") unreachable++;
+        }
+        if (unreachable) {
+            const who = unreachable === 1 ? "1 participant" : `${unreachable} participants`;
+            setAsrStatus(`Connecting your mic to ${who} — they may not hear this statement.`);
+        }
+        return unreachable;
+    }
+
+    // Adopt a freshly acquired mic as the room's audio. Needed when Hold to Talk
+    // had to ask for a dedicated stream (the join-time prompt was dismissed or
+    // the shared stream lost its audio): recording alone would transcribe the
+    // statement while the room stayed deaf.
+    async function adoptMicStream(stream) {
+        const track = stream && stream.getAudioTracks()[0];
+        if (!track) return false;
+        if (!state.localStream) {
+            state.localStream = stream;
+        } else {
+            for (const old of state.localStream.getAudioTracks()) {
+                if (old === track) continue;
+                try { old.stop(); } catch (_) {}
+                try { state.localStream.removeTrack(old); } catch (_) {}
+            }
+            if (!state.localStream.getAudioTracks().includes(track)) {
+                state.localStream.addTrack(track);
+            }
+        }
+        applyMicGate();
+        // Peers already have an audio m-line, so this is usually just a
+        // replaceTrack swap — the mic comes back without a renegotiation.
+        await assertMicOnPeers();
+        return true;
     }
 
     // Pick the starting gain for a participant whose volume we haven't seen yet.
@@ -578,13 +967,35 @@
         }
     }
 
-    function createPeerConnection(remotePid) {
+    // Build the connection to one peer.
+    //
+    // `offerer` matters a great deal. A remote offer is only ever associated
+    // with transceivers that have NO sender track yet: creating our audio/video
+    // m-lines (with tracks) before applying the offer leaves our mic on an
+    // m-line the session never negotiates — the browser quietly builds its own
+    // recvonly m-lines instead, so the answering participant's voice is never
+    // sent, while their client keeps transcribing them locally. That is exactly
+    // the "I spoke, it was transcribed, nobody heard me" bug.
+    //   • offerer (we create the offer): create both m-lines up-front with our
+    //     tracks attached, in a fixed audio→video order, so every later
+    //     renegotiation keeps the same m-line order.
+    //   • answerer (we reply to an offer): create NO transceivers here. The
+    //     offer's m-lines become ours; attachLocalTracks() then gives them our
+    //     tracks before the answer goes out.
+    function createPeerConnection(remotePid, offerer) {
         const pc = new RTCPeerConnection(RTC_CONFIG);
 
-        // Receive both audio and video from the peer. Our own tracks are added
-        // below, which flips these transceivers to sendrecv.
-        pc.addTransceiver("audio", { direction: "recvonly" });
-        pc.addTransceiver("video", { direction: "recvonly" });
+        if (offerer) {
+            const local = state.localStream;
+            const audioTrack = local ? local.getAudioTracks()[0] : null;
+            const videoTrack = local ? local.getVideoTracks()[0] : null;
+            const senderInit = (track) => ({
+                direction: track ? "sendrecv" : "recvonly",
+                streams: track ? [local] : [],
+            });
+            pc.addTransceiver(audioTrack || "audio", senderInit(audioTrack));
+            pc.addTransceiver(videoTrack || "video", senderInit(videoTrack));
+        }
 
         // Remote audio element for this peer.
         const audio = document.createElement("audio");
@@ -622,7 +1033,17 @@
             console.warn("Peer audio gain setup failed for", remotePid, "-", e);
         }
 
-        const peer = { pc, audio, videoTrack: null, gain: peerGain };
+        const peer = {
+            pc, audio, videoTrack: null, gain: peerGain,
+            negotiating: false,      // an offer/answer of ours is in flight
+            negotiationQueued: false,
+            iceRestartQueued: false,
+            iceRestartAttempts: 0,
+            restartTimer: null,
+            connectTimer: setTimeout(() => onPeerConnectTimeout(remotePid), MEDIA_CONNECT_TIMEOUT_MS),
+            timedOut: false,
+            status: "connecting",
+        };
         state.peers.set(remotePid, peer);
 
         pc.ontrack = (event) => {
@@ -646,7 +1067,12 @@
                 refreshFaceSourceIfPending(remotePid);
                 return;
             }
-            audio.srcObject = event.streams[0];
+            // A track that arrived via replaceTrack() carries no stream id, so
+            // event.streams is empty — assigning undefined here would leave the
+            // element playing nothing at all (silence) even though RTP flows.
+            audio.srcObject = (event.streams && event.streams[0])
+                ? event.streams[0]
+                : new MediaStream([event.track]);
             audio.play().catch(() => {});
             // Light active-speaker glow via WebRTC audio-level (analyser).
             attachSpeakerDetection(audio, remotePid);
@@ -654,6 +1080,7 @@
 
         // Trickle ICE: send every candidate to the remote peer.
         pc.onicecandidate = (event) => {
+            if (event.candidate && event.candidate.type === "relay") RTC_CONFIG.relaySeen = true;
             if (event.candidate && state.ws && state.ws.readyState === WebSocket.OPEN) {
                 state.ws.send(JSON.stringify({
                     type: "ice_candidate",
@@ -663,26 +1090,108 @@
             }
         };
 
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-                // WebRTC will retry naturally on next interaction; nothing to do here.
-            }
+        // Signalling settled → retry any track sync that had to wait for it
+        // (the glare case). This is what keeps the mic from being lost forever
+        // when two participants happen to renegotiate at the same moment.
+        pc.onsignalingstatechange = () => {
+            if (pc.signalingState === "stable") scheduleTrackSyncFlush();
         };
 
-        // Add our local tracks so the peer can hear + see us.
-        if (state.localStream) {
-            for (const track of state.localStream.getTracks()) {
-                pc.addTrack(track, state.localStream);
-            }
-        }
+        pc.onconnectionstatechange = () => onPeerStateChange(remotePid);
+        // ICE state moves before the aggregate connection state and is where a
+        // dead path actually shows up (failed/disconnected).
+        pc.oniceconnectionstatechange = () => onPeerStateChange(remotePid);
+
+        // Our tracks ride on the transceivers above (offerer), or are attached
+        // to the offer's m-lines by attachLocalTracks() (answerer). If the
+        // mic/camera arrives late or is swapped, scheduleTrackSyncFlush()
+        // refills those senders with replaceTrack — never with a second m-line.
+        trackSyncPending.add(remotePid);
+        scheduleTrackSyncFlush();
         return pc;
+    }
+
+    // No candidate path settled in time — surface it and try an ICE restart.
+    function onPeerConnectTimeout(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        entry.connectTimer = null;
+        if (peerStatusOf(entry) === "connected") return;
+        entry.timedOut = true;
+        applyPeerStatusUi(remotePid);
+        scheduleIceRestart(remotePid);
+    }
+
+    // One place for every connection-state transition: refresh the tile/banner,
+    // resume a pending track sync once we connect, and retry a dead path.
+    function onPeerStateChange(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const status = peerStatusOf(entry);
+        if (status === "connected") {
+            entry.iceRestartAttempts = 0;
+            entry.timedOut = false;
+            if (entry.connectTimer) { clearTimeout(entry.connectTimer); entry.connectTimer = null; }
+            if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+            if (trackSyncPending.has(remotePid)) scheduleTrackSyncFlush();
+        } else if (status === "failed") {
+            // Retry with a short backoff: a transient NAT/relay hiccup often
+            // recovers, and when it can't the notice tells the user why.
+            scheduleIceRestart(remotePid, 1200 + 1800 * (entry.iceRestartAttempts || 0));
+        }
+        applyPeerStatusUi(remotePid);
+    }
+
+    // Live audio-level "speaking" glow for a remote participant's roster tile.
+    // It taps the peer's EXISTING gain chain created in createPeerConnection:
+    // calling createMediaElementSource() on the same <audio> element a second
+    // time throws InvalidStateError, which is why this used to be a dangling
+    // reference and the glow never lit.
+    function attachSpeakerDetection(audio, remotePid) {
+        const peer = state.peers.get(remotePid);
+        if (!peer || !peer.gain || !peer.gain.ctx || !peer.gain.gain) return; // audio-only fallback: no chain
+        // ontrack can fire again on renegotiation — keep one analyser/loop per peer.
+        if (peer.speaker && peer.speaker.timer) return;
+        const { ctx, gain } = peer.gain;
+        let analyser;
+        try {
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 512;
+            gain.connect(analyser); // tap only — gain -> destination still plays the peer
+        } catch (e) {
+            console.warn("Speaker detection unavailable for", remotePid, "-", e);
+            return;
+        }
+        const buf = new Uint8Array(analyser.fftSize);
+        peer.speaker = { analyser, buf, timer: null };
+        const tick = () => {
+            if (state.peers.get(remotePid) !== peer || !peer.speaker) return;
+            analyser.getByteTimeDomainData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) {
+                const v = (buf[i] - 128) / 128;
+                sum += v * v;
+            }
+            const rms = Math.sqrt(sum / buf.length);
+            // Light the speaking glow on both of this participant's surfaces:
+            // their stage tile and their row in the rail roster.
+            const tiles = document.querySelectorAll(
+                `.participant-tile[data-pid="${remotePid}"], .stage-tile[data-pid="${remotePid}"]`
+            );
+            tiles.forEach((t) => t.classList.toggle("speaking", rms > 0.035));
+        };
+        peer.speaker.timer = setInterval(tick, 250);
     }
 
     // Newcomer-initiated: we offer to each pending target once our mic+camera
     // stream is ready, so every offer actually carries audio + video tracks.
     // ensureLocalStream() re-invokes this when the stream resolves late.
     async function drainPendingOffers() {
-        if (!state.localStream || !state.pendingOfferTargets.size) return;
+        // Deliberately not gated on state.localStream: a participant whose mic
+        // and camera were both denied must still connect so they can HEAR the
+        // room. Their m-lines start receive-only and attachLocalTracks() fills
+        // them in if a stream ever arrives.
+        if (!state.pendingOfferTargets.size) return;
         for (const pid of [...state.pendingOfferTargets]) {
             state.pendingOfferTargets.delete(pid);
             await makeOffer(pid);
@@ -690,28 +1199,45 @@
     }
 
     async function makeOffer(remotePid) {
-        let entry = state.peers.get(remotePid);
-        if (!entry) entry = { pc: createPeerConnection(remotePid), audio: null };
-        const pc = entry.pc;
-        try {
-            const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-            await pc.setLocalDescription(offer);
-            state.ws.send(JSON.stringify({
-                type: "sdp_offer",
-                target_participant_id: remotePid,
-                data: pc.localDescription,
-            }));
-        } catch (e) {
-            console.error(`Offer to ${remotePid} failed:`, e);
+        if (!state.peers.has(remotePid)) {
+            // We create the offer, so our own m-lines (with our tracks) are
+            // built up-front — see createPeerConnection().
+            createPeerConnection(remotePid, /* offerer */ true);
         }
+        await attachLocalTracks(remotePid);
+        await negotiateWith(remotePid);
     }
 
     async function onRemoteOffer(remotePid, data) {
         let entry = state.peers.get(remotePid);
-        if (!entry) entry = { pc: createPeerConnection(remotePid), audio: null };
+        if (!entry) {
+            // We answer this one, so the peer connection starts with no
+            // transceivers: the offer's m-lines become ours and we attach our
+            // tracks to them below, before the answer is created.
+            createPeerConnection(remotePid, /* offerer */ false);
+            entry = state.peers.get(remotePid);
+        }
         const pc = entry.pc;
+        const collision = pc.signalingState !== "stable";
+        if (collision && !isPoliteWith(remotePid)) {
+            // Both sides offered at once. We are the impolite one: our offer
+            // stands and this one is ignored — the polite peer rolls its offer
+            // back and answers ours, so the two sides always converge.
+            console.warn(`Ignoring colliding offer from ${remotePid} (impolite peer)`);
+            entry.negotiationQueued = true;
+            scheduleTrackSyncFlush(400);
+            return;
+        }
+        entry.negotiating = true;
         try {
+            if (collision) {
+                // Polite peer: withdraw our offer so theirs can be accepted.
+                try { await pc.setLocalDescription({ type: "rollback" }); } catch (_) {}
+            }
             await pc.setRemoteDescription(new RTCSessionDescription(data));
+            // THE step that makes the answerer audible: give the m-lines the
+            // offer just created our own tracks, so the answer sends them.
+            const needsSignaling = await attachLocalTracks(remotePid);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             state.ws.send(JSON.stringify({
@@ -719,20 +1245,43 @@
                 target_participant_id: remotePid,
                 data: pc.localDescription,
             }));
+            if (micRouteState(pc) === "sending") trackSyncPending.delete(remotePid);
+            if (needsSignaling) trackSyncPending.add(remotePid);
         } catch (e) {
             console.error(`Answer to ${remotePid} failed:`, e);
+            trackSyncPending.add(remotePid);
+        } finally {
+            entry.negotiating = false;
+            scheduleTrackSyncFlush(300);
         }
     }
 
     async function onRemoteAnswer(remotePid, data) {
         const entry = state.peers.get(remotePid);
         if (!entry) return;
+        const pc = entry.pc;
         try {
-            if (entry.pc.signalingState !== "stable") {
-                await entry.pc.setRemoteDescription(new RTCSessionDescription(data));
+            // An answer is only meaningful while we have an outstanding offer.
+            // Applying it in any other state threw (and the throw was swallowed),
+            // which is one of the ways a peer ended up with no audio: our offer
+            // was dropped as "failed" while the connection carried on silently.
+            if (pc.signalingState !== "have-local-offer") {
+                console.warn(`Ignoring answer from ${remotePid} in state ${pc.signalingState}`);
+                trackSyncPending.add(remotePid);
+                scheduleTrackSyncFlush(300);
+                return;
             }
+            await pc.setRemoteDescription(new RTCSessionDescription(data));
+            // Confirm the mic made it into the negotiated session (and re-offer
+            // if not — e.g. our offer was rolled back by glare in the meantime).
+            if (micRouteState(pc) === "sending") trackSyncPending.delete(remotePid);
+            if (trackSyncPending.has(remotePid)) scheduleTrackSyncFlush(300);
         } catch (e) {
             console.error(`Apply answer from ${remotePid} failed:`, e);
+            // The offer we sent never completed — re-send it, or the mic stays
+            // stuck on this peer.
+            trackSyncPending.add(remotePid);
+            scheduleTrackSyncFlush(300);
         }
     }
 
@@ -750,12 +1299,18 @@
         const entry = state.peers.get(remotePid);
         if (!entry) return;
         try { entry.pc.close(); } catch (_) {}
+        if (entry.speaker && entry.speaker.timer) clearInterval(entry.speaker.timer);
         if (entry.audio && entry.audio.parentNode) entry.audio.parentNode.removeChild(entry.audio);
+        // The face analyzer may be tapping this peer's audio chain — drop the
+        // meter before the context goes away.
+        if (face.remoteMeter && face.remoteMeter.owner === remotePid) face.remoteMeter = null;
         // Tear down this peer's gain node so we don't leak AudioContexts.
         if (entry.gain) {
             try { entry.gain.ctx.close(); } catch (_) {}
             peerVolumes.delete(remotePid);
         }
+        if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+        if (entry.connectTimer) { clearTimeout(entry.connectTimer); entry.connectTimer = null; }
         const v = videoEls.get(remotePid);
         if (v) {
             stopVideoKeepalive(v);
@@ -764,6 +1319,7 @@
         }
         videoEls.delete(remotePid);
         state.peers.delete(remotePid);
+        updateMediaNotice();
         // If the face analyzer was watching this participant, fall back to self.
         if (face.source === remotePid) {
             face.source = "self";
@@ -778,10 +1334,21 @@
     //   - ptt.recording (hold)        -> audible while holding to talk
     // Everything else (not holding, not toggled) is silent to the room.
     function applyMicGate() {
-        if (!state.localStream) return;
         const open = state.micEnabled || ptt.recording;
-        for (const track of state.localStream.getAudioTracks()) {
-            track.enabled = open;
+        const gated = new Set();
+        const gate = (track) => {
+            if (!track || track.kind !== "audio" || gated.has(track)) return;
+            gated.add(track);
+            try { track.enabled = open; } catch (_) {}
+        };
+        if (state.localStream) state.localStream.getAudioTracks().forEach(gate);
+        // Also gate what the peer connections are actually sending. If a peer
+        // holds a different track object than state.localStream (mic swapped,
+        // stream re-acquired), gating only the local stream would leave that
+        // peer's audio open when it should be closed — or, worse, closed when
+        // the user is holding to talk.
+        for (const entry of state.peers.values()) {
+            try { entry.pc.getSenders().forEach((s) => gate(s.track)); } catch (_) {}
         }
     }
 
@@ -789,7 +1356,7 @@
         if (!state.localStream) return;
         state.micEnabled = !state.micEnabled;
         applyMicGate();
-        renderRoster();
+        renderCourt();
     }
 
     function toggleVideo() {
@@ -798,7 +1365,7 @@
         for (const track of state.localStream.getVideoTracks()) {
             track.enabled = state.videoEnabled;
         }
-        renderRoster();
+        renderCourt();
     }
 
     // ====================================================================
@@ -810,7 +1377,7 @@
         els.youAreRole.textContent = state.me.display_role;
         // Show phase controls + End Session only for the Judge.
         const isJudge = state.me.role === "Judge";
-        els.phaseControls.style.display = isJudge ? "block" : "none";
+        els.phaseControls.style.display = isJudge ? "" : "none";
         if (els.endSessionBtn) els.endSessionBtn.style.display = isJudge ? "inline-flex" : "none";
         renderPhaseButtons();
         initFacePanel();
@@ -823,16 +1390,133 @@
         if (!("ontouchstart" in window)) els.statementInput.focus();
     }
 
-    function renderRoster() {
-        els.rosterOnline.textContent = state.participants.length;
-        els.rosterList.innerHTML = "";
-        // Always render "me" first, then others.
-        const ordered = [...state.participants].sort((a, b) => {
+    // ---- collapsible panels (rail cards + the transcript dock) ---------
+    // Every panel folds down to its header and the choice is remembered per
+    // browser. Bodies are clipped, never display:none, so anything running
+    // inside (a live face analysis, a video element) keeps rendering while
+    // the panel is folded away.
+    const COLLAPSIBLE_PANELS = [
+        "roster-panel", "case-context", "phase-controls", "face-analysis", "transcript-panel",
+    ];
+
+    function initCollapsiblePanels() {
+        for (const id of COLLAPSIBLE_PANELS) {
+            const panel = document.getElementById(id);
+            const toggle = panel && panel.querySelector(".rail-toggle");
+            if (!panel || !toggle) continue;
+            const stored = readPanelPref(id);
+            setPanelCollapsed(panel, stored === null ? defaultPanelCollapsed(id) : stored === "collapsed", /*persist*/ false);
+            toggle.addEventListener("click", () => {
+                setPanelCollapsed(panel, !panel.classList.contains("collapsed"));
+            });
+        }
+    }
+
+    // Starting state before the user has ever touched a panel: the roster is the
+    // room's control surface, and the trial phase is what the Judge reaches for,
+    // so both start open. The case file and the analyzer are deliberately folded
+    // (the analyzer shows a dead feed until someone enables it, and the case file
+    // is read on demand) — on phones the whole rail starts folded.
+    function defaultPanelCollapsed(id) {
+        const narrow = window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
+        if (id === "case-context" || id === "face-analysis") return true;
+        if (narrow && (id === "roster-panel" || id === "phase-controls")) return true;
+        return false;
+    }
+
+    function readPanelPref(id) {
+        try { return localStorage.getItem(`anavaya-court-panel-${id}`); } catch (_) { return null; }
+    }
+
+    function setPanelCollapsed(panel, collapsed, persist = true) {
+        panel.classList.toggle("collapsed", collapsed);
+        const toggle = panel.querySelector(".rail-toggle");
+        if (toggle) toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        // `inert` keeps a folded panel's controls out of the tab/AT order without
+        // hiding (and therefore throttling) the media inside it.
+        const body = panel.querySelector(".panel-collapse");
+        if (body && "inert" in body) body.inert = collapsed;
+        if (!persist) return;
+        try { localStorage.setItem(`anavaya-court-panel-${panel.id}`, collapsed ? "collapsed" : "open"); } catch (_) {}
+    }
+
+    // The room is video-first: the **stage** grid owns every participant's
+    // persistent <video> element (the mesh feeds them), while the rail's
+    // **roster** rows carry the mic / camera / volume controls. Two renderers,
+    // so rebuilding the controls never disturbs a running video element.
+    function renderCourt() {
+        renderStage();
+        renderRoster();
+        updateMediaNotice();
+    }
+
+    // "Me" first, then everyone else in join order.
+    function orderedParticipants() {
+        return [...state.participants].sort((a, b) => {
             if (a.participant_id === state.me?.participant_id) return -1;
             if (b.participant_id === state.me?.participant_id) return 1;
             return 0;
         });
+    }
+
+    function renderStage() {
+        if (!els.videoStage) return;
+        const ordered = orderedParticipants();
+        els.videoStage.innerHTML = "";
+        els.videoStage.dataset.count = String(ordered.length);
+        if (!ordered.length) {
+            els.videoStage.innerHTML = `
+                <div class="stage-empty">
+                    <i data-lucide="users"></i>
+                    <span>Waiting for the court to assemble…</span>
+                </div>`;
+            lucide.createIcons();
+            return;
+        }
         for (const p of ordered) {
+            const isMe = p.participant_id === state.me?.participant_id;
+            const displayRole = isMe ? state.me.display_role : displayRoleFor(p);
+            const camOff = isMe && !state.videoEnabled;
+            const initials = (p.name || "?").trim().charAt(0).toUpperCase();
+            const tile = document.createElement("div");
+            tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "");
+            tile.dataset.pid = p.participant_id;
+            tile.innerHTML = `
+                <div class="stage-avatar">
+                    <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
+                </div>
+                <div class="stage-overlay">
+                    <span class="stage-live"><i data-lucide="mic"></i></span>
+                    <span class="stage-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</span>
+                    <span class="stage-role">${escapeHtml(camOff ? "Camera off" : displayRole)}</span>
+                </div>
+                <span class="stage-conn" data-conn=""></span>
+            `;
+            // The persistent, mesh-fed <video> sits on top of the avatar — the
+            // avatar shows through whenever the element has no frames.
+            const v = videoElFor(p.participant_id);
+            tile.appendChild(v);
+            if (isMe) {
+                attachSelfVideo();
+                if (!state.micEnabled) tile.querySelector(".avatar").classList.add("muted");
+            } else if (v.srcObject) {
+                // Re-attached after a stage rebuild — keep the feed rolling.
+                v.play().catch(() => {});
+            }
+            els.videoStage.appendChild(tile);
+            // The status has to be applied once the tile is in the document
+            // (it is looked up by data-pid); a blank remote tile then says
+            // whether we are still connecting or cannot reach them at all.
+            if (!isMe) applyPeerStatusUi(p.participant_id, tile);
+        }
+        lucide.createIcons();
+    }
+
+    function renderRoster() {
+        els.rosterOnline.textContent = state.participants.length;
+        if (!els.rosterList) return;
+        els.rosterList.innerHTML = "";
+        for (const p of orderedParticipants()) {
             const isMe = p.participant_id === state.me?.participant_id;
             const displayRole = isMe ? state.me.display_role : displayRoleFor(p);
             const initials = (p.name || "?").trim().charAt(0).toUpperCase();
@@ -840,9 +1524,7 @@
             tile.className = "participant-tile" + (isMe ? " is-me" : "");
             tile.dataset.pid = p.participant_id;
             tile.innerHTML = `
-                <div class="tile-video">
-                    <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
-                </div>
+                <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
                 <div class="tile-info">
                     <div class="tile-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</div>
                     <div class="tile-role role-${p.role}">${escapeHtml(displayRole)}</div>
@@ -859,11 +1541,7 @@
                     </div>` : ""}
                 </div>
             `;
-            // Move the persistent video element (already fed by the mesh) into
-            // this tile's video slot; the avatar stays as the fallback.
-            tile.querySelector(".tile-video").prepend(videoElFor(p.participant_id));
             if (isMe) {
-                attachSelfVideo();
                 tile.querySelector(".tile-mic-btn").addEventListener("click", toggleMic);
                 const vbtn = tile.querySelector(".tile-video-btn");
                 if (vbtn) vbtn.addEventListener("click", toggleVideo);
@@ -1056,6 +1734,7 @@
 
     function renderPhase(phase) {
         els.phaseBadge.textContent = phase;
+        if (els.phaseHeadSub) els.phaseHeadSub.textContent = phase;
         els.phaseButtons.querySelectorAll(".phase-btn").forEach((b) => {
             b.classList.toggle("active", b.dataset.phase === phase);
         });
@@ -1091,16 +1770,27 @@
         els.transcriptFeed.innerHTML = "";
         if (!entries || !entries.length) {
             els.transcriptFeed.innerHTML = '<div class="transcript-empty">The court is in session. Statements will appear here.</div>';
+            updateTranscriptCount();
             return;
         }
         for (const e of entries) appendTranscript(e, /*scroll*/false);
+        updateTranscriptCount();
         scrollToBottom();
+    }
+
+    // Entry tally shown next to "Live Transcript" so the folded dock still
+    // says how much record there is.
+    function updateTranscriptCount() {
+        if (!els.transcriptCount) return;
+        const n = els.transcriptFeed.querySelectorAll(".entry").length;
+        els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
     }
 
     function appendTranscript(entry, scroll = true) {
         // Clear the empty placeholder if present.
         const empty = els.transcriptFeed.querySelector(".transcript-empty");
         if (empty) empty.remove();
+        // The count is refreshed at the end of every append below.
 
         const node = document.createElement("div");
         node.className = `entry kind-${entry.kind}`;
@@ -1155,6 +1845,7 @@
         }
         els.transcriptFeed.appendChild(node);
         lucide.createIcons();
+        updateTranscriptCount();
         if (scroll) scrollToBottom();
     }
 
@@ -1289,6 +1980,7 @@
         browserAsr: false,  // fall back to browser SpeechRecognition when whisper is missing
         sr: null,           // active SpeechRecognition session while holding (browser mode)
         srText: "",         // accumulated final transcript of the current hold
+        keyHeld: false,     // space bar is currently held down (keyboard push-to-talk)
     };
 
     function initPushToTalk() {
@@ -1302,6 +1994,48 @@
         btn.addEventListener("touchstart", (e) => { e.preventDefault(); pttStart(); });
         btn.addEventListener("touchend", (e) => { e.preventDefault(); pttStop(); });
         btn.addEventListener("touchcancel", pttStop);
+        // Keyboard — hold the SPACE bar to talk (the primary trigger).
+        window.addEventListener("keydown", onPttKeyDown);
+        window.addEventListener("keyup", onPttKeyUp);
+        window.addEventListener("blur", onPttBlur);
+    }
+
+    // Space-bar push-to-talk. Space is left alone while the user is typing in a
+    // field (so it still types a space) and while the join/concluded card is up.
+    function isTypingTarget(el) {
+        if (!el) return false;
+        const tag = (el.tagName || "").toLowerCase();
+        return tag === "input" || tag === "textarea" || tag === "select" ||
+            el.isContentEditable === true;
+    }
+
+    function onPttKeyDown(e) {
+        if (e.code !== "Space" && e.key !== " ") return;
+        // Already holding via the keyboard — swallow auto-repeat and keep the
+        // page from scrolling.
+        if (ptt.keyHeld) { e.preventDefault(); return; }
+        if (isTypingTarget(e.target)) return;   // let the user type spaces
+        if (!state.me) return;                  // not joined yet
+        if (els.joinOverlay && els.joinOverlay.style.display !== "none") return; // join / concluded card
+        ptt.keyHeld = true;
+        e.preventDefault();
+        pttStart();
+    }
+
+    function onPttKeyUp(e) {
+        if (e.code !== "Space" && e.key !== " ") return;
+        if (!ptt.keyHeld) return;   // not started from a key press
+        ptt.keyHeld = false;
+        e.preventDefault();
+        pttStop();
+    }
+
+    // Alt-tabbing away while space is held never delivers the keyup — close the
+    // mic so we don't record indefinitely.
+    function onPttBlur() {
+        if (!ptt.keyHeld) return;
+        ptt.keyHeld = false;
+        pttStop();
     }
 
     async function pttStart() {
@@ -1339,18 +2073,26 @@
                 return;
             }
             // The shared stream can carry no audio (e.g. the join-time prompt
-            // was dismissed). Hold to Talk needs a mic, so ask for a dedicated
-            // audio stream — this re-triggers the browser's permission prompt
-            // when the earlier one was dismissed rather than blocked.
-            if (!stream.getAudioTracks().length) {
+            // was dismissed), or carry an audio track that has since ended
+            // (mic unplugged, handed to another app). Hold to Talk needs a live
+            // mic, so ask for one — this re-triggers the browser's permission
+            // prompt when the earlier one was dismissed rather than blocked —
+            // and ADOPT it as the room's audio, or the room hears nothing while
+            // the statement is still transcribed locally.
+            const liveAudio = stream.getAudioTracks().filter((t) => t.readyState === "live");
+            if (!liveAudio.length) {
+                let dedicated = null;
                 try {
-                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    dedicated = await navigator.mediaDevices.getUserMedia({ audio: true });
                 } catch (e) {
                     console.warn("Push-to-talk could not access the microphone:", e);
                     setPttLabel(false, "Hold to Talk");
                     reportMicFailure(e, "Microphone unavailable — you can still type your statement.");
                     showMicFallback();
                     return;
+                }
+                if (await adoptMicStream(dedicated)) {
+                    stream = state.localStream || dedicated;
                 }
             }
         }
@@ -1381,12 +2123,19 @@
         ptt.recorder.start(250);
         ptt.recording = true;
         ptt.startedAt = Date.now();
-        // Holding to talk opens the live mic to the room (see applyMicGate).
+        // Holding to talk opens the live mic to the room (see applyMicGate) AND
+        // re-asserts that mic on every peer connection, so the words being
+        // transcribed are also the words the room hears. A peer whose
+        // renegotiation was in flight reports back as deferred — its retry is
+        // queued, and we say so instead of pretending the room heard it.
         applyMicGate();
+        const deferred = await assertMicOnPeers();
         els.pushToTalkBtn.classList.add("active");
         els.pushToTalkBtn.innerHTML = '<i data-lucide="mic-off"></i> Recording…';
         lucide.createIcons();
-        setAsrStatus("Recording — release to send.");
+        setAsrStatus(deferred
+            ? "Recording — release to send. Reconnecting your mic to the room…"
+            : "Recording — release to send.");
     }
 
     function pttStop() {
@@ -1655,12 +2404,19 @@
         ptt.recording = true;
         ptt.startedAt = Date.now();
         setPttLabel(true, "Listening…");
-        applyMicGate(); // browser-ASR hold also opens the live mic
+        // The browser-ASR hold opens the live mic to the room too — and must
+        // re-assert it on every peer, exactly like the whisper hold, or the
+        // room hears nothing while the statement is still transcribed.
+        applyMicGate();
+        assertMicOnPeers();
         try {
             rec.start();
         } catch (_) {
             ptt.sr = null;
             ptt.recording = false;
+            // Close the mic again: a hold that never started listening must not
+            // leave the room hearing an open mic.
+            applyMicGate();
             setPttLabel(false, "Hold to Talk");
             toast("Speech recognition could not start — type your statement instead.");
             showMicFallback();
@@ -1925,10 +2681,17 @@
     // ====================================================================
     // MediaPipe FaceLandmarker (@mediapipe/tasks-vision, lazy-loaded). Detects
     // lip movement / expression cues — lip pressing, lip trembling, frowning,
-    // furrowed/raised brows, rapid blinking, gaze avoidance — and logs them to
-    // the official transcript as kind='behavior' entries, so nervousness cues
-    // become part of the court record. Works on the local camera OR any remote
-    // participant's video feed (selected in the panel's source dropdown).
+    // furrowed/raised brows, rapid blinking, and DIRECTIONAL lateral gaze (a
+    // held look to the subject's own left = construction/deception cue, to
+    // their right = recall) — and logs them to the official transcript as
+    // kind='behavior' entries, so nervousness cues become part of the court
+    // record. Works on the local camera OR any remote participant's video feed
+    // (selected in the panel's source dropdown).
+    //
+    // The "speaking" gate cannot rely on the mic alone: this room starts with
+    // the mic CLOSED (applyMicGate — audible only while Hold to Talk is held),
+    // so a disabled track feeds the analyser silence. Visible mouth movement is
+    // therefore the second half of the gate, or the panel would never fire.
     const FACE_LANDMARKS = {
         leftEye: [33, 160, 158, 133, 153, 144],
         rightEye: [362, 385, 387, 263, 373, 380],
@@ -1950,9 +2713,20 @@
         eyeOuterR: 263,
     };
 
-    const CALIBRATION_FRAMES = 120; // ~4 s of neutral face
-    const CUE_PERSIST_FRAMES = 45;  // a cue must persist ~0.75 s to count (rejects momentary twitches)
+    const CALIBRATION_FRAMES = 120;        // ~4 s of neutral face
+    const CALIBRATION_TIMEOUT_MS = 15000;  // don't stall at "Calibrating…" if the face is rarely found
+    const CALIBRATION_MIN_FRAMES = 30;     // fewest samples we'll trust a baseline from
+    const CUE_PERSIST_FRAMES = 45;  // a cue must persist ~0.75-1.5 s to count (rejects momentary twitches)
     const CUE_LOG_INTERVAL_MS = 25000;
+    // Lateral gaze: how many baseline deviations (eye-widths) count as a real
+    // look-away. Looking to the subject's OWN LEFT is the classic
+    // construction/deception direction (eyes move to image-right because an
+    // unmirrored camera frame puts the subject's left at larger x).
+    const LATERAL_GAZE_SIGMA = 2.6;
+    // Smallest baseline spread we'll trust for gaze (in eye-half-widths). A very
+    // still calibration would otherwise make landmark noise look like a
+    // direction, and this metric is the one most likely to over-fire.
+    const GAZE_MIN_STD = 0.04;
     // Calm-face suppression: brief spikes are noise. The reported index is an
     // EMA over frames, and the transcript only carries cues that held on long
     // enough to be deliberate. A session aggregate — not the peak — defines
@@ -1973,7 +2747,7 @@
         analyzing: false,
         calibrated: false,
         calibrationFrames: 0,
-        calibAcc: { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gaze: [], lipJitter: [] },
+        calibAcc: { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipJitter: [] },
         baseline: {
             earMean: 0.3, earStd: 0.02,
             lipOpenMean: 0.05, lipOpenStd: 0.004,
@@ -1981,10 +2755,10 @@
             frownMean: 0.0, frownStd: 0.003,
             browGapMean: 0.4, browGapStd: 0.02,
             browRaiseMean: 0.15, browRaiseStd: 0.01,
-            gazeMean: 0.5, gazeStd: 0.03,
+            gazeXMean: 0, gazeXStd: 0.03,
             lipJitterMean: 0.001, lipJitterStd: 0.0005,
         },
-        stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0, peakAtSpeaking: false },
+        stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0, peakAtSpeaking: false, blinkTimes: [] },
         history: { lipOpen: [] },
         activeCues: new Set(),
         cueStreak: {},
@@ -1996,7 +2770,12 @@
         emaStarted: false,
         indexSum: 0,
         indexFrames: 0,
-        speaking: false,            // currently speaking (self mic / remote audio level)
+        speaking: false,            // currently speaking (voice OR visible mouth movement)
+        audioSpeaking: false,       // speech detected from the audio meter
+        visualTalking: false,       // speech inferred from visible mouth movement
+        lateralZ: 0,                // live horizontal gaze deviation (signed z)
+        calibHintShown: false,
+        noFaceFrames: 0,
         speakingAcc: { frames: 0, samples: 0 },
         lastSpeakingSeenAt: 0,
         speechSeenAt: 0,            // first time speech was detected this session
@@ -2007,7 +2786,8 @@
 
     const CUE_LABELS = {
         rapid_blink: { label: "Rapid blinking", icon: "eye", sev: "strong" },
-        gaze_avoid: { label: "Gaze avoidance", icon: "scan-eye", sev: "strong" },
+        gaze_left: { label: "Gaze shifted left", icon: "arrow-left", sev: "strong" },
+        gaze_right: { label: "Gaze shifted right", icon: "arrow-right", sev: "mild" },
         lip_press: { label: "Lip pressing", icon: "smile", sev: "strong" },
         lip_tremor: { label: "Lip trembling", icon: "activity", sev: "strong" },
         frown: { label: "Frowning", icon: "frown", sev: "mild" },
@@ -2180,28 +2960,26 @@
     function disableFaceCamera() {
         stopFaceAnalysis();
         if (face.camera) { try { face.camera.stop(); } catch (_) {} face.camera = null; }
-        // Only stop a stream we created ourselves — never the shared mesh stream.
+        // Decide the monitor's fate BEFORE clearing state: only stop a stream we
+        // created ourselves (never the shared mesh stream), and remember whether
+        // the mesh still has a camera to fall back on.
+        const video = faceEl("face-video");
+        const meshHasVideo = !!(state.localStream && state.localStream.getVideoTracks().length);
         if (face.ownStream && face.ownsStream) {
             face.ownStream.getTracks().forEach((t) => t.stop());
         }
         face.ownStream = null;
         face.ownsStream = false;
-        // Only clear the face monitor if there is no live feed left to show.
-        // If the mesh still has a self camera (or we still have a dedicated stream
-        // we did not create), keep feeding the monitor instead of killing it.
-        const video = faceEl("face-video");
+        // Only clear the face monitor if there is no live feed left to show;
+        // otherwise re-affirm it so a blackout that happened while the panel was
+        // covered recovers now that the camera is "disabled" in name only.
         if (video) {
-            const meshHasVideo = !!(state.localStream && state.localStream.getVideoTracks().length);
-            const hasDedicated = !!(face.ownStream && face.ownsStream && face.ownStream.getVideoTracks().length);
-            if (!meshHasVideo && !hasDedicated) {
+            if (!meshHasVideo) {
                 stopVideoKeepalive(video);
                 affirmVideo(video, null);
             } else {
-                // Re-affirm so a blackout that happened while the panel was covered
-                // recovers now that the camera is supposedly "disabled" in name only.
-                const keep = meshHasVideo ? state.localStream : face.ownStream;
-                affirmVideo(video, keep);
-                startVideoKeepalive(video, keep, () => videoHasSrc(video));
+                affirmVideo(video, state.localStream);
+                startVideoKeepalive(video, state.localStream, () => videoHasSrc(video));
             }
         }
         const placeholder = faceEl("face-placeholder");
@@ -2284,8 +3062,8 @@
         face.analyzing = true;
         face.calibrated = false;
         face.calibrationFrames = 0;
-        face.calibAcc = { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gaze: [], lipJitter: [] };
-        face.stats = { blinks: 0, lastEarState: "open", startedAt: Date.now(), peakScore: 0, cueEvents: 0 };
+        face.calibAcc = { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipJitter: [] };
+        face.stats = { blinks: 0, lastEarState: "open", startedAt: Date.now(), peakScore: 0, cueEvents: 0, peakAtSpeaking: false, blinkTimes: [] };
         face.history = { lipOpen: [] };
         face.activeCues.clear();
         face.cueStreak = {};
@@ -2293,6 +3071,11 @@
         face.lastFrameAt = 0;
         face.logCooldownUntil = 0;
         face.gauge = 0;
+        face.audioSpeaking = false;
+        face.visualTalking = false;
+        face.lateralZ = 0;
+        face.calibHintShown = false;
+        face.noFaceFrames = 0;
         face.emaScore = 0;
         face.emaStarted = false;
         face.indexSum = 0;
@@ -2413,7 +3196,7 @@
         b.frownMean = meanOf(face.calibAcc.frown);   b.frownStd = Math.max(0.0005, stddev(face.calibAcc.frown));
         b.browGapMean = meanOf(face.calibAcc.browGap); b.browGapStd = Math.max(0.005, stddev(face.calibAcc.browGap));
         b.browRaiseMean = meanOf(face.calibAcc.browRaise); b.browRaiseStd = Math.max(0.003, stddev(face.calibAcc.browRaise));
-        b.gazeMean = meanOf(face.calibAcc.gaze);     b.gazeStd = Math.max(0.005, stddev(face.calibAcc.gaze));
+        b.gazeXMean = meanOf(face.calibAcc.gazeX);   b.gazeXStd = Math.max(0.012, stddev(face.calibAcc.gazeX));
         b.lipJitterMean = meanOf(face.calibAcc.lipJitter); b.lipJitterStd = Math.max(0.0002, stddev(face.calibAcc.lipJitter));
         face.calibrated = true;
         face.stats.startedAt = Date.now();
@@ -2444,12 +3227,50 @@
         return (v1 + v2) / (2.0 * h);
     }
 
+    // Signed HORIZONTAL gaze position for one eye: how far the iris sits from
+    // the eye's centre, measured in half eye-widths along the HORIZONTAL axis.
+    // +1 = iris at the image-right corner, -1 = image-left corner, 0 = centred.
+    // x/y only (the old metric mixed in depth, read one eye, and had no sign,
+    // so it could never say which way the person looked).
+    function eyeGazeX(lm, eyeIdxs, irisIdx) {
+        const a = lm[eyeIdxs[0]];            // outer corner of this eye
+        const b = lm[eyeIdxs[3]];            // inner corner of this eye
+        const iris = lm[irisIdx];
+        if (!a || !b || !iris) return 0;    // iris landmarks missing -> neutral
+        const half = Math.abs(b.x - a.x) / 2;
+        if (half < 1e-4) return 0;
+        return (iris.x - (a.x + b.x) / 2) / half;
+    }
+
     function onFaceMeshResults(results) {
         const overlay = faceEl("face-overlay");
         if (!overlay) return;
         const ctx = overlay.getContext("2d");
         ctx.clearRect(0, 0, overlay.width, overlay.height);
-        if (!results.faceLandmarks || !results.faceLandmarks.length) return;
+        if (!results.faceLandmarks || !results.faceLandmarks.length) {
+            // No face in frame. Never leave the panel silently stuck at
+            // "Calibrating 0%" (and never score a stale face): say what's wrong.
+            if (face.analyzing) {
+                face.noFaceFrames++;
+                const pill = faceEl("face-state");
+                if (!face.calibrated) {
+                    if (pill) pill.textContent = "No face detected";
+                    if (Date.now() - face.stats.startedAt > CALIBRATION_TIMEOUT_MS && !face.calibHintShown) {
+                        face.calibHintShown = true;
+                        sendBehaviorEntry("Face analysis: no face detected on the selected feed — nothing can be measured until the subject is clearly in frame.");
+                    }
+                } else if (pill && face.noFaceFrames > 15) {
+                    pill.textContent = "No face detected";
+                }
+            }
+            return;
+        }
+        // A face is back — clear a "No face detected" state.
+        if (face.analyzing && face.noFaceFrames > 15) {
+            const pill = faceEl("face-state");
+            if (pill) pill.textContent = face.calibrated ? "Analyzing" : "Calibrating…";
+        }
+        face.noFaceFrames = 0;
         const lm = results.faceLandmarks[0];
         drawFaceOverlay(ctx, lm);
         if (!face.analyzing) return;
@@ -2466,7 +3287,9 @@
         const browGap = lmDist(lm[L.browInnerL], lm[L.browInnerR]) / unit;
         const browRaise = (lmDist(lm[L.browInnerL], lm[L.eyeTopL]) + lmDist(lm[L.browInnerR], lm[L.eyeTopR])) / 2 / unit;
         const ear = (eyeAspectRatio(lm, L.leftEye) + eyeAspectRatio(lm, L.rightEye)) / 2;
-        const gaze = lmDist(lm[L.eyeOuterL], lm[L.leftIris]) / lmDist(lm[L.eyeOuterL], lm[133]);
+        // Both eyes averaged so a head turn or an asymmetric eye cannot produce a
+        // phantom direction; the sign carries the direction (see eyeGazeX).
+        const gazeX = (eyeGazeX(lm, L.leftEye, L.leftIris) + eyeGazeX(lm, L.rightEye, L.rightIris)) / 2;
 
         // Rolling window for lip tremor (jitter of the mouth opening).
         face.history.lipOpen.push(lipOpen);
@@ -2482,13 +3305,24 @@
             face.calibAcc.frown.push(frown);
             face.calibAcc.browGap.push(browGap);
             face.calibAcc.browRaise.push(browRaise);
-            face.calibAcc.gaze.push(gaze);
+            face.calibAcc.gazeX.push(gazeX);
             face.calibAcc.lipJitter.push(lipJitter);
             const statePill = faceEl("face-state");
             if (statePill) {
                 statePill.textContent = `Calibrating ${Math.min(100, Math.round((face.calibrationFrames / CALIBRATION_FRAMES) * 100))}%`;
             }
-            if (face.calibrationFrames >= CALIBRATION_FRAMES) finishFaceCalibration();
+            const calibElapsed = Date.now() - face.stats.startedAt;
+            if (
+                face.calibrationFrames >= CALIBRATION_FRAMES ||
+                (calibElapsed > CALIBRATION_TIMEOUT_MS && face.calibrationFrames >= CALIBRATION_MIN_FRAMES)
+            ) {
+                finishFaceCalibration();
+            } else if (calibElapsed > CALIBRATION_TIMEOUT_MS && !face.calibHintShown) {
+                // Face found too rarely (angle / lighting / occlusion): say why
+                // instead of sitting on "Calibrating…" forever.
+                face.calibHintShown = true;
+                sendBehaviorEntry("Face analysis: the selected feed is not showing a clear, steady face — waiting for a usable view before cues can be measured.");
+            }
             return;
         }
 
@@ -2499,23 +3333,29 @@
         const zFrown = z(frown, b.frownMean, b.frownStd);
         const zBrowGap = z(browGap, b.browGapMean, b.browGapStd);
         const zBrowRaise = z(browRaise, b.browRaiseMean, b.browRaiseStd);
-        const zGaze = z(gaze, b.gazeMean, b.gazeStd);
+        const lateralZ = (gazeX - b.gazeXMean) / Math.max(b.gazeXStd, GAZE_MIN_STD);
         const zLipJitter = z(lipJitter, b.lipJitterMean, b.lipJitterStd);
         const zEar = z(ear, b.earMean, b.earStd);
 
-        updateSpeakingState();
+        updateSpeakingState(lipJitter, lipOpen);
 
         // Blink counting: EAR dropping well below baseline = a blink.
         if (zEar < -2.2) {
             if (face.stats.lastEarState === "open") {
                 face.stats.blinks++;
                 face.stats.lastEarState = "closed";
+                face.stats.blinkTimes.push(Date.now());
             }
         } else {
             face.stats.lastEarState = "open";
         }
-        const elapsedSec = Math.max(1, (Date.now() - face.stats.startedAt) / 1000);
-        const bpm = Math.round((face.stats.blinks / elapsedSec) * 60);
+        // Rate over a rolling 20 s window. The old session-average rate was
+        // nonsense early on (a single blink in second one read as 60 bpm).
+        const blinkCutoff = Date.now() - 20000;
+        while (face.stats.blinkTimes.length && face.stats.blinkTimes[0] < blinkCutoff) {
+            face.stats.blinkTimes.shift();
+        }
+        const bpm = face.stats.blinkTimes.length * 3;
 
         // ---- cue detection: strict thresholds + persistence gating ----
         // Cues only accumulate while the subject is SPEAKING — a person
@@ -2524,9 +3364,13 @@
         // constantly on calm faces) to 2.8–3.0σ, well into deliberate-motion
         // territory.
         const S = face.speaking;
+        // Lateral gaze: the sign of lateralZ is the direction in the subject's
+        // own frame — positive (image-right) = the subject's LEFT.
+        face.lateralZ = lateralZ;
         const frame = {
             rapid_blink: S && bpm > 30,
-            gaze_avoid: S && Math.abs(zGaze) > 3.0,
+            gaze_left: S && lateralZ > LATERAL_GAZE_SIGMA,
+            gaze_right: S && lateralZ < -LATERAL_GAZE_SIGMA,
             lip_press: S && zLipOpen < -3.0 && lipOpen < b.lipOpenMean * 0.7,
             lip_tremor: S && zLipJitter > 2.8,
             frown: S && zFrown > 2.8,
@@ -2550,7 +3394,8 @@
         // ---- nervousness index (0-100), speech-gated + EMA-smoothed ----
         // Raw instantaneous score first...
         const zPool = [
-            Math.abs(zGaze),
+            // Capped so a full head-turn cannot peg the gauge on its own.
+            Math.min(6, Math.abs(lateralZ)),
             Math.max(0, zLipJitter),
             Math.max(0, zFrown),
             Math.max(0, -zBrowGap),
@@ -2615,6 +3460,29 @@
         if (face.activeCues.has("brow_furrow")) setMetric(brows, "Furrowed", "tension");
         else if (face.activeCues.has("brow_raise")) setMetric(brows, "Raised", "elevated");
         else setMetric(brows, "Relaxed", "");
+
+        // Gaze direction: strict (cue-qualifying) value wins, otherwise show the
+        // raw deviation so the read-out moves as the eyes move.
+        const gazeEl = faceEl("fm-gaze");
+        if (gazeEl) {
+            const lz = face.lateralZ || 0;
+            if (face.activeCues.has("gaze_left")) setMetric(gazeEl, "Left", "tension");
+            else if (face.activeCues.has("gaze_right")) setMetric(gazeEl, "Right", "elevated");
+            else if (lz > 1.2) setMetric(gazeEl, "Left", "elevated");
+            else if (lz < -1.2) setMetric(gazeEl, "Right", "elevated");
+            else setMetric(gazeEl, "Center", "");
+        }
+
+        // Why cues are (or aren't) counting: the mic may be closed, in which
+        // case visible mouth movement keeps the analysis live.
+        const spkEl = faceEl("fm-speaking");
+        if (spkEl) {
+            setMetric(
+                spkEl,
+                face.audioSpeaking ? "Voice" : (face.visualTalking ? "Mouth" : "Quiet"),
+                face.speaking ? "elevated" : ""
+            );
+        }
 
         renderFaceCueChips();
     }
@@ -2697,7 +3565,13 @@
         if (!face.speechSeenAt || now - face.speechSeenAt < SPEECH_GRACE_MS) return;
         if (face.gauge < 25) return;
         const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
-        sendBehaviorEntry(`Nervousness cues detected while speaking: ${names.join(", ")} — nervousness index ${face.gauge}%.`);
+        let note = "";
+        if (face.activeCues.has("gaze_left")) {
+            note = " — gaze held to the subject's own LEFT, associated with constructed / deliberately creative answers";
+        } else if (face.activeCues.has("gaze_right")) {
+            note = " — gaze held to the subject's own right, associated with recall";
+        }
+        sendBehaviorEntry(`Nervousness cues detected while speaking: ${names.join(", ")} — nervousness index ${face.gauge}%${note}.`);
         face.logCooldownUntil = now + CUE_LOG_INTERVAL_MS;
         face.stats.cueEvents++;
     }
@@ -2720,33 +3594,58 @@
                 ctx.createMediaStreamSource(stream).connect(analyser);
                 face.meter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize), source: stream };
             } else {
+                // Remote: REUSE the peer's live gain chain (speaker glow / volume
+                // boost). Creating a second MediaElementSource for the same
+                // <audio> element throws, and closing that context would silence
+                // the participant for everyone — so never do either.
                 const peer = state.peers.get(face.source);
-                if (!peer || !peer.audio) return;
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                ctx.resume().catch(() => {});
-                const analyser = ctx.createAnalyser();
-                analyser.fftSize = 512;
-                ctx.createMediaElementSource(peer.audio).connect(analyser);
-                face.remoteMeter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize) };
+                if (!peer || !peer.gain || !peer.gain.ctx || !peer.gain.gain) return;
+                const ctx = peer.gain.ctx;
+                let analyser;
+                let ownConnection = null;
+                if (peer.speaker && peer.speaker.analyser) {
+                    analyser = peer.speaker.analyser; // already tapped - share it
+                } else {
+                    analyser = ctx.createAnalyser();
+                    analyser.fftSize = 512;
+                    peer.gain.gain.connect(analyser);
+                    ownConnection = peer.gain.gain;
+                }
+                face.remoteMeter = {
+                    ctx, analyser,
+                    buf: new Uint8Array(analyser.fftSize),
+                    owner: face.source,
+                    source: ownConnection,   // only disconnect if we made the tap
+                    ownCtx: false,           // the context belongs to the peer
+                };
             }
         } catch (e) {
-            console.warn("Face speech meter unavailable — cues gated OFF for this run.", e);
-            // No meter ⇒ face.speaking stays false ⇒ no cues logged. That is
-            // the safe direction: never accuse based on a face alone.
+            console.warn("Face speech meter unavailable — voice gate OFF for this run (visible mouth movement still counts).", e);
+            // No meter ⇒ the audio half of the speaking gate stays silent. The
+            // visual half keeps the analysis honest instead of dead.
         }
     }
 
     function detachSpeechMeter() {
-        for (const key of ["meter", "remoteMeter"]) {
-            const m = face[key];
-            if (m) {
-                try { m.ctx.close(); } catch (_) {}
-                face[key] = null;
+        // Self meter: the context is ours, so close it.
+        if (face.meter) {
+            try { face.meter.ctx.close(); } catch (_) {}
+            face.meter = null;
+        }
+        // Remote meter: the context + analyser belong to the peer (live
+        // playback). Only undo the tap we made ourselves.
+        if (face.remoteMeter) {
+            if (face.remoteMeter.source && face.remoteMeter.analyser) {
+                try { face.remoteMeter.source.disconnect(face.remoteMeter.analyser); } catch (_) {}
             }
+            if (face.remoteMeter.ownCtx) {
+                try { face.remoteMeter.ctx.close(); } catch (_) {}
+            }
+            face.remoteMeter = null;
         }
     }
 
-    function updateSpeakingState() {
+    function updateSpeakingState(lipJitter, lipOpen) {
         const now = Date.now();
         let level = 0;
         const m = face.source === "self" ? face.meter : face.remoteMeter;
@@ -2759,9 +3658,25 @@
             }
             level = Math.sqrt(sum / m.buf.length); // RMS 0..1
         }
-        const SPEAK_RMS = 0.045;                     // talking, not breathing
-        const HOLD_MS = 900;                          // speech lag before "quiet"
-        if (level > SPEAK_RMS) {
+        const SPEAK_RMS = 0.045; // talking, not breathing
+        const audioActive = level > SPEAK_RMS;
+
+        // Visible mouth movement. Required because this room starts with the
+        // mic CLOSED (applyMicGate: audible only while Hold to Talk is held), so
+        // a disabled track feeds the analyser pure silence — with an audio-only
+        // gate the whole panel sat at 0% and never responded. Both tests are
+        // ABSOLUTE (not z-scores): the calibrated lip-aperture std is ~0.0005,
+        // so a z-test would call sensor noise "speech" on a motionless face.
+        const b = face.baseline;
+        const jitterFloor = Math.max(0.0012, b.lipJitterStd * 2.2);
+        const mouthOpening = b.lipOpenMean + Math.max(0.02, b.lipOpenStd * 4);
+        const visualActive = lipJitter > jitterFloor || lipOpen > mouthOpening;
+
+        face.audioSpeaking = audioActive;
+        face.visualTalking = visualActive;
+
+        const HOLD_MS = 900; // speech lag before "quiet"
+        if (audioActive || visualActive) {
             face.speaking = true;
             face.lastSpeakingSeenAt = now;
             if (!face.speechSeenAt) face.speechSeenAt = now;

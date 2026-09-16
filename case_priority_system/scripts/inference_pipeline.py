@@ -1401,6 +1401,159 @@ def describe_condition(model_data, feature_name, value, threshold):
     direction = "left" if went_left else "right"
     return condition, case_value, result, direction
 
+def trace_decision_steps(model_data, features, text_description):
+    """Walk the Decision Tree for ONE case and return readable steps + signals.
+
+    Shared by the dashboard's decision-path endpoints (per-document Excel row
+    and whole-case verdict) so the UI can explain exactly which split RAISED
+    the priority, which splits LOWERED it (why the case is not higher), and
+    what every signal scored. Deterministic — no LLM anywhere.
+
+    Each decision step carries an ``effect``:
+    - "raised"  — taking this branch pushed the priority UP compared to the
+                  tree's other branch (the reason the case is where it is)
+    - "lowered" — taking this branch pushed the priority DOWN (why the case
+                  is not higher)
+    - "neutral" — both branches end in the same priority class
+    ``branch_priorities`` records the class each side would produce, and
+    ``feature_scores`` / ``text_keywords`` expose the exact inputs.
+    """
+    clf = model_data['model']
+    encoders = model_data['encoders']
+    X = build_model_input(model_data, features, text_description)
+    feature_names = model_data.get('feature_names', list(X.columns))
+    priority_classes = list(encoders['priority'].classes_)
+    # Seriousness order (High > Medium > Low) — NOT the encoder index, which
+    # is alphabetical and would rank "Medium" above "High".
+    priority_rank = {'High': 2, 'Medium': 1, 'Low': 0}
+
+    node_indicator = clf.decision_path(X)
+    leaf_id = clf.apply(X)[0]
+    path_node_ids = [int(nid) for nid in node_indicator.indices[
+        node_indicator.indptr[0]:node_indicator.indptr[1]
+    ]]
+
+    structured_features = {
+        'case_category_enc', 'crime_type_enc', 'severity_enc',
+        'vulnerability_enc', 'influence_enc',
+    }
+    encoder_keys = {
+        'case_category_enc': 'category',
+        'crime_type_enc': 'crime',
+        'severity_enc': 'severity',
+        'vulnerability_enc': 'vulnerability',
+        'influence_enc': 'influence',
+    }
+
+    def branch_priority(feature_idx: int, branch_value: float) -> str:
+        # All-float copy: the encoded categorical columns are int64 and a
+        # threshold nudge can't be assigned into them directly.
+        X_branch = X.astype(float).copy()
+        X_branch.iloc[0, feature_idx] = branch_value
+        pred_idx = int(clf.predict(X_branch)[0])
+        return str(encoders['priority'].inverse_transform([pred_idx])[0])
+
+    steps = []
+    # The case's real prediction (untouched feature vector) — the baseline
+    # every counterfactual is compared against.
+    real_priority = str(encoders['priority'].inverse_transform([clf.predict(X)[0]])[0])
+    for node_id in path_node_ids:
+        if node_id == leaf_id:
+            class_counts = clf.tree_.value[node_id][0]
+            pred_idx = int(np.argmax(class_counts))
+            pred_class = priority_classes[pred_idx]
+            steps.append({
+                'node_id': node_id,
+                'type': 'leaf',
+                'title': f"Final Priority: {pred_class}",
+                'condition': 'The case reached this Decision Tree leaf.',
+                'case_value': f"{int(sum(class_counts))} training samples reached this leaf",
+                'result': pred_class,
+                'direction': 'final',
+                'effect': 'outcome',
+            })
+            continue
+
+        feature_index = clf.tree_.feature[node_id]
+        threshold = clf.tree_.threshold[node_id]
+        feature_name = feature_names[feature_index]
+        value = float(X.iloc[0, feature_index])
+        condition, case_value, result, direction = describe_condition(
+            model_data, feature_name, value, threshold
+        )
+
+        went_left = value <= threshold
+        # Counterfactual probes use REAL class values, not threshold±ε: the
+        # closest class on each side of the split (a boundary value like
+        # 2.4999 can route differently at a deeper split of the same
+        # feature). For TF-IDF keywords: absent vs. present.
+        encoder = encoders.get(encoder_keys.get(feature_name, ''))
+        if encoder is not None:
+            n_classes = len(encoder.classes_)
+            left_idx = min(int(threshold + 1e-9), n_classes - 1)
+            right_idx = min(left_idx + 1, n_classes - 1)
+            left_probe, right_probe = float(left_idx), float(right_idx)
+        else:
+            left_probe = 0.0
+            right_probe = float(value) if value > threshold else threshold + 1e-6
+        left_priority = branch_priority(feature_index, left_probe)
+        right_priority = branch_priority(feature_index, right_probe)
+        # "What did this split contribute?": compare the case's real verdict
+        # against the verdict it would get with this one signal swapped to
+        # the other branch (everything else unchanged).
+        other_priority = right_priority if went_left else left_priority
+        if other_priority == real_priority:
+            effect = 'neutral'
+        else:
+            real_rank = priority_rank.get(real_priority, 1)
+            other_rank = priority_rank.get(other_priority, 1)
+            effect = 'raised' if real_rank > other_rank else 'lowered'
+
+        steps.append({
+            'node_id': node_id,
+            'type': 'decision',
+            'title': f"Split on {display_feature_name(feature_name)}",
+            'condition': condition,
+            'case_value': case_value,
+            'result': result,
+            'direction': direction,
+            'effect': effect,
+            'branch_priorities': {'left': left_priority, 'right': right_priority},
+        })
+
+    # The exact signal values that fed the tree (the 5 structured features).
+    feature_scores = []
+    for name in ['case_category_enc', 'crime_type_enc', 'severity_enc',
+                 'vulnerability_enc', 'influence_enc']:
+        if name not in X.columns:
+            continue
+        feature_scores.append({
+            'feature': name,
+            'label': display_feature_name(name),
+            'value': describe_feature_value(model_data, name, float(X.iloc[0, X.columns.get_loc(name)])),
+        })
+
+    # Strongest TF-IDF keywords that travelled with the case text.
+    keyword_scores = []
+    for col in X.columns:
+        if col in structured_features:
+            continue
+        weight = float(X.iloc[0, X.columns.get_loc(col)])
+        if weight > 0:
+            keyword_scores.append((weight, str(col)))
+    keyword_scores.sort(reverse=True)
+
+    return {
+        'path_node_ids': path_node_ids,
+        'leaf_id': int(leaf_id),
+        'steps': steps,
+        'feature_scores': feature_scores,
+        'text_keywords': [
+            {'keyword': word, 'weight': round(weight, 4)}
+            for weight, word in keyword_scores[:8]
+        ],
+    }
+
 def markdown_escape(text):
     """Escapes text for Markdown table cells."""
     return str(text).replace('|', '\\|').replace('\n', ' ').strip()

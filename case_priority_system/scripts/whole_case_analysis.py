@@ -374,6 +374,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
         predict_priority,
         build_decision_path_graph,
         load_model,
+        trace_decision_steps,
     )
     from case_priority_system.scripts.constitutional_analysis import (
         get_comprehensive_constitutional_analysis,
@@ -399,6 +400,14 @@ def analyze_case_whole(case, model_data=None) -> dict:
         )
     except Exception as e:
         print(f"whole-case: decision graph failed (non-fatal): {e}")
+
+    # Auditable tree trace for the dashboard: which split raised the priority,
+    # which lowered it, and the exact signal values that fed the tree.
+    path_steps = []
+    try:
+        path_steps = trace_decision_steps(model_data, tuned, model_text)
+    except Exception as e:
+        print(f"whole-case: decision trace failed (non-fatal): {e}")
 
     # Rule-based constitutional analysis at the case level.
     analysis = {}
@@ -439,6 +448,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
         "corroboration_text": corroboration_to_text(corroboration),
         "per_document": per_doc,
         "decision_report": decision_report,
+        "path_steps": path_steps,
         "constitutional": analysis,
         "report_pdf": report_pdf,
         "computed_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
