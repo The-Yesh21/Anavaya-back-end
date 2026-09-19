@@ -14,10 +14,10 @@
 
     // ---- role metadata (mirrors the backend) ----------------------------
     const ROLES = [
-        { id: "Judge",        label: "Judge",             tag: "Presides, rules" },
-        { id: "Defence",      label: "Defence Counsel",   tag: "Defends accused" },
-        { id: "Prosecution",  label: "Prosecution",       tag: "Argues the case" },
-        { id: "Witness",      label: "Witness",           tag: "Gives testimony" },
+        { id: "Judge",        label: "Judge",             tag: "Presides, rules (one only)" },
+        { id: "Defence",      label: "Defence Counsel",   tag: "Defends accused · more than one allowed" },
+        { id: "Prosecution",  label: "Prosecution",       tag: "Argues the case · more than one allowed" },
+        { id: "Witness",      label: "Witness",           tag: "Gives testimony · more than one allowed" },
     ];
     const ROLE_ACCENT = {
         Judge: "#A87E2F",
@@ -62,6 +62,8 @@
         // so the whole room heard every participant continuously.
         micEnabled: false,
         videoEnabled: true,
+        // Judge-controlled room-wide live-transcript visibility (default on).
+        transcriptEnabled: true,
         iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
         localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
@@ -128,6 +130,9 @@
         downloadReportBtn: $("download-report-btn"),
         caseContext: $("case-context"),
         contextRefreshBtn: $("context-refresh-btn"),
+        transcriptPowerBtn: $("transcript-power-btn"),
+        transcriptOffNote: $("transcript-off-note"),
+        transcriptPanel: $("transcript-panel"),
         joinError: $("join-error"),
     };
 
@@ -274,7 +279,11 @@
         const taken = new Set(state.participants.map((p) => p.role));
         els.rolePicker.innerHTML = "";
         for (const role of ROLES) {
-            const isTaken = taken.has(role.id) && role.id !== "Witness";
+            // Only the Judge is exclusive. Counsel (Defence/Prosecution) and
+            // Witnesses may repeat — a second counsel on a side or another
+            // witness must always be able to join, so the join screen can never
+            // block a member because every role looks filled.
+            const isTaken = role.id === "Judge" && taken.has("Judge");
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "role-btn";
@@ -356,6 +365,7 @@
                 enterCourtroom();
                 renderCourt();
                 renderTranscript(msg.room.transcript);
+                applyTranscriptState(msg.room.transcript_enabled !== false);
                 renderPhase(msg.room.phase);
                 renderQuickActions();
                 renderCaseContext(msg.room.case_context);
@@ -408,6 +418,13 @@
             case "phase_changed": {
                 renderPhase(msg.phase);
                 appendTranscript(msg.transcript_entry);
+                break;
+            }
+            case "transcript_state": {
+                // The judge turned the live transcript on/off for the room.
+                applyTranscriptState(msg.enabled);
+                if (msg.transcript_entry) appendTranscript(msg.transcript_entry);
+                toast(msg.enabled ? "Live transcript turned on." : "Live transcript turned off.");
                 break;
             }
             case "session_ended": {
@@ -523,14 +540,25 @@
         }
         try {
             state.localStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                // Explicit device constraints: with `audio: true` some
+                // Chromium builds (Bluetooth/AGC quirks) start WITHOUT echo
+                // cancellation, so the first speaker's voice loops back to
+                // them as an echo. These are defaults for every browser that
+                // supports them and are ignored where unsupported.
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
                 video: true,
             });
         } catch (e) {
             console.warn("Camera+microphone access denied or unavailable. Falling back to audio-only.", e);
             state.localStream = null;
             try {
-                state.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                state.localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                });
             } catch (e2) {
                 console.warn("Microphone access denied too. Audio will be disabled.", e2);
                 state.localStream = null;
@@ -1018,9 +1046,10 @@
                 gain.gain.value = prev.level;
             } else {
                 // New participant — small lift so quiet mics are usable out of
-                // the gate instead of inaudible. The user can pull it down if
-                // they want it quieter.
-                gain.gain.value = previousLevelFor(remotePid);
+                // the gate. Capped at 1.2x: the lift exists for distant mics,
+                // but a louder boost also amplifies the leak from a participant's
+                // own speakers into their mic (echo), so stay modest.
+                gain.gain.value = Math.min(previousLevelFor(remotePid), 1.2);
             }
             peerGain = { ctx, gain, level: gain.gain.value };
             // Route the peer's incoming audio through the gain before the speakers.
@@ -1380,7 +1409,10 @@
         els.phaseControls.style.display = isJudge ? "" : "none";
         if (els.endSessionBtn) els.endSessionBtn.style.display = isJudge ? "inline-flex" : "none";
         renderPhaseButtons();
-        initFacePanel();
+        // Face & Expression analysis is a Judge-only tool: the panel exists for
+        // no other role (the server also rejects their behavior logs).
+        if (isJudge) initFacePanel();
+        initTranscriptControl(isJudge);
         // Re-affirm every live video element after the courtroom root is shown,
         // so feeds that went black while covered by another panel recover now.
         reaffirmAllRoomVideos();
@@ -1388,6 +1420,44 @@
         // Don't auto-focus on touch devices — it pops the on-screen keyboard
         // the moment you enter, hiding the transcript behind it.
         if (!("ontouchstart" in window)) els.statementInput.focus();
+    }
+
+    // ---- live transcript visibility (Judge-controlled, room-wide) ------
+    // The judge can turn the live transcript off for everyone (and back on).
+    // The record is still written while off — this only hides the live view.
+    function initTranscriptControl(isJudge) {
+        const btn = els.transcriptPowerBtn;
+        if (!btn) return;
+        btn.style.display = isJudge ? "" : "none";
+        if (isJudge && !btn.dataset.wired) {
+            btn.dataset.wired = "1";
+            btn.addEventListener("click", () => {
+                setTranscriptEnabled(!state.transcriptEnabled);
+            });
+        }
+    }
+
+    function setTranscriptEnabled(enabled) {
+        if (!state.me || state.me.role !== "Judge") return;
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        state.ws.send(JSON.stringify({ type: "set_transcript", enabled: !!enabled }));
+    }
+
+    function applyTranscriptState(enabled) {
+        state.transcriptEnabled = enabled !== false;
+        const on = state.transcriptEnabled;
+        if (els.transcriptOffNote) els.transcriptOffNote.style.display = on ? "none" : "flex";
+        if (els.transcriptFeed) els.transcriptFeed.style.display = on ? "" : "none";
+        const btn = els.transcriptPowerBtn;
+        if (btn) {
+            btn.setAttribute("aria-pressed", on ? "true" : "false");
+            btn.classList.toggle("off", !on);
+            const label = btn.querySelector(".btn-label");
+            if (label) label.textContent = on ? "Transcript On" : "Transcript Off";
+            const icon = btn.querySelector("i");
+            if (icon) icon.setAttribute("data-lucide", on ? "toggle-right" : "toggle-left");
+        }
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     // ---- collapsible panels (rail cards + the transcript dock) ---------
@@ -1856,8 +1926,9 @@
     // system color instead of the Judge gold.
     function roleKeyFromDisplay(displayRole) {
         if (displayRole === "Presiding Judge") return "Judge";
-        if (displayRole === "Defence Counsel") return "Defence";
-        if (displayRole === "Prosecution Counsel") return "Prosecution";
+        // Counsel may be numbered now (Defence Counsel 1, 2 …) — match by prefix.
+        if (displayRole.startsWith("Defence Counsel")) return "Defence";
+        if (displayRole.startsWith("Prosecution Counsel")) return "Prosecution";
         if (displayRole.startsWith("Witness")) return "Witness";
         return displayRole.split(" ")[0];
     }
@@ -2083,7 +2154,9 @@
             if (!liveAudio.length) {
                 let dedicated = null;
                 try {
-                    dedicated = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    dedicated = await navigator.mediaDevices.getUserMedia({
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                    });
                 } catch (e) {
                     console.warn("Push-to-talk could not access the microphone:", e);
                     setPttLabel(false, "Hold to Talk");
@@ -2800,6 +2873,11 @@
     function initFacePanel() {
         const panel = faceEl("face-analysis");
         if (!panel) return;
+        // Judge-only tool — never reveal it to another role.
+        if (!state.me || state.me.role !== "Judge") {
+            panel.style.display = "none";
+            return;
+        }
         panel.style.display = "flex";
         // If the panel was covered by another panel (e.g. the transcript/PDF)
         // while the camera was supposed to keep running, re-affirm the monitor so
@@ -3145,6 +3223,8 @@
             subject: subject.name,
             subject_role: subject.role,
             observer: state.me ? state.me.name : "",
+            // Identity for the server-side Judge-only check.
+            participant_id: state.me ? state.me.participant_id : "",
             analyzed_source: face.source,
             started_at: face.sessionStartIso || "",
             ended_at: new Date().toISOString(),
@@ -3163,6 +3243,7 @@
     }
 
     function sendFaceSummary() {
+        if (!state.me || state.me.role !== "Judge") return;
         if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
         const summary = sessionSummary();
         // Fire-and-forget; the server persists it on the room.
@@ -3689,7 +3770,9 @@
     }
 
     function sendBehaviorEntry(text) {
-        if (!state.ws || state.ws.readyState !== WebSocket.OPEN || !state.me) return;
+        // Only the presiding judge may log a behavioral observation.
+        if (!state.me || state.me.role !== "Judge") return;
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
         state.ws.send(JSON.stringify({ type: "behavior", text }));
     }
 

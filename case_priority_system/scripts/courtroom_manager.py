@@ -24,10 +24,14 @@ from typing import Optional
 # Where room JSON files live (relative to the repo root, like the other paths).
 COURTROOMS_DIR = "case_priority_system/courtrooms"
 
-# The roles a participant may hold. Judge/Defence/Prosecution are unique;
-# Witness may repeat (Witness 1, Witness 2, ...).
-UNIQUE_ROLES = ("Judge", "Defence", "Prosecution")
+# The roles a participant may hold. Only the Judge is unique; counsel
+# (Defence/Prosecution) and Witnesses may repeat — a real trial often has a
+# second counsel on a side or several witnesses, and a repeat must never be
+# the reason a member cannot join (Witness 1/2…, Defence Counsel 1/2…).
+UNIQUE_ROLES = ("Judge",)
+COUNSEL_ROLES = ("Defence", "Prosecution")
 WITNESS_ROLE = "Witness"
+ALL_ROLES = ("Judge", "Defence", "Prosecution", WITNESS_ROLE)
 
 # The ordered phases of a trial. The Judge advances through these.
 TRIAL_PHASES = [
@@ -136,6 +140,10 @@ class Room:
     case_id: str = ""
     case_context: dict = field(default_factory=dict)  # built by case_manager.build_case_context()
     face_summaries: list[FaceSummary] = field(default_factory=list)
+    # Judge-controlled: the live transcript is shown to the room by default; the
+    # presiding judge can turn it off for everyone (and back on). The record is
+    # still written while off — only the live view is hidden.
+    transcript_enabled: bool = True
 
     # ---- roster helpers -------------------------------------------------
 
@@ -150,10 +158,10 @@ class Room:
         return sum(1 for p in self.participants if p.role == WITNESS_ROLE)
 
     def role_available(self, role: str) -> bool:
-        if role == WITNESS_ROLE:
-            # Witnesses are unlimited for the demo.
-            return True
-        return role not in self.roles_taken()
+        # Only the Judge is exclusive; counsel and witnesses may repeat.
+        if role == "Judge":
+            return role not in self.roles_taken()
+        return True
 
     def get_participant(self, participant_id: str) -> Optional[Participant]:
         for p in self.participants:
@@ -198,6 +206,7 @@ class Room:
             "case_id": self.case_id,
             "case_context": self.case_context,
             "face_summaries": [f.to_dict() for f in self.face_summaries],
+            "transcript_enabled": self.transcript_enabled,
         }
 
     def public_state(self) -> dict:
@@ -213,6 +222,7 @@ class Room:
             "participants": [p.to_dict() for p in self.participants],
             "transcript": [e.to_dict() for e in self.transcript],
             "face_summaries": [f.to_dict() for f in self.face_summaries],
+            "transcript_enabled": self.transcript_enabled,
         }
 
 
@@ -332,7 +342,7 @@ class CourtroomManager:
         room = self.get_room(room_id)
         if room is None:
             raise ValueError("Room not found.")
-        if role not in UNIQUE_ROLES and role != WITNESS_ROLE:
+        if role not in ALL_ROLES:
             raise ValueError(f"Unknown role '{role}'.")
         if room.status == "ended":
             raise ValueError("This trial session has ended and can no longer be joined.")
@@ -353,6 +363,12 @@ class CourtroomManager:
             if role == WITNESS_ROLE:
                 # Give witnesses a numbered badge so the roster stays legible.
                 display_role = f"Witness {room.witness_count()}"
+            elif role in COUNSEL_ROLES:
+                # Number a second/third counsel on the same side so the roster
+                # can tell them apart (the first keeps the plain label).
+                n = sum(1 for p in room.participants if p.role == role)
+                if n > 1:
+                    display_role = f"{display_role} {n}"
 
             room.add_entry(
                 actor=participant.name,
@@ -404,6 +420,30 @@ class CourtroomManager:
             shutil.rmtree(audio_dir, ignore_errors=True)
             removed = True
         return removed
+
+    def set_transcript_enabled(self, room_id: str, enabled: bool) -> Optional[Room]:
+        """Judge-controlled live-transcript visibility for the whole room.
+
+        The record keeps being written while off — only the live view is hidden,
+        so nothing is lost and the judge can turn it back on.
+        """
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        enabled = bool(enabled)
+        with self._lock:
+            if room.transcript_enabled != enabled:
+                room.transcript_enabled = enabled
+                room.add_entry(
+                    actor="Court",
+                    role="system",
+                    kind="system",
+                    text=("The Presiding Judge turned the live transcript on."
+                          if enabled else
+                          "The Presiding Judge turned the live transcript off."),
+                )
+                self._persist(room)
+        return room
 
     def end_room(self, room_id: str, ended_by: str) -> Optional[Room]:
         """Adjourn a trial: mark the room ended, set the phase to Concluded,
@@ -747,6 +787,7 @@ def _room_from_dict(data: dict) -> Room:
         case_id=data.get("case_id", ""),
         case_context=data.get("case_context", {}),
         face_summaries=face_summaries,
+        transcript_enabled=bool(data.get("transcript_enabled", True)),
     )
 
 

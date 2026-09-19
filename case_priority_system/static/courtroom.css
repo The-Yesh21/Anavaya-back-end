@@ -1290,6 +1290,21 @@ body::before {
     font-size: 13px;
 }
 
+/* Live transcript turned off by the judge — shown to the whole room. */
+.transcript-off-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 13px;
+    padding: 28px 12px;
+}
+.transcript-off-note i { width: 16px; height: 16px; }
+.transcript-power.off { color: #B3402E; }
+
 .entry {
     display: flex;
     gap: 10px;

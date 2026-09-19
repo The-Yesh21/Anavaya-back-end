@@ -153,7 +153,10 @@ def merge_case_features(case) -> tuple[dict, dict]:
     summary = generate_case_narrative(case, docs, case_category, severity,
                                       vulnerability, corroboration)
 
+    merged_gist = build_case_gist(case, case_category, crime_type, parties)
+
     merged = {
+        "case_gist": merged_gist,
         "main_parties": ", ".join(parties),
         "case_category": case_category,
         "crime_type": crime_type,
@@ -279,6 +282,148 @@ def corroboration_to_text(corroboration: dict) -> str:
 
 
 # ----------------------------------------------------------------------
+# 2b. Case gist — "what is this case actually about" (deterministic)
+# ----------------------------------------------------------------------
+
+# Subject keywords that mark a summary sentence as an ALLEGATION (what the
+# case is accused of / about) rather than background detail.
+_ALLEGATION_HINTS = re.compile(
+    r"accus|alleg|charg|complain|dispute|fraud|fabricat|forg|misus|misappropri"
+    r"|unauthor|embezzl|breach|violat|offenc|offense|certifi|assessment|claim",
+    re.IGNORECASE,
+)
+_MONEY_RE = re.compile(
+    r"(?:rs\.?|inr|₹)\s*[0-9][0-9,]*(?:\.[0-9]+)?(?:\s*(?:lakh|crore|k))?"
+    r"|[0-9][0-9,]*(?:\.[0-9]+)?\s*(?:lakh|crore)",
+    re.IGNORECASE,
+)
+
+
+# Abbreviations whose final period is NOT a sentence boundary — merging back
+# the next fragment keeps e.g. "… totaling Rs." + "45,00,000 between …" whole.
+_FALSE_BOUNDARY_RE = re.compile(
+    r"(?:Rs|INR|No|Nos|vs|viz|cf|Mr|Mrs|Ms|Dr|St|Co|Ltd|Inc|Pvt|Govt|Dist|approx|Art|W\.P)\.$",
+    re.IGNORECASE,
+)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Naive but robust sentence split on .!? followed by space/end.
+
+    Re-joins fragments whose previous chunk ended in a known abbreviation
+    ("Rs.", "No.", "vs.", …) so amounts like "Rs. 45,00,000" stay intact.
+    """
+    rough = re.split(r"(?<=[.!?])\s+", (text or "").strip())
+    merged: list[str] = []
+    for frag in rough:
+        frag = frag.strip()
+        if not frag:
+            continue
+        if merged and _FALSE_BOUNDARY_RE.search(merged[-1]):
+            merged[-1] = merged[-1] + " " + frag
+            continue
+        merged.append(frag)
+    return [p for p in merged if len(p) >= 20]
+
+
+def _doc_display_name(filename: str, max_len: int = 44) -> str:
+    """Shorten a filename for quoting inside the gist sentence."""
+    stem = os.path.splitext(filename or "")[0].replace("_", " ").strip()
+    return stem if len(stem) <= max_len else stem[: max_len - 1].rstrip() + "…"
+
+
+def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
+    """Deterministic "About this case" paragraph distilled from the documents.
+
+    Answers the reader's first question — *what is this case about, who is
+    accused of what* — before the audit-style narrative explains the merge.
+    Assembled purely from the per-document ``plain_summary`` fields that the
+    extraction pipeline already produced; no LLM is called here.
+
+    Selection strategy (deterministic, document order = upload order):
+      1. allegation-bearing sentences first (keyword-scored), one per document
+         at most, capped at 3;
+      2. the largest money figure found anywhere, as the amount in dispute;
+      3. a closing line naming the merged classification and the parties.
+    """
+    docs = [d for d in case.documents if d.analysis]
+    if not docs:
+        return ""
+
+    # One best sentence per document (deduplicated, case-insensitive).
+    scored: list[tuple[int, int, str]] = []  # (score, doc_index, sentence)
+    seen: set[str] = set()
+    for idx, d in enumerate(docs):
+        summary = (d.analysis or {}).get("plain_summary") or ""
+        best_s, best_score = "", 0
+        for s in _split_sentences(summary):
+            key = s.lower()
+            if key in seen:
+                continue
+            score = 2 * len(_ALLEGATION_HINTS.findall(s))
+            if _MONEY_RE.search(s):
+                score += 2
+            # Generic meta-sentences ("The case involves …") describe the
+            # classification, not the dispute — prefer concrete allegations.
+            if re.match(r"the case (involves|raises|concerns|falls)", s.lower()):
+                score -= 3
+            if score > best_score:
+                best_s, best_score = s, score
+        if best_s:
+            seen.add(best_s.lower())
+            scored.append((best_score, idx, best_s))
+
+    # Allegation-bearing sentences first, then the rest (deterministic order).
+    scored.sort(key=lambda t: (t[0] > 0, -t[0], t[1]))
+    picked = [s for _, _, s in scored[:3]]
+
+    gist_parts: list[str] = []
+    if picked:
+        lead = " ".join(picked)
+        gist_parts.append(lead[0].upper() + lead[1:] if lead else lead)
+
+    # Amount in dispute: the largest money figure across ALL summaries.
+    amounts: list[tuple[float, str]] = []
+    for d in docs:
+        for m in _MONEY_RE.finditer((d.analysis or {}).get("plain_summary") or ""):
+            raw = m.group(0)
+            digits = re.sub(r"[^0-9.]", "", raw.split("₹")[-1])
+            try:
+                value = float(digits)
+            except ValueError:
+                continue
+            if re.search(r"crore", raw, re.IGNORECASE):
+                value *= 1e7
+            elif re.search(r"lakh", raw, re.IGNORECASE):
+                value *= 1e5
+            elif re.search(r"\d\s*k\b", raw, re.IGNORECASE):
+                value *= 1e3
+            amounts.append((value, raw.strip()))
+    if amounts:
+        amounts.sort(reverse=True)
+        top_amount = amounts[0][1]
+        # Skip the standalone amount line when the picked sentences already
+        # state the figure (e.g. "transfers totaling Rs. 45,00,000").
+        already = top_amount.lower() in gist_parts[0].lower() if gist_parts else False
+        if not already:
+            gist_parts.append(
+                f"The amount in dispute mentioned on record is {top_amount}."
+            )
+
+    # Closing line: merged classification + who is on record.
+    party_bits = ", ".join(str(p).strip() for p in parties[:4] if str(p).strip())
+    closing = f"On the merged evidence the matter is classified as {case_category}"
+    if crime_type:
+        closing += f" ({crime_type.lower()} case type)"
+    closing += "."
+    if party_bits:
+        closing += f" Names appearing across the documents: {party_bits}."
+    gist_parts.append(closing)
+
+    return " ".join(gist_parts)
+
+
+# ----------------------------------------------------------------------
 # 3. Whole-case narrative (deterministic)
 # ----------------------------------------------------------------------
 
@@ -309,7 +454,9 @@ def generate_case_narrative(case, docs, case_category: str, severity: str,
 
     parts = [opening]
 
-    # Evidence inventory: one clause per document.
+    # Evidence inventory: one clause per document. Every piece of evidence is
+    # named explicitly (with its own assessed priority) so the summary always
+    # accounts for the documents that were actually added to the case.
     inv: list[str] = []
     for d in docs:
         f = d.analysis or {}
@@ -320,6 +467,8 @@ def generate_case_narrative(case, docs, case_category: str, severity: str,
             bit += f"; {cat}"
         if sev and sev != "No Injury":
             bit += f"; {sev} severity"
+        if d.priority:
+            bit += f"; assessed {d.priority} priority"
         bit += ")"
         inv.append(bit)
     parts.append("The evidence on record consists of " + "; ".join(inv) + ".")
@@ -353,6 +502,37 @@ def generate_case_narrative(case, docs, case_category: str, severity: str,
 # ----------------------------------------------------------------------
 # 4. Whole-case pipeline: Decision Tree once on the merged features
 # ----------------------------------------------------------------------
+
+def build_priority_justification(tuned: dict, priority: str,
+                                 merge_info: dict, doc_count: int) -> str:
+    """Plain-language, deterministic justification for the case priority.
+
+    Ties the merged signal values (and the documents that drove them) to the
+    Decision Tree's verdict, so the UI can say *why* the priority is what it
+    is instead of only showing a bare badge. No LLM is involved.
+    """
+    def sources(key: str) -> str:
+        info = (merge_info or {}).get(key) or {}
+        srcs = [s for s in (info.get("sources") or []) if s]
+        return f" (driven by {', '.join(srcs[:3])})" if srcs else ""
+
+    severity = tuned.get("severity") or "No Injury"
+    vulnerability = tuned.get("vulnerability") or "Low"
+    influence = tuned.get("influence") or "Low"
+    category = tuned.get("case_category") or "General Civil"
+    crime_type = tuned.get("crime_type") or "Non-Violent"
+
+    sentences = [
+        f"The Decision Tree assigns {priority} priority from the worst facts "
+        f"across all {doc_count} analysed document(s), not from any single one.",
+        f"Worst injury on record: {severity}{sources('severity')}.",
+        f"Vulnerability of the parties: {vulnerability}{sources('vulnerability')}.",
+        f"Power imbalance (influence): {influence}{sources('influence')}.",
+        f"Case category: {category} — the majority classification, mapped to the "
+        f"model's “{crime_type}” case type{sources('case_category')}.",
+    ]
+    return " ".join(sentences)
+
 
 def analyze_case_whole(case, model_data=None) -> dict:
     """Run the case-level analysis over ALL analysed documents.
@@ -430,12 +610,22 @@ def analyze_case_whole(case, model_data=None) -> dict:
             case.case_id, case.title, tuned, priority, analysis,
             merge_info=merge_info, corroboration=corroboration,
             per_doc=per_doc, reports_dir=REPORTS_DIR,
+            case_gist=merged.get("case_gist", ""),
         )
     except Exception as e:
         print(f"whole-case: PDF report generation failed (non-fatal): {e}")
 
+    justification = ""
+    try:
+        justification = build_priority_justification(
+            tuned, priority, merge_info, len(per_doc)
+        )
+    except Exception as e:
+        print(f"whole-case: priority justification failed (non-fatal): {e}")
+
     return {
         "priority": priority,
+        "priority_justification": justification,
         "rationale": (
             f"Case-level priority {priority} — the Decision Tree run ONCE on the "
             f"merged features of all {len(per_doc)} analysed document(s) "
@@ -450,6 +640,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
         "decision_report": decision_report,
         "path_steps": path_steps,
         "constitutional": analysis,
+        "case_gist": merged.get("case_gist", ""),
         "report_pdf": report_pdf,
         "computed_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
     }
