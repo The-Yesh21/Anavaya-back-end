@@ -178,6 +178,7 @@
   "aggregate_rationale": "Case-level priority Medium — the Decision Tree run ONCE on the merged features of all 6 analysed document(s) (severity No Injury, vulnerability Low, category Excise/Tax). Per-document breakdown (detail only, not the decision): 03_Exhibit_P2_Bank_Transfers.png (Other): Low; 04_Exhibit_P3_Disputed_Invoices.png (Other): Low; 05_Exhibit_P4_Bank_Statement.png (Other): Low; 06_Exhibit_P5_GST_Certificate.png (Other): Medium; 07_Exhibit_P6_Forensic_Report.png (Other): Low; 09_Evidence_Booklet.pdf (Other): Medium.",
   "case_level": {
     "priority": "Medium",
+    "priority_justification": "The Decision Tree assigns Medium priority from the worst facts across all 6 analysed document(s), not from any single one. Worst injury on record: No Injury (driven by 03_Exhibit_P2_Bank_Transfers.png, 04_Exhibit_P3_Disputed_Invoices.png, 05_Exhibit_P4_Bank_Statement.png). Vulnerability of the parties: Low (driven by 03_Exhibit_P2_Bank_Transfers.png, 04_Exhibit_P3_Disputed_Invoices.png, 05_Exhibit_P4_Bank_Statement.png). Power imbalance (influence): High (driven by 06_Exhibit_P5_GST_Certificate.png, 09_Evidence_Booklet.pdf). Case category: Excise/Tax — the majority classification, mapped to the model's “Non-Violent” case type (driven by 03_Exhibit_P2_Bank_Transfers.png, 04_Exhibit_P3_Disputed_Invoices.png, 06_Exhibit_P5_GST_Certificate.png).",
     "rationale": "Case-level priority Medium — the Decision Tree run ONCE on the merged features of all 6 analysed document(s) (severity No Injury, vulnerability Low, category Excise/Tax).",
     "features": {
       "main_parties": "Arjun Nair, Rohan Malhotra, Kaveri Auto Traders, Prosecution, HDFC Bank, accused, STATE (ON COMPLAINT OF ARJUN NAIR)",
@@ -186,7 +187,7 @@
       "severity": "No Injury",
       "vulnerability": "Low",
       "influence": "High",
-      "plain_summary": "This case file brings together 6 documents (6 × Other) and is assessed as a single matter of Excise/Tax with no injury indicated. The evidence on record consists of “03_Exhibit_P2_Bank_Transfers.png” (Other; Excise/Tax); “04_Exhibit_P3_Disputed_Invoices.png” (Other; Excise/Tax); “05_Exhibit_P4_Bank_Statement.png” (Other; General Civil); “06_Exhibit_P5_GST_Certificate.png” (Other; Excise/Tax); “07_Exhibit_P6_Forensic_Report.png” (Other; Excise/Tax); “09_Evidence_Booklet.pdf” (Other; Constitutional/Writ). Cross-comparison finds 4 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “03_Exhibit_P2_Bank_Transfers.png” and “09_Evidence_Booklet.pdf” share parties. “05_Exhibit_P4_Bank_Statement.png” currently stands alone — no other document shares a date, place or party with it, so further supporting evidence would strengthen the case."
+      "plain_summary": "This case file brings together 6 documents (6 × Other) and is assessed as a single matter of Excise/Tax with no injury indicated. The evidence on record consists of “03_Exhibit_P2_Bank_Transfers.png” (Other; Excise/Tax; assessed Low priority); “04_Exhibit_P3_Disputed_Invoices.png” (Other; Excise/Tax; assessed Low priority); “05_Exhibit_P4_Bank_Statement.png” (Other; General Civil; assessed Low priority); “06_Exhibit_P5_GST_Certificate.png” (Other; Excise/Tax; assessed Medium priority); “07_Exhibit_P6_Forensic_Report.png” (Other; Excise/Tax; assessed Low priority); “09_Evidence_Booklet.pdf” (Other; Constitutional/Writ; assessed Medium priority). Cross-comparison finds 4 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “03_Exhibit_P2_Bank_Transfers.png” and “09_Evidence_Booklet.pdf” share parties. “05_Exhibit_P4_Bank_Statement.png” currently stands alone — no other document shares a date, place or party with it, so further supporting evidence would strengthen the case."
     },
     "merge_info": {
       "severity": {
@@ -335,6 +336,115 @@
       }
     ],
     "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0019_whole_case_decision_report.md",
+    "path_steps": {
+      "path_node_ids": [
+        0,
+        4,
+        5
+      ],
+      "leaf_id": 5,
+      "steps": [
+        {
+          "node_id": 0,
+          "type": "decision",
+          "title": "Split on Severity",
+          "condition": "Severity is one of: Fatal, Major",
+          "case_value": "No Injury",
+          "result": "No",
+          "direction": "right",
+          "effect": "lowered",
+          "branch_priorities": {
+            "left": "High",
+            "right": "Medium"
+          }
+        },
+        {
+          "node_id": 4,
+          "type": "decision",
+          "title": "Split on Influence / power imbalance",
+          "condition": "Influence / power imbalance is one of: High",
+          "case_value": "High",
+          "result": "Yes",
+          "direction": "left",
+          "effect": "raised",
+          "branch_priorities": {
+            "left": "Medium",
+            "right": "Low"
+          }
+        },
+        {
+          "node_id": 5,
+          "type": "leaf",
+          "title": "Final Priority: Medium",
+          "condition": "The case reached this Decision Tree leaf.",
+          "case_value": "435 training samples reached this leaf",
+          "result": "Medium",
+          "direction": "final",
+          "effect": "outcome"
+        }
+      ],
+      "feature_scores": [
+        {
+          "feature": "case_category_enc",
+          "label": "Legal category",
+          "value": "4 (Excise/Tax)"
+        },
+        {
+          "feature": "crime_type_enc",
+          "label": "Broad case type",
+          "value": "1 (Non-Violent)"
+        },
+        {
+          "feature": "severity_enc",
+          "label": "Severity",
+          "value": "3 (No Injury)"
+        },
+        {
+          "feature": "vulnerability_enc",
+          "label": "Vulnerability",
+          "value": "1 (Low)"
+        },
+        {
+          "feature": "influence_enc",
+          "label": "Influence / power imbalance",
+          "value": "0 (High)"
+        }
+      ],
+      "text_keywords": [
+        {
+          "keyword": "tax",
+          "weight": 0.5934
+        },
+        {
+          "keyword": "excise",
+          "weight": 0.5934
+        },
+        {
+          "keyword": "record",
+          "weight": 0.2374
+        },
+        {
+          "keyword": "parties",
+          "weight": 0.2374
+        },
+        {
+          "keyword": "case",
+          "weight": 0.2374
+        },
+        {
+          "keyword": "writ",
+          "weight": 0.1187
+        },
+        {
+          "keyword": "state",
+          "weight": 0.1187
+        },
+        {
+          "keyword": "matter",
+          "weight": 0.1187
+        }
+      ]
+    },
     "constitutional": {
       "constitutional_rights_engaged": [
         {
@@ -498,11 +608,12 @@
         }
       ],
       "balancing_analysis": "**Primary Interest — Other Constitutional Rights:** With severity 'No Injury', the primary constitutional concern shifts from the right to life (Article 21) to other guarantees such as equality (Article 14), freedom of trade (Article 19(1)(g)), or property rights (Article 300A) as applicable. While these rights are fundamental, they permit greater flexibility in prioritisation.\n\n**Power Imbalance — Article 14 Equality Concern:** There is a significant power imbalance between the parties. Article 14 requires the state to ensure equality before the law. Where one party is a government body, large corporation, or influential entity, the court must guard against the risk that institutional power could subvert the fairness of proceedings. The assigned priority adequately accounts for this concern.\n\n**Category-Specific Analysis — Excise/Tax:** This is primarily a regulatory/commercial matter. While Article 14 equality and Article 300A property rights are engaged, the case does not involve the same constitutional urgency as life-and-liberty cases. The assigned priority appropriately reflects this proportionally.",
-      "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Arjun Nair, Rohan Malhotra, Kaveri Auto Traders, Prosecution, HDFC Bank, accused, STATE (ON COMPLAINT OF ARJUN NAIR)\n\n**Legal Category:** Excise/Tax\n\n**Brief Description:** This case file brings together 6 documents (6 × Other) and is assessed as a single matter of Excise/Tax with no injury indicated. The evidence on record consists of “03_Exhibit_P2_Bank_Transfers.png” (Other; Excise/Tax); “04_Exhibit_P3_Disputed_Invoices.png” (Other; Excise/Tax); “05_Exhibit_P4_Bank_Statement.png” (Other; General Civil); “06_Exhibit_P5_GST_Certificate.png” (Other; Excise/Tax); “07_Exhibit_P6_Forensic_Report.png” (Other; Excise/Tax); “09_Evidence_Booklet.pdf” (Other; Constitutional/Writ). Cross-comparison finds 4 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “03_Exhibit_P2_Bank_Transfers.png” and “09_Evidence_Booklet.pdf” share parties. “05_Exhibit_P4_Bank_Statement.png” currently stands alone — no other document shares a date, place or party with it, so further supporting evidence would strengthen the case.\n\n**Extracted Parameters:** Severity = No Injury, Vulnerability = Low, Influence/ Power Imbalance = High\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 265 — Tax Not to be Imposed Save by Authority of Law**: No tax shall be levied or collected except by authority of law.\n  - Key principles: No taxation without law, Lawful authority for tax levy, Procedural fairness in tax matters\n- ****[PRIMARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[PRIMARY]** Article 19(1)(g) — Right to Practise Any Profession or Carry On Occupation, Trade or Business**: All citizens shall have the right to practise any profession, or to carry on any occupation, trade or business, subject to reasonable restrictions in the interests of the general public.\n  - Key principles: Right to trade, occupation and profession, Reasonable restrictions in public interest, Licensing and regulatory controls\n- ****[SECONDARY]** Article 300A — Right to Property**: No person shall be deprived of his property save by authority of law.\n  - Key principles: Protection against deprivation of property, Lawful procedure for acquisition, Right not to be dispossessed without legal authority\n- ****[SECONDARY]** Article 301 — Freedom of Trade, Commerce and Intercourse**: Subject to the other provisions of this Part, trade, commerce and intercourse throughout the territory of India shall be free.\n  - Key principles: Free trade and commerce across India, No barriers to inter-state trade\n- ****[SECONDARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 14 / Article 19 / Article 300A (as applicable)\n\n**Analysis:** Where no physical injury is involved, the primary constitutional concern shifts from Article 21 (life and liberty) to other guarantees such as Article 14 (equality), Article 19 (freedom of profession/trade), and Article 300A (property). While these rights are fundamental and must be protected, the urgency is generally lower than cases involving threats to life or physical safety.\n\n**Urgency Classification:** Standard — rights are engaged but no immediate physical harm.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nUnder Article 265, the State cannot levy or collect tax without the authority of law. The judiciary must ensure that tax proceedings are conducted lawfully, non-arbitrarily, and in accordance with principles of natural justice. The state's duty extends to ensuring that tax demands and assessments follow procedural fairness and that the citizen's right to carry on business (Article 19(1)(g)) is not unreasonably restricted.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** High\nGovernment bodies, large corporations, regulatory authorities, or politically powerful individuals\n\n**Constitutional Concern:** Article 14 requires equality before law. A significant power imbalance can undermine the fairness of proceedings if the influential party is able to use its resources to delay, intimidate, or out-litigate the weaker party. The court must actively ensure a level playing field.\n\n**Recommended Countermeasure:** Where there is a power imbalance, the court should: (a) ensure the weaker party has access to legal aid if needed, (b) prevent unnecessary adjournments sought by the influential party, (c) expedite proceedings to minimise the risk of witness tampering or intimidation, and (d) consider appointing a court monitor or receiver where appropriate.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Principle of Natural Justice — Audi Alteram Partem**: No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.\n  - Application to this case: Ensures procedural fairness in administrative and quasi-judicial proceedings.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n- **Doctrine of Reasonable Classification**: Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.\n  - Application to this case: Used to test whether differential treatment of litigants or groups is constitutional.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** Medium\n\n**Category Rationale:** Tax and excise matters involve statutory interpretation, procedural compliance, and economic regulation. They do not typically engage the right to life under Article 21. These cases should be processed according to their legal complexity and the amount involved, but do not warrant the highest priority unless they involve personal liberty or criminal sanctions.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **Medium Priority**. \n\nThe case presents meaningful legal or constitutional issues that warrant attentive but not extraordinary expedition. The court should monitor the progress of this matter to ensure it does not languish, while recognising that cases involving imminent threats to life or liberty must take precedence.",
+      "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Arjun Nair, Rohan Malhotra, Kaveri Auto Traders, Prosecution, HDFC Bank, accused, STATE (ON COMPLAINT OF ARJUN NAIR)\n\n**Legal Category:** Excise/Tax\n\n**Brief Description:** This case file brings together 6 documents (6 × Other) and is assessed as a single matter of Excise/Tax with no injury indicated. The evidence on record consists of “03_Exhibit_P2_Bank_Transfers.png” (Other; Excise/Tax; assessed Low priority); “04_Exhibit_P3_Disputed_Invoices.png” (Other; Excise/Tax; assessed Low priority); “05_Exhibit_P4_Bank_Statement.png” (Other; General Civil; assessed Low priority); “06_Exhibit_P5_GST_Certificate.png” (Other; Excise/Tax; assessed Medium priority); “07_Exhibit_P6_Forensic_Report.png” (Other; Excise/Tax; assessed Low priority); “09_Evidence_Booklet.pdf” (Other; Constitutional/Writ; assessed Medium priority). Cross-comparison finds 4 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “03_Exhibit_P2_Bank_Transfers.png” and “09_Evidence_Booklet.pdf” share parties. “05_Exhibit_P4_Bank_Statement.png” currently stands alone — no other document shares a date, place or party with it, so further supporting evidence would strengthen the case.\n\n**Extracted Parameters:** Severity = No Injury, Vulnerability = Low, Influence/ Power Imbalance = High\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 265 — Tax Not to be Imposed Save by Authority of Law**: No tax shall be levied or collected except by authority of law.\n  - Key principles: No taxation without law, Lawful authority for tax levy, Procedural fairness in tax matters\n- ****[PRIMARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[PRIMARY]** Article 19(1)(g) — Right to Practise Any Profession or Carry On Occupation, Trade or Business**: All citizens shall have the right to practise any profession, or to carry on any occupation, trade or business, subject to reasonable restrictions in the interests of the general public.\n  - Key principles: Right to trade, occupation and profession, Reasonable restrictions in public interest, Licensing and regulatory controls\n- ****[SECONDARY]** Article 300A — Right to Property**: No person shall be deprived of his property save by authority of law.\n  - Key principles: Protection against deprivation of property, Lawful procedure for acquisition, Right not to be dispossessed without legal authority\n- ****[SECONDARY]** Article 301 — Freedom of Trade, Commerce and Intercourse**: Subject to the other provisions of this Part, trade, commerce and intercourse throughout the territory of India shall be free.\n  - Key principles: Free trade and commerce across India, No barriers to inter-state trade\n- ****[SECONDARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 14 / Article 19 / Article 300A (as applicable)\n\n**Analysis:** Where no physical injury is involved, the primary constitutional concern shifts from Article 21 (life and liberty) to other guarantees such as Article 14 (equality), Article 19 (freedom of profession/trade), and Article 300A (property). While these rights are fundamental and must be protected, the urgency is generally lower than cases involving threats to life or physical safety.\n\n**Urgency Classification:** Standard — rights are engaged but no immediate physical harm.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nUnder Article 265, the State cannot levy or collect tax without the authority of law. The judiciary must ensure that tax proceedings are conducted lawfully, non-arbitrarily, and in accordance with principles of natural justice. The state's duty extends to ensuring that tax demands and assessments follow procedural fairness and that the citizen's right to carry on business (Article 19(1)(g)) is not unreasonably restricted.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** High\nGovernment bodies, large corporations, regulatory authorities, or politically powerful individuals\n\n**Constitutional Concern:** Article 14 requires equality before law. A significant power imbalance can undermine the fairness of proceedings if the influential party is able to use its resources to delay, intimidate, or out-litigate the weaker party. The court must actively ensure a level playing field.\n\n**Recommended Countermeasure:** Where there is a power imbalance, the court should: (a) ensure the weaker party has access to legal aid if needed, (b) prevent unnecessary adjournments sought by the influential party, (c) expedite proceedings to minimise the risk of witness tampering or intimidation, and (d) consider appointing a court monitor or receiver where appropriate.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Principle of Natural Justice — Audi Alteram Partem**: No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.\n  - Application to this case: Ensures procedural fairness in administrative and quasi-judicial proceedings.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n- **Doctrine of Reasonable Classification**: Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.\n  - Application to this case: Used to test whether differential treatment of litigants or groups is constitutional.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** Medium\n\n**Category Rationale:** Tax and excise matters involve statutory interpretation, procedural compliance, and economic regulation. They do not typically engage the right to life under Article 21. These cases should be processed according to their legal complexity and the amount involved, but do not warrant the highest priority unless they involve personal liberty or criminal sanctions.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **Medium Priority**. \n\nThe case presents meaningful legal or constitutional issues that warrant attentive but not extraordinary expedition. The court should monitor the progress of this matter to ensure it does not languish, while recognising that cases involving imminent threats to life or liberty must take precedence.",
       "priority_rules_detailed": "**RULE 1 — No Physical Injury → Standard Priority:** Article 21 (right to life) is not directly engaged through physical harm. Priority is determined by other factors.\n\n**RULE 3 — Power Imbalance → Ensure Level Playing Field (Article 14):** A significant power imbalance between parties triggers Article 14's equality guarantee. The court must take active measures to prevent the influential party from exploiting its position.\n\n**RULE 4 — Regulatory/Commercial Matter → Property & Economic Rights:** Articles 14, 19(1)(g), and 300A govern this matter. Priority is based on economic impact and procedural fairness concerns, not life-and-liberty urgency.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **Medium**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
     },
+    "case_gist": "Arjun Nair filed a complaint against Rohan Malhotra for unauthorized bank transfers totaling Rs. 45,00,000 between January and April 2024. The accused is accused of misusing funds from these transactions. Kaveri Auto Traders is accused of fabricating six vehicle invoices. On the merged evidence the matter is classified as Excise/Tax (non-violent case type). Names appearing across the documents: Arjun Nair, Rohan Malhotra, Kaveri Auto Traders, Prosecution.",
     "report_pdf": "case_priority_system/reports\\ANV-2026-0019_whole_case_report.pdf",
-    "computed_at": "2026-09-15T20:33:48"
+    "computed_at": "2026-09-19T22:12:42"
   },
   "sessions": []
 }

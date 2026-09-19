@@ -194,6 +194,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = $("case-wizard-modal");
     const createBtn = $("create-case-btn");
     let currentWorkspaceCaseId = null;
+    // "About this case" gist for the case open in the workspace (see
+    // renderCaseOverview) — captured from the whole-case analysis payload.
+    let currentCaseGist = "";
 
     function openWizard() {
         $("wizard-title").value = "";
@@ -406,6 +409,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!cl && c.case_level && c.case_level.priority) {
             cl = {
                 priority: c.case_level.priority,
+                case_gist: c.case_level.case_gist || "",
+                priority_justification: c.case_level.priority_justification || "",
                 rationale: c.case_level.rationale || "",
                 features: c.case_level.features || {},
                 merge_info: c.case_level.merge_info || {},
@@ -422,7 +427,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const prioEl = $("case-level-priority-badge");
         prioEl.className = `priority-pill ${prioClass(cl.priority)}`;
-        prioEl.textContent = `${cl.priority} Priority`;
+        prioEl.textContent = cl.priority ? `${cl.priority} Priority` : "Priority unavailable";
+        // Why this priority: deterministic justification tying the merged
+        // signal values (and their driving documents) to the tree's verdict.
+        const justEl = $("case-level-justification");
+        if (justEl) justEl.textContent = cl.priority_justification || cl.rationale || "";
+        // "What is this case about" — distilled from the documents' own
+        // summaries (allegations, amount in dispute, parties). Deterministic.
+        currentCaseGist = cl.case_gist || "";
         $("case-level-narrative").textContent = (cl.features && cl.features.plain_summary) || cl.rationale || "";
 
         // Merged classification chips.
@@ -514,9 +526,13 @@ document.addEventListener("DOMContentLoaded", () => {
         ].filter(([, v]) => v)
             .map(([k, v]) => `<span class="ov-fact"><em>${esc(k)}:</em> ${esc(String(v))}</span>`)
             .join("");
+        // The plain-language answer to "what is this case about": the gist
+        // distilled from the documents' summaries (fallbacks for older data).
+        const gist = overview.gist || (verdict && verdict.case_gist) || currentCaseGist
+            || overview.narrative || "";
         wrap.innerHTML = `
+            ${gist ? `<p class="ov-gist">${esc(gist)}</p>` : ""}
             ${parties ? `<div class="ov-parties">${parties}</div>` : ""}
-            <p class="ov-narrative">${esc(overview.narrative || "")}</p>
             ${chips ? `<div class="ov-facts">${chips}</div>` : ""}
         `;
     }

@@ -952,6 +952,113 @@ async def analyze_case(case_id: str):
     return payload
 
 
+def _repair_mojibake(s: str) -> str:
+    """Undo UTF-8-text-read-as-cp1252 corruption ("â€\"" → "—") on display.
+
+    Some older case records were rebuilt from Excel and stored double-encoded
+    text. This is display-layer only — the registry is never rewritten.
+
+    Only maximal runs of high-cp1252 characters are re-decoded, so text that is
+    already correct (mixed with a corrupted span) is left untouched.
+    """
+    if not isinstance(s, str) or not s:
+        return s
+    if not any(m in s for m in ("Ã", "â€", "Â", "ðŸ")):
+        return s
+
+    def suspect(ch: str) -> bool:
+        o = ord(ch)
+        return (0x80 <= o <= 0xFF or 0x2010 <= o <= 0x2122
+                or o in (0x152, 0x153, 0x160, 0x161, 0x17D, 0x17E,
+                         0x2C6, 0x2DC, 0x2030, 0x20AC))
+
+    out: list[str] = []
+    i, n = 0, len(s)
+    while i < n:
+        if suspect(s[i]):
+            j = i
+            while j < n and suspect(s[j]):
+                j += 1
+            run = s[i:j]
+            try:
+                out.append(run.encode("cp1252").decode("utf-8"))
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                out.append(run)
+            i = j
+        else:
+            out.append(s[i])
+            i += 1
+    return "".join(out)
+
+
+def _repair_tree(obj):
+    """Recursively repair mojibake in an API response payload."""
+    if isinstance(obj, str):
+        return _repair_mojibake(obj)
+    if isinstance(obj, list):
+        return [_repair_tree(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _repair_tree(v) for k, v in obj.items()}
+    return obj
+
+
+def _with_justification(cl: dict, case=None) -> dict:
+    """Backfill ``priority_justification`` / ``case_gist`` for old records.
+
+    Deterministic and cheap: the justification is rebuilt from the stored
+    merge provenance, and the "about this case" gist is distilled from the
+    stored per-document summaries — so the Analysis tab never shows a bare
+    priority with no explanation, nor a verdict that never says what the
+    dispute is actually about.
+    """
+    if not cl:
+        return cl
+    if case is not None and not cl.get("case_gist"):
+        try:
+            from case_priority_system.scripts.whole_case_analysis import (
+                build_case_gist,
+            )
+        except ImportError:
+            from scripts.whole_case_analysis import (  # type: ignore
+                build_case_gist,
+            )
+        try:
+            feats = cl.get("features", {}) or {}
+            parties = feats.get("main_parties", "")
+            if isinstance(parties, str):
+                parties = [p.strip() for p in parties.split(",") if p.strip()]
+            gist = build_case_gist(
+                case,
+                feats.get("case_category", ""),
+                feats.get("crime_type", ""),
+                parties,
+            )
+            if gist:
+                cl["case_gist"] = gist
+        except Exception as e:
+            print(f"case-analysis: gist backfill failed (non-fatal): {e}")
+    if cl.get("priority_justification"):
+        return cl
+    try:
+        from case_priority_system.scripts.whole_case_analysis import (
+            build_priority_justification,
+        )
+    except ImportError:
+        from scripts.whole_case_analysis import (  # type: ignore
+            build_priority_justification,
+        )
+    try:
+        cl["priority_justification"] = build_priority_justification(
+            cl.get("features", {}) or {},
+            cl.get("priority", "") or "",
+            cl.get("merge_info", {}) or {},
+            len(cl.get("per_document", []) or []) or len(cl.get("merge_info", {}) or {}),
+        )
+    except Exception as e:
+        print(f"case-analysis: justification backfill failed (non-fatal): {e}")
+    return cl
+
+
 @app.get("/api/cases/{case_id}/case-analysis")
 def get_case_analysis(case_id: str):
     """Whole-case analysis: one verdict computed over ALL evidence.
@@ -969,11 +1076,14 @@ def get_case_analysis(case_id: str):
             # compute it now so the panel is never silently empty.
             case_manager.refresh_aggregate(case, model_data=model_data)
             cl = case.case_level or {}
-    return {
+    cl = _with_justification(cl, case)
+    return _repair_tree({
         "case_id": case.case_id,
         "title": case.title,
         "has_analysis": bool(cl),
         "priority": cl.get("priority"),
+        "case_gist": cl.get("case_gist", ""),
+        "priority_justification": cl.get("priority_justification", ""),
         "rationale": cl.get("rationale", ""),
         "features": cl.get("features", {}),
         "merge_info": cl.get("merge_info", {}),
@@ -987,7 +1097,7 @@ def get_case_analysis(case_id: str):
             "priority": case.aggregate_priority,
             "rationale": case.aggregate_rationale,
         },
-    }
+    })
 
 
 @app.get("/api/cases/{case_id}/case-insights")
@@ -1039,6 +1149,7 @@ def get_case_insights(case_id: str):
         if [d for d in case.documents if d.analysis]:
             case_manager.refresh_aggregate(case, model_data=model_data)
             cl = case.case_level or {}
+    cl = _with_justification(cl, case)
 
     con = cl.get("constitutional", {}) or {}
     feats = cl.get("features", {}) or {}
@@ -1047,6 +1158,8 @@ def get_case_insights(case_id: str):
         parties = [parties]
     verdict = {
         "priority": cl.get("priority"),
+        "case_gist": cl.get("case_gist", ""),
+        "priority_justification": cl.get("priority_justification", ""),
         "rationale": cl.get("rationale", ""),
         "features": feats,
         "merge_info": cl.get("merge_info", {}),
@@ -1066,6 +1179,7 @@ def get_case_insights(case_id: str):
         "case_category": feats.get("case_category", ""),
         "crime_type": feats.get("crime_type", ""),
         "narrative": feats.get("plain_summary", ""),
+        "gist": cl.get("case_gist", ""),
         "document_count": len(case.documents),
     }
 
@@ -1176,7 +1290,7 @@ def get_case_insights(case_id: str):
             print(f"case-insights: tree trace failed (non-fatal): {e}")
             path = None
 
-    return {
+    return _repair_tree({
         "case_id": case.case_id,
         "title": case.title,
         "has_analysis": bool(cl),
@@ -1184,7 +1298,7 @@ def get_case_insights(case_id: str):
         "verdict": verdict,
         "evidence": evidence,
         "path": path,
-    }
+    })
 
 
 @app.get("/api/cases/{case_id}/case-report.pdf")
@@ -1840,8 +1954,15 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save audio: {str(e)}")
 
+    # Whisper + the Ollama correction round-trip are BLOCKING calls that take
+    # 10–60s. Running them inline on the event loop froze every WebSocket in
+    # the process (all rooms' signaling, roster, transcripts) for the whole
+    # transcription — other participants saw dead connections mid-hearing —
+    # and queued requests behind the default 5s keep-alive window, which is
+    # how transcription failed intermittently with 502s. Both steps now run
+    # on a worker thread; this coroutine stays responsive and awaits it.
     try:
-        text = transcribe_audio(audio_path)
+        text = await asyncio.to_thread(transcribe_audio, audio_path)
         if not text:
             # No speech detected (silence / too quiet / recorder blip): treat
             # the segment as a no-op instead of an error — a quiet hold should
@@ -1852,7 +1973,10 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
             except OSError:
                 pass
             return {"entry": None, "raw": "", "note": "no_speech"}
-        corrected, used_llm = correct_transcript_text(text, context_hint=_court_context_hint(room))
+        context_hint = _court_context_hint(room)
+        corrected, used_llm = await asyncio.to_thread(
+            correct_transcript_text, text, context_hint
+        )
         entry = courtroom_manager.record_statement(
             room_id, participant_id, corrected, audio_file=filename
         )
@@ -2009,6 +2133,13 @@ def post_face_summary(room_id: str, payload: dict):
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Expected a JSON object body.")
+    # Face & Expression analysis is Judge-only — the client hides the panel,
+    # but the server must enforce it too (no auth layer, so the participant id
+    # is the identity).
+    room = courtroom_manager.get_room(room_id)
+    participant = room.get_participant(str(payload.get("participant_id", ""))) if room else None
+    if participant is None or participant.role != "Judge":
+        raise HTTPException(status_code=403, detail="Only the presiding judge may run the face & expression analysis.")
     fs = courtroom_manager.record_face_summary(room_id, payload)
     if fs is None:
         raise HTTPException(status_code=404, detail="Room not found.")
@@ -2269,55 +2400,79 @@ def download_transcript_pdf(room_id: str):
 </body></html>"""
 
     # -- CSS (court document styling) --
+    # A4 print notes: PyMuPDF's Story engine supports only a conservative CSS
+    # subset (no flexbox/tables/@page margin boxes/counters), so the layout is
+    # built from simple blocks with pt/mm sizes — the old px sizes rendered
+    # oversized and cramped on the sheet — and the running footer with page
+    # numbers is stamped onto every page with fitz AFTER layout (see below).
+    # Entries use a hanging indent (speaker label outdented, wrapped text
+    # aligned under itself) and never break mid-entry across pages.
     css = """
-    body { font-family: Georgia, 'Times New Roman', serif; font-size: 11px;
-           color: #1F2937; line-height: 1.5; margin: 0; padding: 0; }
-    .page-header { background: #1B2A4A; color: #fff; padding: 24px 28px;
-                   border-bottom: 5px solid #C9A227; }
-    .page-header .kicker { font-family: Helvetica, Arial, sans-serif; font-size: 9px;
-                   letter-spacing: 3px; text-transform: uppercase; color: #C9A227; }
-    .page-header h1 { margin: 6px 0 4px; font-size: 20px; color: #FFFFFF; }
-    .page-header .sub { font-size: 12px; color: #C7D2E5; font-family: Helvetica, Arial, sans-serif; }
-    .meta-row { margin-top: 8px; font-family: Helvetica, Arial, sans-serif; font-size: 10px;
+    body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt;
+           color: #1F2937; line-height: 1.45; margin: 0; padding: 0; }
+
+    /* ---- First-page letterhead ---- */
+    .page-header { background: #1B2A4A; color: #FFFFFF; padding: 9mm 10mm 7mm;
+                   border-bottom: 2.5mm solid #C9A227; margin: 0 0 6mm; }
+    .page-header .kicker { font-family: Helvetica, Arial, sans-serif; font-size: 8pt;
+                   letter-spacing: 2.5px; text-transform: uppercase; color: #C9A227; }
+    .page-header h1 { margin: 2mm 0 1.5mm; font-size: 17pt; font-weight: 700; color: #FFFFFF; }
+    .page-header .sub { font-size: 11pt; color: #C7D2E5; font-family: Helvetica, Arial, sans-serif; }
+    .meta-row { margin-top: 2.5mm; font-family: Helvetica, Arial, sans-serif; font-size: 8.5pt;
                 color: #E5E9F3; }
-    .section { margin: 16px 24px; page-break-inside: avoid; }
-    .section-title { font-family: Helvetica, Arial, sans-serif; font-size: 11px;
-             font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
-             color: #1B2A4A; padding: 5px 0 5px 10px; margin-bottom: 10px;
-             border-bottom: 1px solid #E5E7EB; }
-    .detail-grid { display: flex; flex-wrap: wrap; gap: 6px 20px; }
-    .detail { font-family: Helvetica, Arial, sans-serif; }
-    .dt { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #6B7280; display: block; }
-    .dd { font-size: 11px; font-weight: 600; color: #111827; }
-    .participant-row { padding: 4px 0; border-bottom: 1px solid #F3F4F6;
-                       font-family: Helvetica, Arial, sans-serif; }
-    .part-name { font-weight: 700; font-size: 11px; color: #111827; }
-    .part-role { font-size: 10px; color: #6B7280; margin-left: 10px; }
+
+    /* ---- Sections ---- */
+    .section { margin: 0 0 6mm; page-break-inside: avoid; }
+    .section-title { font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt;
+             font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;
+             color: #1B2A4A; padding: 0 0 1.5mm 0; margin: 0 0 3mm;
+             border-bottom: 1.5px solid #1B2A4A; }
+
+    /* Case details: one labelled line each, aligned and airy. */
+    .detail { font-family: Helvetica, Arial, sans-serif; font-size: 10pt;
+              padding: 1mm 0; border-bottom: 0.5px solid #F3F4F6; }
+    .dt { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.8px;
+          color: #6B7280; margin-right: 4mm; }
+    .dd { font-size: 10pt; font-weight: 600; color: #111827; }
+
+    /* Participants: name first, role after a separator on the same line. */
+    .participant-row { font-family: Helvetica, Arial, sans-serif; padding: 1.6mm 0;
+                       border-bottom: 0.5px solid #F3F4F6; }
+    .part-name { font-weight: 700; font-size: 10pt; color: #111827; }
+    .part-role { font-size: 9pt; color: #6B7280; margin-left: 4mm; }
+
+    /* Proceedings */
     .transcript-body { padding: 0; }
-    .entry { padding: 6px 0; border-bottom: 1px solid #F3F4F6; page-break-inside: avoid; }
-    .entry-header { font-family: Helvetica, Arial, sans-serif; margin-bottom: 2px; }
-    .entry-role { font-size: 9px; font-weight: 800; text-transform: uppercase;
-                  letter-spacing: 0.8px; margin-right: 6px; }
-    .entry-actor { font-size: 10px; color: #374151; margin-right: 8px; }
-    .entry-time { font-size: 9px; color: #9CA3AF; }
-    .entry-text { font-size: 11px; color: #1F2937; margin-top: 2px; padding-left: 2px; }
-    .entry-action-text { font-size: 11px; color: #1F2937; font-style: italic;
-                         margin-top: 2px; padding-left: 2px; }
-    .entry-behavior { border-left: 4px solid #B45309; background: #FFFBF0; }
-    .entry-behavior-text { font-size: 11px; color: #713F12; font-style: italic;
-                         margin-top: 2px; padding-left: 2px; }
-    .entry-phase { background: #F8FAFC; padding: 8px 12px; margin: 4px 0;
-                   border-left: 4px solid #C9A227; border-radius: 0 4px 4px 0; }
-    .phase-marker { font-family: Helvetica, Arial, sans-serif; font-size: 10px;
+    .entry { padding: 2mm 0 1.6mm; border-bottom: 0.5px solid #F3F4F6;
+             page-break-inside: avoid; }
+    /* Hanging indent: the speaker label outdents and the wrapped statement
+       aligns under itself — the alignment problem the printed sheet had. */
+    .entry-header { font-family: Helvetica, Arial, sans-serif; margin-bottom: 0.8mm; }
+    .entry-role { display: inline-block; width: 42mm; font-size: 8.5pt; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: 0.8px; }
+    .entry-actor { display: inline-block; font-size: 9.5pt; color: #374151; }
+    .entry-time { display: inline-block; float: right; font-size: 8.5pt; color: #9CA3AF; }
+    .entry-text, .entry-action-text, .entry-behavior-text {
+        margin: 0; padding: 0 0 0 10mm; text-indent: -10mm; }
+    .entry-text { font-size: 10.5pt; color: #1F2937; }
+    .entry-action-text { font-style: italic; }
+    .entry-behavior { border-left: 1.2mm solid #B45309; background: #FFFBF0;
+                      padding-left: 2.5mm; page-break-inside: avoid; }
+    .entry-behavior-text { font-size: 10pt; color: #713F12; font-style: italic; }
+    .entry-phase { background: #F8FAFC; padding: 2.5mm 3mm; margin: 1.5mm 0;
+                   border-left: 1.2mm solid #C9A227; border-radius: 0 2mm 2mm 0; }
+    .phase-marker { font-family: Helvetica, Arial, sans-serif; font-size: 9pt;
                     font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
                     color: #1B2A4A; }
-    .entry-system { padding: 4px 0; }
-    .system-text { font-size: 10px; color: #6B7280; font-style: italic; padding-left: 4px; }
-    .legal-note { background: #FFFBEB; border: 1px solid #FDE68A; border-left: 6px solid #C9A227;
-            padding: 10px 14px; border-radius: 4px; font-size: 10px; color: #713F12;
-            margin: 16px 24px; }
-    .page-footer { margin: 20px 24px; padding-top: 8px; border-top: 1px solid #E5E7EB;
-            font-size: 9px; color: #9CA3AF; font-family: Helvetica, Arial, sans-serif; }
+    .entry-system { padding: 1.2mm 0; page-break-inside: avoid; }
+    .system-text { font-size: 9pt; color: #6B7280; font-style: italic; padding-left: 4mm; }
+
+    .legal-note { background: #FFFBEB; border: 0.5px solid #FDE68A;
+                  border-left: 1.5mm solid #C9A227;
+            padding: 3mm 4mm; border-radius: 1.5mm; font-size: 9pt; color: #713F12;
+            margin: 0 0 5mm; page-break-inside: avoid; }
+    .page-footer { margin: 4mm 0 0; padding-top: 2mm; border-top: 0.5px solid #E5E7EB;
+            font-size: 8pt; color: #9CA3AF; font-family: Helvetica, Arial, sans-serif; }
     """
 
     full_html = (
@@ -2341,6 +2496,31 @@ def download_transcript_pdf(room_id: str):
             story.draw(dev)
             writer.end_page()
         writer.close()
+
+        # Running footer stamped after layout (fitz Story CSS has no margin
+        # boxes or page counters): a hairline + "Room <id> · Page N of M"
+        # bottom-centre on every page, inside the print margins.
+        try:
+            doc = fitz.open(pdf_path)
+            total = doc.page_count
+            mm = 72 / 25.4
+            for page in doc:
+                page.draw_line(
+                    fitz.Point(18 * mm, page.rect.height - 14 * mm),
+                    fitz.Point(page.rect.width - 18 * mm, page.rect.height - 14 * mm),
+                    color=(0.898, 0.906, 0.922), width=0.6,
+                )
+                label = f"Room {room.room_id}  ·  Page {page.number + 1} of {total}"
+                fs = 8
+                tw = fitz.get_text_length(label, fontname="helv", fontsize=fs)
+                page.insert_text(
+                    fitz.Point((page.rect.width - tw) / 2, page.rect.height - 8 * mm),
+                    label, fontname="helv", fontsize=fs, color=(0.42, 0.447, 0.502),
+                )
+            doc.saveIncr()
+            doc.close()
+        except Exception as fe:
+            print(f"Transcript PDF footer stamp failed (non-fatal): {fe}")
 
         safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
         filename = f"{safe_title.strip()}_{room_id}_transcript.pdf"
@@ -2472,7 +2652,18 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                 continue
 
             # --- transcript: automated face-analysis observation --------------
+            # Face & Expression analysis is a Judge-only tool — reject any
+            # behavioral observation from another role (the client also hides
+            # the panel, but the server must not trust the client).
             if mtype == "behavior":
+                room = courtroom_manager.get_room(room_id)
+                me = room.get_participant(bound_participant_id) if room else None
+                if me is None or me.role != "Judge":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": "Only the presiding judge may run the face & expression analysis."
+                    })
+                    continue
                 entry = courtroom_manager.record_behavior(
                     room_id, bound_participant_id, msg.get("text", "")
                 )
@@ -2499,6 +2690,27 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                         "type": "phase_changed",
                         "phase": msg.get("phase"),
                         "transcript_entry": entry.to_dict(),
+                    })
+                continue
+
+            # --- live transcript visibility (judge only) ----------------------
+            if mtype == "set_transcript":
+                room = courtroom_manager.get_room(room_id)
+                me = room.get_participant(bound_participant_id) if room else None
+                if me is None or me.role != "Judge":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": "Only the Judge may turn the transcript on or off."
+                    })
+                    continue
+                updated = courtroom_manager.set_transcript_enabled(
+                    room_id, bool(msg.get("enabled", True))
+                )
+                if updated is not None:
+                    await _broadcast(sockets, {
+                        "type": "transcript_state",
+                        "enabled": updated.transcript_enabled,
+                        "transcript_entry": updated.transcript[-1].to_dict(),
                     })
                 continue
 

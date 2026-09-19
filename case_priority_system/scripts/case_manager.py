@@ -752,6 +752,9 @@ def case_to_markdown(case: Case) -> str:
         lines.append("## Whole-Case Analysis")
         lines.append("")
         feats = cl.get("features", {}) or {}
+        if cl.get("case_gist"):
+            lines.append(f"**About this case:** {cl['case_gist']}")
+            lines.append("")
         lines.append(
             f"- **Whole-case priority:** **{cl.get('priority', 'N/A')}** "
             "(Decision Tree run once on the merged features of all documents)"

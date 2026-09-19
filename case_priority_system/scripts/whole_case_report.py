@@ -42,7 +42,7 @@ _NARRATIVE_KEYS = ("main_parties", "case_category", "crime_type",
 
 def build_whole_case_report_html(case_id, title, features, priority, analysis,
                                  merge_info=None, corroboration=None,
-                                 per_doc=None, computed_at="") -> str:
+                                 per_doc=None, computed_at="", case_gist="") -> str:
     """Full HTML for the whole-case report (same look as per-document reports)."""
     now = computed_at or datetime.now().strftime("%d %B %Y, %H:%M")
     theme = PRIORITY_THEME.get(priority, PRIORITY_THEME["Medium"])
@@ -136,6 +136,14 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
         f"</div>",
 
         section(
+            "About This Case (what the dispute is about)",
+            f'<div class="summary">{esc(case_gist)}</div>' if case_gist
+            else "<p>No per-document summaries were available to distil a case "
+                 "description from.</p>",
+            accent=theme["accent"],
+        ),
+
+        section(
             "Parties Across the Whole Case",
             f'<p style="font-size:14px;"><strong>{esc(parties)}</strong></p>',
         ),
@@ -220,13 +228,14 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
 
 def save_whole_case_report(case_id, title, features, priority, analysis,
                            merge_info=None, corroboration=None, per_doc=None,
-                           computed_at="", reports_dir=REPORTS_DIR) -> str:
+                           computed_at="", reports_dir=REPORTS_DIR,
+                           case_gist="") -> str:
     """Render the whole-case PDF and return its path."""
     os.makedirs(reports_dir, exist_ok=True)
     out_path = os.path.join(reports_dir, f"{case_id}_whole_case_report.pdf")
     html = build_whole_case_report_html(
         case_id, title, features, priority, analysis,
         merge_info=merge_info, corroboration=corroboration,
-        per_doc=per_doc, computed_at=computed_at,
+        per_doc=per_doc, computed_at=computed_at, case_gist=case_gist,
     )
     return render_pdf(html, out_path, priority=priority)
