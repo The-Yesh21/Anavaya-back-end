@@ -167,6 +167,9 @@
                             <i data-lucide="chevron-down" class="rail-chevron"></i>
                         </button>
                         <div class="transcript-actions">
+                            <button class="link-btn transcript-power" id="transcript-power-btn" type="button" aria-pressed="true" title="Turn the live transcript on or off for the whole room (Judge only)" style="display:none;">
+                                <i data-lucide="toggle-right"></i><span class="btn-label">Transcript On</span>
+                            </button>
                             <button class="link-btn" id="download-transcript-btn" title="Download transcript as Markdown">
                                 <i data-lucide="download"></i><span class="btn-label">Export</span>
                             </button>
@@ -179,6 +182,10 @@
                         </div>
                     </div>
                     <div class="panel-collapse" id="transcript-body">
+                        <div id="transcript-off-note" class="transcript-off-note" style="display:none;">
+                            <i data-lucide="eye-off"></i>
+                            <span>The live transcript is turned off by the presiding judge.</span>
+                        </div>
                         <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
                             <div class="transcript-empty">The court is in session. Statements will appear here.</div>
                         </div>

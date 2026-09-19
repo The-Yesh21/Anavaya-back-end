@@ -73,6 +73,11 @@ if (Test-Port 8000) {
     $be = Start-Process -FilePath "python" -ArgumentList @(
         "-m", "uvicorn", "case_priority_system.app:app",
         "--host", "127.0.0.1", "--port", "8000", "--ws-ping-interval", "0",
+        # Keep-alive must be >= nginx's keepalive_timeout (75s in
+        # deploy/nginx-anavaya.conf). Uvicorn's 5s default makes nginx reuse
+        # a backend socket the server just closed -> random 502s on POSTs
+        # (courtroom speech transcription failed intermittently for this).
+        "--timeout-keep-alive", "75",
         "--ssl-certfile", $CertFile, "--ssl-keyfile", $KeyFile
     ) -WorkingDirectory $RepoRoot -WindowStyle Hidden -RedirectStandardOutput "$LogDir\uvicorn.out.log" -RedirectStandardError "$LogDir\uvicorn.err.log" -PassThru
     Wait-Port 8000 "backend"
