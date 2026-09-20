@@ -1,0 +1,255 @@
+ROOM=2BBA
+{
+  "A": [
+    {
+      "conn": "connected",
+      "ice": "connected",
+      "sig": "stable",
+      "txs": [
+        {
+          "mid": "0",
+          "kind": "audio",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        },
+        {
+          "mid": "1",
+          "kind": "video",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        }
+      ],
+      "recvV": [
+        {
+          "muted": false,
+          "enabled": true,
+          "ready": "live"
+        }
+      ],
+      "out": {
+        "audio": 18686,
+        "video": 583936
+      },
+      "inA": 9.891249447159846e-9,
+      "inV": 206,
+      "outA": 5285,
+      "outV": 162700,
+      "aEnergyDelta": 0,
+      "vFramesDelta": 60
+    },
+    {
+      "conn": "connected",
+      "ice": "connected",
+      "sig": "stable",
+      "txs": [
+        {
+          "mid": "0",
+          "kind": "audio",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        },
+        {
+          "mid": "1",
+          "kind": "video",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        }
+      ],
+      "recvV": [
+        {
+          "muted": false,
+          "enabled": true,
+          "ready": "live"
+        }
+      ],
+      "out": {
+        "audio": 10461,
+        "video": 324028
+      },
+      "inA": 5.718669642708248e-9,
+      "inV": 116,
+      "outA": 5250,
+      "outV": 165826,
+      "aEnergyDelta": 0,
+      "vFramesDelta": 60
+    }
+  ],
+  "B": [
+    {
+      "conn": "connected",
+      "ice": "connected",
+      "sig": "stable",
+      "txs": [
+        {
+          "mid": "0",
+          "kind": "audio",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        },
+        {
+          "mid": "1",
+          "kind": "video",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        }
+      ],
+      "recvV": [
+        {
+          "muted": false,
+          "enabled": true,
+          "ready": "live"
+        }
+      ],
+      "out": {
+        "audio": 23446,
+        "video": 743226
+      },
+      "inA": 1.2974115329466717e-8,
+      "inV": 267,
+      "outA": 5250,
+      "outV": 158153,
+      "aEnergyDelta": 0,
+      "vFramesDelta": 60
+    },
+    {
+      "conn": "connected",
+      "ice": "connected",
+      "sig": "stable",
+      "txs": [
+        {
+          "mid": "0",
+          "kind": "audio",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        },
+        {
+          "mid": "1",
+          "kind": "video",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        }
+      ],
+      "recvV": [
+        {
+          "muted": false,
+          "enabled": true,
+          "ready": "live"
+        }
+      ],
+      "out": {
+        "audio": 15641,
+        "video": 492614
+      },
+      "inA": 8.522121698824165e-9,
+      "inV": 177,
+      "outA": 5250,
+      "outV": 158311,
+      "aEnergyDelta": 0,
+      "vFramesDelta": 59
+    }
+  ],
+  "C": [
+    {
+      "conn": "connected",
+      "ice": "connected",
+      "sig": "stable",
+      "txs": [
+        {
+          "mid": "0",
+          "kind": "audio",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        },
+        {
+          "mid": "1",
+          "kind": "video",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        }
+      ],
+      "recvV": [
+        {
+          "muted": false,
+          "enabled": true,
+          "ready": "live"
+        }
+      ],
+      "out": {
+        "audio": 20856,
+        "video": 649589
+      },
+      "inA": 1.1362828931765543e-8,
+      "inV": 237,
+      "outA": 5285,
+      "outV": 167982,
+      "aEnergyDelta": 0,
+      "vFramesDelta": 61
+    },
+    {
+      "conn": "connected",
+      "ice": "connected",
+      "sig": "stable",
+      "txs": [
+        {
+          "mid": "0",
+          "kind": "audio",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        },
+        {
+          "mid": "1",
+          "kind": "video",
+          "dir": "sendrecv",
+          "cur": "sendrecv",
+          "sending": true
+        }
+      ],
+      "recvV": [
+        {
+          "muted": false,
+          "enabled": true,
+          "ready": "live"
+        }
+      ],
+      "out": {
+        "audio": 20856,
+        "video": 645154
+      },
+      "inA": 1.1344201343352812e-8,
+      "inV": 237,
+      "outA": 5250,
+      "outV": 167486,
+      "aEnergyDelta": 0,
+      "vFramesDelta": 61
+    }
+  ],
+  "tiles": {
+    "stage": [
+      "p_41df5b8b",
+      "p_289235c7",
+      "p_4f1fa48c"
+    ],
+    "withVideo": 3
+  },
+  "errors": {
+    "A": [],
+    "B": [],
+    "C": []
+  },
+  "turn": {
+    "configured": true,
+    "serverCount": 1,
+    "candidateTypes": []
+  }
+}
