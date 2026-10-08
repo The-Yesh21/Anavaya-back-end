@@ -288,11 +288,11 @@
                                     </div>
                                     <p id="case-level-justification" class="case-level-justification"></p>
                                     <p id="case-level-narrative" class="case-level-narrative"></p>
-                                    <div id="case-level-chips" class="case-level-chips"></div>
-                                    <details class="case-level-section" open>
-                                        <summary><i data-lucide="briefcase"></i> The case — what it is about</summary>
-                                        <div id="case-level-overview" class="case-level-overview"></div>
-                                    </details>
+                                    <!-- Pictorial case summary: gauge + fact tiles + party
+                                         avatars + evidence-corroboration map (renders into
+                                         #case-level-glance; replaces the old text "The case —
+                                         what it is about" section and the chips row). -->
+                                    <div id="case-level-glance" class="case-level-glance"></div>
                                     <details class="case-level-section" open>
                                         <summary><i data-lucide="layers"></i> Evidence &amp; weight — what each document says and contributes</summary>
                                         <div id="case-level-evidence" class="case-level-evidence"></div>
