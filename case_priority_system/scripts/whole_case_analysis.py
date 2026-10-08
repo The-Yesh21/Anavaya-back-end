@@ -342,7 +342,7 @@ def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
 
     Selection strategy (deterministic, document order = upload order):
       1. allegation-bearing sentences first (keyword-scored), one per document
-         at most, capped at 3;
+         at most, capped at 4;
       2. the largest money figure found anywhere, as the amount in dispute;
       3. a closing line naming the merged classification and the parties.
     """
@@ -363,6 +363,12 @@ def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
             score = 2 * len(_ALLEGATION_HINTS.findall(s))
             if _MONEY_RE.search(s):
                 score += 2
+            # What the proceeding seeks ("The relief sought is…",
+            # "STATE … seeks to hold X liable") — answers the reader's
+            # "what is happening overall" question, so it outranks a
+            # plain classification sentence.
+            if re.search(r"relief sought|seeks? to|prayer for", s, re.IGNORECASE):
+                score += 3
             # Generic meta-sentences ("The case involves …") describe the
             # classification, not the dispute — prefer concrete allegations.
             if re.match(r"the case (involves|raises|concerns|falls)", s.lower()):
@@ -375,7 +381,7 @@ def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
 
     # Allegation-bearing sentences first, then the rest (deterministic order).
     scored.sort(key=lambda t: (t[0] > 0, -t[0], t[1]))
-    picked = [s for _, _, s in scored[:3]]
+    picked = [s for _, _, s in scored[:4]]
 
     gist_parts: list[str] = []
     if picked:
@@ -420,7 +426,17 @@ def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
         closing += f" Names appearing across the documents: {party_bits}."
     gist_parts.append(closing)
 
-    return " ".join(gist_parts)
+    gist = " ".join(gist_parts)
+    # Cosmetic smoothing of a real extraction artifact ("The accused is
+    # accused of misusing funds…") — deterministic word substitution only,
+    # no re-interpretation of the extracted facts.
+    gist = re.sub(
+        r"(\bthe accused) is accused of\b",
+        r"\1 is allegedly",
+        gist,
+        flags=re.IGNORECASE,
+    )
+    return gist
 
 
 # ----------------------------------------------------------------------
