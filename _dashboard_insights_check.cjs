@@ -75,14 +75,18 @@ const CASE_ID = process.env.CASE_ID || 'ANV-2026-0019';
       chips: document.querySelectorAll('#case-level-chips .case-level-chip').length,
     }));
 
-    // 3b. The case overview (parties + narrative).
+    // 3b. Case at a glance (pictorial summary — the text "The case —
+    // what it is about" section was removed at the user's request).
     await page.waitForFunction(() =>
-      document.querySelectorAll('#case-level-overview .ov-party').length > 0,
+      document.querySelectorAll('#case-level-glance .gp-avatar').length > 0,
       { timeout: 15000 });
-    out.checks.overview = await page.evaluate(() => ({
-      parties: [...document.querySelectorAll('#case-level-overview .ov-party')]
-        .map((e) => e.textContent.trim()).slice(0, 6),
-      narrative: (document.querySelector('#case-level-overview .ov-narrative')?.textContent || '').slice(0, 100),
+    out.checks.glance = await page.evaluate(() => ({
+      avatars: document.querySelectorAll('#case-level-glance .gp-avatar').length,
+      tiles: document.querySelectorAll('#case-level-glance .glance-tile').length,
+      gauge: (document.querySelector('#case-level-glance .glance-gauge-label')?.textContent || '').trim(),
+      mapNodes: document.querySelectorAll('#case-level-glance .gmap-node').length,
+      mapLinks: document.querySelectorAll('#case-level-glance .gmap-link').length,
+      overviewRemoved: !document.getElementById('case-level-overview'),
     }));
 
     // 3c. Articles that apply + doctrines.

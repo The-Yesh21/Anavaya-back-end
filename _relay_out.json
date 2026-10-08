@@ -1,0 +1,266 @@
+{
+  "relayOnlyClient": "C",
+  "clients": {
+    "A": {
+      "colour": "red",
+      "name": "Alice Judge",
+      "result": {
+        "tiles": [
+          {
+            "pid": "p_bfbadefc",
+            "name": "Alice Judge (you)",
+            "colour": [
+              254,
+              0,
+              0
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              254,
+              0,
+              0
+            ]
+          },
+          {
+            "pid": "p_050faa50",
+            "name": "Bob Prosecutor",
+            "colour": [
+              0,
+              255,
+              2
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              0,
+              255,
+              2
+            ]
+          },
+          {
+            "pid": "p_f471c004",
+            "name": "Carol Witness",
+            "colour": [
+              0,
+              0,
+              253
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              0,
+              0,
+              253
+            ]
+          }
+        ],
+        "pcs": [
+          {
+            "conn": "connected",
+            "ice": "connected"
+          },
+          {
+            "conn": "connected",
+            "ice": "connected"
+          }
+        ],
+        "relayOnly": false,
+        "notice": {
+          "present": true,
+          "hidden": true,
+          "shown": false,
+          "text": "",
+          "retry": true
+        }
+      },
+      "pageErrors": []
+    },
+    "B": {
+      "colour": "green",
+      "name": "Bob Prosecutor",
+      "result": {
+        "tiles": [
+          {
+            "pid": "p_050faa50",
+            "name": "Bob Prosecutor (you)",
+            "colour": [
+              0,
+              255,
+              2
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              0,
+              255,
+              2
+            ]
+          },
+          {
+            "pid": "p_bfbadefc",
+            "name": "Alice Judge",
+            "colour": [
+              254,
+              0,
+              0
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              254,
+              0,
+              0
+            ]
+          },
+          {
+            "pid": "p_f471c004",
+            "name": "Carol Witness",
+            "colour": [
+              0,
+              0,
+              253
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              0,
+              0,
+              253
+            ]
+          }
+        ],
+        "pcs": [
+          {
+            "conn": "connected",
+            "ice": "connected"
+          },
+          {
+            "conn": "connected",
+            "ice": "connected"
+          }
+        ],
+        "relayOnly": false,
+        "notice": {
+          "present": true,
+          "hidden": true,
+          "shown": false,
+          "text": "",
+          "retry": true
+        }
+      },
+      "pageErrors": []
+    },
+    "C": {
+      "colour": "blue",
+      "name": "Carol Witness",
+      "result": {
+        "tiles": [
+          {
+            "pid": "p_f471c004",
+            "name": "Carol Witness (you)",
+            "colour": [
+              0,
+              0,
+              253
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              0,
+              0,
+              253
+            ]
+          },
+          {
+            "pid": "p_bfbadefc",
+            "name": "Alice Judge",
+            "colour": [
+              254,
+              0,
+              0
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              254,
+              0,
+              0
+            ]
+          },
+          {
+            "pid": "p_050faa50",
+            "name": "Bob Prosecutor",
+            "colour": [
+              0,
+              255,
+              2
+            ],
+            "w": 320,
+            "chip": "",
+            "chipShown": false,
+            "classes": [],
+            "colour2": [
+              0,
+              255,
+              2
+            ]
+          }
+        ],
+        "pcs": [
+          {
+            "conn": "connected",
+            "ice": "connected"
+          },
+          {
+            "conn": "connected",
+            "ice": "connected"
+          }
+        ],
+        "relayOnly": true,
+        "notice": {
+          "present": true,
+          "hidden": true,
+          "shown": false,
+          "text": "No media connection with Bob Prosecutor — their video and voice can't reach you. Retrying through the relay; you can also try again.",
+          "retry": true
+        }
+      },
+      "pageErrors": []
+    }
+  },
+  "room": "4227",
+  "retry": {
+    "clicked": true,
+    "statesBefore": [
+      "stable",
+      "stable"
+    ],
+    "statesAfter": [
+      "stable",
+      "stable"
+    ],
+    "offersBefore": 4,
+    "offersAfter": 4,
+    "sentBefore": "{\"join\":1,\"sdp_offer\":4,\"ice_candidate\":16}",
+    "sentAfter": "{\"join\":1,\"sdp_offer\":4,\"ice_candidate\":16}",
+    "toast": "Joined as Witness 1",
+    "noticeShown": false
+  }
+}

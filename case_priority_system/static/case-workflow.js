@@ -194,8 +194,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = $("case-wizard-modal");
     const createBtn = $("create-case-btn");
     let currentWorkspaceCaseId = null;
-    // "About this case" gist for the case open in the workspace (see
-    // renderCaseOverview) — captured from the whole-case analysis payload.
+    // "About this case" gist for the case open in the workspace — rendered
+    // as the lead .cl-case-desc block of #case-level-narrative; captured
+    // from the whole-case analysis payload.
     let currentCaseGist = "";
 
     function openWizard() {
@@ -435,21 +436,20 @@ document.addEventListener("DOMContentLoaded", () => {
         // "What is this case about" — distilled from the documents' own
         // summaries (allegations, amount in dispute, parties). Deterministic.
         currentCaseGist = cl.case_gist || "";
-        $("case-level-narrative").textContent = (cl.features && cl.features.plain_summary) || cl.rationale || "";
-
-        // Merged classification chips.
-        const chipsEl = $("case-level-chips");
-        const f = cl.features || {};
-        chipsEl.innerHTML = [
-            ["Category", f.case_category],
-            ["Case type", f.crime_type],
-            ["Severity", f.severity],
-            ["Vulnerability", f.vulnerability],
-            ["Influence", f.influence],
-            ["Parties", f.main_parties],
-        ].filter(([, v]) => v).map(([label, v]) =>
-            `<span class="case-level-chip"><strong>${esc(label)}:</strong> ${esc(String(v))}</span>`
-        ).join("");
+        // Lead with the plain-language description of the case (what it is,
+        // who alleges what, amount in dispute); the audit-style merge
+        // narrative is demoted to a secondary paragraph below it. The
+        // reader's first question is "what is this case", not "how were
+        // the features merged".
+        const narrativeEl = $("case-level-narrative");
+        const auditNarrative = (cl.features && cl.features.plain_summary) || cl.rationale || "";
+        if (currentCaseGist && auditNarrative && currentCaseGist !== auditNarrative) {
+            narrativeEl.innerHTML =
+                `<span class="cl-case-desc">${esc(currentCaseGist)}</span>` +
+                `<span class="cl-merge-audit">${esc(auditNarrative)}</span>`;
+        } else {
+            narrativeEl.textContent = currentCaseGist || auditNarrative;
+        }
 
         // Corroboration map.
         const corrEl = $("case-level-corroboration");
@@ -484,6 +484,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // Articles that apply + doctrines (structured rule-based grounding).
         renderCaseArticles(con);
 
+        // Pictorial case summary (gauge + tiles + avatars + evidence map) —
+        // rendered straight from `cl`, so it shows even if the insights
+        // call below fails.
+        renderCaseGlance(cl);
+
         // PDF report link.
         const reportBtn = $("case-level-report-btn");
         reportBtn.href = `/api/cases/${encodeURIComponent(c.case_id)}/case-report.pdf`;
@@ -496,7 +501,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (res.ok) {
                 const data = await res.json();
                 if (currentWorkspaceCaseId !== c.case_id) return; // stale response guard
-                renderCaseOverview(data.overview || null, data.verdict || null);
                 renderEvidenceWeights(data.evidence || []);
                 renderCasePathTrace(data.path || null, cl.priority);
             }
@@ -505,36 +509,134 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
-    // "The case" overview: what the case is about, the parties, and the
-    // classification that feeds the Decision Tree (all from the merged
-    // whole-case features — the same facts the tree saw).
-    function renderCaseOverview(overview, verdict) {
-        const wrap = $("case-level-overview");
-        if (!wrap) return;
-        if (!overview) { wrap.innerHTML = ""; return; }
-        // Merged parties can arrive as one comma-joined string — show one chip each.
-        const rawParties = (overview.parties || [])
-            .flatMap((p) => String(p).split(","))
-            .map((p) => p.trim())
-            .filter(Boolean);
-        const parties = rawParties.map((p) => `<span class="ov-party">${esc(p)}</span>`).join("");
-        const chips = [
-            ["Category", overview.case_category],
-            ["Case type", overview.crime_type],
-            ["Evidence", overview.document_count ? `${overview.document_count} documents` : ""],
-            ["Priority", verdict && verdict.priority ? `${verdict.priority} Priority` : ""],
-        ].filter(([, v]) => v)
-            .map(([k, v]) => `<span class="ov-fact"><em>${esc(k)}:</em> ${esc(String(v))}</span>`)
-            .join("");
-        // The plain-language answer to "what is this case about": the gist
-        // distilled from the documents' summaries (fallbacks for older data).
-        const gist = overview.gist || (verdict && verdict.case_gist) || currentCaseGist
-            || overview.narrative || "";
+    // "Case at a glance" — pictorial summary so the reader gets the case
+    // without reading paragraphs: a priority gauge, semantic fact tiles,
+    // party avatars and the evidence-corroboration map. Deterministic:
+    // merged features + merge provenance + corroboration map only, no LLM.
+    // Replaces the old text "The case — what it is about" section.
+    function renderCaseGlance(cl) {
+        const wrap = $("case-level-glance");
+        if (!wrap || !cl) return;
+        const f = cl.features || {};
+        const mi = cl.merge_info || {};
+        const corr = cl.corroboration || {};
+        const pairs = corr.pairs || [];
+        const standalone = (corr.standalone || []).map((s) => s.filename).filter(Boolean);
+
+        const lvl = (v) => {
+            const s = String(v || "").trim().toLowerCase();
+            if (["fatal", "major", "high"].includes(s)) return "high";
+            if (["medium", "med", "minor"].includes(s)) return "med";
+            if (["low", "no injury", "none"].includes(s)) return "low";
+            return null;
+        };
+        const tile = (icon, label, value, level) => `
+            <div class="glance-tile">
+                <i data-lucide="${icon}"></i>
+                <span class="gt-text">
+                    <span class="gt-label">${esc(label)}</span>
+                    <span class="gt-value" title="${esc(String(value || "—"))}">${esc(String(value || "—"))}</span>
+                </span>
+                ${level ? `<span class="gt-dot lvl-${level}" title="${esc(level)} level"></span>` : ""}
+            </div>`;
+
+        // ---- Priority gauge: semicircle track, needle at Low/Medium/High ----
+        const prio = String(cl.priority || "").toLowerCase();
+        const active = ["low", "medium", "high"].includes(prio) ? prio : null;
+        const needleAt = { low: [18.4, 36], medium: [60, 12], high: [101.6, 36] }[active];
+        const seg = (cls, d, on) => `<path class="gseg ${cls}${on ? " on" : ""}" d="${d}"/>`;
+        const gauge = `
+            <svg viewBox="0 0 120 68" role="img" aria-label="${esc(cl.priority || "Priority")} priority gauge">
+                ${seg("gseg-low", "M12 60 A48 48 0 0 1 36 18.43", active === "low")}
+                ${seg("gseg-med", "M36 18.43 A48 48 0 0 1 84 18.43", active === "medium")}
+                ${seg("gseg-high", "M84 18.43 A48 48 0 0 1 108 60", active === "high")}
+                ${needleAt ? `<circle class="gneedle n-${active}" cx="${needleAt[0]}" cy="${needleAt[1]}" r="6"/>` : ""}
+            </svg>
+            <div class="glance-gauge-label">${cl.priority ? `${esc(cl.priority)} Priority` : "—"}</div>
+            <div class="glance-gauge-sub">whole-case verdict</div>`;
+
+        // ---- Fact tiles: the merged signals the Decision Tree saw ----
+        const docCount = mi.document_count || (cl.per_document || []).length;
+        const tiles = [
+            tile("briefcase", "Category", f.case_category, null),
+            tile("shield", "Case type", f.crime_type, null),
+            tile("triangle-alert", "Severity", f.severity, lvl(f.severity)),
+            tile("heart-handshake", "Vulnerability", f.vulnerability, lvl(f.vulnerability)),
+            tile("scale", "Influence", f.influence, lvl(f.influence)),
+            tile("file-text", "Evidence", docCount ? `${docCount} documents` : "", null),
+        ].join("");
+
+        // ---- Party avatars (initials + name, first 6 then a +N chip) ----
+        const partyList = String(f.main_parties || "").split(",")
+            .map((p) => p.trim()).filter(Boolean);
+        const shown = partyList.slice(0, 6);
+        const extra = partyList.length - shown.length;
+        const avatars = shown.map((p) => {
+            const initials = p.replace(/[^\p{L}\s]/gu, "").split(/\s+/)
+                .filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+            return `<span class="glance-party" title="${esc(p)}">
+                <span class="gp-avatar">${esc(initials || "?")}</span>
+                <span class="gp-name">${esc(p)}</span>
+            </span>`;
+        }).join("") + (extra > 0 ? `<span class="gp-more">+${extra} more</span>` : "");
+
+        // ---- Evidence-corroboration map: document nodes + shared-link lines ----
+        let docs = (cl.per_document || []).map((d) => d.filename).filter(Boolean);
+        if (!docs.length) {
+            const seen = new Set();
+            pairs.forEach((p) => { seen.add(p.a); seen.add(p.b); });
+            standalone.forEach((n) => seen.add(n));
+            docs = [...seen];
+        }
+        let mapHtml = "";
+        if (docs.length) {
+            const cols = Math.min(3, docs.length);
+            const rows = Math.ceil(docs.length / cols);
+            const NW = 148, NH = 26, GX = 14, GY = 22, PAD = 6;
+            const pos = {};
+            docs.forEach((name, i) => {
+                pos[name] = {
+                    x: PAD + (i % cols) * (NW + GX),
+                    y: PAD + Math.floor(i / cols) * (NH + GY),
+                };
+            });
+            const vbW = PAD * 2 + cols * NW + (cols - 1) * GX;
+            const vbH = PAD * 2 + rows * NH + (rows - 1) * GY;
+            const short = (n) => {
+                const stem = String(n).replace(/\.[a-z0-9]+$/i, "").replace(/_/g, " ");
+                return stem.length > 24 ? stem.slice(0, 23) + "…" : stem;
+            };
+            const lines = pairs.filter((p) => pos[p.a] && pos[p.b]).map((p) => {
+                const A = pos[p.a], B = pos[p.b];
+                const what = p.shared && p.shared.length ? `shared ${p.shared.join(", ")}` : "shared evidence";
+                return `<line class="gmap-link" x1="${A.x + NW / 2}" y1="${A.y + NH / 2}" x2="${B.x + NW / 2}" y2="${B.y + NH / 2}"><title>${esc(what)}</title></line>`;
+            }).join("");
+            const nodes = docs.map((name) => {
+                const p = pos[name];
+                const solo = standalone.includes(name);
+                const tip = name + (solo ? " — stands alone: no shared date, place or party" : "");
+                return `<g class="gmap-node${solo ? " solo" : ""}">
+                    <rect x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="7"/>
+                    <text x="${p.x + NW / 2}" y="${p.y + NH / 2 + 3.2}" text-anchor="middle">${esc((solo ? "⚠ " : "") + short(name))}</text>
+                    <title>${esc(tip)}</title>
+                </g>`;
+            }).join("");
+            mapHtml = `
+                <div class="glance-map">
+                    <div class="glance-map-head"><i data-lucide="link"></i>
+                        Evidence map — ${pairs.length} corroborating link${pairs.length === 1 ? "" : "s"} across ${docs.length} documents${standalone.length ? `, ${standalone.length} stands alone (⚠)` : ""}
+                    </div>
+                    <svg viewBox="0 0 ${vbW} ${vbH}" role="img" aria-label="Evidence corroboration map">${lines}${nodes}</svg>
+                </div>`;
+        }
+
         wrap.innerHTML = `
-            ${gist ? `<p class="ov-gist">${esc(gist)}</p>` : ""}
-            ${parties ? `<div class="ov-parties">${parties}</div>` : ""}
-            ${chips ? `<div class="ov-facts">${chips}</div>` : ""}
-        `;
+            <div class="glance-row">
+                <div class="glance-gauge">${gauge}</div>
+                <div class="glance-tiles">${tiles}</div>
+            </div>
+            ${avatars ? `<div class="glance-parties"><span class="gp-label">Parties on record</span>${avatars}</div>` : ""}
+            ${mapHtml}`;
     }
 
     // "Articles that apply": every engaged constitutional article with WHY it
