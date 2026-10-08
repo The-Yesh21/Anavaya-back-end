@@ -715,6 +715,16 @@
     color: var(--text-primary, #2A2620);
     margin: 0 0 12px;
 }
+/* The case description leads; the merge-audit inventory follows, quieter. */
+.case-level-narrative .cl-case-desc {
+    display: block;
+}
+.case-level-narrative .cl-merge-audit {
+    display: block;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--text-secondary, #55503F);
+}
 .case-level-chips {
     display: flex;
     flex-wrap: wrap;
@@ -1033,6 +1043,159 @@
 .ev-effect.lowered { background: rgba(124, 138, 90, 0.16); color: #5C6B3C; }
 .ev-effect.neutral { background: var(--bg-color, #EFEAD9); color: var(--text-secondary, #55503F); }
 .ev-effect.outcome { background: var(--gold-600, #A87E2F); color: #fff; }
+
+/* ---- Dark theme: semantic corrections --------------------------------
+   Surfaces/text flip automatically via tokens.css. The weight meter
+   colors, effect chips and article tags below are hardcoded
+   light-theme values that go dim/illegible on charcoal, so the dark
+   theme swaps them for the brighter semantic tokens. Light theme
+   unchanged; layout untouched. */
+:root[data-theme="dark"] .ev-bar-fill.high { background: var(--color-high); }
+:root[data-theme="dark"] .ev-bar-fill.mid { background: var(--color-medium); }
+:root[data-theme="dark"] .ev-bar-fill.low { background: var(--color-low); }
+:root[data-theme="dark"] .ev-weight-num.high { color: var(--color-high); }
+:root[data-theme="dark"] .ev-weight-num.mid { color: var(--color-medium); }
+:root[data-theme="dark"] .ev-weight-num.low { color: var(--color-low); }
+:root[data-theme="dark"] .ev-effect.raised { background: var(--color-high-bg); color: var(--color-high); }
+:root[data-theme="dark"] .ev-effect.lowered { background: var(--color-low-bg); color: var(--color-low); }
+:root[data-theme="dark"] .ev-article-tag { background: var(--color-accent); color: var(--color-accent-fg); }
+
+/* ---- Case at a glance (pictorial summary) ---------------------------- */
+.case-level-glance {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 12px;
+    background: var(--bg-well, #F6F1E6);
+    border: 1px solid var(--border-color, #E5E0D4);
+    border-radius: 12px;
+}
+.glance-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.glance-gauge { flex: none; text-align: center; }
+.glance-gauge svg { width: 138px; height: 78px; display: block; }
+.glance-gauge-label { font-size: 13.5px; font-weight: 800; color: var(--text-primary, #2B2620); }
+.glance-gauge-sub {
+    font-size: 9.5px;
+    color: var(--text-muted, #8B8471);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.gseg { fill: none; stroke-width: 9; stroke-linecap: round; opacity: 0.22; }
+.gseg.on { opacity: 1; }
+.gseg-low { stroke: var(--color-low, #4E7A66); }
+.gseg-med { stroke: var(--color-medium, #C25606); }
+.gseg-high { stroke: var(--color-high, #B3402E); }
+.gneedle { stroke: var(--bg-well, #F6F1E6); stroke-width: 2; }
+.gneedle.n-low { fill: var(--color-low, #4E7A66); }
+.gneedle.n-medium { fill: var(--color-medium, #C25606); }
+.gneedle.n-high { fill: var(--color-high, #B3402E); }
+
+.glance-tiles {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
+    min-width: 0;
+}
+.glance-tile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 9px;
+    background: var(--surface-color, #FFFCF5);
+    border: 1px solid var(--border-color, #E5E0D4);
+    border-radius: 9px;
+}
+.glance-tile i { width: 15px; height: 15px; flex: none; color: var(--gold-600, #A87E2F); }
+.gt-text { min-width: 0; }
+.gt-label {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted, #8B8471);
+}
+.gt-value {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-primary, #2B2620);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gt-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; margin-left: auto; }
+.gt-dot.lvl-high { background: var(--color-high, #B3402E); }
+.gt-dot.lvl-med { background: var(--color-medium, #C25606); }
+.gt-dot.lvl-low { background: var(--color-low, #4E7A66); }
+
+.glance-parties {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    border-top: 1px dashed var(--border-color, #E5E0D4);
+    padding-top: 10px;
+}
+.gp-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #8B8471);
+}
+.glance-party { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.gp-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 800;
+    background: var(--color-accent, #F7EFDC);
+    color: var(--color-accent-fg, #6B5016);
+    border: 1px solid var(--border-color, #E5E0D4);
+    flex: none;
+}
+.gp-name {
+    font-size: 11.5px;
+    color: var(--text-secondary, #55503F);
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gp-more { font-size: 11px; font-weight: 700; color: var(--text-muted, #8B8471); }
+
+.glance-map { border-top: 1px dashed var(--border-color, #E5E0D4); padding-top: 10px; }
+.glance-map-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary, #55503F);
+    margin-bottom: 6px;
+}
+.glance-map-head i { width: 13px; height: 13px; flex: none; color: var(--gold-600, #A87E2F); }
+.glance-map svg { width: 100%; height: auto; display: block; }
+.gmap-link { stroke: var(--gold-500, #C9A24B); stroke-width: 1.6; opacity: 0.8; }
+.gmap-node rect {
+    fill: var(--surface-color, #FFFCF5);
+    stroke: var(--border-color, #E5E0D4);
+    stroke-width: 1;
+}
+.gmap-node.solo rect { stroke: var(--color-medium, #C25606); stroke-dasharray: 4 3; }
+.gmap-node text { font-size: 9.5px; fill: var(--text-secondary, #55503F); }
+.gmap-node.solo text { fill: var(--color-medium, #C25606); }
+
+@media (max-width: 700px) {
+    .glance-row { justify-content: center; }
+    .glance-tiles { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); width: 100%; }
+}
 .ev-step-cond {
     font-size: 12px;
     color: var(--text-secondary, #55503F);
