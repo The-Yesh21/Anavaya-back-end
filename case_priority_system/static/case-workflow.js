@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     UI.selectCaseFn(row);
                 } else {
                     UI.setCurrentCaseId(li.getAttribute("data-case"));
-                    alert("This document has not been analysed yet — open the case and run “Analyze All Documents” from the Case tab.");
+                    alert("This document has not been analysed yet — open the case and run “Analyze the evidence” from the Case tab.");
                 }
                 // Keep the Case workspace + Chakshu badge on the same case.
                 const docCaseId = li.getAttribute("data-case");
@@ -300,6 +300,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // State-aware workspace action button: analyse when there is new or
+    // missing work, otherwise jump to the results. Deterministic — read
+    // straight off the case payload (per-document priority/analysis + the
+    // persisted whole-case verdict).
+    //   • no documents / un-analysed docs  → “Analyze …”
+    //   • every document analysed + verdict → “View the analysis”
+    let lastWorkspaceCase = null;
+    // A document counts as analysed only when it carries a verdict AND real
+    // extracted features — fresh uploads have `analysis: {}`, which is
+    // truthy in JavaScript and would otherwise hide the pending state.
+    const docAnalysed = (d) => !!(d && d.priority && d.analysis && Object.keys(d.analysis).length);
+    function setWorkspaceAction(c) {
+        lastWorkspaceCase = c;
+        const btn = $("workspace-analyze-btn");
+        if (!btn) return;
+        const docs = (c && c.documents) || [];
+        const pending = docs.filter((d) => !docAnalysed(d)).length;
+        const verdictReady = !!(c && c.case_level && c.case_level.priority);
+        let action = "analyze";
+        let label = '<i data-lucide="sparkles"></i> Analyze All Documents';
+        if (docs.length && pending > 0) {
+            label = '<i data-lucide="sparkles"></i> Analyze the evidence';
+        } else if (docs.length && !pending && verdictReady) {
+            action = "view";
+            label = '<i data-lucide="file-search"></i> View the analysis';
+        }
+        btn.dataset.action = action;
+        btn.innerHTML = label;
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
     function renderCaseWorkspace(c) {
         $("workspace-title").textContent = c.title || c.case_id;
         $("workspace-case-id").textContent = c.case_id;
@@ -309,9 +340,24 @@ document.addEventListener("DOMContentLoaded", () => {
         prioEl.className = `priority-pill ${prioClass(prio)}`;
         prioEl.textContent = prio ? `${prio} Priority` : "Not Analysed";
         const docs = c.documents || [];
-        $("workspace-rationale").textContent = c.aggregate_rationale || (docs.length
-            ? "Documents uploaded — run “Analyze All Documents” to compute the case priority."
-            : "No documents yet — upload evidence to get a priority assessment.");
+        // Status line follows the analysis state (same rules as the action
+        // button below): new evidence first, then the stored rationale.
+        const pendingDocs = docs.filter((d) => !docAnalysed(d)).length;
+        const verdictReady = !!(c.case_level && c.case_level.priority);
+        if (pendingDocs > 0) {
+            $("workspace-rationale").textContent = verdictReady
+                ? `${pendingDocs} new document${pendingDocs === 1 ? "" : "s"} on record — run “Analyze the evidence” to update the verdict.`
+                : `${pendingDocs} document${pendingDocs === 1 ? "" : "s"} awaiting analysis — run “Analyze the evidence” to compute the case priority.`;
+        } else if (c.aggregate_rationale) {
+            $("workspace-rationale").textContent = c.aggregate_rationale;
+        } else if (!docs.length) {
+            $("workspace-rationale").textContent = "No documents yet — upload evidence to get a priority assessment.";
+        } else if (verdictReady) {
+            $("workspace-rationale").textContent = "All evidence analysed — use “View the analysis” to review the whole-case verdict.";
+        } else {
+            $("workspace-rationale").textContent = "All documents analysed — run “Analyze All Documents” to compute the whole-case verdict.";
+        }
+        setWorkspaceAction(c);
         $("workspace-doc-count").textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
         const docListEl = $("workspace-doc-list");
         if (!docs.length) {
@@ -889,9 +935,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Analyze every document of the open case, then refresh the workspace.
+    // When everything is already analysed (button state "view") it opens
+    // the Analysis tab instead of re-running the pipeline.
     $("workspace-analyze-btn").addEventListener("click", async () => {
         if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
         const btn = $("workspace-analyze-btn");
+        if (btn.dataset.action === "view") {
+            const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+            if (analysisTabBtn) analysisTabBtn.click();
+            const panel = document.getElementById("analysis-whole-case");
+            if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
         btn.disabled = true;
         btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Analyzing…';
         if (typeof lucide !== "undefined") lucide.createIcons();
@@ -927,7 +982,9 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Analysis failed: " + err.message);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="sparkles"></i> Analyze All Documents';
+            // Re-render from the latest state (the try block refreshed
+            // lastWorkspaceCase) so the label is never stale.
+            setWorkspaceAction(lastWorkspaceCase);
             if (typeof lucide !== "undefined") lucide.createIcons();
         }
     });
