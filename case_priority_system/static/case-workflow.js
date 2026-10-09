@@ -140,6 +140,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 } catch (_) { /* non-fatal */ }
                 // Evidence analysed → open the case verdict. Nothing analysed yet
                 // → stay on the Case tab so the officer can upload + run it.
+                // Selecting the case's WHOLE-CASE Excel row is what feeds the
+                // Decision Tree tab: without it `selectedCase` stays null and
+                // the tree draws no active path / shows no case priority.
+                if (hasAnalysis) {
+                    const row = UI.getCasesData().find((r) =>
+                        r.Case_ID === caseId &&
+                        String(r.Document_Type || "").toLowerCase() === "whole case");
+                    if (row) UI.selectCaseFn(row);
+                }
                 const tabBtn = document.querySelector(
                     `.tab-btn[data-tab='${hasAnalysis ? "details-tab" : "case-tab"}']`);
                 if (tabBtn) tabBtn.click();

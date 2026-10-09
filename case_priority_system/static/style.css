@@ -1317,6 +1317,23 @@ body::before {
     backdrop-filter: blur(8px);
     box-shadow: var(--shadow-soft);
     font-family: var(--font-heading);
+    /* Case name + priority badge: never wider than the canvas it sits in. */
+    max-width: calc(100% - 32px);
+    overflow-wrap: anywhere;
+}
+
+/* The active case's verdict, shown next to the case name in the tree banner. */
+.banner-priority-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+    padding: 2px 12px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    vertical-align: middle;
 }
 
 #tree-svg {
