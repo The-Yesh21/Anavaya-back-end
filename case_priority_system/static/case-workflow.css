@@ -1181,7 +1181,10 @@
     margin-bottom: 6px;
 }
 .glance-map-head i { width: 13px; height: 13px; flex: none; color: var(--gold-600, #A87E2F); }
-.glance-map svg { width: 100%; height: auto; display: block; }
+/* lucide.createIcons() replaces the <i data-lucide> with an <svg> — size it
+   explicitly so the map's width:100% rule below can never catch the icon. */
+.glance-map-head svg { width: 13px; height: 13px; flex: none; color: var(--gold-600, #A87E2F); }
+.glance-map > svg { width: 100%; height: auto; display: block; }
 .gmap-link { stroke: var(--gold-500, #C9A24B); stroke-width: 1.6; opacity: 0.8; }
 .gmap-node rect {
     fill: var(--surface-color, #FFFCF5);
