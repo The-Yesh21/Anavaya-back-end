@@ -1,7 +1,6 @@
 // =====================================================================
 // ANAVAYA CASE WORKFLOW MODULE
-// Create New Case wizard · Cases registry · Chakshu speech-to-text
-// transcript · Evidence fact-checking
+// Create New Case wizard · Cases registry · case workspace
 //
 // Loaded after app.js. Communicates with the dashboard through the
 // window.AnavayaUI bridge defined inside app.js's main closure.
@@ -128,7 +127,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 expandedCaseId = expandedCaseId === caseId ? null : caseId;
                 UI.setCurrentCaseId(caseId);
                 renderRegistry();
-                updateTranscriptCaseBadge();
                 await openCaseWorkspace(caseId);
                 let hasAnalysis = false;
                 try {
@@ -166,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     UI.setCurrentCaseId(li.getAttribute("data-case"));
                     alert("This document has not been analysed yet — open the case and run “Analyze the evidence” from the Case tab.");
                 }
-                // Keep the Case workspace + Chakshu badge on the same case.
+                // Keep the Case workspace on the same case.
                 const docCaseId = li.getAttribute("data-case");
                 if (docCaseId) openCaseWorkspace(docCaseId);
                 // Clicking a document takes the officer straight to the case's
@@ -174,27 +172,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 // weights and the Decision Tree path underneath.
                 const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
                 if (analysisTabBtn) analysisTabBtn.click();
-                updateTranscriptCaseBadge();
             });
         });
     }
 
     const refreshCasesBtn = $("refresh-cases-btn");
     if (refreshCasesBtn) refreshCasesBtn.addEventListener("click", () => fetchRegistry());
-
-    function updateTranscriptCaseBadge() {
-        const badge = $("transcript-case-badge");
-        const id = UI.getCurrentCaseId();
-        if (!badge) return;
-        if (id) {
-            badge.style.display = "inline-block";
-            badge.textContent = `Case ${id}`;
-        } else {
-            badge.style.display = "none";
-        }
-        const runBtn = $("run-factcheck-btn");
-        if (runBtn) runBtn.disabled = !id;
-    }
 
     // =================================================================
     // 2. CREATE NEW CASE (single step: name OR FIR OR auto-assigned ID)
@@ -291,7 +274,6 @@ document.addEventListener("DOMContentLoaded", () => {
     async function openCaseWorkspace(caseId) {
         currentWorkspaceCaseId = caseId;
         UI.setCurrentCaseId(caseId);
-        updateTranscriptCaseBadge();
         $("case-workspace-empty").style.display = "none";
         $("case-workspace").style.display = "block";
         try {
@@ -999,285 +981,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // =================================================================
-    // 3. CHAKSHU SPEECH-TO-TEXT TRANSCRIPT
-    // =================================================================
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const speechStatus = $("speech-status");
-    const transcriptEl = $("chakshu-transcript");
-    const listeningBtn = $("toggle-listening-btn");
-    const listeningLabel = $("listening-label");
-    const askBtn = $("ask-question-btn");
-    const questionInput = $("examiner-question");
-    const typedInput = $("typed-statement-input");
-    const typedAddBtn = $("add-typed-statement-btn");
-    const runFactCheckBtn = $("run-factcheck-btn");
-    const factCheckPanel = $("factcheck-panel");
-    const downloadDossierBtn = $("download-dossier-btn");
-
-    let recognition = null;
-    let listening = false;
-    let currentAnswer = "";   // accumulated speech since last question
-    let sessionEntries = [];  // {role, text, ts, arousal}
-
-    function nowTime() {
-        const d = new Date();
-        return d.toTimeString().slice(0, 8);
-    }
-    function currentArousal() {
-        const el = $("deception-gauge-value");
-        if (!el) return null;
-        const v = parseInt((el.textContent || "0").replace(/\D/g, ""), 10);
-        return Number.isFinite(v) ? v : null;
-    }
-    function renderTranscript() {
-        if (!transcriptEl) return;
-        if (!sessionEntries.length) {
-            transcriptEl.innerHTML = '<div class="transcript-empty">Start a session, ask a question, and the subject\'s spoken answer will appear here.</div>';
-            return;
-        }
-        transcriptEl.innerHTML = sessionEntries.map((e) => {
-            const isExaminer = e.role === "examiner";
-            return `
-            <div class="chakshu-entry ${isExaminer ? "examiner" : "witness"}">
-                <span class="chakshu-entry-role">${isExaminer ? "Examiner" : "Witness"}</span>
-                <p>${esc(e.text)}</p>
-                <span class="chakshu-entry-meta">${esc(e.ts)}${e.arousal != null ? " · arousal " + e.arousal + "%" : ""}</span>
-            </div>`;
-        }).join("");
-    }
-    function pushEntry(role, text) {
-        const t = (text || "").trim();
-        if (!t) return;
-        sessionEntries.push({ role, text: t, ts: nowTime(), arousal: role === "witness" ? currentArousal() : null });
-        renderTranscript();
-    }
-
-    // --- speech recognition setup ------------------------------------
-    if (!SpeechRecognition) {
-        if (speechStatus) speechStatus.textContent = "Speech-to-text unavailable in this browser — use the typed fallback below (Chrome recommended).";
-        if (listeningBtn) listeningBtn.disabled = true;
-    } else {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-IN";
-
-        recognition.onresult = (event) => {
-            let interim = "";
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const r = event.results[i];
-                if (r.isFinal) currentAnswer += (currentAnswer ? " " : "") + r[0].transcript;
-                else interim += r[0].transcript;
-            }
-            if (interim && speechStatus) speechStatus.textContent = `Listening… “${interim}”`;
-        };
-        recognition.onerror = (event) => {
-            if (speechStatus) speechStatus.textContent = `Speech error: ${event.error} — use the typed fallback.`;
-            listening = false;
-            if (listeningLabel) listeningLabel.textContent = "Start Listening";
-            if (listeningBtn) listeningBtn.classList.remove("active");
-        };
-        recognition.onend = () => {
-            listening = false;
-            if (listeningLabel) listeningLabel.textContent = "Start Listening";
-            if (listeningBtn) listeningBtn.classList.remove("active");
-            // Finalize any captured speech so it is never silently lost.
-            if (currentAnswer.trim()) { pushEntry("witness", currentAnswer); currentAnswer = ""; }
-            if (speechStatus) speechStatus.textContent = "Listening stopped. Transcript captured so far.";
-        };
-    }
-
-    function toggleListening() {
-        if (!recognition) { alert("Speech-to-text is not supported in this browser."); return; }
-        if (!window.webcamStream) {
-            alert("Start the camera stream first (Initialize Camera Stream), then begin listening.");
-            return;
-        }
-        if (listening) {
-            recognition.stop();
-            listening = false;
-            if (listeningLabel) listeningLabel.textContent = "Start Listening";
-            listeningBtn.classList.remove("active");
-            if (currentAnswer.trim()) { pushEntry("witness", currentAnswer); currentAnswer = ""; }
-        } else {
-            currentAnswer = "";
-            try { recognition.start(); } catch (e) { /* already started */ }
-            listening = true;
-            if (listeningLabel) listeningLabel.textContent = "Stop Listening";
-            listeningBtn.classList.add("active");
-            if (speechStatus) speechStatus.textContent = "Listening… speak clearly.";
-        }
-    }
-    if (listeningBtn) listeningBtn.addEventListener("click", toggleListening);
-    if (listeningBtn) listeningBtn.disabled = false; // enabled; guard happens on click
-
-    // Ask a question: the examiner line goes FIRST so the fact-check engine can
-    // attach the question's date context to the witness answer that follows it.
-    if (askBtn) askBtn.addEventListener("click", () => {
-        const q = questionInput.value.trim();
-        if (!q) { questionInput.focus(); return; }
-        pushEntry("examiner", q);
-        questionInput.value = "";
-        if (currentAnswer.trim()) { pushEntry("witness", currentAnswer); currentAnswer = ""; }
-    });
-    questionInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); askBtn.click(); }
-    });
-
-    // Typed fallback for witness statements
-    if (typedAddBtn) typedAddBtn.addEventListener("click", () => {
-        const t = typedInput.value.trim();
-        if (!t) return;
-        pushEntry("witness", t);
-        typedInput.value = "";
-    });
-    typedInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); typedAddBtn.click(); }
-    });
-
-    // --- save session when the analysis stops --------------------------
-    async function saveSession() {
-        const caseId = UI.getCurrentCaseId();
-        if (!caseId) {
-            alert("Select a case first (Cases list or create a new case) so the session can be attached to it.");
-            return;
-        }
-        if (currentAnswer.trim()) { pushEntry("witness", currentAnswer); currentAnswer = ""; }
-        if (!sessionEntries.length) {
-            alert("No transcript captured for this session.");
-            return;
-        }
-        const summary = UI.getSessionSummary();
-        const payload = {
-            physio: summary,
-            transcript: sessionEntries,
-        };
-        try {
-            const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/sessions`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.detail || "Session save failed");
-            }
-            runFactCheckBtn.disabled = false;
-            if (speechStatus) speechStatus.textContent = "Session saved to case — you can now run the evidence fact-check.";
-            fetchRegistry();
-        } catch (err) {
-            alert("Session save failed: " + err.message);
-        }
-    }
-    UI.onSessionStopped = saveSession;
-
-    // Clear transcript state when the officer resets the session.
-    UI.onSessionReset = () => {
-        sessionEntries = [];
-        currentAnswer = "";
-        renderTranscript();
-        if (speechStatus) speechStatus.textContent = "Transcript cleared. Start a new session.";
-    };
-
-    // =================================================================
-    // 4. EVIDENCE FACT-CHECK
-    // =================================================================
-    function renderFactCheck(report) {
-        factCheckPanel.style.display = "block";
-        const s = report.summary || {};
-        const cred = s.credibility_index;
-        const summaryEl = $("factcheck-summary");
-        summaryEl.innerHTML = `
-            <div class="factcheck-summary-chips">
-                <span class="fc-chip fc-contradicted">⚠ Contradicted: <strong>${s.contradicted}</strong></span>
-                <span class="fc-chip fc-consistent">✓ Consistent: <strong>${s.consistent}</strong></span>
-                <span class="fc-chip fc-unverified">? Unverified: <strong>${s.unverified}</strong></span>
-                <span class="fc-chip fc-credibility">Credibility Index: <strong>${cred != null ? cred + "%" : "n/a"}</strong></span>
-            </div>
-            ${(s.contradicted || 0) > 0
-                ? `<p class="factcheck-warning">⚠ Fact-checking indicates <strong>${s.contradicted}</strong> statement(s) are lies / made-up — flagged below in red.</p>`
-                : `<p class="factcheck-ok">No contradictions found against the case documents.</p>`}`;
-
-        const verdictsEl = $("factcheck-verdicts");
-        if (!(report.verdicts || []).length) {
-            verdictsEl.innerHTML = `<div class="transcript-empty">No checkable claims (dates, places, events) were found in the transcript.</div>`;
-        } else {
-            // Group verdicts by the original statement so one sentence produces
-            // one card (with its sub-verdicts listed), not three cards.
-            const groups = [];
-            for (const v of report.verdicts) {
-                const last = groups[groups.length - 1];
-                if (last && last.claim === v.claim && last.timestamp === v.timestamp) {
-                    last.items.push(v);
-                } else {
-                    groups.push({ claim: v.claim, timestamp: v.timestamp, items: [v] });
-                }
-            }
-            const worst = (items) => {
-                if (items.some((v) => v.verdict === "contradicted")) return "contradicted";
-                if (items.some((v) => v.verdict === "consistent")) return "consistent";
-                return "unverified";
-            };
-            verdictsEl.innerHTML = groups.map((g) => {
-                const cls = worst(g.items);
-                const anyMadeUp = g.items.some((v) => v.made_up);
-                const rows = g.items.map((v) => {
-                    const ev = v.evidence || {};
-                    return `
-                    <div class="fc-subrow">
-                        <span class="fc-verdict-pill ${v.verdict}">${v.made_up ? "⚠ LIE" : v.verdict.toUpperCase()}</span>
-                        <span class="fc-claim-type">${esc(v.claim_type)}${v.negated ? " · negated" : ""}</span>
-                        <p class="fc-reason">${esc(v.reason)}</p>
-                        ${ev.document ? `<p class="fc-evidence"><strong>Evidence:</strong> ${esc(ev.document)} — “${esc(ev.excerpt)}”</p>` : ""}
-                    </div>`;
-                }).join("");
-                return `
-                <div class="fc-verdict ${cls}">
-                    <div class="fc-verdict-head">
-                        <span class="fc-verdict-pill ${cls}">${anyMadeUp ? "⚠ LIKELY MADE-UP / LIE" : cls.toUpperCase()}</span>
-                        <span class="fc-claim-type">${esc(g.timestamp || "")}</span>
-                    </div>
-                    <p class="fc-claim">“${esc(g.claim)}”</p>
-                    ${rows}
-                </div>`;
-            }).join("");
-        }
-        if (typeof lucide !== "undefined") lucide.createIcons();
-    }
-
-    if (runFactCheckBtn) runFactCheckBtn.addEventListener("click", async () => {
-        const caseId = UI.getCurrentCaseId();
-        if (!caseId) { alert("Select a case first."); return; }
-        runFactCheckBtn.disabled = true;
-        runFactCheckBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Fact-checking…';
-        if (typeof lucide !== "undefined") lucide.createIcons();
-        try {
-            const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/fact-check`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: "{}",
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.detail || "Fact-check failed");
-            }
-            const report = await res.json();
-            renderFactCheck(report);
-            downloadDossierBtn.style.display = "inline-flex";
-            downloadDossierBtn.onclick = () => {
-                window.location.href = `/api/cases/${encodeURIComponent(caseId)}/dossier`;
-            };
-            fetchRegistry();
-        } catch (err) {
-            alert("Fact-check failed: " + err.message);
-        } finally {
-            runFactCheckBtn.disabled = false;
-            runFactCheckBtn.innerHTML = '<i data-lucide="search-check"></i> Run Fact-Check Against Documents';
-            if (typeof lucide !== "undefined") lucide.createIcons();
-        }
-    });
-
-    // =================================================================
     // 5. OLLAMA / GPU STATUS BADGE (header)
     // =================================================================
     async function loadGpuBadge() {
@@ -1322,6 +1025,5 @@ document.addEventListener("DOMContentLoaded", () => {
     // INIT
     // =================================================================
     fetchRegistry();
-    updateTranscriptCaseBadge();
     loadGpuBadge();
 });

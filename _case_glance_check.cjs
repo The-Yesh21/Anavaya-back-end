@@ -72,6 +72,11 @@ const isBaselineNoise = (e) => e.includes('favicon.ico');
         mapSolo: q('.gmap-node.solo'),
         mapLinks: q('.gmap-link'),
         mapHead: (g && g.querySelector('.glance-map-head')?.textContent || '').replace(/\s+/g, ' ').trim(),
+        // Rendered pixel sizes: the head icon must stay tiny even after
+        // lucide swaps <i data-lucide> for <svg> (regression: the generic
+        // .glance-map svg rule used to blow it up to full panel width).
+        mapIconW: (() => { const el = g && g.querySelector('.glance-map-head svg'); return el ? Math.round(el.getBoundingClientRect().width) : -1; })(),
+        mapSvgW: (() => { const el = g && g.querySelector('.glance-map > svg'); return el ? Math.round(el.getBoundingClientRect().width) : -1; })(),
         narrativeStillLeads: !!document.querySelector('#case-level-narrative .cl-case-desc'),
       };
     });
@@ -96,6 +101,10 @@ const isBaselineNoise = (e) => e.includes('favicon.ico');
       `nodes=${s.mapNodes} links=${s.mapLinks} solo=${s.mapSolo}`);
     check('map head states the link count',
       /4 corroborating links across 6 documents/.test(s.mapHead), s.mapHead);
+    check('map head link icon stays tiny after the lucide <i>→<svg> swap',
+      s.mapIconW > 0 && s.mapIconW <= 20, `icon=${s.mapIconW}px`);
+    check('map svg renders wide (icon must not steal its width:100%)',
+      s.mapSvgW >= 200 && s.mapSvgW > s.mapIconW * 5, `map=${s.mapSvgW}px icon=${s.mapIconW}px`);
     check('case description still leads the narrative', s.narrativeStillLeads);
 
     await page.locator('#analysis-whole-case').screenshot({ path: '_analysis_glance.png' });
