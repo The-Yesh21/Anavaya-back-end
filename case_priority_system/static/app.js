@@ -1068,12 +1068,24 @@ document.addEventListener("DOMContentLoaded", () => {
         
         svg.call(d3Zoom);
 
-        // Banner setup for active case
+        // Banner setup for active case (name + its Decision Tree verdict)
         const banner = document.getElementById("tree-legend-case-active");
         const bannerCaseName = document.getElementById("active-path-case-name");
+        const bannerPriority = document.getElementById("active-path-case-priority");
         if (selectedCase) {
             banner.style.display = "block";
             bannerCaseName.textContent = (selectedCase.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "Whole case: ").replace(/_/g, " ");
+            const prio = selectedCase.Predicted_Priority;
+            if (bannerPriority) {
+                if (prio) {
+                    // The case's actual verdict, coloured like every other badge.
+                    bannerPriority.style.display = "inline-flex";
+                    bannerPriority.className = `banner-priority-badge priority-pill ${String(prio).toLowerCase()}`;
+                    bannerPriority.textContent = `${prio} Priority`;
+                } else {
+                    bannerPriority.style.display = "none";
+                }
+            }
         } else {
             banner.style.display = "none";
         }
