@@ -691,9 +691,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Hide empty state and show details
+        // Hide empty state and show details — except when the selected row
+        // is the case's own [WHOLE CASE] row while the Whole-Case Analysis
+        // block is on screen: that panel would just repeat the same verdict,
+        // parties and PDF report a second time. Individual documents still
+        // get their evidence-level detail view.
         noCaseSelectedEl.style.display = "none";
-        caseDetailsContentEl.style.display = "flex";
+        const wholeCasePanel = document.getElementById("analysis-whole-case");
+        const wholeCaseShown = wholeCasePanel && wholeCasePanel.style.display !== "none";
+        const isWholeCaseRow = /\[WHOLE CASE\]/i.test(c.Case_File || "");
+        caseDetailsContentEl.style.display = (isWholeCaseRow && wholeCaseShown) ? "none" : "flex";
 
         // Set Details Values
         document.getElementById("case-title-name").textContent = (c.Case_File || "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
