@@ -202,7 +202,6 @@
                     <button class="tab-btn active" data-tab="case-tab" role="tab" id="tab-case" aria-controls="case-tab" aria-selected="true"><i data-lucide="folder-kanban"></i> Case</button>
                     <button class="tab-btn" data-tab="details-tab" role="tab" id="tab-details" aria-controls="details-tab" aria-selected="false"><i data-lucide="file-text"></i> Analysis</button>
                     <button class="tab-btn" data-tab="tree-tab" role="tab" id="tab-tree" aria-controls="tree-tab" aria-selected="false"><i data-lucide="git-branch"></i> Decision Tree</button>
-                    <button class="tab-btn" data-tab="lie-detector-tab" role="tab" id="tab-lie" aria-controls="lie-detector-tab" aria-selected="false"><i data-lucide="eye"></i> Chakshu</button>
                     <button class="tab-btn" data-tab="courtroom-tab" role="tab" id="tab-courtroom" aria-controls="courtroom-tab" aria-selected="false"><i data-lucide="gavel"></i> Courtroom</button>
                 </div>
 
@@ -263,7 +262,7 @@
                                     <ul id="workspace-pending-list" class="wizard-doc-list"></ul>
                                     <button class="lobby-create-btn" id="workspace-upload-btn" style="width:100%;" disabled><i data-lucide="upload"></i> Upload Evidence</button>
                                     <div id="workspace-upload-status" class="wizard-progress" aria-live="polite"></div>
-                                    <p class="wizard-hint">Add evidence to this case any time — it stays here until you run the analysis from the Case tab to compute the case priority. For lie-detection fact-checking against these documents, use the Chakshu tab.</p>
+                                    <p class="wizard-hint">Add evidence to this case any time — it stays here until you run the analysis from the Case tab to compute the case priority.</p>
                                 </div>
                             </div>
                         </div>
@@ -467,113 +466,6 @@
                                     <p>Click a node to inspect its decision rule in plain English.</p>
                                 </div>
                             </aside>
-                        </div>
-                    </div>
-
-                    <!-- Tab 3: Lie Detector (Chakshu) -->
-                    <div class="tab-content" id="lie-detector-tab" role="tabpanel" aria-labelledby="tab-lie">
-                        <div class="lie-detector-layout">
-                            <div class="video-panel">
-                                <div class="webcam-container">
-                                    <video id="webcam-feed" autoplay playsinline style="display: none;"></video>
-                                    <canvas id="mesh-overlay-canvas"></canvas>
-                                    <div class="calibration-overlay" id="calibration-overlay" style="display: none;">
-                                        <div class="calibration-crosshair">+</div>
-                                        <p id="calibration-text">Calibrating... Look at the crosshair</p>
-                                    </div>
-                                    <div class="camera-placeholder" id="camera-placeholder">
-                                        <div class="placeholder-icon"><i data-lucide="camera"></i></div>
-                                        <button class="action-btn" id="start-camera-btn"><i data-lucide="video"></i> Initialize Camera Stream</button>
-                                    </div>
-                                </div>
-                                <div class="stream-controls">
-                                    <button class="control-btn" id="start-analysis-btn" disabled><i data-lucide="play"></i> Start Stream Analysis</button>
-                                    <button class="control-btn stop" id="stop-analysis-btn" disabled><i data-lucide="square"></i> Stop & Score Session</button>
-                                    <button class="control-btn reset" id="reset-analysis-btn" disabled><i data-lucide="rotate-ccw"></i> Reset Session</button>
-                                </div>
-                            </div>
-                            
-                            <div class="analytics-panel">
-                                <div class="overall-gauge-card">
-                                    <h3>Cognitive Arousal Index</h3>
-                                    <div class="gauge-ring-container">
-                                        <svg class="gauge-ring" viewBox="0 0 120 120">
-                                            <circle class="gauge-ring-bg" cx="60" cy="60" r="50"></circle>
-                                            <circle class="gauge-ring-fill" id="deception-gauge-fill" cx="60" cy="60" r="50"></circle>
-                                        </svg>
-                                        <div class="gauge-value" id="deception-gauge-value">0%</div>
-                                    </div>
-                                    <div class="status-banner" id="session-status-banner">Ready for Baseline Calibration</div>
-                                </div>
-
-                                <div class="metrics-grid">
-                                    <div class="metric-card">
-                                        <span>Blink Rate (EAR)</span>
-                                        <strong id="metric-blink">0 bpm</strong>
-                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-blink" style="width: 0%;"></div></div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <span>Gaze Deviation (GDI)</span>
-                                        <strong id="metric-gaze">Neutral</strong>
-                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-gaze" style="width: 0%;"></div></div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <span>Micro-Expression Stress (MESI)</span>
-                                        <strong id="metric-stress">Low</strong>
-                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-stress" style="width: 0%;"></div></div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <span>Ocular Micro-Tremors</span>
-                                        <strong id="metric-tremor">0.00 Hz</strong>
-                                        <div class="metric-progress-bar"><div class="progress-fill" id="fill-tremor" style="width: 0%;"></div></div>
-                                    </div>
-                                </div>
-
-                                <div class="session-summary-card" id="session-summary-card" style="display: none;">
-                                    <h3>Session Summary Report</h3>
-                                    <div class="summary-details">
-                                        <p><strong>Duration:</strong> <span id="summary-duration">0s</span></p>
-                                        <p><strong>Blinks Counted:</strong> <span id="summary-blinks">0</span></p>
-                                        <p><strong>Gaze Avoidance Events:</strong> <span id="summary-gaze-avoid">0</span></p>
-                                        <p><strong>Micro-Facial Twitches:</strong> <span id="summary-twitches">0</span></p>
-                                        <p><strong>Overall Verdict:</strong> <span id="summary-verdict" class="verdict-pill text-low">Truthful</span></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Session Transcript (speech-to-text) -->
-                        <div class="session-transcript card">
-                            <div class="panel-header">
-                                <h2><i data-lucide="mic"></i> Session Transcript</h2>
-                                <span class="roster-count" id="transcript-case-badge" style="display:none;"></span>
-                            </div>
-                            <div class="transcript-toolbar">
-                                <input type="text" id="examiner-question" placeholder="Type the question you asked the subject… e.g. Did you travel on 12 June 2026?" maxlength="300" autocomplete="off">
-                                <button class="control-btn" id="ask-question-btn"><i data-lucide="message-circle-question"></i> Ask</button>
-                                <button class="control-btn stop" id="toggle-listening-btn" disabled><i data-lucide="mic"></i> <span id="listening-label">Start Listening</span></button>
-                            </div>
-                            <div class="transcript-typed-row">
-                                <input type="text" id="typed-statement-input" placeholder="Speech unavailable? Type the subject's statement here…" maxlength="300" autocomplete="off">
-                                <button class="control-btn" id="add-typed-statement-btn"><i data-lucide="type"></i> Add</button>
-                            </div>
-                            <div id="chakshu-transcript" class="chakshu-transcript" aria-live="polite">
-                                <div class="transcript-empty">Start a session, ask a question, and the subject's spoken answer will appear here.</div>
-                            </div>
-                            <p class="speech-status" id="speech-status">Speech-to-text idle — Chrome recommended.</p>
-                        </div>
-
-                        <!-- Evidence Fact-Check Panel -->
-                        <div class="factcheck-panel card" id="factcheck-panel" style="display: none;">
-                            <div class="panel-header">
-                                <h2><i data-lucide="badge-check"></i> Evidence Fact-Check</h2>
-                                <button class="link-btn" id="download-dossier-btn" style="display:none;"><i data-lucide="download"></i> Dossier</button>
-                            </div>
-                            <div class="factcheck-summary" id="factcheck-summary" aria-live="polite"></div>
-                            <div id="factcheck-verdicts" class="factcheck-verdicts"></div>
-                            <button class="control-btn" id="run-factcheck-btn" disabled>
-                                <i data-lucide="search-check"></i> Run Fact-Check Against Documents
-                            </button>
                         </div>
                     </div>
 
