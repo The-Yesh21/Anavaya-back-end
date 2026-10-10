@@ -188,7 +188,39 @@
 @utility glass-panel {
   background-color: var(--surface);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
+  box-shadow: 0 4px 20px -2px color-mix(in oklab, var(--primary) 6%, transparent);
+}
+
+@utility glass-panel-glow {
+  background-color: var(--surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in oklab, var(--primary) 35%, transparent);
+  box-shadow: 0 10px 36px -8px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+@utility glass-card {
+  background-color: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    border-color: color-mix(in oklab, var(--primary) 50%, transparent);
+    box-shadow: var(--shadow-gold);
+    transform: translateY(-2px);
+  }
+}
+
+@utility gold-glow {
+  box-shadow: 0 0 30px -4px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+
+@utility gold-border-subtle {
+  border: 1px solid color-mix(in oklab, var(--primary) 28%, transparent);
 }
 
 @utility text-gradient-gold {
