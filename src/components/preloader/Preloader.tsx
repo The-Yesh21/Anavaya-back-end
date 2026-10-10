@@ -287,8 +287,10 @@ export function Preloader() {
         </div>
 
         {/* Side rails: the judicial medallions stream bottom→up along both screen
-            edges, timed to arrive as "Anvaya" lands. They live inside the content
-            layer so they blur and fade out with the rest of the curtain. */}
+            edges, timed to arrive as "Anvaya" lands and looping from then on —
+            the right rail climbs at 1.5x the left, so the two edges never look
+            like one mirrored motion. They live inside the content layer, so they
+            blur and fade out with the rest of the curtain. */}
         <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           {[RAIL_LEFT, RAIL_RIGHT].map((rail, ri) => {
             const railStyle: React.CSSProperties = {

@@ -23,16 +23,28 @@ export const ANGLE = { lift: -14, strike: 34, rebound: 14, settle: 26 } as const
 // the stagger offset are derived below.
 export const RAIL_ITEMS = 5;
 
-/* ---------- Side-rail climb ---------- */
+/* ---------- Side-rail climb ----------
+   Each medallion starts just below the fold, climbs clean off the top, and the
+   tween then repeats for as long as the curtain is up — a continuous loop, not
+   a single pass. The two rails run at DIFFERENT speeds (the right one is 1.5x the
+   left), so they never read as one mirrored motion. */
 const RAIL = {
-  // Each medallion starts just below the fold and climbs clean off the top, so
-  // none of them pops into view mid-screen.
-  duration: 3.6,
-  stagger: 0.42,
-  // The right rail is offset by half a step so both sides don't pulse in lockstep.
-  farRailOffset: 0.21,
+  // A lap is just over a screen of travel, so these read as 0.57 and 0.85
+  // screens per second — brisk enough that a second medallion comes round while
+  // the curtain is still up, which is what makes the loop visible at all.
+  durationLeft: 2.0,
+  durationRight: 1.35,
+  // How far past the top edge a medallion travels before its lap restarts. It is
+  // what makes the loop seamless: the wrap happens while the medallion is off
+  // screen, so nobody sees it jump back to the bottom.
   overshoot: 260,
 } as const;
+
+// Where a medallion enters its rail, as a fraction of that rail's OWN cycle: one
+// fifth of the way in per item, so a full lap's worth of medallions is always in
+// flight and the chain never gaps between the last one leaving and the next
+// arriving.
+export const railPhaseStep = (duration: number) => (duration / RAIL_ITEMS) as number;
 
 export interface PreloaderRefs {
   root: RefObject<HTMLDivElement | null>;
@@ -143,8 +155,12 @@ export function usePreloaderTimeline(
         const travel = window.innerHeight + RAIL.overshoot;
         items.forEach((el, i) => {
           if (!el) return;
-          const onFarRail = i >= RAIL_ITEMS;
-          const step = (onFarRail ? i - RAIL_ITEMS : i) * RAIL.stagger;
+          const onRightRail = i >= RAIL_ITEMS;
+          const duration = onRightRail ? RAIL.durationRight : RAIL.durationLeft;
+          const step = (onRightRail ? i - RAIL_ITEMS : i) * railPhaseStep(duration);
+          // `repeat: -1` keeps the medallion coming round for the whole curtain;
+          // the tween is still kept OUT of the main timeline and killed on
+          // finish/skip/unmount (see railTweens).
           railTweens.current.push(
             gsap.fromTo(
               el,
@@ -152,10 +168,10 @@ export function usePreloaderTimeline(
               {
                 y: -travel,
                 opacity: 1,
-                duration: RAIL.duration,
+                duration,
                 ease: "none",
                 repeat: -1,
-                delay: step + (onFarRail ? RAIL.farRailOffset : 0),
+                delay: step,
               },
             ),
           );
@@ -196,7 +212,9 @@ export function usePreloaderTimeline(
       sweep(T.settle, 0.9);
       impact(T.strike1);
       impact(T.strike2);
-      tl.call(startRails, [], T.brandIn - 0.2);
+      // A touch earlier than "Anvaya" lands, so the first lap of each rail is
+      // already complete before the curtain starts fading (T.fadeOut).
+      tl.call(startRails, [], T.brandIn - 0.35);
 
       // 4. fade + open
       tl.to(r.skipBtn.current, { opacity: 0, duration: 0.3 }, T.fadeOut)
