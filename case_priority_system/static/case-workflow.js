@@ -521,6 +521,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // Articles that apply + doctrines (structured rule-based grounding).
         renderCaseArticles(con);
 
+        // Historical precedents on systemic delay & human/economic toll.
+        renderDelayPrecedents(cl.delay_precedents || [], cl.priority);
+
         // Pictorial case summary (gauge + tiles + avatars + evidence map) —
         // rendered straight from `cl`, so it shows even if the insights
         // call below fails.
@@ -540,6 +543,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (currentWorkspaceCaseId !== c.case_id) return; // stale response guard
                 renderEvidenceWeights(data.evidence || []);
                 renderCasePathTrace(data.path || null, cl.priority);
+                if (data.delay_precedents && data.delay_precedents.length) {
+                    renderDelayPrecedents(data.delay_precedents, cl.priority);
+                }
             }
         } catch (_) { /* sections keep their placeholder text */ }
 
@@ -706,6 +712,56 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div class="ev-doctrine"><strong>${esc(d.name || "")}</strong>${d.application ? ` — ${esc(d.application)}` : ""}</div>`).join("")}
             </div>` : "";
         wrap.innerHTML = rightsHtml + doctrinesHtml;
+    }
+
+    // Historical precedents on systemic delay & human/economic toll:
+    // Landmark cases where delay/ignorance destroyed lives, liberty, or fortunes.
+    function renderDelayPrecedents(items, priority) {
+        const wrap = $("case-level-delay-precedents");
+        if (!wrap) return;
+        if (!items || !items.length) {
+            wrap.innerHTML = `<div class="ev-empty">Historical precedents appear here once the case is analysed.</div>`;
+            return;
+        }
+        const prioCls = String(priority || "medium").toLowerCase();
+        const cards = items.map((p) => `
+            <div class="delay-precedent-card ${prioCls}">
+                <div class="dp-header">
+                    <div class="dp-title-row">
+                        <span class="dp-case-name">${esc(p.case_title || "")}</span>
+                        <span class="dp-citation">${esc(p.citation || "")}</span>
+                    </div>
+                    <div class="dp-court-meta">
+                        <span><i data-lucide="building-2"></i> ${esc(p.court || "")} (${esc(String(p.year || ""))})</span>
+                        <span class="dp-delay-pill"><i data-lucide="clock-alert"></i> ${esc(p.delay_period || "")}</span>
+                    </div>
+                </div>
+                <div class="dp-cost-banner">
+                    <span class="dp-cost-label">Cost of Delay:</span>
+                    <span class="dp-cost-val">${esc(p.cost_category || "")}</span>
+                </div>
+                <div class="dp-body">
+                    <div class="dp-row">
+                        <div class="dp-row-label">The Procedural Delay &amp; Inaction:</div>
+                        <div class="dp-row-text">${esc(p.factual_delay || "")}</div>
+                    </div>
+                    <div class="dp-row">
+                        <div class="dp-row-label">Human &amp; Economic Toll:</div>
+                        <div class="dp-row-text toll">${esc(p.human_or_economic_toll || "")}</div>
+                    </div>
+                    <div class="dp-row">
+                        <div class="dp-row-label">Supreme Court Ruling:</div>
+                        <div class="dp-row-text ruling">${esc(p.judicial_ruling || "")}</div>
+                    </div>
+                </div>
+                <div class="dp-mandate">
+                    <i data-lucide="shield-alert"></i>
+                    <span>${esc(p.priority_mandate || "")}</span>
+                </div>
+            </div>
+        `).join("");
+        wrap.innerHTML = cards;
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     // Per-evidence strength cards: what each document contributes to the
