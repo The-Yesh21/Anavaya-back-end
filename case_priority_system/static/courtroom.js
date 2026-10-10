@@ -89,6 +89,7 @@
         joinOverlay: $("join-overlay"),
         joinCaseTitle: $("join-case-title"),
         joinSubtitle: $("join-subtitle"),
+        joinCountdown: $("join-countdown"),
         rolePicker: $("role-picker"),
         joinForm: $("join-form"),
         joinName: $("join-name"),
@@ -321,8 +322,57 @@
         els.enterBtn.disabled = true;
         els.enterBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Connecting…';
         lucide.createIcons();
+        startJoinCountdown();
 
         await connectWebSocket(name, state.selectedRole);
+    }
+
+    // ====================================================================
+    // PRE-ENTRY COUNTDOWN
+    // ====================================================================
+    // The join card plays assets/courtroom-countdown.json (vendored lottie-web)
+    // while the WebSocket/WebRTC handshake completes, then the courtroom is
+    // revealed — the "taking your seat" moment before the trial opens. Purely
+    // cosmetic: if lottie or the JSON is unavailable the join proceeds as before.
+    const COUNTDOWN_MIN_MS = 1600;   // long enough for the animation to register
+    const COUNTDOWN_SPEED = 2.6;     // ~9.6s of animation at 60fps -> ~3.7s
+    let countdownStartedAt = 0;
+
+    function startJoinCountdown() {
+        const host = els.joinCountdown;
+        if (!host) return;
+        countdownStartedAt = Date.now();
+        host.hidden = false;
+        if (!host.__anim && window.lottie) {
+            try {
+                host.__anim = window.lottie.loadAnimation({
+                    container: host,
+                    renderer: "svg",
+                    loop: true,
+                    autoplay: true,
+                    path: "/assets/courtroom-countdown.json",
+                });
+                host.__anim.setSpeed(COUNTDOWN_SPEED);
+            } catch (err) {
+                // Decorative only — never block a join on the animation.
+                console.warn("Countdown animation unavailable:", err);
+            }
+        } else if (host.__anim) {
+            try { host.__anim.goToAndPlay(0, true); } catch (_) {}
+        }
+    }
+
+    function stopJoinCountdown() {
+        countdownStartedAt = 0;
+        const host = els.joinCountdown;
+        if (!host) return;
+        host.hidden = true;
+        if (host.__anim) { try { host.__anim.pause(); } catch (_) {} }
+    }
+
+    function countdownRemainingMs() {
+        if (!countdownStartedAt) return 0;
+        return Math.max(0, COUNTDOWN_MIN_MS - (Date.now() - countdownStartedAt));
     }
 
     // ====================================================================
@@ -412,7 +462,9 @@
                 break;
             }
             case "transcript_entry": {
-                appendTranscript(msg.entry);
+                // replaces_entry_id is set when the server folded this segment into
+                // the speaker's previous statement: same entry, completed sentence.
+                appendTranscript(msg.entry, true, msg.replaces_entry_id || "");
                 break;
             }
             case "phase_changed": {
@@ -1401,6 +1453,19 @@
     // RENDER
     // ====================================================================
     function enterCourtroom() {
+        // Give the pre-entry countdown its moment: it starts when Enter is
+        // pressed, and the handshake is usually faster than the minimum, so
+        // this wait is what actually makes the animation visible.
+        const wait = countdownRemainingMs();
+        if (wait > 0) {
+            setTimeout(enterCourtroomNow, wait);
+            return;
+        }
+        enterCourtroomNow();
+    }
+
+    function enterCourtroomNow() {
+        stopJoinCountdown();
         els.joinOverlay.style.display = "none";
         els.root.style.display = "flex";
         els.youAreRole.textContent = state.me.display_role;
@@ -1836,10 +1901,18 @@
     // ====================================================================
     // TRANSCRIPT
     // ====================================================================
+    // Empty-transcript placeholder — same markup as courtroom.html, with the
+    // animated brand art ("talking") above the line.
+    const TRANSCRIPT_EMPTY_HTML =
+        '<div class="transcript-empty">'
+        + '<img class="transcript-empty-art" src="/assets/talking.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">'
+        + '<span>The court is in session. Statements will appear here.</span>'
+        + '</div>';
+
     function renderTranscript(entries) {
         els.transcriptFeed.innerHTML = "";
         if (!entries || !entries.length) {
-            els.transcriptFeed.innerHTML = '<div class="transcript-empty">The court is in session. Statements will appear here.</div>';
+            els.transcriptFeed.innerHTML = TRANSCRIPT_EMPTY_HTML;
             updateTranscriptCount();
             return;
         }
@@ -1856,14 +1929,24 @@
         els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
     }
 
-    function appendTranscript(entry, scroll = true) {
+    function appendTranscript(entry, scroll = true, replacesEntryId = "") {
         // Clear the empty placeholder if present.
         const empty = els.transcriptFeed.querySelector(".transcript-empty");
         if (empty) empty.remove();
         // The count is refreshed at the end of every append below.
 
+        // Spoken statements are assembled server-side from consecutive
+        // push-to-talk segments (see courtroom_manager.record_spoken_statement):
+        // the completed sentence arrives with the id of the fragment it replaces,
+        // so the entry already on screen is updated instead of duplicated.
+        const replaced = replacesEntryId
+            ? els.transcriptFeed.querySelector(`[data-entry-id="${replacesEntryId}"]`)
+            : null;
+
         const node = document.createElement("div");
         node.className = `entry kind-${entry.kind}`;
+        if (entry.entry_id) node.dataset.entryId = entry.entry_id;
+        if (replaced) node.classList.add("entry-merged");
 
         if (entry.kind === "phase") {
             node.innerHTML = `<div class="entry-body"><div class="entry-text">${escapeHtml(entry.text)}</div></div>`;
@@ -1891,14 +1974,19 @@
             const initials = (entry.actor || "?").charAt(0).toUpperCase();
             const color = ROLE_ACCENT[roleKeyFromDisplay(entry.role)] || ROLE_ACCENT.system;
             const time = formatTime(entry.timestamp);
-            // Spoken statements carry their recorded audio clip.
+            // Spoken statements carry their recorded clip(s). A statement the
+            // server assembled from several push-to-talk segments carries one
+            // clip per segment, so the whole sentence stays audible.
+            const clips = (entry.audio_files && entry.audio_files.length)
+                ? entry.audio_files
+                : (entry.audio_file ? [entry.audio_file] : []);
             let audioHtml = "";
-            if (entry.audio_file) {
-                const url = `/api/court/rooms/${ROOM_ID}/audio/${encodeURIComponent(entry.audio_file)}`;
-                audioHtml = `
+            for (const clip of clips) {
+                const url = `/api/court/rooms/${ROOM_ID}/audio/${encodeURIComponent(clip)}`;
+                audioHtml += `
                     <span class="entry-audio">
                         <button type="button" class="audio-play" data-url="${url}" title="Play recording" aria-label="Play recording"><i data-lucide="play"></i></button>
-                        <a class="audio-download" href="${url}" download="${escapeHtml(entry.audio_file)}" title="Download recording" aria-label="Download recording"><i data-lucide="download"></i></a>
+                        <a class="audio-download" href="${url}" download="${escapeHtml(clip)}" title="Download recording" aria-label="Download recording"><i data-lucide="download"></i></a>
                     </span>`;
             }
             node.innerHTML = `
@@ -1913,7 +2001,8 @@
                     ${audioHtml}
                 </div>`;
         }
-        els.transcriptFeed.appendChild(node);
+        if (replaced && replaced.parentNode) replaced.replaceWith(node);
+        else els.transcriptFeed.appendChild(node);
         lucide.createIcons();
         updateTranscriptCount();
         if (scroll) scrollToBottom();
@@ -2039,6 +2128,13 @@
     // Press and hold the button to record; release to stop and submit.
     // This eliminates overlapping speech — only the person holding the
     // button can talk, keeping the trial transcript clean.
+    // Push-to-talk capture limits. A spoken statement is one entry in the
+    // record, so its cap is generous (a TYPED statement still respects the
+    // input's maxlength).
+    const PTT_TAIL_MS = 250;          // keep capturing briefly after release
+    const BROWSER_ASR_GRACE_MS = 400; // let the recogniser deliver its last result
+    const ASR_TEXT_MAX = 1200;        // cap for a spoken statement
+
     const ptt = {
         recorder: null,
         chunks: [],
@@ -2051,6 +2147,8 @@
         browserAsr: false,  // fall back to browser SpeechRecognition when whisper is missing
         sr: null,           // active SpeechRecognition session while holding (browser mode)
         srText: "",         // accumulated final transcript of the current hold
+        srInterim: "",      // last interim (unfinalised) transcript of the hold
+        asrSession: 0,      // token so a late onend cannot finalise a newer hold
         keyHeld: false,     // space bar is currently held down (keyboard push-to-talk)
     };
 
@@ -2177,6 +2275,11 @@
             setAsrStatus("Microphone ready — press and hold again to speak.");
             return;
         }
+        // A previous hold may still be inside its tail-flush window: retire it
+        // (and mute its handler) so its onstop can never interfere with this one.
+        if (ptt.recorder && ptt.recorder.state !== "inactive") {
+            try { ptt.recorder.onstop = null; ptt.recorder.stop(); } catch (_) {}
+        }
         ptt.stream = stream;
         ptt.chunks = [];
         // Record AUDIO ONLY: the shared local stream also carries video tracks
@@ -2227,7 +2330,16 @@
         // Release = stop being heard immediately (don't wait for the async
         // recorder stop to fire).
         applyMicGate();
-        try { ptt.recorder.stop(); } catch (_) {}
+        // Tail capture. Chrome's webm/opus encoder still holds the audio of the
+        // cluster it is writing, so stopping the instant the key comes up clipped
+        // the last syllable off the recording - the classic "it missed the end of
+        // my sentence", which is exactly how a statement ends up as a fragment.
+        // Ask for the buffered data, let the pause land, then stop. The room
+        // stopped hearing the mic a moment ago, so the extra frames only exist in
+        // the local recording.
+        const rec = ptt.recorder;
+        try { if (rec.state === "recording") rec.requestData(); } catch (_) {}
+        setTimeout(() => { try { rec.stop(); } catch (_) {} }, PTT_TAIL_MS);
     }
 
     async function pttOnStopped() {
@@ -2261,6 +2373,11 @@
         const fd = new FormData();
         fd.append("room_id", ROOM_ID);
         fd.append("participant_id", state.me.participant_id);
+        // When the clip was SPOKEN, in epoch ms. The server measures "is this the
+        // same utterance?" against it: transcription takes 10-60 s, so the moment
+        // the server stores the entry says nothing about whether the speaker
+        // paused or simply spoke two halves of one sentence.
+        fd.append("recorded_at", String(ptt.startedAt || Date.now()));
         fd.append("audio", wavBlob, `ptt_${Date.now()}.wav`);
         const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
         if (!res.ok) {
@@ -2326,6 +2443,8 @@
 
     // The join card, dressed as a "session ended" screen.
     function showEndedJoinCard(room) {
+        // The session is over — a pending pre-entry countdown must not linger.
+        stopJoinCountdown();
         const title = (room && room.case_title) || "Trial";
         els.joinCaseTitle.textContent = `${title} — concluded`;
         els.joinSubtitle.textContent =
@@ -2449,18 +2568,26 @@
         const rec = new SR();
         ptt.sr = rec;
         ptt.srText = "";
+        ptt.srInterim = "";
+        ptt.asrSession += 1;
         rec.lang = "en-IN";
         rec.continuous = true;
         rec.interimResults = true;
         rec.onresult = (ev) => {
             let interim = "";
+            let finalSeen = false;
             for (let i = ev.resultIndex; i < ev.results.length; i++) {
                 const seg = ev.results[i];
                 if (!seg || !seg[0]) continue;
                 const t = seg[0].transcript;
-                if (seg.isFinal) ptt.srText = (ptt.srText + " " + t).trim();
+                if (seg.isFinal) { ptt.srText = (ptt.srText + " " + t).trim(); finalSeen = true; }
                 else interim += t;
             }
+            // Interim words are kept as well. Chrome regularly ends a hold without
+            // ever promoting the last phrase to a final result, and the old code
+            // then submitted NOTHING - the whole hold was lost.
+            if (interim) ptt.srInterim = interim;
+            else if (finalSeen) ptt.srInterim = "";
             if (interim) setAsrStatus("Listening… " + interim);
         };
         rec.onerror = (ev) => {
@@ -2472,7 +2599,10 @@
         };
         rec.onend = () => {
             if (ptt.sr === rec) ptt.sr = null;
-            pttFinishBrowserAsr();
+            // The last result of a hold often lands a beat AFTER onend; finalising
+            // immediately (the old behaviour) lost those words.
+            const session = ptt.asrSession;
+            setTimeout(() => pttFinishBrowserAsr(session), BROWSER_ASR_GRACE_MS);
         };
         ptt.recording = true;
         ptt.startedAt = Date.now();
@@ -2496,14 +2626,19 @@
         }
     }
 
-    function pttFinishBrowserAsr() {
+    function pttFinishBrowserAsr(session) {
+        // A newer hold has already started (or this is a stray second call):
+        // never touch its state.
+        if (session !== undefined && session !== ptt.asrSession) return;
         const wasRecording = ptt.recording;
         ptt.recording = false;
         applyMicGate();
         setPttLabel(false, "Hold to Talk");
         if (!wasRecording) return;
-        const raw = ptt.srText;
+        // Finals first, then whatever the recogniser left as interim.
+        const raw = (ptt.srText || ptt.srInterim || "").trim();
         ptt.srText = "";
+        ptt.srInterim = "";
         if (!raw) {
             setAsrStatus("");
             return;
@@ -2515,14 +2650,16 @@
                 const res = await fetch("/api/court/correct-transcript", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: raw }),
+                    // room_id carries the case context (this trial's names/terms),
+                    // so mishearings of them are restored instead of kept.
+                    body: JSON.stringify({ text: raw, room_id: ROOM_ID }),
                 });
                 if (res.ok) {
                     const d = await res.json();
                     if (d && typeof d.corrected === "string" && d.corrected.trim()) text = d.corrected.trim();
                 }
             } catch (_) {}
-            if (text.trim()) sendStatement(text.slice(0, 500));
+            if (text.trim()) sendStatement(text.slice(0, ASR_TEXT_MAX));
             setAsrStatus("");
         })();
     }
@@ -2594,7 +2731,14 @@
         src.connect(offline.destination);
         src.start(0);
         const rendered = await offline.startRendering();
-        const channel = rendered.getChannelData(0);
+        const raw = rendered.getChannelData(0);
+        // Whisper drops the last word of a clip that ends mid-word and can skip
+        // the beginning while its decoder settles. A little real silence on both
+        // sides removes both failure modes and costs nothing to transcribe.
+        const padHead = Math.round(targetRate * 0.10);
+        const padTail = Math.round(targetRate * 0.30);
+        const channel = new Float32Array(padHead + raw.length + padTail);
+        channel.set(raw, padHead);
 
         const buffer = new ArrayBuffer(44 + channel.length * 2);
         const view = new DataView(buffer);
@@ -2625,6 +2769,7 @@
     let autoDictating = false;
     let recognition = null;
     let finalSpeech = "";
+    let dictationInterim = "";   // un-finalised words, submitted if dictation stops
     // Lazily create browser SpeechRecognition (if available).
     try {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2645,6 +2790,7 @@
                         interim += transcript;
                     }
                 }
+                dictationInterim = interim;
                 if (interim) setAsrStatus("Listening… " + interim);
             };
             recognition.onerror = () => {};
@@ -2659,6 +2805,7 @@
         }
         autoDictating = true;
         finalSpeech = "";
+        dictationInterim = "";
         try { recognition.start(); } catch (_) {}
         setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
     }
@@ -2666,6 +2813,11 @@
     function stopAutoDictation() {
         autoDictating = false;
         try { if (recognition) recognition.stop(); } catch (_) {}
+        // Whatever was still interim when dictation stopped was thrown away by
+        // the old code - the last sentence of the session vanished. Submit it.
+        const leftover = dictationInterim.trim();
+        dictationInterim = "";
+        if (leftover) autoSubmitSpoken(leftover);
     }
 
     async function autoSubmitSpoken(raw) {
@@ -2675,7 +2827,7 @@
             const res = await fetch("/api/court/correct-transcript", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: raw }),
+                body: JSON.stringify({ text: raw, room_id: ROOM_ID }),
             });
             if (res.ok) {
                 const data = await res.json();
@@ -2686,7 +2838,7 @@
         } catch (e) {
             console.warn("LLM correction failed, using raw transcript:", e);
         }
-        text = text.slice(0, 500); // match the input's maxlength
+        text = text.slice(0, ASR_TEXT_MAX);
         if (text.trim()) sendStatement(text);
         if (autoDictating) setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
     }
@@ -2808,6 +2960,31 @@
     const SPEECH_GRACE_MS = 3000;   // no cue logging until speech has been seen
     const CUE_LOG_MIN_CUES = 2;     // need ≥2 concurrent cues before logging
 
+    // ---- articulation vs. emotion --------------------------------------
+    // Two things go wrong in a naive version of this analysis.
+    //   (1) Ordinary SPEECH moves the mouth, the brows and the head far more
+    //       than tension does, so a talking subject reads as a nervous one.
+    //   (2) A face calibrated in silence has almost no measured spread, so any
+    //       movement at all scores as a 3-sigma anomaly against it.
+    // Both are handled below: the lip signal is split into articulation
+    // (measured, not scored) and tremor (scored); every metric gets a noise
+    // floor; and while the subject is talking each z-score is taken against
+    // that person's own learned SPEAKING baseline instead of their silent one.
+    const LIP_WINDOW = 15;            // frames of lip aperture kept (~0.5 s at 30 fps)
+    const SPEAK_BASE_WARMUP = 20;     // speaking frames spent learning HOW they talk
+    const SPEAK_BASE_ALPHA = 0.02;    // micro-adaptation once the baseline is seeded
+    const SPEAK_BASE_BLEND = 0.35;    // weight a later bout's statistics carry
+    const BASE_ADAPT_Z = 1.4;         // only unremarkable frames drift into the baseline
+    const QUIET_DECAY_PER_SEC = 0.7;  // gauge decay toward calm while quiet
+    // Smallest spread we accept as a real signal, per metric (inter-ocular
+    // units). Without these, a motionless calibration makes landmark noise look
+    // like a large deviation the moment the subject starts moving.
+    const MIN_STD = {
+        ear: 0.010, lipOpen: 0.005, frown: 0.006,
+        browGap: 0.010, browRaise: 0.008, gazeX: 0.040, lipTremor: 0.0015,
+    };
+    const SPEAK_METRICS = ["ear", "lipOpen", "frown", "browGap", "browRaise", "gazeX", "lipTremor"];
+
     const face = {
         source: "self",          // "self" or a remote participant_id to analyze
         stream: null,
@@ -2820,7 +2997,7 @@
         analyzing: false,
         calibrated: false,
         calibrationFrames: 0,
-        calibAcc: { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipJitter: [] },
+        calibAcc: { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipTremor: [], lipAmp: [] },
         baseline: {
             earMean: 0.3, earStd: 0.02,
             lipOpenMean: 0.05, lipOpenStd: 0.004,
@@ -2829,7 +3006,8 @@
             browGapMean: 0.4, browGapStd: 0.02,
             browRaiseMean: 0.15, browRaiseStd: 0.01,
             gazeXMean: 0, gazeXStd: 0.03,
-            lipJitterMean: 0.001, lipJitterStd: 0.0005,
+            lipTremorMean: 0.001, lipTremorStd: 0.0005,
+            lipAmpMean: 0.002, lipAmpStd: 0.001,
         },
         stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0, peakAtSpeaking: false, blinkTimes: [] },
         history: { lipOpen: [] },
@@ -2841,6 +3019,12 @@
         gauge: 0,
         emaScore: 0,
         emaStarted: false,
+        lastScoreAt: 0,            // last frame the index was updated (for quiet decay)
+        speakBaseline: emptySpeakBaseline(),  // learned while the subject talks
+        speakingBaselineReady: false,
+        bout: null,                // current speaking bout's learning accumulator
+        prevSpeaking: false,
+        scoreOn: false,            // true only when the current frame may score
         indexSum: 0,
         indexFrames: 0,
         speaking: false,            // currently speaking (voice OR visible mouth movement)
@@ -3140,7 +3324,7 @@
         face.analyzing = true;
         face.calibrated = false;
         face.calibrationFrames = 0;
-        face.calibAcc = { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipJitter: [] };
+        face.calibAcc = { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipTremor: [], lipAmp: [] };
         face.stats = { blinks: 0, lastEarState: "open", startedAt: Date.now(), peakScore: 0, cueEvents: 0, peakAtSpeaking: false, blinkTimes: [] };
         face.history = { lipOpen: [] };
         face.activeCues.clear();
@@ -3156,6 +3340,12 @@
         face.noFaceFrames = 0;
         face.emaScore = 0;
         face.emaStarted = false;
+        face.lastScoreAt = 0;
+        face.speakBaseline = emptySpeakBaseline();
+        face.speakingBaselineReady = false;
+        face.bout = null;
+        face.prevSpeaking = false;
+        face.scoreOn = false;
         face.indexSum = 0;
         face.indexFrames = 0;
         face.speaking = false;
@@ -3278,14 +3468,22 @@
         b.browGapMean = meanOf(face.calibAcc.browGap); b.browGapStd = Math.max(0.005, stddev(face.calibAcc.browGap));
         b.browRaiseMean = meanOf(face.calibAcc.browRaise); b.browRaiseStd = Math.max(0.003, stddev(face.calibAcc.browRaise));
         b.gazeXMean = meanOf(face.calibAcc.gazeX);   b.gazeXStd = Math.max(0.012, stddev(face.calibAcc.gazeX));
-        b.lipJitterMean = meanOf(face.calibAcc.lipJitter); b.lipJitterStd = Math.max(0.0002, stddev(face.calibAcc.lipJitter));
+        b.lipTremorMean = meanOf(face.calibAcc.lipTremor); b.lipTremorStd = Math.max(MIN_STD.lipTremor, stddev(face.calibAcc.lipTremor));
+        b.lipAmpMean = meanOf(face.calibAcc.lipAmp);        b.lipAmpStd = Math.max(0.0008, stddev(face.calibAcc.lipAmp));
+        // Start from the quiet baseline; the first speaking bout replaces it with
+        // this person's actual talking face (see seedSpeakBaseline).
+        face.speakBaseline = emptySpeakBaseline();
+        face.speakingBaselineReady = false;
+        face.prevSpeaking = false;
+        face.bout = null;
+        face.lastScoreAt = 0;
         face.calibrated = true;
         face.stats.startedAt = Date.now();
         face.sessionStartIso = new Date().toISOString();
         const statePill = faceEl("face-state");
         if (statePill) { statePill.textContent = "Analyzing"; statePill.classList.remove("on"); statePill.classList.add("live"); }
         const subj = subjectInfo();
-        sendBehaviorEntry(`Face analysis started — baseline calibrated for ${subj.name} (${subj.role}). Cues count only while the subject is speaking and only when persistent.`);
+        sendBehaviorEntry(`Face analysis started — baseline calibrated for ${subj.name} (${subj.role}). Cues count only while the subject is speaking, only when persistent, and always against this subject's own speaking baseline, so ordinary articulation is not reported.`);
     }
 
     // ---- per-frame signal extraction ------------------------------------
@@ -3297,6 +3495,61 @@
         if (arr.length < 2) return 0;
         const m = meanOf(arr);
         return Math.sqrt(arr.reduce((s, v) => s + (v - m) * (v - m), 0) / arr.length);
+    }
+
+    // Split a short lip-aperture window into articulation and tremor.
+    //   amplitude - the slow envelope: how much the mouth is OPENING. This is
+    //               speech. It drives the speaking gate and is never scored.
+    //   tremor    - the RMS of what is left once the envelope is removed, i.e.
+    //               the actual tremble of the lips. Smooth opening and closing
+    //               (every spoken word) is subtracted out, so ordinary talking
+    //               cannot inflate it. The old code scored the raw stddev of the
+    //               aperture as "tremor", which is dominated by speech.
+    function lipMotion(window) {
+        if (window.length < 5) return { tremor: 0, amplitude: 0 };
+        const k = 2;  // +/- 2 frames (~70 ms): longer than one tremor cycle
+        const env = [];
+        for (let i = 0; i < window.length; i++) {
+            const a = Math.max(0, i - k);
+            const b = Math.min(window.length - 1, i + k);
+            let sum = 0;
+            for (let j = a; j <= b; j++) sum += window[j];
+            env.push(sum / (b - a + 1));
+        }
+        let res = 0;
+        for (let i = 0; i < window.length; i++) {
+            const d = window[i] - env[i];
+            res += d * d;
+        }
+        return { tremor: Math.sqrt(res / window.length), amplitude: stddev(env) };
+    }
+
+    // Per-metric talking baseline: mean plus a robust spread (mean absolute
+    // deviation, ~0.8 sigma, which a momentary spike cannot inflate).
+    function emptySpeakBaseline() {
+        const out = {};
+        for (const k of SPEAK_METRICS) out[k] = { mean: 0, mad: 0, seeded: false };
+        return out;
+    }
+
+    function seedSpeakBaseline(acc) {
+        for (const k of SPEAK_METRICS) {
+            const vals = acc[k] || [];
+            if (vals.length < 5) continue;
+            const mean = meanOf(vals);
+            const mad = meanOf(vals.map((v) => Math.abs(v - mean)));
+            const sb = face.speakBaseline[k];
+            if (!sb || !sb.seeded) {
+                face.speakBaseline[k] = { mean: mean, mad: mad, seeded: true };
+            } else {
+                face.speakBaseline[k] = {
+                    mean: sb.mean + SPEAK_BASE_BLEND * (mean - sb.mean),
+                    mad: sb.mad + SPEAK_BASE_BLEND * (mad - sb.mad),
+                    seeded: true,
+                };
+            }
+        }
+        face.speakingBaselineReady = true;
     }
     function lmDist(a, b) {
         return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2) + Math.pow(a.z - b.z, 2));
@@ -3321,6 +3574,30 @@
         const half = Math.abs(b.x - a.x) / 2;
         if (half < 1e-4) return 0;
         return (iris.x - (a.x + b.x) / 2) / half;
+    }
+
+    // ---- per-frame signal extraction ------------------------------------
+    // Landmark measurements for ONE frame, normalised by the inter-ocular
+    // distance so they do not depend on how close the subject sits.
+    function extractFaceSignals(lm) {
+        const L = FACE_LANDMARKS;
+        // Stable per-face scale: distance between the outer eye corners.
+        const unit = Math.max(1e-4, lmDist(lm[L.eyeOuterL], lm[L.eyeOuterR]));
+
+        const lipOpen = lmDist(lm[L.lipUpper], lm[L.lipLower]) / unit;
+        const lipWidth = lmDist(lm[L.lipLeftCorner], lm[L.lipRightCorner]) / unit;
+        const mouthMidY = (lm[L.lipMidUpper].y + lm[L.lipMidLower].y) / 2;
+        const cornerMidY = (lm[L.lipLeftCorner].y + lm[L.lipRightCorner].y) / 2;
+        const frown = (cornerMidY - mouthMidY) / unit;   // corners sag below the lip midline
+        const browGap = lmDist(lm[L.browInnerL], lm[L.browInnerR]) / unit;
+        const browRaise = (lmDist(lm[L.browInnerL], lm[L.eyeTopL]) + lmDist(lm[L.browInnerR], lm[L.eyeTopR])) / 2 / unit;
+        const ear = (eyeAspectRatio(lm, L.leftEye) + eyeAspectRatio(lm, L.rightEye)) / 2;
+        // Both eyes averaged so a head turn or an asymmetric eye cannot produce a
+        // phantom direction; the sign carries the direction (see eyeGazeX).
+        const gazeX = (eyeGazeX(lm, L.leftEye, L.leftIris) + eyeGazeX(lm, L.rightEye, L.rightIris)) / 2;
+
+        return { lipOpen: lipOpen, lipWidth: lipWidth, frown: frown, browGap: browGap,
+                 browRaise: browRaise, ear: ear, gazeX: gazeX };
     }
 
     function onFaceMeshResults(results) {
@@ -3356,46 +3633,60 @@
         drawFaceOverlay(ctx, lm);
         if (!face.analyzing) return;
 
-        const L = FACE_LANDMARKS;
-        // Stable per-face scale: distance between the outer eye corners.
-        const unit = Math.max(1e-4, lmDist(lm[L.eyeOuterL], lm[L.eyeOuterR]));
+        const out = ingestFaceSignals(extractFaceSignals(lm));
+        if (!out) return;                       // baseline still calibrating
+        renderFaceLive(out.score, out.bpm);
+        maybeLogFaceCues();
+    }
 
-        const lipOpen = lmDist(lm[L.lipUpper], lm[L.lipLower]) / unit;
-        const lipWidth = lmDist(lm[L.lipLeftCorner], lm[L.lipRightCorner]) / unit;
-        const mouthMidY = (lm[L.lipMidUpper].y + lm[L.lipMidLower].y) / 2;
-        const cornerMidY = (lm[L.lipLeftCorner].y + lm[L.lipRightCorner].y) / 2;
-        const frown = (cornerMidY - mouthMidY) / unit;   // corners sag below the lip midline
-        const browGap = lmDist(lm[L.browInnerL], lm[L.browInnerR]) / unit;
-        const browRaise = (lmDist(lm[L.browInnerL], lm[L.eyeTopL]) + lmDist(lm[L.browInnerR], lm[L.eyeTopR])) / 2 / unit;
-        const ear = (eyeAspectRatio(lm, L.leftEye) + eyeAspectRatio(lm, L.rightEye)) / 2;
-        // Both eyes averaged so a head turn or an asymmetric eye cannot produce a
-        // phantom direction; the sign carries the direction (see eyeGazeX).
-        const gazeX = (eyeGazeX(lm, L.leftEye, L.leftIris) + eyeGazeX(lm, L.rightEye, L.rightIris)) / 2;
+    // ---- scoring core ----------------------------------------------------
+    // Everything downstream of the raw signals: the articulation/tremor split,
+    // calibration, the learned speaking baseline, cue gating and the index.
+    // Kept separate from the drawing path so an automated check can drive it
+    // with synthetic signals instead of a camera (_courtroom_face_check.cjs).
+    // Returns null while the baseline is still calibrating.
+    function ingestFaceSignals(sig) {
+        const lipOpen = sig.lipOpen, lipWidth = sig.lipWidth, frown = sig.frown;
+        const browGap = sig.browGap, browRaise = sig.browRaise;
+        const ear = sig.ear, gazeX = sig.gazeX;
 
         // Rolling window for lip tremor (jitter of the mouth opening).
         face.history.lipOpen.push(lipOpen);
-        if (face.history.lipOpen.length > 15) face.history.lipOpen.shift();
-        const lipJitter = stddev(face.history.lipOpen);
+        if (face.history.lipOpen.length > LIP_WINDOW) face.history.lipOpen.shift();
+        const motion = lipMotion(face.history.lipOpen);
+        const lipTremor = motion.tremor;       // scored
+        const lipAmplitude = motion.amplitude; // articulation: gate only, never scored
 
         // ---- calibration phase (neutral face baseline) ----
         if (!face.calibrated) {
             face.calibrationFrames++;
-            face.calibAcc.ear.push(ear);
-            face.calibAcc.lipOpen.push(lipOpen);
-            face.calibAcc.lipWidth.push(lipWidth);
-            face.calibAcc.frown.push(frown);
-            face.calibAcc.browGap.push(browGap);
-            face.calibAcc.browRaise.push(browRaise);
-            face.calibAcc.gazeX.push(gazeX);
-            face.calibAcc.lipJitter.push(lipJitter);
+            const seen = face.calibAcc.lipOpen;
+            // A baseline has to be measured on a NEUTRAL face. If the subject is
+            // already talking through the calibration, those frames would teach
+            // the analyzer that a moving mouth is calm (and that would then be
+            // the reference for everything). Skip clearly-speaking frames.
+            const talkingDuringCalib = seen.length >= 20 &&
+                lipOpen > meanOf(seen) + 4 * Math.max(stddev(seen), 0.004);
+            const samples = talkingDuringCalib ? seen.length : seen.length + 1;
+            if (!talkingDuringCalib) {
+                face.calibAcc.ear.push(ear);
+                face.calibAcc.lipOpen.push(lipOpen);
+                face.calibAcc.lipWidth.push(lipWidth);
+                face.calibAcc.frown.push(frown);
+                face.calibAcc.browGap.push(browGap);
+                face.calibAcc.browRaise.push(browRaise);
+                face.calibAcc.gazeX.push(gazeX);
+                face.calibAcc.lipTremor.push(lipTremor);
+                face.calibAcc.lipAmp.push(lipAmplitude);
+            }
             const statePill = faceEl("face-state");
             if (statePill) {
-                statePill.textContent = `Calibrating ${Math.min(100, Math.round((face.calibrationFrames / CALIBRATION_FRAMES) * 100))}%`;
+                statePill.textContent = `Calibrating ${Math.min(100, Math.round((samples / CALIBRATION_FRAMES) * 100))}%`;
             }
             const calibElapsed = Date.now() - face.stats.startedAt;
             if (
-                face.calibrationFrames >= CALIBRATION_FRAMES ||
-                (calibElapsed > CALIBRATION_TIMEOUT_MS && face.calibrationFrames >= CALIBRATION_MIN_FRAMES)
+                samples >= CALIBRATION_FRAMES ||
+                (calibElapsed > CALIBRATION_TIMEOUT_MS && samples >= CALIBRATION_MIN_FRAMES)
             ) {
                 finishFaceCalibration();
             } else if (calibElapsed > CALIBRATION_TIMEOUT_MS && !face.calibHintShown) {
@@ -3404,21 +3695,72 @@
                 face.calibHintShown = true;
                 sendBehaviorEntry("Face analysis: the selected feed is not showing a clear, steady face — waiting for a usable view before cues can be measured.");
             }
-            return;
+            return null;
         }
 
         // ---- live analysis ----
-        const b = face.baseline;
-        const z = (v, mean, sd) => (v - mean) / Math.max(sd, 1e-6);
-        const zLipOpen = z(lipOpen, b.lipOpenMean, b.lipOpenStd);
-        const zFrown = z(frown, b.frownMean, b.frownStd);
-        const zBrowGap = z(browGap, b.browGapMean, b.browGapStd);
-        const zBrowRaise = z(browRaise, b.browRaiseMean, b.browRaiseStd);
-        const lateralZ = (gazeX - b.gazeXMean) / Math.max(b.gazeXStd, GAZE_MIN_STD);
-        const zLipJitter = z(lipJitter, b.lipJitterMean, b.lipJitterStd);
-        const zEar = z(ear, b.earMean, b.earStd);
+        // The speaking state is resolved FIRST: everything below is conditioned
+        // on it, and it decides which baseline the z-scores are taken against.
+        updateSpeakingState(lipAmplitude, lipOpen);
 
-        updateSpeakingState(lipJitter, lipOpen);
+        const b = face.baseline;
+        const metrics = { ear, lipOpen, frown, browGap, browRaise, gazeX, lipTremor };
+
+        // Every time the subject starts talking, spend the first
+        // SPEAK_BASE_WARMUP frames learning how THIS person talks; nothing is
+        // scored during that window (see SCORE_ON). Once learned, the baseline
+        // persists across bouts and only micro-adapts.
+        if (face.speaking && !face.prevSpeaking) {
+            const acc = {};
+            for (const k of SPEAK_METRICS) acc[k] = [];
+            face.bout = { frames: 0, acc: acc };
+        }
+        face.prevSpeaking = face.speaking;
+        if (face.speaking && face.bout) {
+            if (face.bout.frames < SPEAK_BASE_WARMUP) {
+                for (const k of SPEAK_METRICS) face.bout.acc[k].push(metrics[k]);
+            }
+            face.bout.frames++;
+            if (face.bout.frames === SPEAK_BASE_WARMUP) seedSpeakBaseline(face.bout.acc);
+        }
+        const speakReady = face.speaking && face.speakingBaselineReady;
+        const sbase = face.speakBaseline;
+
+        // Reference for one metric: the calibrated QUIET baseline while the
+        // subject is quiet, and their own learned TALKING baseline while they
+        // speak. mad x 1.25 is a robust stand-in for sigma; MIN_STD keeps
+        // landmark noise from ever reading as a large deviation.
+        const zs = (key, val, quietMean, quietStd) => {
+            const floor = MIN_STD[key] || 0.001;
+            const sb = sbase[key];
+            if (speakReady && sb && sb.seeded) {
+                return (val - sb.mean) / Math.max(floor, sb.mad * 1.25);
+            }
+            return (val - quietMean) / Math.max(quietStd, floor);
+        };
+        const zLipOpen = zs("lipOpen", lipOpen, b.lipOpenMean, b.lipOpenStd);
+        const zFrown = zs("frown", frown, b.frownMean, b.frownStd);
+        const zBrowGap = zs("browGap", browGap, b.browGapMean, b.browGapStd);
+        const zBrowRaise = zs("browRaise", browRaise, b.browRaiseMean, b.browRaiseStd);
+        const zLipTremor = zs("lipTremor", lipTremor, b.lipTremorMean, b.lipTremorStd);
+        const zEar = zs("ear", ear, b.earMean, b.earStd);
+        const lateralZ = zs("gazeX", gazeX, b.gazeXMean, Math.max(b.gazeXStd, GAZE_MIN_STD));
+
+        // Micro-adaptation: while the subject talks, unremarkable frames drift
+        // into the talking baseline so a person's natural expression can never
+        // accumulate into a score - while a genuine anomaly (|z| beyond
+        // BASE_ADAPT_Z) leaves the baseline untouched and keeps its z-score.
+        if (speakReady) {
+            for (const k of SPEAK_METRICS) {
+                const sb = sbase[k];
+                if (!sb || !sb.seeded) continue;
+                const sd = Math.max(MIN_STD[k] || 0.001, sb.mad * 1.25);
+                if (Math.abs(metrics[k] - sb.mean) / sd < BASE_ADAPT_Z) {
+                    sb.mean += SPEAK_BASE_ALPHA * (metrics[k] - sb.mean);
+                    sb.mad += SPEAK_BASE_ALPHA * (Math.abs(metrics[k] - sb.mean) - sb.mad);
+                }
+            }
+        }
 
         // Blink counting: EAR dropping well below baseline = a blink.
         if (zEar < -2.2) {
@@ -3445,18 +3787,24 @@
         // constantly on calm faces) to 2.8–3.0σ, well into deliberate-motion
         // territory.
         const S = face.speaking;
+        // Scoring is turned on only once we know how this person talks: cues are
+        // not even accumulated during the learning window of a bout.
+        const SCORE_ON = S && speakReady;
+        face.scoreOn = SCORE_ON;
         // Lateral gaze: the sign of lateralZ is the direction in the subject's
         // own frame — positive (image-right) = the subject's LEFT.
         face.lateralZ = lateralZ;
         const frame = {
-            rapid_blink: S && bpm > 30,
-            gaze_left: S && lateralZ > LATERAL_GAZE_SIGMA,
-            gaze_right: S && lateralZ < -LATERAL_GAZE_SIGMA,
-            lip_press: S && zLipOpen < -3.0 && lipOpen < b.lipOpenMean * 0.7,
-            lip_tremor: S && zLipJitter > 2.8,
-            frown: S && zFrown > 2.8,
-            brow_furrow: S && zBrowGap < -2.8,
-            brow_raise: S && zBrowRaise > 2.8,
+            rapid_blink: SCORE_ON && bpm > 30,
+            gaze_left: SCORE_ON && lateralZ > LATERAL_GAZE_SIGMA,
+            gaze_right: SCORE_ON && lateralZ < -LATERAL_GAZE_SIGMA,
+            lip_press: SCORE_ON && zLipOpen < -3.0 && lipOpen < b.lipOpenMean * 0.7,
+            // Tremor must clear the floor as well as the z-gate: a quiet mic can
+            // otherwise turn its own noise into a cue.
+            lip_tremor: SCORE_ON && zLipTremor > 2.8 && lipTremor > MIN_STD.lipTremor * 2,
+            frown: SCORE_ON && zFrown > 2.8,
+            brow_furrow: SCORE_ON && zBrowGap < -2.8,
+            brow_raise: SCORE_ON && zBrowRaise > 2.8,
         };
         // Persistence gating + per-cue duration accounting. A cue must hold
         // for CUE_PERSIST_FRAMES (~0.75 s) before it counts at all; its total
@@ -3474,27 +3822,33 @@
 
         // ---- nervousness index (0-100), speech-gated + EMA-smoothed ----
         // Raw instantaneous score first...
-        const zPool = [
+        const zPool = SCORE_ON ? [
             // Capped so a full head-turn cannot peg the gauge on its own.
             Math.min(6, Math.abs(lateralZ)),
-            Math.max(0, zLipJitter),
-            Math.max(0, zFrown),
-            Math.max(0, -zBrowGap),
+            Math.max(0, zLipTremor),
             Math.max(0, -zLipOpen),
-            Math.max(0, zBrowRaise),
-        ];
-        const avgZ = zPool.reduce((a, v) => a + v, 0) / zPool.length;
-        let raw = Math.min(100, Math.max(0, Math.round(((avgZ - 1.0) / 2.4) * 100)));
-        raw = Math.min(100, raw + face.activeCues.size * 8);
-        if (bpm > 32) raw = Math.min(100, raw + 8);
-        // ...but a calm face must READ calm: the reported index is a slow
-        // EMA, so a two-frame eyebrow twitch cannot swing the gauge, and
-        // while the subject is not speaking the index decays toward zero
-        // instead of idling at some elevated value.
+            Math.max(0, -zBrowGap),
+        ] : [];
+        let raw = 0;
+        if (zPool.length) {
+            const avgZ = zPool.reduce((a, v) => a + v, 0) / zPool.length;
+            // A deviation has to clear 1.4 sigma before it counts at all, and the
+            // cue bonus is capped (4 metrics feed the pool, not 6).
+            raw = Math.min(100, Math.max(0, Math.round(((avgZ - 1.4) / 2.2) * 100)));
+            raw = Math.min(100, raw + Math.min(18, face.activeCues.size * 6));
+            if (bpm > 34) raw = Math.min(100, raw + 6);
+        }
+        // ...but a calm face must READ calm: the reported index is a slow EMA
+        // and - whenever the subject is quiet, or still inside the learning
+        // window of a speaking bout - it decays toward zero instead of idling at
+        // whatever it last showed.
+        const nowScore = Date.now();
+        const scoreDt = face.lastScoreAt ? Math.min(1, (nowScore - face.lastScoreAt) / 1000) : 0;
+        face.lastScoreAt = nowScore;
         if (!face.emaStarted) { face.emaScore = raw; face.emaStarted = true; }
-        face.emaScore = face.emaScore + SCORE_EMA_ALPHA * (raw - face.emaScore);
+        if (SCORE_ON) face.emaScore = face.emaScore + SCORE_EMA_ALPHA * (raw - face.emaScore);
+        else face.emaScore = face.emaScore * Math.exp(-QUIET_DECAY_PER_SEC * scoreDt);
         let score = Math.round(face.emaScore);
-        if (!S) score = Math.round(score * 0.9);          // decay when quiet
         if (score < 3) score = 0;                          // floor: calm is calm
         face.gauge = score;
         face.indexSum += score;
@@ -3504,8 +3858,7 @@
             face.stats.peakAtSpeaking = S;
         }
 
-        renderFaceLive(score, bpm);
-        maybeLogFaceCues();
+        return { score: score, bpm: bpm };
     }
 
     // ---- rendering ----
@@ -3558,11 +3911,11 @@
         // case visible mouth movement keeps the analysis live.
         const spkEl = faceEl("fm-speaking");
         if (spkEl) {
-            setMetric(
-                spkEl,
-                face.audioSpeaking ? "Voice" : (face.visualTalking ? "Mouth" : "Quiet"),
-                face.speaking ? "elevated" : ""
-            );
+            const label = face.audioSpeaking ? "Voice" : (face.visualTalking ? "Mouth" : "Quiet");
+            // "Learning" = this speaking bout is still inside the window in which
+            // nothing is scored (see SPEAK_BASE_WARMUP).
+            const learning = face.speaking && !face.scoreOn;
+            setMetric(spkEl, learning ? `${label} / learning` : label, face.scoreOn ? "elevated" : "");
         }
 
         renderFaceCueChips();
@@ -3726,7 +4079,7 @@
         }
     }
 
-    function updateSpeakingState(lipJitter, lipOpen) {
+    function updateSpeakingState(lipAmplitude, lipOpen) {
         const now = Date.now();
         let level = 0;
         const m = face.source === "self" ? face.meter : face.remoteMeter;
@@ -3749,9 +4102,12 @@
         // ABSOLUTE (not z-scores): the calibrated lip-aperture std is ~0.0005,
         // so a z-test would call sensor noise "speech" on a motionless face.
         const b = face.baseline;
-        const jitterFloor = Math.max(0.0012, b.lipJitterStd * 2.2);
+        // The gate uses the articulation AMPLITUDE (the slow envelope of the
+        // aperture), not the tremor residual: a still face has a flat envelope
+        // however noisy its landmarks are, while a talking one always swings.
+        const ampFloor = Math.max(0.0035, b.lipAmpMean + 2.2 * Math.max(b.lipAmpStd, 0.0008));
         const mouthOpening = b.lipOpenMean + Math.max(0.02, b.lipOpenStd * 4);
-        const visualActive = lipJitter > jitterFloor || lipOpen > mouthOpening;
+        const visualActive = lipAmplitude > ampFloor || lipOpen > mouthOpening;
 
         face.audioSpeaking = audioActive;
         face.visualTalking = visualActive;
@@ -3808,6 +4164,9 @@
     // UTIL
     // ====================================================================
     function showJoinError(text) {
+        // Every join failure path lands here — drop the countdown with the error
+        // so it can never cover the retry card.
+        stopJoinCountdown();
         els.joinError.textContent = text;
         els.joinError.style.display = "block";
     }
@@ -3854,6 +4213,26 @@
             stopVideoKeepalive(selfV);
         }
     });
+
+    // Test seam for _courtroom_face_check.cjs: lets an automated check drive the
+    // analyzer with synthetic signals (a calm face, a talking face, a stressed
+    // face) instead of a webcam. Nothing in the product reads this.
+    window.__anavayaFace = {
+        extract: extractFaceSignals,
+        ingest: ingestFaceSignals,
+        onResults: onFaceMeshResults,   // full path: extract + score + render
+        start: startFaceAnalysis,
+        state: face,
+        lipMotion: lipMotion,
+    };
+
+    // Test seam for _courtroom_transcript_check.cjs: push a server message (as
+    // received over the socket) into the real handler, so the transcript's
+    // replace-in-place behaviour can be checked without a live ASR round trip.
+    window.__anavayaCourt = {
+        pushMessage: handleMessage,
+        state: state,
+    };
 
     init();
 })();
