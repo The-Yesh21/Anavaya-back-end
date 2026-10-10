@@ -48,12 +48,12 @@ export function PriorityRoadmap() {
           </h2>
         </Reveal>
 
-        <div ref={ref} className="glass-panel mt-14 rounded-2xl p-6 sm:p-10">
+        <div ref={ref} className="glass-panel mt-14 overflow-hidden rounded-2xl border border-border/80 p-7 shadow-[0_8px_32px_-8px_color-mix(in_oklab,var(--primary)_14%,transparent)] sm:p-10">
           {/* Track */}
           <div className="relative">
             <span
               aria-hidden="true"
-              className="absolute top-6 right-0 left-0 hidden h-px border-t border-dashed border-primary/30 md:block"
+              className="absolute top-6 right-0 left-0 hidden h-px border-t border-dashed border-primary/35 md:block"
             />
             <ol className="relative grid gap-8 md:grid-cols-5 md:gap-4">
               {stages.map((s, i) => {
@@ -67,20 +67,25 @@ export function PriorityRoadmap() {
                         borderColor: on ? "var(--primary)" : "var(--border)",
                         backgroundColor: on
                           ? "color-mix(in oklab, var(--primary) 16%, transparent)"
-                          : "transparent",
-                        boxShadow: i === active ? "var(--shadow-gold)" : "none",
-                        transform: i === active ? "scale(1.08)" : "scale(1)",
+                          : "var(--surface)",
+                        boxShadow:
+                          i === active
+                            ? "0 0 25px 2px color-mix(in oklab, var(--primary) 50%, transparent)"
+                            : on
+                              ? "0 0 12px -2px color-mix(in oklab, var(--primary) 25%, transparent)"
+                              : "none",
+                        transform: i === active ? "scale(1.12)" : "scale(1)",
                       }}
                     >
                       <Icon
                         className="h-5 w-5 transition-colors duration-500"
-                        strokeWidth={1.6}
+                        strokeWidth={1.7}
                         style={{ color: on ? "var(--primary)" : "var(--muted-foreground)" }}
                         aria-hidden="true"
                       />
                     </span>
                     <p
-                      className="font-display text-base transition-opacity duration-500 md:mt-3"
+                      className="font-display text-base font-medium transition-opacity duration-500 md:mt-3"
                       style={{ opacity: on ? 1 : 0.55 }}
                     >
                       {s.label}
@@ -98,22 +103,35 @@ export function PriorityRoadmap() {
               return (
                 <div
                   key={o.label}
-                  className="rounded-xl border p-5 transition-all duration-700"
+                  className="relative overflow-hidden rounded-xl border p-5 transition-all duration-700"
                   style={{
                     borderColor: lit ? o.color : "var(--border)",
-                    backgroundColor: lit ? `color-mix(in oklab, ${o.color} 12%, transparent)` : "transparent",
-                    opacity: scored ? (lit ? 1 : 0.45) : 0.7,
+                    backgroundColor: lit
+                      ? `color-mix(in oklab, ${o.color} 12%, transparent)`
+                      : "var(--surface)",
+                    boxShadow: lit
+                      ? `0 8px 24px -4px color-mix(in oklab, ${o.color} 30%, transparent)`
+                      : "none",
+                    opacity: scored ? (lit ? 1 : 0.55) : 0.8,
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: o.color }}
-                      aria-hidden="true"
-                    />
-                    <p className="font-display text-lg">{o.label} priority</p>
+                    <span className="relative flex h-3 w-3">
+                      {lit && (
+                        <span
+                          className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+                          style={{ backgroundColor: o.color }}
+                        />
+                      )}
+                      <span
+                        className="relative inline-flex h-3 w-3 rounded-full"
+                        style={{ backgroundColor: o.color }}
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <p className="font-display text-lg font-semibold">{o.label} priority</p>
                   </div>
-                  <p className="mt-2 text-[0.9375rem] leading-[1.6] text-muted-foreground">{o.note}</p>
+                  <p className="mt-2 text-[0.9375rem] leading-[1.65] text-muted-foreground">{o.note}</p>
                 </div>
               );
             })}
