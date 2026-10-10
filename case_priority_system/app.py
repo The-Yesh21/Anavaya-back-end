@@ -15,7 +15,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 logger = logging.getLogger(__name__)
@@ -1912,13 +1912,20 @@ def court_turn_credentials():
 @app.post("/api/court/transcribe")
 async def transcribe_courtroom_audio(room_id: str = Form(...),
                                      participant_id: str = Form(...),
-                                     audio: UploadFile = File(...)):
+                                     audio: UploadFile = File(...),
+                                     recorded_at: str = Form("")):
     """Transcribe one recorded courtroom speech segment (WAV).
 
     The clip is stored under courtrooms/audio/{room_id}/, transcribed with the
-    local openai-whisper model (GPU), grammar-corrected by the Ollama chat LLM,
-    appended to the room transcript as the speaker's statement (with the clip
-    attached), and broadcast to everyone in the room.
+    local openai-whisper model (GPU) - primed with what this speaker said in
+    their previous segment, so a clip that begins mid-sentence is decoded as the
+    continuation of it - grammar-corrected by the Ollama chat LLM, and appended
+    to the room transcript as the speaker's statement (with the clip attached).
+
+    A segment that continues the speaker's previous statement does not create a
+    second, broken half-sentence: it is folded into that entry (text joined,
+    clips accumulated) and re-broadcast with replaces_entry_id, so every client
+    completes the line it already shows.
 
     Returns 503 with code "asr_unavailable" when the ASR engine is not
     installed so the client can fall back to the browser's speech recognition.
@@ -1962,7 +1969,11 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
     # how transcription failed intermittently with 502s. Both steps now run
     # on a worker thread; this coroutine stays responsive and awaits it.
     try:
-        text = await asyncio.to_thread(transcribe_audio, audio_path)
+        # What this speaker said most recently: continuation context for the
+        # decoder, and the statement this segment may complete.
+        previous = courtroom_manager.last_spoken_statement(room_id, participant_id)
+        context_text = previous.text if previous is not None else ""
+        text = await asyncio.to_thread(transcribe_audio, audio_path, context_text)
         if not text:
             # No speech detected (silence / too quiet / recorder blip): treat
             # the segment as a no-op instead of an error — a quiet hold should
@@ -1977,25 +1988,52 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
         corrected, used_llm = await asyncio.to_thread(
             correct_transcript_text, text, context_hint
         )
-        entry = courtroom_manager.record_statement(
-            room_id, participant_id, corrected, audio_file=filename
+        try:
+            spoken_at = float(recorded_at) / 1000.0 if recorded_at else None
+        except ValueError:
+            spoken_at = None
+        entry, replaces_id = courtroom_manager.record_spoken_statement(
+            room_id, participant_id, corrected, audio_file=filename,
+            spoken_at=spoken_at, raw_text=text,
         )
         if entry is None:
             raise HTTPException(status_code=400, detail="Could not record the statement.")
+        if replaces_id:
+            # The two halves are now ONE sentence, so read it as one: correcting
+            # each fragment separately leaves the record with two half-sentences
+            # (and the joined text is what the speaker actually said).
+            joined, used_llm_join = await asyncio.to_thread(
+                correct_transcript_text, entry.text, context_hint
+            )
+            if joined and joined.strip():
+                entry = courtroom_manager.update_statement_text(
+                    room_id, entry.entry_id, joined
+                ) or entry
+                corrected = entry.text
+                used_llm = used_llm or used_llm_join
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
 
-    # Broadcast the new entry to the whole room (everyone sees it live).
+    # Broadcast to the whole room (everyone sees it live). replaces_entry_id is
+    # set when this segment completed the speaker's previous statement, so the
+    # clients replace that line instead of appending a fragment of it.
     sockets = courtroom_manager._room_sockets.get(room_id, {})  # type: ignore[attr-defined]
-    await _broadcast(sockets, {"type": "transcript_entry", "entry": entry.to_dict()})
+    await _broadcast(sockets, {
+        "type": "transcript_entry",
+        "entry": entry.to_dict(),
+        "replaces_entry_id": replaces_id,
+        "merged": bool(replaces_id),
+    })
 
     return {
         "entry": entry.to_dict(),
         "corrected": corrected,
         "raw": text,
         "used_llm": used_llm,
+        "merged": bool(replaces_id),
+        "replaces_entry_id": replaces_id,
         "audio_url": f"/api/court/rooms/{room_id}/audio/{filename}",
     }
 
@@ -2794,6 +2832,23 @@ def read_index():
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return {"message": "Anavaya Dashboard backend is running. Setup the front-end files in static/ directory."}
+
+# Branded 404. StaticFiles answers an unknown path with a bare "Not Found",
+# which is what a mistyped tunnel URL used to show. Serve static/404.html to
+# BROWSERS (they send Accept: text/html) while every API/XHR caller keeps the
+# JSON error shape it parses — fetch/XHR normally send Accept: */* or
+# application/json, so this never changes an API response.
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: Exception):
+    wants_html = "text/html" in (request.headers.get("accept") or "")
+    if wants_html and not request.url.path.startswith("/api/"):
+        page = os.path.join(STATIC_DIR, "404.html")
+        if os.path.exists(page):
+            return FileResponse(page, status_code=404)
+    return JSONResponse(
+        {"detail": getattr(exc, "detail", "Not Found")}, status_code=404
+    )
+
 
 # Mount static folder
 app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")

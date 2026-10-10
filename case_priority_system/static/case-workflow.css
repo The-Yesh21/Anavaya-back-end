@@ -256,6 +256,18 @@
     margin-bottom: 14px;
 }
 .wizard-dropzone svg { width: 32px; height: 32px; color: var(--color-secondary); margin-bottom: 8px; }
+/* Animated brand art for the evidence drop target (the icon pass). Ink-on-paper
+   GIF — keeps its light chip in both themes. */
+.wizard-dropzone .dz-gif {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 10px;
+    border-radius: 16px;
+    border: 1.5px solid var(--border-color);
+    background: #FFFCF5;
+}
 .wizard-dropzone p { font-size: 13px; }
 .wizard-dropzone.drag-over {
     border-color: var(--color-secondary);

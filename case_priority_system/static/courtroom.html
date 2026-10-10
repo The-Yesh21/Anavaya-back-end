@@ -30,6 +30,9 @@
     <script src="/tailwind-init.js"></script>
     <link rel="stylesheet" href="/courtroom.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Vendored lottie-web (local file, so the pre-entry countdown still plays
+         when the demo machine has no internet — same reason the icons are local). -->
+    <script src="/vendor/lottie.min.js"></script>
 </head>
 <body>
     <!-- Background organic blobs (matches the dashboard atmosphere) -->
@@ -44,6 +47,9 @@
             <div class="join-emblem"><i data-lucide="scale"></i></div>
             <h1 id="join-case-title">Loading trial…</h1>
             <p id="join-subtitle" class="join-subtitle">Enter the courtroom</p>
+            <!-- Pre-entry "taking your seat" countdown — played while the join
+                 handshake completes, then the courtroom is revealed. -->
+            <div id="join-countdown" class="join-countdown" hidden aria-hidden="true"></div>
             <p id="join-media-warning" class="join-media-warning" style="display:none;">
                 <i data-lucide="mic-off"></i>
                 <span>Microphone &amp; video need a secure connection (https or localhost). This page is open over plain http on a network address, so <strong>Hold to Talk</strong> cannot access your mic here. Open <code>https://localhost:8000/court/<span id="join-media-room"></span></code> on the host machine to use audio.</span>
@@ -187,7 +193,10 @@
                             <span>The live transcript is turned off by the presiding judge.</span>
                         </div>
                         <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
-                            <div class="transcript-empty">The court is in session. Statements will appear here.</div>
+                            <div class="transcript-empty">
+                                <img class="transcript-empty-art" src="/assets/talking.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                <span>The court is in session. Statements will appear here.</span>
+                            </div>
                         </div>
                     </div>
                 </section>

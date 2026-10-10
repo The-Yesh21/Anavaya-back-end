@@ -179,8 +179,14 @@ def _make_room_for_asr():
         print(f"Ollama VRAM pre-free skipped: {e}")
 
 
-def transcribe_audio(audio_path: str) -> str | None:
+def transcribe_audio(audio_path: str, context_text: str = "") -> str | None:
     """Transcribe a WAV file with openai-whisper. Returns text or None.
+
+    context_text (optional) is what this speaker said in the previous segment.
+    It goes into the decoder's initial prompt, so a clip that starts
+    mid-sentence is decoded as the CONTINUATION of that sentence: the recogniser
+    keeps the sentence (and its vocabulary) going instead of re-hearing an
+    isolated fragment and dropping the words at its edges.
 
     The model is loaded lazily on the first call (a one-time ~460 MB download
     for "small") and cached afterwards.
@@ -205,13 +211,33 @@ def transcribe_audio(audio_path: str) -> str | None:
     with _whisper_lock:
         try:
             model, use_fp16 = _load_whisper_model()
+            prompt = COURT_ASR_PROMPT
+            if context_text:
+                said = " ".join(context_text.split())[-300:]
+                prompt = (
+                    COURT_ASR_PROMPT
+                    + " The speaker is CONTINUING what they were saying. The words"
+                    + " immediately before this segment were: '"
+                    + said
+                    + "'. Transcribe this segment as the rest of that sentence,"
+                    + " without repeating what is already there."
+                )
             result = model.transcribe(
                 audio,
                 language="en",
                 fp16=use_fp16,
                 task="transcribe",
                 temperature=0.0,
-                initial_prompt=COURT_ASR_PROMPT,
+                initial_prompt=prompt,
+                # Greedy decoding drops words on accented speech and can loop; the
+                # courtroom clips are short, so beam search costs little and is
+                # markedly more accurate on them. (Beam search is only used at
+                # temperature 0, which is what we ask for.)
+                beam_size=5,
+                # Continuity is supplied explicitly through initial_prompt above.
+                # Letting the model also condition on its own previous output is
+                # how whisper starts repeating the same phrase.
+                condition_on_previous_text=False,
             )
         except Exception as e:
             print(f"Whisper transcription failed: {e}")
@@ -222,6 +248,21 @@ def transcribe_audio(audio_path: str) -> str | None:
         return None
     # Collapse whitespace/newlines whisper may leave in.
     return " ".join(text.split())
+
+
+def _breaks_off(text: str) -> bool:
+    """True when the speech broke off mid-sentence (ellipsis, or no full stop)."""
+    stripped = (text or "").strip()
+    if not stripped:
+        return False
+    if stripped.endswith("...") or stripped.endswith("\u2026"):
+        return True
+    return stripped[-1] not in ".!?"
+
+
+def _grew(corrected: str, raw: str) -> bool:
+    """True when the correction added more than cosmetic words to the tail."""
+    return len(corrected.split()) > len(raw.split()) + 2
 
 
 def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, bool]:
@@ -275,7 +316,13 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
         "in their natural formal form (6:30 pm, 12 June).\n"
         "5. Rewrite informal or fragmented phrasing into clear, formal, neutral "
         "language fit for an official record, keeping the speaker's sequence of "
-        "events intact. Do not summarize, shorten, or omit anything.\n\n"
+        "events intact. Do not summarize, shorten, or omit anything.\n"
+        "6. If the input breaks off mid-sentence (the speaker was cut off, or the "
+        "recording ended), it MUST stay broken off: end your output at the same "
+        "word, with the same ellipsis if there was one. Never invent an ending, "
+        "never add words that were not spoken, and never complete a half "
+        "sentence - a court record must not contain words the speaker did not "
+        "say.\n\n"
         f"{context_block}"
         "HARD RULES:\n"
         "- Keep every proper name (persons, companies, courts, places), date, "
@@ -303,6 +350,16 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
         data = r.json()
         corrected = (data.get("message") or {}).get("content", "").strip()
         if corrected:
+            # Fidelity guard. If the recogniser output broke off mid-sentence and
+            # the correction came back as a tidy, longer, complete sentence, the
+            # model invented an ending (a 3b model does that; it does not know
+            # the sentence was cut off). Words the speaker never said must not
+            # reach a court record, so the raw unfinished fragment is kept - the
+            # sentence is completed later, when the next segment of speech joins
+            # it and the whole thing is corrected as one.
+            if _breaks_off(text) and not _breaks_off(corrected) and _grew(corrected, text):
+                print("Transcript correction invented an ending - keeping the raw fragment.")
+                return text, False
             return corrected, True
     except Exception as e:
         print(f"Transcript correction via Ollama failed: {e}")

@@ -100,6 +100,16 @@ body::before {
     box-shadow: 0 8px 24px -6px var(--border-color-glow);
 }
 .join-emblem i { width: 30px; height: 30px; stroke-width: 2px; }
+/* Pre-entry countdown (the icon pass): assets/courtroom-countdown.json plays here
+   while the join handshake completes. Sized like a hero so the join card does
+   not jump when it appears; hidden until the join starts. */
+.join-countdown {
+    width: 132px;
+    height: 132px;
+    margin: 2px auto 10px;
+}
+.join-countdown[hidden] { display: none; }
+.join-countdown svg { width: 100% !important; height: 100% !important; display: block; }
 .join-card h1 {
     font-family: var(--font-heading);
     font-weight: 800;
@@ -1289,6 +1299,18 @@ body::before {
     padding: 28px 0;
     font-size: 13px;
 }
+/* Animated brand art in the empty transcript (the icon pass). Ink-on-paper GIF,
+   so it keeps its light chip in BOTH themes — same rule as the lobby icons. */
+.transcript-empty-art {
+    width: 76px;
+    height: 76px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 10px;
+    border-radius: 16px;
+    border: 1.5px solid var(--border-color);
+    background: #FFFCF5;
+}
 
 /* Live transcript turned off by the judge — shown to the whole room. */
 .transcript-off-note {
@@ -1399,6 +1421,14 @@ body::before {
     border-left: 3px solid var(--color-high);
 }
 .entry.kind-behavior .entry-text { font-style: italic; color: var(--color-high); font-size: 13px; }
+/* A spoken statement that just absorbed another push-to-talk segment flashes
+   once, so the room sees the sentence complete in place rather than jump. */
+.entry.entry-merged { animation: entryMerged 900ms ease-out; }
+@keyframes entryMerged {
+    0% { background: color-mix(in srgb, var(--gold-500) 24%, transparent); }
+    100% { background: transparent; }
+}
+
 .entry.kind-phase {
     align-self: center;
     background: var(--color-primary);

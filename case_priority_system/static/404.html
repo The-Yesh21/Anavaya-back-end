@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anavaya — Page not found</title>
+    <!-- Absolute URLs: this page is served for ANY unknown path, so a relative
+         href would resolve under that path (e.g. /deep/nested/vendor/...) and 404. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <!-- Theme boot — same tiny dependency-free script as index.html, so the 404
+         paints in the visitor's saved theme with no flash. -->
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('anavaya-theme');
+                var theme = (saved === 'dark' || saved === 'light')
+                    ? saved
+                    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.style.colorScheme = theme;
+            } catch (e) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/tokens.css">
+    <!-- Vendored lottie-web (local file, so the page animates with no internet). -->
+    <script src="/vendor/lottie.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 32px 20px;
+            font-family: var(--font-body, 'Nunito', system-ui, -apple-system, sans-serif);
+            color: var(--text-primary, #2C2416);
+            background: var(--bg-color, #F7F3E8);
+        }
+        .nf-card {
+            width: 100%;
+            max-width: 560px;
+            text-align: center;
+            padding: 40px 36px 34px;
+            border-radius: 1.6rem;
+            border: 1.5px solid var(--border-color, rgba(0, 0, 0, 0.12));
+            background: var(--surface-color, #FFFCF5);
+            box-shadow: var(--shadow-soft, 0 18px 40px -22px rgba(0, 0, 0, 0.35));
+        }
+        .nf-anim { width: 220px; height: 220px; margin: 0 auto 10px; }
+        .nf-anim svg { width: 100% !important; height: 100% !important; display: block; }
+        h1 {
+            font-family: var(--font-heading, 'Fraunces', Georgia, serif);
+            font-size: 30px;
+            line-height: 1.2;
+            margin: 0 0 12px;
+            color: var(--text-primary, #2C2416);
+        }
+        p {
+            margin: 0 auto 26px;
+            max-width: 420px;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: var(--text-muted, #6B5E45);
+        }
+        .nf-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+        .nf-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 22px;
+            border-radius: 99px;
+            border: 1.5px solid var(--border-color-glow, rgba(0, 0, 0, 0.2));
+            font-weight: 700;
+            font-size: 13.5px;
+            text-decoration: none;
+            color: var(--text-primary, #2C2416);
+            background: transparent;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        .nf-btn:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--gold-500, #C9A22B) 12%, transparent); }
+        .nf-btn.primary {
+            background: var(--color-primary, #8C6D18);
+            border-color: var(--color-primary, #8C6D18);
+            color: var(--color-primary-fg, #FFFCF5);
+        }
+    </style>
+</head>
+<body>
+    <main class="nf-card">
+        <!-- Animated brand 404 (assets/404.json). Decorative: the copy below
+             carries the meaning when the animation can't run. -->
+        <div id="nf-anim" class="nf-anim" aria-hidden="true"></div>
+        <h1>This page isn't on the docket</h1>
+        <p>
+            The address you followed doesn't match anything in Anavaya — the link may be
+            mistyped, or the record may have moved. The dashboard and every filed case
+            are still where you left them.
+        </p>
+        <div class="nf-actions">
+            <a class="nf-btn primary" href="/">Back to the Dashboard</a>
+            <a class="nf-btn" href="/landing/">Go to the landing page</a>
+        </div>
+    </main>
+    <script>
+        // Decorative animation: never break the page if it can't load, and honour
+        // a reduced-motion preference by skipping the loop entirely.
+        try {
+            var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (window.lottie && !reduce) {
+                window.lottie.loadAnimation({
+                    container: document.getElementById('nf-anim'),
+                    renderer: 'svg',
+                    loop: true,
+                    autoplay: true,
+                    path: '/assets/404.json'
+                });
+            }
+        } catch (err) {
+            console.warn('404 animation unavailable:', err);
+        }
+    </script>
+</body>
+</html>

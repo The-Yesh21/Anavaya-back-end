@@ -17,7 +17,7 @@ import os
 import secrets
 import threading
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -32,6 +32,16 @@ UNIQUE_ROLES = ("Judge",)
 COUNSEL_ROLES = ("Defence", "Prosecution")
 WITNESS_ROLE = "Witness"
 ALL_ROLES = ("Judge", "Defence", "Prosecution", WITNESS_ROLE)
+
+# Spoken statements arrive as ONE push-to-talk clip per press. A speaker who
+# pauses, or who releases the key mid-sentence, produces several short clips
+# that each read as a broken sentence in the record. Consecutive clips from the
+# same speaker are therefore assembled into a single statement (see
+# CourtroomManager.record_spoken_statement): within this window, and while the
+# statement still looks unfinished, a new clip continues it.
+STATEMENT_CONTINUATION_GAP_MS = 6000
+# Hard ceiling on one assembled statement; longer speech starts a new entry.
+STATEMENT_MAX_CHARS = 4000
 
 # The ordered phases of a trial. The Judge advances through these.
 TRIAL_PHASES = [
@@ -77,6 +87,13 @@ class TranscriptEntry:
     (lip pressing, rapid blinking, gaze avoidance, ...) produced by the
     client-side MediaPipe analyzer, so nervousness cues become part of the
     official record.
+
+    Spoken statements are assembled from push-to-talk segments (see
+    record_spoken_statement): one press is one clip, but a speaker rarely stops
+    neatly at the end of a sentence, so consecutive clips from the same speaker
+    are folded into ONE entry - the text is joined, the clips accumulate, and
+    the completed line is broadcast again so every client replaces the fragment
+    it is already showing.
     """
 
     timestamp: str
@@ -85,6 +102,27 @@ class TranscriptEntry:
     kind: str
     text: str
     audio_file: str = ""
+    # ---- speech assembly -------------------------------------------------
+    # audio_files      every clip of this statement, in order (audio_file stays
+    #                  the FIRST clip so older readers keep working)
+    # speaker_id       the participant_id the statement belongs to. Empty on
+    #                  typed/action/phase/system/behavior entries AND on records
+    #                  written before this field existed - which is exactly what
+    #                  keeps legacy lines from being merged into.
+    # last_segment_at  when the most recent clip was SPOKEN, so the
+    #                  continuation window is measured between clips, not from
+    #                  the first one (or from the slow server clock)
+    # last_segment_raw the raw recogniser output of that clip. It is the honest
+    #                  "did the sentence finish?" signal: whisper leaves an
+    #                  ellipsis or no punctuation when the speech was cut off,
+    #                  while the grammar correction may well invent an ending.
+    # entry_id         stable identity of the line, so a client can replace the
+    #                  fragment it shows instead of duplicating it
+    last_segment_raw: str = ""
+    audio_files: list = field(default_factory=list)
+    speaker_id: str = ""
+    last_segment_at: str = ""
+    entry_id: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -187,6 +225,7 @@ class Room:
             role=role,
             kind=kind,
             text=text,
+            entry_id=secrets.token_hex(4),
         )
         self.transcript.append(entry)
         return entry
@@ -490,6 +529,105 @@ class CourtroomManager:
             self._persist(room)
         return entry
 
+    # ---- spoken statements: assembly ------------------------------------
+    def last_spoken_statement(self, room_id: str, participant_id: str) -> Optional[TranscriptEntry]:
+        """The speaker's most recent spoken statement, or None.
+
+        Used as the ASR continuation context: feeding whisper what this speaker
+        just said lets a clip that starts mid-sentence be decoded as the rest of
+        that sentence instead of an isolated fragment missing its edges.
+        """
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        for entry in reversed(room.transcript):
+            if entry.kind == "statement" and entry.speaker_id == participant_id:
+                return entry
+        return None
+
+    def record_spoken_statement(self, room_id: str, participant_id: str, text: str,
+                                audio_file: str = "", spoken_at: Optional[float] = None,
+                                raw_text: str = "") -> tuple:
+        """Append a transcribed speech segment, or CONTINUE the previous one.
+
+        Returns (entry, replaces_entry_id). replaces_entry_id is empty when a
+        new entry was created, and the id of the entry that was completed
+        otherwise - the caller re-broadcasts with it so clients update that line
+        in place instead of showing two halves of one sentence.
+        """
+        room = self.get_room(room_id)
+        if room is None:
+            return None, ""
+        participant = room.get_participant(participant_id)
+        if participant is None:
+            return None, ""
+        text = (text or "").strip()
+        if not text:
+            return None, ""
+        role = ROLE_LABELS.get(participant.role, participant.role)
+        # When the clip was SPOKEN (epoch seconds, from the client) — not when the
+        # server finished transcribing it. Transcription takes 10-60 s, so the
+        # server clock would make every consecutive segment look minutes apart and
+        # no sentence would ever be completed.
+        now_stamp = _stamp_for(spoken_at)
+        with self._lock:
+            previous = room.transcript[-1] if room.transcript else None
+            replaces_id = ""
+            if (previous is not None
+                    and previous.kind == "statement"
+                    and previous.speaker_id == participant_id
+                    and _statement_continues(previous, text, spoken_at)):
+                # Same utterance: extend the text, keep every clip, and move the
+                # continuation clock to this segment.
+                entry = previous
+                replaces_id = previous.entry_id
+                entry.text = ((entry.text.rstrip() + " " + text).strip()
+                              [:STATEMENT_MAX_CHARS])
+                if audio_file:
+                    if not entry.audio_files:
+                        entry.audio_files = [entry.audio_file] if entry.audio_file else []
+                    entry.audio_files.append(audio_file)
+                    if not entry.audio_file:
+                        entry.audio_file = audio_file
+                entry.last_segment_at = now_stamp
+                entry.last_segment_raw = (raw_text or text).strip()
+            else:
+                entry = room.add_entry(
+                    actor=participant.name,
+                    role=role,
+                    kind="statement",
+                    text=text[:STATEMENT_MAX_CHARS],
+                )
+                entry.speaker_id = participant_id
+                entry.audio_file = audio_file or ""
+                entry.audio_files = [audio_file] if audio_file else []
+                entry.last_segment_at = now_stamp
+                entry.last_segment_raw = (raw_text or text).strip()
+            self._persist(room)
+        return entry, replaces_id
+
+    def update_statement_text(self, room_id: str, entry_id: str, text: str) -> Optional[TranscriptEntry]:
+        """Replace the text of one spoken statement (already-merged segments).
+
+        Used after a merge to re-read the JOINED sentence as a whole: two
+        separately corrected fragments read as two half-sentences, while the
+        joined text is one complete statement. Only text is replaced - the
+        timestamp, speaker, clips and entry id stay exactly as recorded.
+        """
+        text = (text or "").strip()
+        if not text:
+            return None
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        with self._lock:
+            for entry in room.transcript:
+                if entry.kind == "statement" and entry.entry_id == entry_id:
+                    entry.text = text[:STATEMENT_MAX_CHARS]
+                    self._persist(room)
+                    return entry
+        return None
+
     def record_action(self, room_id: str, participant_id: str, text: str) -> Optional[TranscriptEntry]:
         """A structured courtroom action (objection, ruling, examination call)."""
         room = self.get_room(room_id)
@@ -722,8 +860,8 @@ def room_to_markdown(room: Room) -> str:
             lines.append(f"⚠ **[{ts}] {entry.role} ({entry.actor}):** _{entry.text}_")
         else:  # statement
             lines.append(f"**[{ts}] {entry.role} ({entry.actor}):** {entry.text}")
-            if entry.audio_file:
-                lines.append(f"    🎙 _audio: {entry.audio_file}_")
+            for clip in (entry.audio_files or ([entry.audio_file] if entry.audio_file else [])):
+                lines.append(f"    🎙 _audio: {clip}_")
         lines.append("")
 
     if room.face_summaries:
@@ -754,6 +892,74 @@ def room_to_markdown(room: Room) -> str:
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
+
+def _statement_continues(previous: TranscriptEntry, text: str,
+                         spoken_at: Optional[float] = None) -> bool:
+    """Whether a new segment is the tail of `previous` rather than a new statement.
+
+    Two cheap, explainable signals:
+      * TIME  - the clip was SPOKEN inside STATEMENT_CONTINUATION_GAP_MS of the
+        previous one: the speaker paused, or released the key mid-sentence.
+      * SHAPE - the previous segment did not finish a sentence (an ellipsis, or
+        no terminal punctuation).
+    A wider gap, a finished sentence, or a different speaker starts a new entry.
+    """
+    if len(previous.text) >= STATEMENT_MAX_CHARS:
+        return False
+    then = _epoch_of(previous.last_segment_at or previous.timestamp)
+    if then is None:
+        return False
+    # The gap is between the two clips being SPOKEN - both stamped with the
+    # client's clock when the client supplies it - never between the two uploads:
+    # transcription takes 10-60 s, so the server clock would make every
+    # consecutive segment of one sentence look minutes apart.
+    now_s = spoken_at if spoken_at else datetime.now(timezone.utc).timestamp()
+    gap_ms = (now_s - then) * 1000
+    if gap_ms > STATEMENT_CONTINUATION_GAP_MS:
+        return False
+    # A large NEGATIVE gap means the two stamps cannot be compared (a segment
+    # from a client that did not report spoken time, against one that did): be
+    # conservative and start a new entry rather than gluing unrelated speech.
+    if gap_ms < -STATEMENT_CONTINUATION_GAP_MS:
+        return False
+    # "Did the sentence finish?" is read from the RAW recogniser text whenever it
+    # is available, because that is where a cut-off shows up: whisper ends such a
+    # clip with an ellipsis or with no punctuation at all, while the grammar
+    # correction may have tidied it into a complete-looking sentence.
+    tail = (previous.last_segment_raw or previous.text).rstrip()
+    if not tail:
+        return False
+    if tail.endswith("...") or tail.endswith("\u2026"):
+        return True          # the recogniser heard the sentence break off
+    return tail[-1] not in ".!?"
+
+
+def _stamp_for(spoken_at: Optional[float]) -> str:
+    """The moment a speech segment was SPOKEN, as an ISO string.
+
+    spoken_at (epoch seconds, sent by the client with the clip) wins; without it
+    the server clock is the only thing available. Everything is written in UTC so
+    stamps from the browser and from the server can be compared directly.
+    """
+    if spoken_at:
+        try:
+            return datetime.fromtimestamp(float(spoken_at), tz=timezone.utc).isoformat(
+                timespec="seconds")
+        except (TypeError, ValueError, OSError, OverflowError):
+            pass
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _epoch_of(stamp: str) -> Optional[float]:
+    """ISO stamp -> epoch seconds. Naive stamps are read as UTC (see _stamp_for)."""
+    try:
+        dt = datetime.fromisoformat(stamp)
+    except (TypeError, ValueError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
