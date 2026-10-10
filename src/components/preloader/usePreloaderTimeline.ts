@@ -23,21 +23,15 @@ export const ANGLE = { lift: -14, strike: 34, rebound: 14, settle: 26 } as const
 // the stagger offset are derived below.
 export const RAIL_ITEMS = 5;
 
-/* ---------- Side-rail climb ----------
-   Each medallion starts just below the fold, climbs clean off the top, and the
-   tween then repeats for as long as the curtain is up — a continuous loop, not
-   a single pass. The two rails run at DIFFERENT speeds (the right one is 1.5x the
-   left), so they never read as one mirrored motion. */
+/* ---------- Side-rail animation ----------
+   The left rail moves down-to-up (bottom to top).
+   The right rail moves up-to-down (top to bottom).
+   Along each path, medallions start small, smoothly grow to peak size at the middle
+   of the path, and shrink back down at the exit, looping seamlessly without gaps. */
 const RAIL = {
-  // A lap is just over a screen of travel, so these read as 0.57 and 0.85
-  // screens per second — brisk enough that a second medallion comes round while
-  // the curtain is still up, which is what makes the loop visible at all.
-  durationLeft: 2.0,
-  durationRight: 1.35,
-  // How far past the top edge a medallion travels before its lap restarts. It is
-  // what makes the loop seamless: the wrap happens while the medallion is off
-  // screen, so nobody sees it jump back to the bottom.
-  overshoot: 260,
+  durationLeft: 2.2,
+  durationRight: 1.7,
+  halfOvershoot: 110,
 } as const;
 
 // Where a medallion enters its rail, as a fraction of that rail's OWN cycle: one
@@ -104,10 +98,10 @@ export function usePreloaderTimeline(
 ) {
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
-  // The rail climb loops for as long as the curtain is up, so those tweens are
+  // The rail animations loop for as long as the curtain is up, so those timelines are
   // kept out of the main timeline (an infinite child would stop it completing)
   // and killed explicitly when the curtain finishes, is skipped, or unmounts.
-  const railTweens = useRef<gsap.core.Tween[]>([]);
+  const railTweens = useRef<gsap.core.Animation[]>([]);
   const { active, reducedMotion, onDone } = opts;
 
   useEffect(() => {
@@ -148,35 +142,76 @@ export function usePreloaderTimeline(
         return;
       }
 
-      // Judicial medallions climbing both screen edges, alongside the arriving
-      // "Anvaya". Started a touch early so they are already rising as it lands.
+      // Judicial medallions: left rail climbs bottom-to-up, right rail streams
+      // up-to-down. Each medallion starts small, swells to maximum size at the
+      // middle of its path, and shrinks back down at the exit.
       const startRails = () => {
         const items = r.rails.current ?? [];
-        const travel = window.innerHeight + RAIL.overshoot;
+        const H = typeof window !== "undefined" ? window.innerHeight : 800;
+        const halfOvershoot = RAIL.halfOvershoot;
         items.forEach((el, i) => {
           if (!el) return;
           const onRightRail = i >= RAIL_ITEMS;
           const duration = onRightRail ? RAIL.durationRight : RAIL.durationLeft;
           const step = (onRightRail ? i - RAIL_ITEMS : i) * railPhaseStep(duration);
-          // `repeat: -1` keeps the medallion coming round for the whole curtain;
-          // the tween is still kept OUT of the main timeline and killed on
-          // finish/skip/unmount (see railTweens).
-          railTweens.current.push(
-            gsap.fromTo(
-              el,
-              { y: 0, opacity: 1 },
-              {
-                y: -travel,
-                opacity: 1,
-                duration,
-                ease: "none",
-                repeat: -1,
-                delay: step,
-              },
-            ),
+
+          // Left rail: down to up (starts below screen, moves up)
+          // Right rail: up to down (starts above screen, moves down)
+          const startY = onRightRail ? -halfOvershoot : H + halfOvershoot;
+          const endY = onRightRail ? H + halfOvershoot : -halfOvershoot;
+
+          const loopTl = gsap.timeline({
+            repeat: -1,
+            delay: step,
+          });
+
+          // Constant uniform y-travel
+          loopTl.fromTo(
+            el,
+            { y: startY },
+            { y: endY, duration, ease: "none", immediateRender: false },
+            0,
           );
+
+          // Size dynamics: starts small (0.35), reaches peak (1.25) at the middle, shrinks back to 0.35
+          loopTl.fromTo(
+            el,
+            { scale: 0.35 },
+            { scale: 1.25, duration: duration * 0.5, ease: "sine.inOut", immediateRender: false },
+            0,
+          );
+          loopTl.to(
+            el,
+            { scale: 0.35, duration: duration * 0.5, ease: "sine.inOut" },
+            duration * 0.5,
+          );
+
+          // Opacity: fades in cleanly as it enters, stays full in middle, fades out at exit
+          loopTl.fromTo(
+            el,
+            { opacity: 0 },
+            { opacity: 1, duration: duration * 0.22, ease: "sine.inOut", immediateRender: false },
+            0,
+          );
+          loopTl.to(
+            el,
+            { opacity: 0, duration: duration * 0.22, ease: "sine.inOut" },
+            duration * 0.78,
+          );
+
+          railTweens.current.push(loopTl);
         });
       };
+
+      const items = r.rails.current ?? [];
+      const H = typeof window !== "undefined" ? window.innerHeight : 800;
+      const halfOvershoot = RAIL.halfOvershoot;
+      items.forEach((el, i) => {
+        if (!el) return;
+        const onRightRail = i >= RAIL_ITEMS;
+        const startY = onRightRail ? -halfOvershoot : H + halfOvershoot;
+        gsap.set(el, { y: startY, opacity: 0, scale: 0.35 });
+      });
 
       const words = r.words.current ?? [];
       gsap.set(words, { opacity: 0, y: 10, filter: "blur(8px)" });
@@ -217,11 +252,11 @@ export function usePreloaderTimeline(
       tl.call(startRails, [], T.brandIn - 0.35);
 
       // 4. fade + open
-      tl.to(r.skipBtn.current, { opacity: 0, duration: 0.3 }, T.fadeOut)
-        .to(r.content.current, { opacity: 0, filter: "blur(8px)", scale: 0.98, duration: 0.5, ease: "power2.in" }, T.fadeOut)
-        .to(r.left.current, { xPercent: -100, duration: 1.2, ease: "power4.inOut" }, T.split)
-        .to(r.right.current, { xPercent: 100, duration: 1.2, ease: "power4.inOut" }, T.split);
-      if (page) tl.to(page, { scale: 1, duration: 1.2, ease: "power4.inOut" }, T.split);
+      tl.to(r.skipBtn.current, { opacity: 0, duration: 0.35, ease: "power2.out" }, T.fadeOut)
+        .to(r.content.current, { opacity: 0, filter: "blur(10px)", scale: 0.97, duration: 0.65, ease: "power2.inOut" }, T.fadeOut)
+        .to(r.left.current, { xPercent: -100, duration: 1.3, ease: "power3.inOut" }, T.split)
+        .to(r.right.current, { xPercent: 100, duration: 1.3, ease: "power3.inOut" }, T.split);
+      if (page) tl.to(page, { scale: 1, duration: 1.3, ease: "power3.inOut" }, T.split);
     };
 
     const ready = document.fonts?.ready ?? Promise.resolve();

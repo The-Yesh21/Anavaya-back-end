@@ -312,9 +312,10 @@ export function Preloader() {
                     style={{
                       position: "absolute",
                       left: 0,
-                      bottom: "-14vh",
+                      top: 0,
                       width: "100%",
                       opacity: 0,
+                      willChange: "transform, opacity",
                     }}
                   >
                     <span
