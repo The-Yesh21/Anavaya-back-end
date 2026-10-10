@@ -1077,6 +1077,17 @@ def get_case_analysis(case_id: str):
             case_manager.refresh_aggregate(case, model_data=model_data)
             cl = case.case_level or {}
     cl = _with_justification(cl, case)
+    try:
+        from case_priority_system.scripts.delay_precedents import get_delay_precedents
+    except ImportError:
+        from scripts.delay_precedents import get_delay_precedents
+    cl_feats = cl.get("features", {}) or {}
+    precedents = get_delay_precedents(
+        priority=cl.get("priority", "Medium"),
+        category=cl_feats.get("case_category", ""),
+        crime_type=cl_feats.get("crime_type", ""),
+        severity=cl_feats.get("severity", ""),
+    )
     return _repair_tree({
         "case_id": case.case_id,
         "title": case.title,
@@ -1091,6 +1102,7 @@ def get_case_analysis(case_id: str):
         "corroboration_text": cl.get("corroboration_text", ""),
         "per_document": cl.get("per_document", []),
         "constitutional": cl.get("constitutional", {}),
+        "delay_precedents": precedents,
         "report_pdf": cl.get("report_pdf", ""),
         "computed_at": cl.get("computed_at", ""),
         "aggregate": {
@@ -1098,6 +1110,24 @@ def get_case_analysis(case_id: str):
             "rationale": case.aggregate_rationale,
         },
     })
+
+
+@app.get("/api/delay-precedents")
+def get_all_delay_precedents():
+    """Return the master catalog of landmark delay precedents and Anavaya's mission."""
+    try:
+        from case_priority_system.scripts.delay_precedents import HISTORICAL_DELAY_PRECEENTS
+    except ImportError:
+        from delay_precedents import HISTORICAL_DELAY_PRECEENTS
+    return {
+        "mission_statement": (
+            "Anavaya was engineered to eliminate the catastrophic human and economic toll caused by systemic delay, "
+            "procedural ignorance, and un-triaged court queues. By automating deterministic intake classification via the "
+            "Decision Tree, Anavaya guarantees that cases touching personal liberty, physical safety, and enterprise destruction "
+            "are prioritized on Day 1 rather than languishing for decades."
+        ),
+        "precedents": HISTORICAL_DELAY_PRECEENTS,
+    }
 
 
 @app.get("/api/cases/{case_id}/case-insights")
@@ -1290,6 +1320,19 @@ def get_case_insights(case_id: str):
             print(f"case-insights: tree trace failed (non-fatal): {e}")
             path = None
 
+    # ---- Historical Delay & Cost-of-Ignorance Precedents ---------------
+    try:
+        from case_priority_system.scripts.delay_precedents import get_delay_precedents
+    except ImportError:
+        from scripts.delay_precedents import get_delay_precedents
+
+    delay_precedents = get_delay_precedents(
+        priority=cl.get("priority", "Medium"),
+        category=feats.get("case_category", ""),
+        crime_type=feats.get("crime_type", ""),
+        severity=feats.get("severity", ""),
+    )
+
     return _repair_tree({
         "case_id": case.case_id,
         "title": case.title,
@@ -1298,6 +1341,7 @@ def get_case_insights(case_id: str):
         "verdict": verdict,
         "evidence": evidence,
         "path": path,
+        "delay_precedents": delay_precedents,
     })
 
 

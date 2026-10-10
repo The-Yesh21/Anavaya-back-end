@@ -29,12 +29,12 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
       aria-pressed={theme === "dark"}
-      className={`inline-flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-primary transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${className}`}
+      className={`group relative inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary/25 bg-surface/80 backdrop-blur-md text-primary shadow-xs transition-all duration-300 hover:scale-105 hover:border-primary/60 hover:bg-primary/10 hover:shadow-[0_0_18px_-3px_color-mix(in_oklab,var(--primary)_35%,transparent)] active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${className}`}
     >
       {theme === "dark" ? (
-        <Sun className="h-5 w-5" strokeWidth={1.7} aria-hidden="true" />
+        <Sun className="h-4.5 w-4.5 transition-transform duration-300 group-hover:rotate-45" strokeWidth={1.8} aria-hidden="true" />
       ) : (
-        <Moon className="h-5 w-5" strokeWidth={1.7} aria-hidden="true" />
+        <Moon className="h-4.5 w-4.5 transition-transform duration-300 group-hover:-rotate-12" strokeWidth={1.8} aria-hidden="true" />
       )}
     </button>
   );
