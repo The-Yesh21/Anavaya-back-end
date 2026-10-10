@@ -52,6 +52,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
             "Mandates immediate High Priority triage for cases involving detention, liberty, or severe physical harm: "
             "procedural ignorance in liberty matters cannot be undone, and post-facto compensation can never restore stolen years."
         ),
+        "anavaya_project_reason": (
+            "Anavaya was engineered so no human being is ever forgotten behind prison bars after acquittal. In the legacy system, "
+            "release orders were buried under un-triaged paper dockets for 14 years. Anavaya's automated intake classifies liberty "
+            "deprivations as urgent High Priority on Day 1, ensuring prompt judicial release before stolen years become an irreversible tragedy."
+        ),
     },
     {
         "id": "hussainara_khatoon_1979",
@@ -82,6 +87,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
             "Affirms why criminal matters and fundamental liberty deprivations demand top-tier prioritization: "
             "allowing a matter touching liberty to drift in the queue turns the justice system into an engine of punishment without guilt."
         ),
+        "anavaya_project_reason": (
+            "This case is the foundation of Anavaya's mission. Under legacy FIFO queues, impoverished citizens spent up to 12 years "
+            "in pre-trial detention for minor offenses simply because their files were never listed. Anavaya enforces Article 21 "
+            "by automatically escalating undertrial and liberty matters to the top of the judicial docket upon intake."
+        ),
     },
     {
         "id": "bhim_singh_1985",
@@ -107,6 +117,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
         ),
         "priority_mandate": (
             "Illustrates that even days of judicial delay in urgent writ and liberty matters can cause irreversible constitutional injury."
+        ),
+        "anavaya_project_reason": (
+            "Proves why Anavaya's triage operates within milliseconds of filing: even a 4-day delay in habeas corpus or constitutional "
+            "matters can extinguish democratic and fundamental rights before a court ever inspects the file. Anavaya ensures urgent "
+            "constitutional matters bypass administrative delays entirely."
         ),
     },
     {
@@ -134,6 +149,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
         "priority_mandate": (
             "Confirms that cases involving severe physical violence, fatal injury, or brutal exploitation require unambiguous High Priority "
             "so evidence does not degrade and deterrence remains credible."
+        ),
+        "anavaya_project_reason": (
+            "Demonstrates why severe violent crime demands immediate high-priority triage: prolonged dilatory appeals traumatize "
+            "grieving families and erode public trust in justice. Anavaya fast-tracks high-severity criminal matters so justice is delivered "
+            "while evidence and societal conscience remain intact."
         ),
     },
 
@@ -167,6 +187,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
             "Demonstrates why major economic fraud, insolvency, and corporate disputes cannot be deferred: while courts deliberate, "
             "fraudulent assets are siphoned, bank accounts are emptied, and workers' livelihoods are permanently obliterated."
         ),
+        "anavaya_project_reason": (
+            "Anavaya stops the annihilation of economic enterprises caused by decade-long procedural stays. By classifying corporate "
+            "and debt distress as immediate priority, Anavaya allows judges to preserve going-concern value, protect lakhs of worker "
+            "livelihoods, and recover public bank funds before companies rust into scrap metal."
+        ),
     },
     {
         "id": "bhopal_gas_disaster_1989",
@@ -194,6 +219,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
         "priority_mandate": (
             "Shows that cases involving broad public harm, toxic liability, or commercial exploitation demand timely priority "
             "before the injured parties are financially starved out of their legal remedies."
+        ),
+        "anavaya_project_reason": (
+            "Illustrates why mass-tort and public-harm cases cannot wait in ordinary dockets. Decades of legal stalling allowed corporate "
+            "actors to outlast dying victims. Anavaya flags mass-injury and toxic liability cases immediately, ensuring timely interim "
+            "relief before victims are starved of justice."
         ),
     },
     {
@@ -223,6 +253,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
             "Mandates timely priority for property and land disputes: delayed adjudication of title or compensation allows the stronger "
             "party to exploit possession while the rightful claimant is bled dry by court expenses."
         ),
+        "anavaya_project_reason": (
+            "Anavaya protects vulnerable citizens from bureaucratic exhaustion. Impoverished farmers had to wait 35 years while high-value "
+            "industrial parks operated on their land without compensation. Anavaya's triage flags uncompensated land acquisitions as priority "
+            "matters to end generational administrative delay."
+        ),
     },
     {
         "id": "antulay_1992",
@@ -249,6 +284,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
         ),
         "priority_mandate": (
             "Proves that financial crimes and high-influence economic cases must not be allowed to linger: influence thrives on delay."
+        ),
+        "anavaya_project_reason": (
+            "Ensures that wealth and political influence can never purchase procedural delay. In the legacy system, powerful actors "
+            "filed endless interlocutory petitions to stall trials for decades. Anavaya's rule-based decision tree evaluates cases "
+            "objectively without fear or favor."
         ),
     },
 
@@ -282,6 +322,11 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
             "Justifies assigning Low Priority to minor technical/procedural disputes: keeping low-risk matters at appropriate priority "
             "preserves precious judicial bandwidth for the urgent High and Medium priority cases where lives and fortunes are genuinely at stake."
         ),
+        "anavaya_project_reason": (
+            "Explains why Anavaya's Low Priority tier is equally vital: if trivial technical civil disputes receive the same judicial "
+            "attention as life-and-death crises, the court collapses under docket gridlock. Anavaya triages low-risk regulatory matters "
+            "appropriately, saving judicial hours for cases of genuine human emergency."
+        ),
     },
     {
         "id": "common_cause_1996",
@@ -308,6 +353,10 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
         "priority_mandate": (
             "Reinforces the purpose of Anavaya's Low Priority triage: minor technical non-injuries must not congest the docket, "
             "ensuring the judicial system functions efficiently for matters of real urgency."
+        ),
+        "anavaya_project_reason": (
+            "Over 20 million petty regulatory infractions paralyzed trial courts nationwide. Anavaya's automated classification weeds out "
+            "and separates routine regulatory dockets from urgent matters, fulfilling the Supreme Court's mandate for systematic judicial triage."
         ),
     },
 ]

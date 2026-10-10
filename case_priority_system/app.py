@@ -1112,6 +1112,24 @@ def get_case_analysis(case_id: str):
     })
 
 
+@app.get("/api/delay-precedents")
+def get_all_delay_precedents():
+    """Return the master catalog of landmark delay precedents and Anavaya's mission."""
+    try:
+        from case_priority_system.scripts.delay_precedents import HISTORICAL_DELAY_PRECEENTS
+    except ImportError:
+        from delay_precedents import HISTORICAL_DELAY_PRECEENTS
+    return {
+        "mission_statement": (
+            "Anavaya was engineered to eliminate the catastrophic human and economic toll caused by systemic delay, "
+            "procedural ignorance, and un-triaged court queues. By automating deterministic intake classification via the "
+            "Decision Tree, Anavaya guarantees that cases touching personal liberty, physical safety, and enterprise destruction "
+            "are prioritized on Day 1 rather than languishing for decades."
+        ),
+        "precedents": HISTORICAL_DELAY_PRECEENTS,
+    }
+
+
 @app.get("/api/cases/{case_id}/case-insights")
 def get_case_insights(case_id: str):
     """One-call dashboard payload: verdict + evidence weights + tree trace.
