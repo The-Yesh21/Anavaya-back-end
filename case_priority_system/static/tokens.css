@@ -70,13 +70,28 @@
     --wash-gold-soft: color-mix(in srgb, var(--gold-500) 6%, transparent);
     --wash-primary: color-mix(in srgb, var(--color-primary) 12%, transparent);
 
-    /* Elevation — gold-tinted, restrained */
-    --shadow-soft: 0 1px 3px rgba(80, 60, 20, 0.08), 0 4px 14px rgba(80, 60, 20, 0.06);
-    --shadow-card: 0 2px 10px rgba(80, 60, 20, 0.06), 0 10px 28px -12px rgba(168, 126, 47, 0.14);
-    --shadow-panel: 0 4px 20px -2px rgba(168, 126, 47, 0.15);
-    --shadow-float: 0 12px 32px -8px rgba(120, 90, 30, 0.18);
-    --shadow-gold: 0 0 0 4px rgba(201, 162, 75, 0.22);   /* focus ring */
-    --focus-ring: 0 0 0 3px rgba(168, 126, 47, 0.30);
+    /* Elevation — refined luxury shadows with subtle gold ambient reflection */
+    --shadow-xs: 0 1px 2px rgba(80, 60, 20, 0.05), 0 0 0 1px rgba(160, 140, 90, 0.12);
+    --shadow-soft: 0 2px 6px -1px rgba(80, 60, 20, 0.06), 0 6px 18px -2px rgba(80, 60, 20, 0.05);
+    --shadow-card: 0 2px 8px -2px rgba(80, 60, 20, 0.05), 0 12px 28px -6px rgba(168, 126, 47, 0.13), 0 0 0 1px rgba(168, 126, 47, 0.08);
+    --shadow-panel: 0 4px 14px -2px rgba(80, 60, 20, 0.05), 0 16px 36px -4px rgba(168, 126, 47, 0.14), 0 0 0 1px rgba(168, 126, 47, 0.10);
+    --shadow-float: 0 16px 40px -10px rgba(120, 90, 30, 0.20), 0 8px 18px -4px rgba(120, 90, 30, 0.10), 0 0 0 1px rgba(168, 126, 47, 0.15);
+    --shadow-gold: 0 0 0 4px rgba(201, 162, 75, 0.24);   /* focus ring */
+    --shadow-glow-gold: 0 0 24px -4px rgba(201, 162, 75, 0.38);
+    --shadow-glow-high: 0 0 20px -4px rgba(179, 64, 46, 0.32);
+    --focus-ring: 0 0 0 3px rgba(168, 126, 47, 0.32);
+
+    /* Glassmorphism tokens */
+    --glass-bg: rgba(255, 255, 255, 0.80);
+    --glass-bg-hover: rgba(255, 253, 247, 0.92);
+    --glass-border: rgba(168, 126, 47, 0.24);
+    --glass-border-glow: rgba(201, 162, 75, 0.45);
+    --glass-blur: blur(14px);
+
+    /* Refined border glows */
+    --border-color-subtle: rgba(160, 140, 90, 0.16);
+    --border-glow-gold: 0 0 14px rgba(201, 162, 75, 0.30);
+    --border-glow-high: 0 0 14px rgba(179, 64, 46, 0.30);
 
     /* Radii — organic reserved for hero/header/empty states */
     --radius-card: 14px;
@@ -128,8 +143,11 @@
     --bg-well: #1E1C18;               /* recessed areas (sidebar header, tree canvas) */
     --surface-color: #26231F;         /* layered card surface — never white on dark */
     --bg-color: #201E1B;              /* recessed chips, tags & meter tracks inside dark cards */
+    --border-color-subtle: rgba(180, 160, 110, 0.14);
     --border-color: rgba(180, 160, 110, 0.22);
-    --border-color-glow: rgba(201, 162, 75, 0.35);
+    --border-color-glow: rgba(212, 180, 90, 0.48);
+    --border-glow-gold: 0 0 18px rgba(212, 180, 90, 0.32);
+    --border-glow-high: 0 0 18px rgba(232, 93, 74, 0.32);
 
     /* Text — warm light tones */
     --text-primary: #F0ECE3;          /* warm off-white */
@@ -167,13 +185,23 @@
     --role-witness: #B07CC6;
     --webcam-bg: #111110;
 
-    /* Elevation — subtle, dark-friendly */
-    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
-    --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.3), 0 10px 28px -12px rgba(0, 0, 0, 0.4);
-    --shadow-panel: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
-    --shadow-float: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
-    --shadow-gold: 0 0 0 4px rgba(201, 162, 75, 0.25);
-    --focus-ring: 0 0 0 3px rgba(212, 180, 90, 0.35);
+    /* Elevation — subtle, dark-friendly with golden luminescence */
+    --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(212, 180, 90, 0.12);
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.35), 0 8px 20px -4px rgba(0, 0, 0, 0.45);
+    --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.4), 0 14px 34px -8px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(212, 180, 90, 0.14);
+    --shadow-panel: 0 6px 20px -2px rgba(0, 0, 0, 0.5), 0 18px 40px -6px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(212, 180, 90, 0.16);
+    --shadow-float: 0 16px 44px -8px rgba(0, 0, 0, 0.75), 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 180, 90, 0.22);
+    --shadow-gold: 0 0 0 4px rgba(212, 180, 90, 0.30);
+    --shadow-glow-gold: 0 0 28px -4px rgba(212, 180, 90, 0.35);
+    --shadow-glow-high: 0 0 24px -4px rgba(232, 93, 74, 0.40);
+    --focus-ring: 0 0 0 3px rgba(212, 180, 90, 0.40);
+
+    /* Glassmorphism tokens */
+    --glass-bg: rgba(36, 34, 32, 0.82);
+    --glass-bg-hover: rgba(46, 43, 40, 0.92);
+    --glass-border: rgba(212, 180, 90, 0.24);
+    --glass-border-glow: rgba(212, 180, 90, 0.50);
+    --glass-blur: blur(14px);
 }
 
 /* Skip link — first focusable element, for keyboard users */
