@@ -145,3 +145,6 @@ Write-Host ""
 Write-Host "  This window stays open while the demo runs." -ForegroundColor DarkGray
 Write-Host "  Close this window when done (services keep running until you stop them)." -ForegroundColor DarkGray
 Write-Host ""
+while ($true) {
+    Start-Sleep -Seconds 10
+}
