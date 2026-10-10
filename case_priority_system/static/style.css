@@ -231,25 +231,10 @@ body::before {
     transform: translateY(-4px) rotate(-1.2deg);
 }
 
-.stat-label {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.stat-card strong {
-    font-family: var(--font-heading);
-    font-size: 38px;
-    font-weight: 850;
-    line-height: 1.1;
-}
-
+/* Headings and values inside a stat card are styled together in the docket block
+   below (see .card-title / .stat-value-row), where the whole card anatomy lives
+   in one place. Only the register card's own accent stays here. */
 .stat-card.total strong { color: var(--text-primary); }
-.stat-card.priority-high strong { color: var(--color-high); }
-.stat-card.priority-medium strong { color: var(--color-medium); }
-.stat-card.priority-low strong { color: var(--color-low); }
 
 /* Main Content Grid */
 .dashboard-grid {
@@ -638,6 +623,19 @@ body::before {
 .empty-icon svg {
     width: 72px;
     height: 72px;
+}
+
+/* Animated brand art for empty states (the icon pass). Ink-on-paper GIF, so it
+   keeps the light chip background in BOTH themes — same rule as .lobby-gif. */
+.empty-art {
+    width: 104px;
+    height: 104px;
+    object-fit: contain;
+    margin-bottom: 16px;
+    border-radius: 22px;
+    border: 1.5px solid var(--border-color);
+    background: #FFFCF5;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
 }
 
 .empty-state h3 {
@@ -2385,6 +2383,59 @@ body::before {
     margin-bottom: 6px;
 }
 .lobby-create-card h3 i { width: 20px; height: 20px; color: var(--color-primary); }
+/* Animated brand GIFs in the courtroom lobby (joining counsel / four-seat
+   bench). Small right-floated variants so they don't push the h3 down. */
+.lobby-gif {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    float: right;
+    margin: 2px 0 8px 12px;
+    border-radius: 14px;
+    -webkit-user-select: none;
+    user-select: none;
+    /* keep the ink-on-paper icons legible in both themes */
+    background: var(--bg-card, #fff);
+    border: 1.5px solid var(--border-color);
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+}
+.lobby-gif.solo {
+    float: right;
+}
+[data-theme="dark"] .lobby-gif {
+    background: #FFFCF5;
+}
+@media (max-width: 640px) {
+    .lobby-gif { width: 52px; height: 52px; margin-left: 10px; }
+}
+/* Lobby brand media (the icon pass): the presiding-judge clip and the courthouse
+   art, centred above the lobby content. Same ink-on-paper chip as .lobby-gif so
+   dark ink art stays legible on the charcoal shell. Both are decorative. */
+.lobby-video {
+    width: 118px;
+    height: 118px;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border-color);
+    background: #FFFCF5;
+    box-shadow: var(--shadow-soft);
+}
+.lobby-art {
+    width: 108px;
+    height: 108px;
+    object-fit: contain;
+    display: block;
+    margin: 4px auto 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border-color);
+    background: #FFFCF5;
+    box-shadow: var(--shadow-soft);
+}
+@media (max-width: 640px) {
+    .lobby-video, .lobby-art { width: 92px; height: 92px; }
+}
 .lobby-desc {
     font-size: 13px;
     color: var(--text-muted);
@@ -2731,6 +2782,26 @@ button, a, input, select {
     box-shadow: 0 1px 1px rgba(80, 60, 20, 0.1);
 }
 
+/* ── Header action cluster ───────────────────────────────────────────────
+   The right-hand cluster had no layout rules: it was a plain inline row, and
+   .status-indicator is a BLOCK-level flex box, so it broke the line and the
+   header stacked three rows with dead space beside the logo. One flex row keeps
+   the header compact at every width. */
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    min-width: 0;   /* without this the cluster's min-content props the row open */
+}
+.system-cluster {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.status-indicator { display: inline-flex; }
+
 .sidebar-title-row {
     display: flex;
     align-items: center;
@@ -2766,30 +2837,205 @@ button, a, input, select {
     padding-left: 40px;
 }
 
-/* ── Triage summary panel ──────────────────────────────────────────── */
+/* ── Docket overview (triage band) ─────────────────────────────────────
+   One labelled section wrapping the three triage cards. Every card follows the
+   same shape — a head (icon chip, title, caption) and a body — so the band reads
+   as a single instrument. The bodies are flex columns that centre their content,
+   which is what stopped the cards from ending in dead space.
+   ───────────────────────────────────────────────────────────────────── */
+.docket {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+.docket-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    padding: 0 var(--space-2);
+}
+.docket-kicker {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-primary-dark);
+    margin-bottom: 2px;
+}
+.docket-heading h2 {
+    font-family: var(--font-heading);
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text-primary);
+}
+.docket-note {
+    padding: 6px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--bg-card) 75%, transparent);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
 .stats-container {
-    grid-template-columns: 1.1fr 1.6fr 1.3fr;
+    display: grid;
+    grid-template-columns: 1fr 1.55fr 1.35fr;
     gap: var(--space-5);
+    align-items: stretch;
 }
 
 .stat-card {
     border-radius: var(--radius-organic) !important;
     padding: var(--space-5) var(--space-6);
-}
-.stat-card.total strong { font-size: 44px; }
-.stat-sub {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    gap: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 .stat-card:hover { transform: translateY(-3px); }
 
-.triage-donut-card {
+/* Card head: tinted icon chip + title/caption */
+.card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    min-width: 0;
+}
+.card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--color-primary) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+    color: var(--color-primary-dark);
+}
+.card-icon i,
+.card-icon svg { width: 17px; height: 17px; }
+.card-head-text { min-width: 0; }
+.card-title {
+    font-family: var(--font-heading);
+    font-size: 15.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+.card-caption {
+    margin-top: 1px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+.card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-4);
+    min-width: 0;
+    padding: var(--space-4) 0 var(--space-2);
+}
+.card-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border-color);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.card-foot i,
+.card-foot svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* Register size: hero number + unit + band strip */
+.stat-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+.stat-value-row strong {
+    font-family: var(--font-heading);
+    font-size: 56px;
+    font-weight: 850;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+.stat-unit {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.mix-strip {
+    display: flex;
+    gap: 3px;
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--bg-well) 90%, transparent);
+    overflow: hidden;
+}
+.mix-strip.is-empty { background: repeating-linear-gradient(90deg, var(--bg-well) 0 8px, transparent 8px 14px); }
+.mix-seg {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    transition: width var(--dur-slow) var(--ease-spring);
+}
+.seg-high { background: var(--color-high); }
+.seg-medium { background: var(--color-medium); }
+.seg-low { background: var(--color-low); }
+.mix-key {
+    /* Equal-width pills on one line — a wrapped pill used to make this card
+       taller than its neighbours and broke the band's shared baseline. */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: 6px;
+    list-style: none;
+}
+.mix-key-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 8px;
+    white-space: nowrap;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--bg-well) 70%, transparent);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.mix-key-item strong {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Priority mix: donut + clickable legend, side by side */
+.triage-donut-card { min-width: 0; }
+.donut-body {
+    flex: 1;
     display: flex;
     align-items: center;
     gap: var(--space-6);
+    padding-top: var(--space-4);
     min-width: 0;
 }
 .donut-wrap {
@@ -2850,7 +3096,8 @@ button, a, input, select {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 10px;
+    width: 100%;
+    padding: 7px 12px;
     border: 1px solid transparent;
     border-radius: var(--radius-pill);
     background: transparent;
@@ -2858,6 +3105,7 @@ button, a, input, select {
     font-size: 13px;
     font-weight: 700;
     color: var(--text-secondary);
+    text-align: left;
     cursor: pointer;
     transition: all 0.2s var(--ease-spring);
 }
@@ -2865,8 +3113,19 @@ button, a, input, select {
     background: color-mix(in srgb, var(--bg-well) 60%, transparent);
     border-color: var(--border-color);
 }
-.triage-legend-item.active { background: color-mix(in srgb, var(--bg-well) 90%, transparent); }
-.triage-legend-item strong { margin-left: auto; font-family: var(--font-heading); font-size: 17px; color: var(--text-primary); }
+.triage-legend-item.active {
+    background: color-mix(in srgb, var(--bg-well) 90%, transparent);
+    border-color: var(--border-color-glow);
+}
+.legend-name { flex: 1; }
+/* Scoped through .stat-card: the generic `.stat-card strong` rule out-specifies a
+   bare class, so the count keeps its own size. */
+.stat-card .legend-count {
+    font-family: var(--font-heading);
+    font-size: 17px;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
 .legend-swatch {
     width: 10px;
     height: 10px;
@@ -2879,19 +3138,42 @@ button, a, input, select {
 
 .category-card { min-width: 0; }
 .category-bars {
+    flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 7px;
-    margin-top: 8px;
+    padding-top: var(--space-4);
+    margin-top: 0;
 }
 .cat-bar-row {
     display: grid;
-    grid-template-columns: 108px 1fr 30px;
+    /* Name column stays close to its bar; the track takes the slack instead of
+       being a fixed 84px sliver stranded at the card's right edge. */
+    grid-template-columns: 18px minmax(64px, 1fr) minmax(72px, 1.7fr) 26px;
     align-items: center;
     gap: 10px;
     font-size: 11.5px;
     color: var(--text-secondary);
     font-weight: 700;
+}
+.cat-bar-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg-well) 85%, transparent);
+    font-family: var(--font-heading);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.cat-bar-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .cat-bar-track {
     height: 7px;
@@ -3409,8 +3691,52 @@ button, a, input, select {
 @media (max-width: 599px) {
     .stats-container { grid-template-columns: 1fr; }
     .category-card { grid-column: auto; }
-    .triage-donut-card { flex-wrap: wrap; }
+    /* The donut sits above its legend instead of beside it. */
+    .donut-body { flex-direction: column; align-items: stretch; gap: var(--space-4); }
+    .donut-wrap { align-self: center; }
+    .docket-head { flex-direction: column; align-items: flex-start; }
+    .stat-value-row strong { font-size: 46px; }
+    .cat-bar-row { grid-template-columns: 18px minmax(0, 1fr) 60px 24px; }
+    /* Phone header: hamburger + wordmark on line one, the whole action cluster
+       on line two. Without the wrap the never-breaking GPU badge and status pill
+       set a ~450px min width and the page scrolled sideways; the badge is now the
+       flexible item that gives way (its text ellipsises) instead of wrapping the
+       cluster onto a third line. */
     .app-header { border-radius: 2rem; padding: 12px 16px; flex-wrap: wrap; row-gap: 8px; }
+    .header-logo { flex: 1; min-width: 0; }
+    .header-actions { flex: 1 0 100%; min-width: 0; justify-content: space-between; gap: var(--space-2); }
+    .system-cluster { flex: 1; min-width: 0; flex-wrap: nowrap; }
+    /* Scoped through .header-actions on purpose: tokens.css is @imported by BOTH
+       style.css and case-workflow.css, and the later copy out-ranks any
+       equal-specificity override written here (that is why `.gpu-badge` rules in
+       this sheet otherwise do nothing — case-workflow.css also styles it). */
+    .header-actions .gpu-badge {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    /* case-workflow.css sizes `.gpu-badge i`, but Lucide REPLACES that <i> with an
+       <svg>, so the icon actually rendered at Lucide's 24px default and ate the
+       text's room (it could also overlap the label). Size the svg itself. */
+    .header-actions .gpu-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+    /* The status text must be a shrinkable flex item, or its nowrap min-content
+       width still props the cluster open and pushes the theme toggle off the card. */
+    .header-actions #gpu-badge-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    /* "System Active" rides along with the inference badge everywhere except a
+       phone, where the two pills plus the toggle cannot share a row: the badge
+       already reports health, so the generic pill gives way and the whole badge
+       (whose last words — "GPU inference" — are the informative part) stays
+       readable instead of ellipsising to "RTX 2050 · q…". */
+    .header-actions .status-indicator { display: none; }
+    .header-actions .theme-toggle-btn { width: 36px; height: 36px; }
     .logo-text span { display: none; }
     .tab-btn { padding: 10px 8px; font-size: 12.5px; }
     .tab-btn i { display: none; }

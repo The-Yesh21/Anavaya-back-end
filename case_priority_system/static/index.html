@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anavaya — Judicial Case Priority Dashboard</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon.ico" sizes="32x32">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <!-- Theme boot — runs synchronously before any stylesheet is applied, so the
          page paints in the right theme with no flash. Saved choice wins; otherwise
          follow the OS. Kept tiny and dependency-free (documentElement + localStorage). -->
@@ -74,7 +77,20 @@
             </button>
             <div class="header-logo">
                 <div class="logo-icon">
-                    <i data-lucide="scale"></i>
+                    <!-- The Anavaya mark (same scales-of-justice as the favicon),
+                         inlined so it inherits the header's gold/accent colors. -->
+                    <svg viewBox="0 0 64 64" role="img" aria-label="Anavaya" style="width:70%;height:70%;display:block;">
+                        <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M32 17v30"/>
+                            <path d="M14 23h36"/>
+                            <path d="M22 47h20"/>
+                            <path d="M14 23v5" stroke-width="2"/>
+                            <path d="M50 23v5" stroke-width="2"/>
+                        </g>
+                        <circle cx="32" cy="16" r="3.6" fill="currentColor"/>
+                        <path d="M14 28 L6 39 H22 Z" fill="currentColor" opacity="0.85"/>
+                        <path d="M50 28 L42 39 H58 Z" fill="currentColor" opacity="0.85"/>
+                    </svg>
                 </div>
                 <div class="logo-text">
                     <h1>Anavaya</h1>
@@ -82,55 +98,116 @@
                 </div>
             </div>
             <div class="header-actions">
-                <span class="gpu-badge" id="gpu-badge" hidden title="Inference backend status">
-                    <i data-lucide="cpu"></i>
-                    <span id="gpu-badge-text"></span>
+                <!-- System health reads as ONE cluster: the GPU chip and the
+                     online pill used to stack on separate lines (and pushed the
+                     theme toggle onto a third), which made the bar look broken. -->
+                <span class="system-cluster">
+                    <span class="gpu-badge" id="gpu-badge" hidden title="Inference backend status">
+                        <i data-lucide="cpu"></i>
+                        <span id="gpu-badge-text"></span>
+                    </span>
+                    <span class="status-indicator online">System Active</span>
                 </span>
                 <span class="kbd-hint"><kbd>Ctrl</kbd><kbd>K</kbd> search</span>
-                <span class="status-indicator online">System Active</span>
                 <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
                     <i data-lucide="moon"></i>
                 </button>
             </div>
         </header>
 
-        <!-- Triage Summary Row -->
-        <section class="stats-container">
-            <div class="stat-card total">
-                <span class="stat-label">Total Handled</span>
-                <strong id="stat-total-val">0</strong>
-                <span class="stat-sub">prioritized cases</span>
+        <!-- Docket overview — the triage band. One labelled section holding three
+             cards: the register size, the priority mix (also the quick filter) and
+             the category spread. Every card shares the same head + body shape, so
+             the three read as one instrument instead of three unrelated tiles. -->
+        <section class="docket" aria-labelledby="docket-title">
+            <div class="docket-head">
+                <div class="docket-heading">
+                    <span class="docket-kicker">Docket overview</span>
+                    <h2 id="docket-title">Triage at a glance</h2>
+                </div>
+                <p class="docket-note" id="docket-note">Reading the register…</p>
             </div>
-            <div class="stat-card triage-donut-card">
-                <div class="donut-wrap">
-                    <svg class="donut-chart" id="priority-donut-svg" viewBox="0 0 120 120" aria-label="Priority distribution">
-                        <circle class="donut-track" cx="60" cy="60" r="50"></circle>
-                        <circle class="donut-arc arc-high" id="arc-high" cx="60" cy="60" r="50"></circle>
-                        <circle class="donut-arc arc-medium" id="arc-medium" cx="60" cy="60" r="50"></circle>
-                        <circle class="donut-arc arc-low" id="arc-low" cx="60" cy="60" r="50"></circle>
-                    </svg>
-                    <div class="donut-center">
-                        <strong id="donut-total-val">0</strong>
-                        <span>cases</span>
+
+            <div class="stats-container">
+                <!-- Register size + how it splits across the three bands -->
+                <article class="stat-card total">
+                    <div class="card-head">
+                        <span class="card-icon"><i data-lucide="scale"></i></span>
+                        <div class="card-head-text">
+                            <h3 class="card-title">Total Handled</h3>
+                            <p class="card-caption">Every case on record</p>
+                        </div>
                     </div>
-                </div>
-                <div class="triage-legend">
-                    <button class="triage-legend-item" data-priority="High" title="Filter case list by High priority">
-                        <span class="legend-swatch swatch-high"></span>High <strong id="stat-high-val">0</strong>
-                    </button>
-                    <button class="triage-legend-item" data-priority="Medium" title="Filter case list by Medium priority">
-                        <span class="legend-swatch swatch-medium"></span>Medium <strong id="stat-medium-val">0</strong>
-                    </button>
-                    <button class="triage-legend-item" data-priority="Low" title="Filter case list by Low priority">
-                        <span class="legend-swatch swatch-low"></span>Low <strong id="stat-low-val">0</strong>
-                    </button>
-                </div>
-            </div>
-            <div class="stat-card category-card">
-                <span class="stat-label">By Category</span>
-                <div id="category-bars" class="category-bars">
-                    <div class="loader">Computing…</div>
-                </div>
+                    <div class="card-body">
+                        <div class="stat-value-row">
+                            <strong id="stat-total-val">0</strong>
+                            <span class="stat-unit">cases</span>
+                        </div>
+                        <div class="mix-strip" id="mix-strip" aria-hidden="true">
+                            <span class="mix-seg seg-high" id="mix-seg-high"></span>
+                            <span class="mix-seg seg-medium" id="mix-seg-medium"></span>
+                            <span class="mix-seg seg-low" id="mix-seg-low"></span>
+                        </div>
+                        <ul class="mix-key" id="mix-key" aria-label="Share of cases by priority"></ul>
+                    </div>
+                    <p class="card-foot"><i data-lucide="git-branch"></i> Ranked by the Decision Tree</p>
+                </article>
+
+                <!-- Priority mix — the donut doubles as the case-list filter -->
+                <article class="stat-card triage-donut-card">
+                    <div class="card-head">
+                        <span class="card-icon"><i data-lucide="chart-pie"></i></span>
+                        <div class="card-head-text">
+                            <h3 class="card-title">Priority Mix</h3>
+                            <p class="card-caption">Select a band to filter the register</p>
+                        </div>
+                    </div>
+                    <div class="donut-body">
+                        <div class="donut-wrap">
+                            <svg class="donut-chart" id="priority-donut-svg" viewBox="0 0 120 120" role="img" aria-label="Priority distribution of every case on record">
+                                <circle class="donut-track" cx="60" cy="60" r="50"></circle>
+                                <circle class="donut-arc arc-high" id="arc-high" cx="60" cy="60" r="50"></circle>
+                                <circle class="donut-arc arc-medium" id="arc-medium" cx="60" cy="60" r="50"></circle>
+                                <circle class="donut-arc arc-low" id="arc-low" cx="60" cy="60" r="50"></circle>
+                            </svg>
+                            <div class="donut-center">
+                                <strong id="donut-total-val">0</strong>
+                                <span>cases</span>
+                            </div>
+                        </div>
+                        <div class="triage-legend">
+                            <button class="triage-legend-item" data-priority="High" title="Filter the case list by High priority">
+                                <span class="legend-swatch swatch-high"></span>
+                                <span class="legend-name">High</span>
+                                <strong class="legend-count" id="stat-high-val">0</strong>
+                            </button>
+                            <button class="triage-legend-item" data-priority="Medium" title="Filter the case list by Medium priority">
+                                <span class="legend-swatch swatch-medium"></span>
+                                <span class="legend-name">Medium</span>
+                                <strong class="legend-count" id="stat-medium-val">0</strong>
+                            </button>
+                            <button class="triage-legend-item" data-priority="Low" title="Filter the case list by Low priority">
+                                <span class="legend-swatch swatch-low"></span>
+                                <span class="legend-name">Low</span>
+                                <strong class="legend-count" id="stat-low-val">0</strong>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Category spread — ranked, so the busiest area reads first -->
+                <article class="stat-card category-card">
+                    <div class="card-head">
+                        <span class="card-icon"><i data-lucide="layers"></i></span>
+                        <div class="card-head-text">
+                            <h3 class="card-title">By Category</h3>
+                            <p class="card-caption">Top six legal categories on file</p>
+                        </div>
+                    </div>
+                    <div id="category-bars" class="category-bars">
+                        <div class="loader">Computing…</div>
+                    </div>
+                </article>
             </div>
         </section>
 
@@ -245,7 +322,8 @@
                                         <h2><i data-lucide="cloud-upload"></i> Upload Evidence</h2>
                                     </div>
                                     <div class="wizard-dropzone" id="workspace-doc-drop">
-                                        <i data-lucide="file-plus-2"></i>
+                                        <!-- Evidence going up — animated brand art for the drop target. -->
+                                        <img class="dz-gif" src="assets/evidence-upload.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
                                         <p>Drop PDF or image files here or click to browse</p>
                                     </div>
                                     <input type="file" id="workspace-doc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple style="display:none;">
@@ -325,7 +403,9 @@
                             </div>
                         </div>
                         <div id="no-case-selected" class="empty-state">
-                            <div class="empty-icon"><i data-lucide="folder-open"></i></div>
+                            <!-- Counsel conferring — animated brand art (replaces the
+                                 stock folder glyph; the text still carries the meaning). -->
+                            <img class="empty-art" src="assets/talking.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
                             <h3>No Case Selected</h3>
                             <p>Choose a legal case document from the sidebar to inspect its triage results, constitutional reasons, and predicted priority.</p>
                         </div>
@@ -474,8 +554,13 @@
                         <div class="courtroom-lobby-layout">
                             <!-- Create Room -->
                             <div class="lobby-create-card">
+                                <!-- The presiding judge — ambient brand clip (square, 1.5s
+                                     loop, muted + decorative: browsers allow autoplay). -->
+                                <video class="lobby-video" src="assets/judge.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video>
                                 <h3><i data-lucide="plus-circle"></i> Open a New Trial</h3>
                                 <p class="lobby-desc">Create a courtroom session. Share the invite link with the other counsel to join the live trial.</p>
+                                <!-- Counsel joining the bench — animated brand icon -->
+                                <img class="lobby-gif" src="assets/courtroom-join.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
                                 <form id="create-room-form" class="lobby-form">
                                     <label class="lobby-field">
                                         <span>Case file (optional — links the trial to a case)</span>
@@ -505,6 +590,10 @@
                             <div class="lobby-list-card">
                                 <h3><i data-lucide="layout-list"></i> Courtroom Sessions</h3>
                                 <button class="lobby-refresh-btn" id="refresh-rooms-btn" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+                                <!-- The courthouse — brand art above the session list. -->
+                                <img class="lobby-art" src="assets/courthouse.png" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                <!-- The four-seat bench — animated brand icon -->
+                                <img class="lobby-gif lobby-gif-grid" src="assets/courtroom-grid.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
                                 <div id="rooms-list-container" class="rooms-list">
                                     <div class="loader">Loading trial sessions…</div>
                                 </div>

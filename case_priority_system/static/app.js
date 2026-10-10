@@ -225,6 +225,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const arcMedium = document.getElementById("arc-medium");
     const arcLow = document.getElementById("arc-low");
     const categoryBarsEl = document.getElementById("category-bars");
+    const docketNoteEl = document.getElementById("docket-note");
+    const mixStripEl = document.getElementById("mix-strip");
+    const mixKeyEl = document.getElementById("mix-key");
 
     function updateStats(cases) {
         // Stats count CASES, not raw Excel rows — the whole-case row represents
@@ -242,7 +245,43 @@ document.addEventListener("DOMContentLoaded", () => {
         statLowVal.textContent = low;
 
         renderDonut(high, medium, low, total);
+        renderMixBand(high, medium, low, total);
         renderCategoryBars(casesOnly);
+        if (docketNoteEl) {
+            // Cases without a priority verdict exist while a case is still being
+            // prepared, so say how many actually carry a ranking.
+            const ranked = high + medium + low;
+            const cases_ = `case${total === 1 ? "" : "s"}`;
+            docketNoteEl.textContent = total === 0
+                ? "No cases on record yet"
+                : ranked === total
+                    ? `${total} ${cases_} on record · all ranked`
+                    : `${total} ${cases_} on record · ${ranked} ranked`;
+        }
+    }
+
+    // The band strip inside "Total Handled": one proportional segment per
+    // priority, then the SHARE each band holds. The Priority Mix card reads the
+    // same counts as raw numbers, so the two cards never just echo each other.
+    function renderMixBand(high, medium, low, total) {
+        const counts = [high, medium, low];
+        const segs = ["mix-seg-high", "mix-seg-medium", "mix-seg-low"].map((id) => document.getElementById(id));
+        const names = ["High", "Medium", "Low"];
+        segs.forEach((seg, i) => {
+            if (!seg) return;
+            const pct = total > 0 ? (counts[i] / total) * 100 : 0;
+            seg.style.width = pct + "%";
+            seg.hidden = pct === 0;   // a zero-width segment would still draw its gap
+        });
+        if (mixStripEl) mixStripEl.classList.toggle("is-empty", total === 0);
+        if (mixKeyEl) {
+            mixKeyEl.innerHTML = names.map((name, i) => {
+                const pct = total > 0 ? Math.round((counts[i] / total) * 100) : 0;
+                return `<li class="mix-key-item" title="${name} priority — ${pct}% of cases on record">`
+                    + `<span class="legend-swatch swatch-${name.toLowerCase()}"></span>`
+                    + `${name} <strong>${pct}%</strong></li>`;
+            }).join("");
+        }
     }
 
     function renderDonut(high, medium, low, total) {
@@ -274,8 +313,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         const max = sorted[0][1];
-        categoryBarsEl.innerHTML = sorted.map(([cat, n]) => `
-            <div class="cat-bar-row" title="${escHtml(cat)}">
+        categoryBarsEl.innerHTML = sorted.map(([cat, n], i) => `
+            <div class="cat-bar-row" title="${escHtml(cat)} — ${n} case${n === 1 ? "" : "s"}">
+                <span class="cat-bar-rank">${i + 1}</span>
                 <span class="cat-bar-name">${escHtml(cat)}</span>
                 <div class="cat-bar-track"><div class="cat-bar-fill" data-w="${Math.max(4, Math.round((n / max) * 100))}" style="width:0%"></div></div>
                 <span class="cat-bar-count">${n}</span>
