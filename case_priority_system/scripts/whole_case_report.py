@@ -34,10 +34,34 @@ from generate_case_report import (  # noqa: E402
     section,
 )
 
+try:
+    from case_priority_system.scripts.delay_precedents import get_delay_precedents
+except ImportError:
+    from delay_precedents import get_delay_precedents
+
 REPORTS_DIR = os.path.join("case_priority_system", "reports")
 
 _NARRATIVE_KEYS = ("main_parties", "case_category", "crime_type",
                    "severity", "vulnerability", "influence", "plain_summary")
+
+
+def delay_precedents_block(precedents):
+    if not precedents:
+        return "<p>No specific delay-cost precedents recorded.</p>"
+    items = []
+    for p in precedents:
+        items.append(
+            f'<div style="margin-bottom:12px;padding:10px 12px;background:#F9FAFB;border-left:4px solid #B45309;border-radius:3px;">'
+            f'<div style="font-size:12px;font-weight:bold;color:#1F2937;">{esc(p.get("case_title", ""))} '
+            f'<span style="font-size:10px;font-weight:normal;color:#6B7280;background:#E5E7EB;padding:1px 5px;border-radius:3px;">{esc(p.get("citation", ""))}</span></div>'
+            f'<div style="font-size:11px;color:#92400E;font-weight:bold;margin:2px 0;">Cost of Delay: {esc(p.get("cost_category", ""))} · {esc(p.get("delay_period", ""))}</div>'
+            f'<div style="font-size:11px;color:#374151;margin-top:3px;"><strong>Factual Delay:</strong> {esc(p.get("factual_delay", ""))}</div>'
+            f'<div style="font-size:11px;color:#374151;margin-top:2px;"><strong>Toll / Consequence:</strong> {esc(p.get("human_or_economic_toll", ""))}</div>'
+            f'<div style="font-size:11px;color:#1E3A8A;margin-top:2px;"><strong>Judicial Ruling:</strong> {esc(p.get("judicial_ruling", ""))}</div>'
+            f'<div style="font-size:11px;color:#4B5563;font-style:italic;margin-top:3px;">{esc(p.get("priority_mandate", ""))}</div>'
+            f'</div>'
+        )
+    return "".join(items)
 
 
 def build_whole_case_report_html(case_id, title, features, priority, analysis,
@@ -202,9 +226,13 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
 
         section("State's Perspective", f"<p>{esc(opinion)}</p>"),
 
-        section("Doctrines Engaged", doctrines_block(doctrines)),
-
         section("Rights Balancing Analysis", f"<p>{esc(balancing)}</p>"),
+
+        section(
+            "Precedents on Systemic Delay & Human/Economic Toll",
+            delay_precedents_block(get_delay_precedents(priority, category, crime_type, severity)),
+            accent="#B45309",
+        ),
 
         '<div class="legal-note"><strong>Disclaimer:</strong> This report is generated '
         "automatically by software for triage assistance only. It does not constitute legal "
