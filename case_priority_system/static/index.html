@@ -630,6 +630,57 @@
         </div>
     </div>
 
+    <!-- Precedent Deep-Dive & Mission Modal -->
+    <div id="precedent-modal" class="wizard-modal precedent-dialog-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="pdm-case-name">
+        <div class="wizard-card precedent-modal-card">
+            <div class="wizard-header">
+                <h2><i data-lucide="scale"></i> <span id="pdm-case-name">Historical Precedent</span></h2>
+                <button class="wizard-close" id="pdm-close-btn" aria-label="Close modal"><i data-lucide="x"></i></button>
+            </div>
+            <!-- Quick Precedent Selector Tabs -->
+            <div id="pdm-cases-bar" class="pdm-cases-bar" style="display: none;"></div>
+            <div class="pdm-meta-strip">
+                <span id="pdm-citation" class="pdm-pill pdm-citation-pill"></span>
+                <span id="pdm-court" class="pdm-pill pdm-court-pill"></span>
+                <span id="pdm-delay" class="pdm-pill pdm-delay-pill"></span>
+                <span id="pdm-tier" class="pdm-pill pdm-tier-pill"></span>
+            </div>
+            <div class="pdm-content-body">
+                <!-- Section 1: What was this case -->
+                <div class="pdm-section">
+                    <div class="pdm-section-head"><i data-lucide="book-open"></i> What Was This Case?</div>
+                    <div id="pdm-case-overview" class="pdm-section-text"></div>
+                </div>
+                <!-- Section 2: Failure of the Existing System -->
+                <div class="pdm-section failure-section">
+                    <div class="pdm-section-head"><i data-lucide="clock-alert"></i> The Flaw &amp; Ignorance in the Existing System (Procedural Delay)</div>
+                    <div id="pdm-factual-delay" class="pdm-section-text"></div>
+                </div>
+                <!-- Section 3: The Devastating Human or Economic Toll -->
+                <div class="pdm-section toll-section">
+                    <div class="pdm-section-head"><i data-lucide="alert-triangle"></i> The Catastrophic Toll (Lives &amp; Fortunes Lost)</div>
+                    <div id="pdm-toll" class="pdm-section-text toll-text"></div>
+                </div>
+                <!-- Section 4: Supreme Court Ruling & Constitutional Doctrine -->
+                <div class="pdm-section ruling-section">
+                    <div class="pdm-section-head"><i data-lucide="gavel"></i> Supreme Court Constitutional Ruling</div>
+                    <div id="pdm-ruling" class="pdm-section-text ruling-text"></div>
+                </div>
+                <!-- Section 5: The Intact Reason For Our Project (Anavaya's Core Mission) -->
+                <div class="pdm-mission-banner">
+                    <div class="pdm-mission-header">
+                        <i data-lucide="shield-check"></i>
+                        <strong>The Intact Reason for Anavaya: Why Our Project Exists</strong>
+                    </div>
+                    <div id="pdm-mission-text" class="pdm-mission-body"></div>
+                </div>
+            </div>
+            <div class="pdm-footer">
+                <button type="button" class="lobby-create-btn pdm-done-btn" id="pdm-done-btn">Close Precedent Details</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Analysis Loading Overlay -->
     <div id="upload-loading-overlay" class="loading-overlay" style="display: none;">
         <div class="loading-spinner-container">

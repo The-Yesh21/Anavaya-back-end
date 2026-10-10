@@ -714,18 +714,49 @@ document.addEventListener("DOMContentLoaded", () => {
         wrap.innerHTML = rightsHtml + doctrinesHtml;
     }
 
+    let currentCasePrecedents = [];
+    let allHistoricalPrecedentsCache = null;
+
+    async function loadAllHistoricalPrecedents() {
+        if (allHistoricalPrecedentsCache && allHistoricalPrecedentsCache.length) {
+            return allHistoricalPrecedentsCache;
+        }
+        try {
+            const res = await fetch("/api/delay-precedents");
+            if (res.ok) {
+                const data = await res.json();
+                allHistoricalPrecedentsCache = data.precedents || [];
+                return allHistoricalPrecedentsCache;
+            }
+        } catch (_) { }
+        return [];
+    }
+
     // Historical precedents on systemic delay & human/economic toll:
     // Landmark cases where delay/ignorance destroyed lives, liberty, or fortunes.
     function renderDelayPrecedents(items, priority) {
         const wrap = $("case-level-delay-precedents");
         if (!wrap) return;
-        if (!items || !items.length) {
-            wrap.innerHTML = `<div class="ev-empty">Historical precedents appear here once the case is analysed.</div>`;
+        currentCasePrecedents = Array.isArray(items) ? items : [];
+
+        if (!currentCasePrecedents.length) {
+            wrap.innerHTML = `
+                <div class="clickable-precedent-placeholder" id="pdm-placeholder-trigger" title="Click to view landmark cases and why Anavaya exists">
+                    <i data-lucide="info"></i>
+                    <span>Historical precedents appear here once the case is analysed. <strong>Click to explore landmark delay cases, their human toll &amp; the intact reason for Anavaya &rarr;</strong></span>
+                </div>
+            `;
+            const trigger = $("pdm-placeholder-trigger");
+            if (trigger) {
+                trigger.addEventListener("click", () => openPrecedentModal(null, priority));
+            }
+            if (typeof lucide !== "undefined") lucide.createIcons();
             return;
         }
+
         const prioCls = String(priority || "medium").toLowerCase();
-        const cards = items.map((p) => `
-            <div class="delay-precedent-card ${prioCls}">
+        const cards = currentCasePrecedents.map((p) => `
+            <div class="delay-precedent-card ${prioCls}" data-prec-id="${esc(p.id || "")}" role="button" tabindex="0" title="Click to inspect what this case was, the systemic delay, and why Anavaya exists">
                 <div class="dp-header">
                     <div class="dp-title-row">
                         <span class="dp-case-name">${esc(p.case_title || "")}</span>
@@ -758,11 +789,142 @@ document.addEventListener("DOMContentLoaded", () => {
                     <i data-lucide="shield-alert"></i>
                     <span>${esc(p.priority_mandate || "")}</span>
                 </div>
+                <div class="dp-action-bar">
+                    <span class="dp-deepdive-btn"><i data-lucide="external-link"></i> Deep-Dive Case, Systemic Toll &amp; Anavaya Mission</span>
+                </div>
             </div>
         `).join("");
         wrap.innerHTML = cards;
+
+        wrap.querySelectorAll(".delay-precedent-card").forEach((card) => {
+            const pid = card.getAttribute("data-prec-id");
+            card.addEventListener("click", () => openPrecedentModal(pid, priority));
+            card.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openPrecedentModal(pid, priority);
+                }
+            });
+        });
+
         if (typeof lucide !== "undefined") lucide.createIcons();
     }
+
+    async function openPrecedentModal(selectedId, priority) {
+        const modal = $("precedent-modal");
+        if (!modal) return;
+
+        let list = currentCasePrecedents;
+        if (!list || !list.length) {
+            list = await loadAllHistoricalPrecedents();
+        }
+        if (!list || !list.length) {
+            alert("No historical precedents available.");
+            return;
+        }
+
+        let active = list.find((p) => p.id === selectedId) || list[0];
+
+        function renderModalActivePrecedent(p) {
+            if (!p) return;
+            const prio = p.priority_level || priority || "Medium";
+            const prioCls = String(prio).toLowerCase();
+
+            $("pdm-case-name").textContent = p.case_title || "Historical Precedent";
+            $("pdm-citation").textContent = p.citation || "Citation unavailable";
+            $("pdm-court").innerHTML = `<i data-lucide="building-2"></i> ${esc(p.court || "")} (${esc(String(p.year || ""))})`;
+            $("pdm-delay").innerHTML = `<i data-lucide="clock-alert"></i> ${esc(p.delay_period || "")}`;
+
+            const tierEl = $("pdm-tier");
+            tierEl.textContent = `${prio} Priority Mandate`;
+            tierEl.className = `pdm-pill pdm-tier-pill ${prioCls}`;
+
+            const cats = Array.isArray(p.applicable_categories) ? p.applicable_categories.join(", ") : (p.applicable_categories || "General Legal");
+            $("pdm-case-overview").innerHTML = `
+                <p><strong>${esc(p.case_title || "")}</strong> (${esc(p.citation || "")}) is a landmark benchmark from the <strong>${esc(p.court || "")}</strong> (${esc(String(p.year || ""))}). It directly governs legal controversies in <strong>${esc(cats)}</strong>.</p>
+                <p style="margin-top: 6px;">The central issue addressed was the devastating consequence of <strong>${esc(p.cost_category || "")}</strong> caused when judicial triage was delayed or entirely absent.</p>
+            `;
+
+            $("pdm-factual-delay").innerHTML = `
+                <p>${esc(p.factual_delay || "")}</p>
+                <p style="margin-top: 6px; font-size: 11.5px; color: var(--text-muted);"><strong>The Institutional Flaw:</strong> Cases sat in flat, unranked queues where judicial officers had no visibility into urgency until human liberty or enterprise value was already annihilated.</p>
+            `;
+
+            $("pdm-toll").innerHTML = `
+                <p>${esc(p.human_or_economic_toll || "")}</p>
+            `;
+
+            $("pdm-ruling").innerHTML = `
+                <p>&ldquo;${esc(p.judicial_ruling || "")}&rdquo;</p>
+            `;
+
+            const missionText = p.anavaya_project_reason || p.priority_mandate || (
+                "Anavaya exists so that cases of this nature are never buried in unstructured dockets. " +
+                "By executing automated, deterministic Decision Tree triage on intake, Anavaya flags critical " +
+                "liberty deprivations and catastrophic economic harms on Day 1, ensuring justice before irreversible tragedy strikes."
+            );
+            $("pdm-mission-text").innerHTML = `
+                <p>${esc(missionText)}</p>
+                <div style="margin-top: 8px; font-size: 11.5px; opacity: 0.9; border-top: 1px dashed rgba(201, 162, 75, 0.4); padding-top: 6px;">
+                    <strong>The Anavaya Invariant:</strong> The LLM extracts facts only; the deterministic Decision Tree assigns priority so that every citizen receives objective, incorruptible urgency triage.
+                </div>
+            `;
+
+            // Render navigation tabs if multiple precedents are present
+            const bar = $("pdm-cases-bar");
+            if (bar) {
+                if (list.length > 1) {
+                    bar.style.display = "flex";
+                    bar.innerHTML = list.map((item) => `
+                        <button type="button" class="pdm-case-tab ${item.id === p.id ? 'active' : ''}" data-id="${esc(item.id)}">
+                            ${esc(item.case_title.split("v.")[0].trim() || item.case_title)}
+                        </button>
+                    `).join("");
+                    bar.querySelectorAll(".pdm-case-tab").forEach((btn) => {
+                        btn.addEventListener("click", () => {
+                            const found = list.find((it) => it.id === btn.getAttribute("data-id"));
+                            if (found) renderModalActivePrecedent(found);
+                        });
+                    });
+                } else {
+                    bar.style.display = "none";
+                }
+            }
+
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+
+        renderModalActivePrecedent(active);
+        modal.style.display = "flex";
+    }
+
+    function closePrecedentModal() {
+        const modal = $("precedent-modal");
+        if (modal) modal.style.display = "none";
+    }
+
+    // Modal close listeners
+    const pdmCloseBtn = $("pdm-close-btn");
+    if (pdmCloseBtn) pdmCloseBtn.addEventListener("click", closePrecedentModal);
+
+    const pdmDoneBtn = $("pdm-done-btn");
+    if (pdmDoneBtn) pdmDoneBtn.addEventListener("click", closePrecedentModal);
+
+    const pdmModalEl = $("precedent-modal");
+    if (pdmModalEl) {
+        pdmModalEl.addEventListener("click", (e) => {
+            if (e.target === pdmModalEl) closePrecedentModal();
+        });
+    }
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            const modal = $("precedent-modal");
+            if (modal && modal.style.display !== "none") {
+                closePrecedentModal();
+            }
+        }
+    });
 
     // Per-evidence strength cards: what each document contributes to the
     // merged verdict (weight 0-100, the merge signals it drives, its own

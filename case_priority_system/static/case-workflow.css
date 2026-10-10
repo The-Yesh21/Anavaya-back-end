@@ -1612,3 +1612,287 @@
     margin-top: 2px;
 }
 
+/* ---- Precedent Dialog Modal (Deep Dive & Anavaya Mission) ---- */
+.precedent-dialog-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.25s ease;
+}
+.precedent-modal-card {
+    width: min(760px, 96vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: 20px;
+    box-shadow: var(--shadow-float);
+    padding: 24px 28px;
+    animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pdm-cases-bar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+    border-bottom: 1px dashed var(--border-color);
+}
+.pdm-case-tab {
+    padding: 5px 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-well);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.pdm-case-tab:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+.pdm-case-tab.active {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(168, 126, 47, 0.25);
+}
+.pdm-meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+}
+.pdm-pill {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pdm-citation-pill {
+    background: color-mix(in srgb, var(--gold-600) 12%, transparent);
+    color: var(--gold-700);
+    border-color: color-mix(in srgb, var(--gold-600) 25%, transparent);
+}
+.pdm-court-pill {
+    background: var(--bg-well);
+    color: var(--text-secondary);
+}
+.pdm-delay-pill {
+    background: var(--color-high-bg);
+    color: var(--color-high);
+    border-color: var(--color-high-border);
+}
+.pdm-tier-pill {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.pdm-tier-pill.high {
+    background: var(--color-high-bg);
+    color: var(--color-high);
+    border-color: var(--color-high-border);
+}
+.pdm-tier-pill.medium {
+    background: var(--color-medium-bg);
+    color: var(--color-medium);
+    border-color: var(--color-medium-border);
+}
+.pdm-tier-pill.low {
+    background: var(--color-low-bg);
+    color: var(--color-low);
+    border-color: var(--color-low-border);
+}
+.pdm-content-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    line-height: 1.55;
+}
+.pdm-section {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-well) 50%, transparent);
+    border: 1px solid var(--border-color);
+}
+.pdm-section.failure-section {
+    border-left: 4.5px solid var(--color-medium);
+    background: color-mix(in srgb, var(--color-medium-bg) 40%, transparent);
+}
+.pdm-section.toll-section {
+    border-left: 4.5px solid var(--color-high);
+    background: var(--color-high-bg);
+}
+.pdm-section.ruling-section {
+    border-left: 4.5px solid var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.pdm-section-head {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.pdm-section-head i, .pdm-section-head svg {
+    width: 14px;
+    height: 14px;
+    color: var(--color-primary);
+}
+.pdm-section-text {
+    color: var(--text-secondary);
+    line-height: 1.55;
+    font-size: 12.5px;
+}
+.pdm-section-text.toll-text {
+    color: var(--color-high);
+    font-weight: 650;
+}
+.pdm-section-text.ruling-text {
+    color: var(--text-primary);
+    font-style: italic;
+}
+.pdm-mission-banner {
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--gold-600) 14%, var(--bg-card)), color-mix(in srgb, var(--gold-600) 6%, var(--bg-well)));
+    border: 1.5px solid var(--gold-500);
+    box-shadow: var(--shadow-soft);
+}
+.pdm-mission-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--gold-800);
+    margin-bottom: 8px;
+}
+.pdm-mission-header i, .pdm-mission-header svg {
+    width: 17px;
+    height: 17px;
+    color: var(--gold-600);
+}
+.pdm-mission-body {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-weight: 550;
+}
+.pdm-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 14px;
+}
+.pdm-done-btn {
+    padding: 8px 22px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Clickable Placeholder in Empty State */
+.clickable-precedent-placeholder {
+    cursor: pointer;
+    padding: 12px 14px;
+    border: 1.5px dashed var(--gold-500);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--gold-600) 8%, transparent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+    transition: all 0.25s ease;
+}
+.clickable-precedent-placeholder:hover {
+    background: color-mix(in srgb, var(--gold-600) 16%, transparent);
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(168, 126, 47, 0.15);
+}
+.clickable-precedent-placeholder i, .clickable-precedent-placeholder svg {
+    width: 18px;
+    height: 18px;
+    color: var(--gold-600);
+    flex-shrink: 0;
+}
+.clickable-precedent-placeholder span {
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+.clickable-precedent-placeholder span strong {
+    color: var(--gold-700);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Precedent Card Clickability & Action Bar */
+.delay-precedent-card {
+    cursor: pointer;
+}
+.dp-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-color);
+}
+.dp-deepdive-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 750;
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+    border-radius: 99px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.dp-deepdive-btn:hover {
+    background: var(--color-primary);
+    color: #fff;
+    transform: translateY(-1px);
+}
+.dp-deepdive-btn i, .dp-deepdive-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+:root[data-theme="dark"] .pdm-mission-banner {
+    background: linear-gradient(135deg, rgba(168, 126, 47, 0.15), rgba(38, 35, 31, 0.95));
+    border-color: var(--gold-500);
+}
+:root[data-theme="dark"] .pdm-mission-header {
+    color: var(--gold-300);
+}
+:root[data-theme="dark"] .pdm-citation-pill {
+    color: var(--gold-300);
+}
+:root[data-theme="dark"] .clickable-precedent-placeholder span strong {
+    color: var(--gold-300);
+}
+
