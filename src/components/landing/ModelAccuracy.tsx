@@ -75,42 +75,52 @@ function ConfusionMatrix() {
   const rowTotals = matrix.map((row) => row.reduce((a, b) => a + b, 0));
 
   return (
-    <figure className="glass-panel overflow-x-clip rounded-xl p-6 sm:p-8">
+    <figure className="glass-panel overflow-x-clip rounded-2xl border border-border/80 p-6 shadow-sm sm:p-8">
       <figcaption>
-        <h3 className="font-display text-xl text-foreground">Confusion matrix</h3>
+        <div className="flex items-center gap-2">
+          <span className="eyebrow">Diagnostic matrix</span>
+        </div>
+        <h3 className="font-display mt-2 text-xl font-semibold text-foreground">Confusion Matrix</h3>
         <p className="mt-2 text-[0.9375rem] leading-[1.65] text-muted-foreground">
           Every row is the priority the policy assigns; every column is what the tree predicted. Counts on
           the shaded diagonal agree. Anything off it is a disagreement, and all {int(offDiagonal)} of them
-          are listed below.
+          are accounted for.
         </p>
       </figcaption>
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6 overflow-x-auto rounded-lg border border-border/70 bg-surface/40 p-1">
         <table className="w-full min-w-[26rem] border-collapse text-sm">
           <caption className="sr-only">
             Confusion matrix of the deployed decision tree across {int(corpus.total_rows)} corpus rows.
             Rows are the policy label, columns are the predicted label.
           </caption>
           <thead>
-            <tr>
-              <th scope="col" className="px-3 py-2 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <tr className="border-b border-border/80 bg-surface/80">
+              <th scope="col" className="px-3.5 py-2.5 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Policy ↓ / Predicted →
               </th>
               {labels.map((label) => (
-                <th key={label} scope="col" className="px-3 py-2 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <th key={label} scope="col" className="px-3.5 py-2.5 text-right text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   {label}
                 </th>
               ))}
-              <th scope="col" className="px-3 py-2 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <th scope="col" className="px-3.5 py-2.5 text-right text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Total
               </th>
             </tr>
           </thead>
           <tbody>
             {labels.map((rowLabel, r) => (
-              <tr key={rowLabel} className="border-t border-border">
-                <th scope="row" className="px-3 py-3 text-left font-medium text-foreground">
-                  {rowLabel}
+              <tr key={rowLabel} className="border-t border-border/60 transition-colors hover:bg-primary/[0.03]">
+                <th scope="row" className="px-3.5 py-3 text-left font-medium text-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: PRIORITY_SWATCH[rowLabel] ?? "var(--primary)" }}
+                    />
+                    {rowLabel}
+                  </span>
                 </th>
                 {labels.map((colLabel, c) => {
                   const count = matrix[r]?.[c] ?? 0;
@@ -120,10 +130,10 @@ function ConfusionMatrix() {
                       key={colLabel}
                       className={
                         agrees
-                          ? "tnum border-l border-border bg-primary/[0.09] px-3 py-3 text-right font-semibold text-foreground"
+                          ? "tnum border-l border-border/70 bg-primary/[0.12] px-3.5 py-3 text-right font-bold text-foreground shadow-inner"
                           : count > 0
-                            ? "tnum border-l border-border px-3 py-3 text-right font-semibold text-destructive"
-                            : "tnum border-l border-border px-3 py-3 text-right text-muted-foreground/60"
+                            ? "tnum border-l border-border/70 bg-destructive/[0.06] px-3.5 py-3 text-right font-semibold text-destructive"
+                            : "tnum border-l border-border/70 px-3.5 py-3 text-right text-muted-foreground/45"
                       }
                     >
                       {count === 0 ? (
@@ -139,7 +149,7 @@ function ConfusionMatrix() {
                     </td>
                   );
                 })}
-                <td className="tnum border-l border-border px-3 py-3 text-right text-muted-foreground">
+                <td className="tnum border-l border-border/70 bg-surface/50 px-3.5 py-3 text-right font-medium text-muted-foreground">
                   {int(rowTotals[r] ?? 0)}
                 </td>
               </tr>
@@ -148,16 +158,16 @@ function ConfusionMatrix() {
         </table>
       </div>
 
-      <p className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden="true" className="inline-block h-3 w-3 rounded-sm bg-primary/[0.35] ring-1 ring-primary/40" />
+      <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-2 rounded-md border border-primary/25 bg-primary/[0.07] px-2.5 py-1">
+          <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-sm bg-primary ring-1 ring-primary/50" />
           Diagonal — tree and policy agree
         </span>
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden="true" className="inline-block h-3 w-3 rounded-sm ring-1 ring-destructive" />
+        <span className="inline-flex items-center gap-2 rounded-md border border-destructive/25 bg-destructive/[0.06] px-2.5 py-1">
+          <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-sm bg-destructive/80 ring-1 ring-destructive" />
           Off-diagonal — disagreement
         </span>
-      </p>
+      </div>
     </figure>
   );
 }
@@ -178,22 +188,25 @@ function PerClassTable({
   blurb: string;
 }) {
   return (
-    <figure className="glass-panel overflow-x-clip rounded-xl p-6 sm:p-8">
+    <figure className="glass-panel overflow-x-clip rounded-2xl border border-border/80 p-6 shadow-sm sm:p-8">
       <figcaption>
-        <h3 className="font-display text-xl text-foreground">{title}</h3>
+        <div className="flex items-center gap-2">
+          <span className="eyebrow">Tier performance</span>
+        </div>
+        <h3 className="font-display mt-2 text-xl font-semibold text-foreground">{title}</h3>
         <p className="mt-2 text-[0.9375rem] leading-[1.65] text-muted-foreground">{blurb}</p>
       </figcaption>
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6 overflow-x-auto rounded-lg border border-border/70 bg-surface/40 p-1">
         <table className="w-full min-w-[26rem] border-collapse text-sm">
           <caption className="sr-only">{title}. Precision, recall, F1 score and support per priority tier.</caption>
           <thead>
-            <tr>
+            <tr className="border-b border-border/80 bg-surface/80">
               {["Priority", "Precision", "Recall", "F1", "Cases"].map((h, i) => (
                 <th
                   key={h}
                   scope="col"
-                  className={`px-3 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase ${
+                  className={`px-3.5 py-2.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase ${
                     i === 0 ? "text-left" : "text-right"
                   }`}
                 >
@@ -204,21 +217,28 @@ function PerClassTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.label} className="border-t border-border">
-                <th scope="row" className="px-3 py-3 text-left font-medium text-foreground">
-                  <span className="inline-flex items-center gap-2.5">
+              <tr key={row.label} className="border-t border-border/60 transition-colors hover:bg-primary/[0.03]">
+                <th scope="row" className="px-3.5 py-3 text-left font-medium text-foreground">
+                  <span
+                    className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                    style={{
+                      backgroundColor: `color-mix(in oklab, ${PRIORITY_SWATCH[row.label] ?? "var(--primary)"} 12%, transparent)`,
+                      color: PRIORITY_SWATCH[row.label] ?? "var(--primary)",
+                      border: `1px solid color-mix(in oklab, ${PRIORITY_SWATCH[row.label] ?? "var(--primary)"} 30%, transparent)`,
+                    }}
+                  >
                     <span
                       aria-hidden="true"
-                      className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                      className="h-1.5 w-1.5 rounded-full"
                       style={{ backgroundColor: PRIORITY_SWATCH[row.label] ?? "var(--primary)" }}
                     />
                     {row.label}
                   </span>
                 </th>
-                <td className="tnum px-3 py-3 text-right text-foreground/85">{row.precision.toFixed(3)}</td>
-                <td className="tnum px-3 py-3 text-right text-foreground/85">{row.recall.toFixed(3)}</td>
-                <td className="tnum px-3 py-3 text-right text-foreground/85">{row.f1.toFixed(3)}</td>
-                <td className="tnum px-3 py-3 text-right text-muted-foreground">{int(row.support)}</td>
+                <td className="tnum px-3.5 py-3 text-right font-medium text-foreground/90">{row.precision.toFixed(3)}</td>
+                <td className="tnum px-3.5 py-3 text-right font-medium text-foreground/90">{row.recall.toFixed(3)}</td>
+                <td className="tnum px-3.5 py-3 text-right font-semibold text-primary">{row.f1.toFixed(3)}</td>
+                <td className="tnum px-3.5 py-3 text-right text-muted-foreground">{int(row.support)}</td>
               </tr>
             ))}
           </tbody>
@@ -263,24 +283,33 @@ export function ModelAccuracy() {
             return (
               <Reveal key={c.label} delay={i * 90}>
                 <div
-                  className={`glass-panel flex h-full flex-col rounded-xl p-6 ${
-                    featured ? "border-primary/45 bg-primary/[0.07]" : ""
+                  className={`glass-panel flex h-full flex-col justify-between rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-1 ${
+                    featured
+                      ? "border-primary/50 bg-primary/[0.08] shadow-[0_10px_32px_-8px_color-mix(in_oklab,var(--primary)_22%,transparent)]"
+                      : "border-border/80 shadow-xs hover:border-primary/40 hover:shadow-[0_8px_24px_-8px_color-mix(in_oklab,var(--primary)_15%,transparent)]"
                   }`}
                 >
-                  <Icon
-                    className={`h-5 w-5 ${muted ? "text-muted-foreground" : "text-primary"}`}
-                    strokeWidth={1.6}
-                    aria-hidden="true"
-                  />
-                  <p
-                    className={`font-display tnum mt-5 text-4xl font-semibold ${
-                      muted ? "text-muted-foreground" : "text-foreground"
-                    }`}
-                  >
-                    {c.value}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-foreground/90">{c.label}</p>
-                  <p className="mt-3 text-[0.8125rem] leading-[1.6] text-muted-foreground">{c.detail}</p>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08] text-primary shadow-xs">
+                        <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+                      </span>
+                      {featured && (
+                        <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold tracking-wider text-primary uppercase">
+                          Primary Metric
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className={`font-display tnum mt-4 text-4xl font-semibold tracking-tight ${
+                        muted ? "text-muted-foreground" : "text-foreground"
+                      }`}
+                    >
+                      {c.value}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-foreground/90">{c.label}</p>
+                  </div>
+                  <p className="mt-4 text-[0.8125rem] leading-[1.65] text-muted-foreground">{c.detail}</p>
                 </div>
               </Reveal>
             );
@@ -291,7 +320,7 @@ export function ModelAccuracy() {
         {/* min-w-0 on the grid items: without it the min-w-[26rem] tables refuse to
             shrink and blow the page wide on small screens (overflow-x-auto only
             scrolls once the item itself fits the track). */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <Reveal className="min-w-0">
             <ConfusionMatrix />
           </Reveal>
@@ -308,41 +337,62 @@ export function ModelAccuracy() {
 
         {/* Honest framing */}
         <Reveal delay={80}>
-          <div className="mt-6 rounded-xl border border-primary/35 bg-primary/[0.06] p-8">
+          <div className="relative mt-8 overflow-hidden rounded-2xl border border-primary/35 bg-surface/90 p-8 shadow-[0_8px_30px_-8px_color-mix(in_oklab,var(--primary)_15%,transparent)] backdrop-blur-xl sm:p-10">
+            <span
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"
+            />
             <p className="eyebrow">Read this before quoting the number</p>
             <p className="mt-4 text-[0.9375rem] leading-[1.75] text-foreground/85">
               These labels are not human judicial annotations. Ground truth comes from a written
               court-priority policy derived from the Constitution of India, applied by code. So{" "}
-              {pct(headline.policyFidelity)} means <em className="emphasis">the tree reproduces that written
-              policy almost perfectly</em> — which is precisely the auditability the system is built for. It
-              is not a claim that Anavaya agrees with a judge {pct(headline.policyFidelity)} of the time. The
-              honest generalisation figure is the {pct(headline.holdoutAccuracy)} scored on real judgments the
-              model never saw during training, and even that measures agreement with the policy, not with the
-              bench. Anavaya proposes a first pass; the bench decides.
+              <span className="font-semibold text-foreground">{pct(headline.policyFidelity)}</span> means{" "}
+              <em className="emphasis font-normal not-italic text-primary/95 underline decoration-primary/40 underline-offset-4">
+                the tree reproduces that written policy almost perfectly
+              </em>{" "}
+              — which is precisely the auditability the system is built for. It is not a claim that Anavaya
+              agrees with a judge {pct(headline.policyFidelity)} of the time. The honest generalisation figure
+              is the {pct(headline.holdoutAccuracy)} scored on real judgments the model never saw during
+              training, and even that measures agreement with the policy, not with the bench. Anavaya
+              proposes a first pass; the bench decides.
             </p>
           </div>
         </Reveal>
 
         {/* Model card + reproduce */}
         <Reveal delay={120} className="min-w-0">
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-            <dl className="glass-panel grid gap-x-8 gap-y-4 rounded-xl p-6 sm:grid-cols-2 sm:p-8">
+          <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
+            <dl className="glass-panel grid gap-x-8 gap-y-4 rounded-2xl border border-border/80 p-6 shadow-xs sm:grid-cols-2 sm:p-8">
               {modelFacts.map((f) => (
                 <div key={f.k} className="border-b border-border/60 pb-3 last:border-b-0">
-                  <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{f.k}</dt>
-                  <dd className="mt-1.5 text-[0.9375rem] leading-snug text-foreground/90">{f.v}</dd>
+                  <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{f.k}</dt>
+                  <dd className="mt-1.5 text-[0.9375rem] font-medium leading-snug text-foreground/90">{f.v}</dd>
                 </div>
               ))}
             </dl>
 
-            <div className="glass-panel rounded-xl p-6 sm:p-8">
-              <TerminalSquare className="h-5 w-5 text-primary" strokeWidth={1.6} aria-hidden="true" />
-              <h3 className="font-display mt-4 text-lg text-foreground">Check it yourself</h3>
+            <div className="glass-panel overflow-hidden rounded-2xl border border-border/80 p-6 shadow-xs sm:p-8">
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-1.5" aria-hidden="true">
+                  <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]/70" />
+                </div>
+                <span className="text-[0.6875rem] font-medium tracking-wider text-muted-foreground uppercase">
+                  Terminal
+                </span>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <TerminalSquare className="h-5 w-5 text-primary" strokeWidth={1.8} aria-hidden="true" />
+                <h3 className="font-display text-lg font-semibold text-foreground">Check it yourself</h3>
+              </div>
               <p className="mt-2 text-[0.8125rem] leading-[1.6] text-muted-foreground">
                 The evaluation script never refits the model — it loads the shipped pickle and scores it.
               </p>
-              <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-background/70 p-3 text-[0.75rem] leading-relaxed text-foreground/85">
-                <code>python case_priority_system/{"\n"}scripts/evaluate_model.py</code>
+              <pre className="mt-4 overflow-x-auto rounded-lg border border-border/80 bg-background/80 p-3.5 font-mono text-[0.75rem] leading-relaxed text-foreground/90 shadow-inner">
+                <code>
+                  <span className="text-primary">$</span> python case_priority_system/{"\n"}  scripts/evaluate_model.py
+                </code>
               </pre>
               <p className="tnum mt-4 text-[0.75rem] text-muted-foreground">
                 Folds: {cvPerFold.map((f) => f.toFixed(3)).join(" · ")}
