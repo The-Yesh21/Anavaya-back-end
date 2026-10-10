@@ -17,10 +17,14 @@ function Wordmark() {
   return (
     <a
       href="#top"
-      className="inline-flex flex-shrink-0 items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      className="group inline-flex flex-shrink-0 items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
-      <Scale className="h-5 w-5 text-primary" strokeWidth={2} aria-hidden="true" />
-      <span className="font-display text-lg font-semibold tracking-tight text-foreground">Anavaya</span>
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/[0.08] text-primary shadow-xs transition-all duration-300 group-hover:border-primary/60 group-hover:bg-primary/[0.15] group-hover:shadow-[0_0_15px_-3px_color-mix(in_oklab,var(--primary)_35%,transparent)] group-hover:scale-105">
+        <Scale className="h-4.5 w-4.5" strokeWidth={2} aria-hidden="true" />
+      </span>
+      <span className="font-display text-lg font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary">
+        Anavaya
+      </span>
     </a>
   );
 }
@@ -48,10 +52,10 @@ export function SiteHeader() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled || open
-          ? "border-b border-border bg-background/85 backdrop-blur-xl"
-          : "border-b border-transparent"
+          ? "border-b border-border/80 bg-background/80 backdrop-blur-md shadow-[0_4px_30px_-10px_color-mix(in_oklab,var(--primary)_12%,transparent)]"
+          : "border-b border-transparent bg-transparent"
       }`}
     >
       <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-6 px-6 md:px-10">
@@ -62,21 +66,24 @@ export function SiteHeader() {
             <a
               key={l.href}
               href={l.href}
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="rounded-full px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-primary/[0.08] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {l.label}
             </a>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <ThemeToggle />
           {/* Bordered, not filled: the hero owns the single primary CTA above the fold. */}
           <a
             href={APP_URL}
-            className="hidden cursor-pointer items-center justify-center rounded-md border border-primary/45 px-5 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:inline-flex"
+            className="group hidden cursor-pointer items-center justify-center gap-1.5 rounded-full border border-primary/40 bg-primary/[0.06] px-5 py-2 text-sm font-semibold text-primary shadow-xs transition-all duration-300 hover:border-primary hover:bg-primary hover:text-primary-foreground hover:shadow-[0_0_20px_-3px_color-mix(in_oklab,var(--primary)_45%,transparent)] hover:scale-[1.02] active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:inline-flex"
           >
-            Open dashboard
+            <span>Open dashboard</span>
+            <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">
+              →
+            </span>
           </a>
           <button
             type="button"
@@ -84,12 +91,12 @@ export function SiteHeader() {
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}
-            className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border text-primary transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:hidden"
+            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-primary/25 bg-surface/80 text-primary shadow-xs transition-all duration-300 hover:border-primary/60 hover:bg-primary/10 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:hidden"
           >
             {open ? (
-              <X className="h-5 w-5" strokeWidth={1.7} aria-hidden="true" />
+              <X className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             ) : (
-              <Menu className="h-5 w-5" strokeWidth={1.7} aria-hidden="true" />
+              <Menu className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             )}
           </button>
         </div>
@@ -99,26 +106,27 @@ export function SiteHeader() {
         <nav
           id="mobile-nav"
           aria-label="Sections"
-          className="border-t border-border bg-background/95 px-6 py-4 backdrop-blur-xl lg:hidden"
+          className="border-t border-border/80 bg-background/90 px-6 py-5 shadow-2xl backdrop-blur-2xl lg:hidden"
         >
-          <ul className="flex flex-col">
+          <ul className="flex flex-col gap-1">
             {links.map((l) => (
               <li key={l.href}>
                 <a
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="block cursor-pointer rounded-md px-2 py-3 text-[0.9375rem] text-foreground/85 transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 text-[0.9375rem] font-medium text-foreground/85 transition-colors hover:bg-primary/[0.08] hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  {l.label}
+                  <span>{l.label}</span>
+                  <span className="text-primary/50 text-xs">↗</span>
                 </a>
               </li>
             ))}
-            <li className="mt-3 sm:hidden">
+            <li className="mt-4 pt-3 border-t border-border/60 sm:hidden">
               <a
                 href={APP_URL}
-                className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition-all hover:brightness-110 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                Open dashboard
+                Open dashboard →
               </a>
             </li>
           </ul>
