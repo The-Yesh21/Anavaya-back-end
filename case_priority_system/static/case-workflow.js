@@ -756,7 +756,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const prioCls = String(priority || "medium").toLowerCase();
         const cards = currentCasePrecedents.map((p) => `
-            <div class="delay-precedent-card ${prioCls}" data-prec-id="${esc(p.id || "")}" role="button" tabindex="0" title="Click to inspect what this case was, the systemic delay, and why Anavaya exists">
+            <div class="delay-precedent-card ${prioCls}" data-prec-id="${esc(p.id || "")}" role="button" tabindex="0" title="Click to view full precedent background">
                 <div class="dp-header">
                     <div class="dp-title-row">
                         <span class="dp-case-name">${esc(p.case_title || "")}</span>
@@ -767,30 +767,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="dp-delay-pill"><i data-lucide="clock-alert"></i> ${esc(p.delay_period || "")}</span>
                     </div>
                 </div>
-                <div class="dp-cost-banner">
-                    <span class="dp-cost-label">Cost of Delay:</span>
-                    <span class="dp-cost-val">${esc(p.cost_category || "")}</span>
-                </div>
-                <div class="dp-body">
-                    <div class="dp-row">
-                        <div class="dp-row-label">The Procedural Delay &amp; Inaction:</div>
-                        <div class="dp-row-text">${esc(p.factual_delay || "")}</div>
+                <div class="dp-summary-items">
+                    <div class="dp-summary-row">
+                        <div class="dp-summary-label"><i data-lucide="scale"></i> What Was the Case</div>
+                        <div class="dp-summary-text"><strong>${esc(p.cost_category || p.case_title || "")}</strong> &mdash; Landmark precedent governing ${esc(Array.isArray(p.applicable_categories) ? p.applicable_categories.join(", ") : p.applicable_categories || "legal controversy")}.</div>
                     </div>
-                    <div class="dp-row">
-                        <div class="dp-row-label">Human &amp; Economic Toll:</div>
-                        <div class="dp-row-text toll">${esc(p.human_or_economic_toll || "")}</div>
+                    <div class="dp-summary-row">
+                        <div class="dp-summary-label"><i data-lucide="clock"></i> What Happened</div>
+                        <div class="dp-summary-text">${esc(p.factual_delay || "")}</div>
                     </div>
-                    <div class="dp-row">
-                        <div class="dp-row-label">Supreme Court Ruling:</div>
-                        <div class="dp-row-text ruling">${esc(p.judicial_ruling || "")}</div>
+                    <div class="dp-summary-row">
+                        <div class="dp-summary-label"><i data-lucide="alert-triangle"></i> What Were the Effects</div>
+                        <div class="dp-summary-text toll">${esc(p.human_or_economic_toll || "")}</div>
                     </div>
-                </div>
-                <div class="dp-mandate">
-                    <i data-lucide="shield-alert"></i>
-                    <span>${esc(p.priority_mandate || "")}</span>
-                </div>
-                <div class="dp-action-bar">
-                    <span class="dp-deepdive-btn"><i data-lucide="external-link"></i> Deep-Dive Case, Systemic Toll &amp; Anavaya Mission</span>
                 </div>
             </div>
         `).join("");
