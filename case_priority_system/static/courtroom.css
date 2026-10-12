@@ -1233,7 +1233,8 @@ body::before {
     gap: 8px;
     color: var(--text-muted);
     font-size: 13px;
-    z-index: 2;
+    background: #11110E;
+    z-index: 5;
 }
 .face-placeholder i { width: 34px; height: 34px; opacity: 0.6; color: var(--gold-500); }
 

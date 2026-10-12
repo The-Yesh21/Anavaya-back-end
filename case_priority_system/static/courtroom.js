@@ -3049,6 +3049,27 @@
 
     function faceEl(id) { return document.getElementById(id); }
 
+    function resetFaceMetricsUI() {
+        const scoreEl = faceEl("face-score");
+        if (scoreEl) scoreEl.textContent = "0%";
+        const fill = faceEl("face-gauge-fill");
+        if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
+        const blinks = faceEl("fm-blinks");
+        if (blinks) blinks.textContent = "0";
+        const expr = faceEl("fm-expression");
+        if (expr) { expr.textContent = "—"; expr.className = ""; }
+        const lips = faceEl("fm-lips");
+        if (lips) { lips.textContent = "—"; lips.className = ""; }
+        const brows = faceEl("fm-brows");
+        if (brows) { brows.textContent = "—"; brows.className = ""; }
+        const gazeEl = faceEl("fm-gaze");
+        if (gazeEl) { gazeEl.textContent = "—"; gazeEl.className = ""; }
+        const spkEl = faceEl("fm-speaking");
+        if (spkEl) { spkEl.textContent = "—"; spkEl.className = ""; }
+        const cues = faceEl("face-cues");
+        if (cues) cues.innerHTML = "";
+    }
+
     function initFacePanel() {
         const panel = faceEl("face-analysis");
         if (!panel) return;
@@ -3067,15 +3088,30 @@
         const startBtn = faceEl("face-start-btn");
         if (startBtn) startBtn.addEventListener("click", startFaceAnalysis);
         const stopBtn = faceEl("face-stop-btn");
-        if (stopBtn) stopBtn.addEventListener("click", stopFaceAnalysis);
+        if (stopBtn) stopBtn.addEventListener("click", () => stopFaceAnalysis(true));
         const srcSel = faceEl("face-source");
         if (srcSel) {
-            srcSel.addEventListener("change", () => {
+            srcSel.addEventListener("change", async () => {
+                if (face.analyzing) stopFaceAnalysis(true);
                 face.source = srcSel.value;
-                if (face.camera) attachFaceSource();  // already monitoring → switch feed
-                // The speech meter watches a different stream now — rebuild it
-                // so the speaking gate follows the analyzed feed.
-                if (face.analyzing) attachSpeechMeter();
+                resetFaceMetricsUI();
+                const overlay = faceEl("face-overlay");
+                if (overlay) {
+                    const ctx = overlay.getContext("2d");
+                    if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+                }
+                if (face.camera) {
+                    attachFaceSource();
+                    const statePill = faceEl("face-state");
+                    if (statePill) {
+                        statePill.textContent = "On";
+                        statePill.classList.add("on");
+                        statePill.classList.remove("live");
+                    }
+                    const startBtn = faceEl("face-start-btn");
+                    if (startBtn) startBtn.disabled = false;
+                    await initFaceMesh();
+                }
             });
         }
         lucide.createIcons();
@@ -3143,20 +3179,43 @@
             const selfStream = (state.localStream && state.localStream.getVideoTracks().length)
                 ? state.localStream
                 : (face.ownStream || null);
-            affirmVideo(video, selfStream);
-            // Keep the monitor alive: if the self tile's stream is live but the
-            // monitor goes black, re-play it. Stop watching if the feed disappears.
-            startVideoKeepalive(video, selfStream, () => videoHasSrc(video));
+            if (selfStream) {
+                affirmVideo(video, selfStream);
+                startVideoKeepalive(video, selfStream, () => videoHasSrc(video));
+            } else {
+                affirmVideo(video, null);
+                stopVideoKeepalive(video);
+                if (status) {
+                    status.textContent = "Your camera is off. Turn on camera or enable feed.";
+                    status.hidden = false;
+                }
+            }
             return;
         }
 
         // A remote participant's feed.
         const peer = state.peers.get(face.source);
-        const track = peer && peer.videoTrack;
-        if (track) {
-            const stream = new MediaStream([track]);
+        const stageEl = videoEls.get(face.source);
+        let track = (peer && peer.videoTrack)
+            || (stageEl && stageEl.srcObject && stageEl.srcObject.getVideoTracks && stageEl.srcObject.getVideoTracks()[0])
+            || null;
+
+        // Fallback: inspect peer transceivers / receivers directly if track wasn't cached yet
+        if (!track && peer && peer.pc) {
+            try {
+                const rx = peer.pc.getReceivers().find((r) => r.track && r.track.kind === "video");
+                if (rx && rx.track) track = rx.track;
+            } catch (_) {}
+        }
+        if (track && peer && !peer.videoTrack) {
+            peer.videoTrack = track;
+        }
+
+        if (track && track.readyState === "live") {
+            const stream = (stageEl && stageEl.srcObject) ? stageEl.srcObject : new MediaStream([track]);
             affirmVideo(video, stream);
             startVideoKeepalive(video, stream, () => videoHasSrc(video));
+            if (status) status.hidden = true;
         } else {
             // No track yet — clear the monitor and keep watching until one lands
             // (refreshFaceSourceIfPending will re-attach when it does).
@@ -3215,30 +3274,33 @@
     }
 
     function disableFaceCamera() {
-        stopFaceAnalysis();
+        stopFaceAnalysis(true);
         if (face.camera) { try { face.camera.stop(); } catch (_) {} face.camera = null; }
-        // Decide the monitor's fate BEFORE clearing state: only stop a stream we
-        // created ourselves (never the shared mesh stream), and remember whether
-        // the mesh still has a camera to fall back on.
         const video = faceEl("face-video");
-        const meshHasVideo = !!(state.localStream && state.localStream.getVideoTracks().length);
         if (face.ownStream && face.ownsStream) {
             face.ownStream.getTracks().forEach((t) => t.stop());
         }
         face.ownStream = null;
         face.ownsStream = false;
-        // Only clear the face monitor if there is no live feed left to show;
-        // otherwise re-affirm it so a blackout that happened while the panel was
-        // covered recovers now that the camera is "disabled" in name only.
+
+        // Completely shut down and detach the facial analysis monitor feed.
+        // We never stop state.localStream here so courtroom mesh peers continue
+        // receiving video, but #face-video must stop playing immediately.
         if (video) {
-            if (!meshHasVideo) {
-                stopVideoKeepalive(video);
-                affirmVideo(video, null);
-            } else {
-                affirmVideo(video, state.localStream);
-                startVideoKeepalive(video, state.localStream, () => videoHasSrc(video));
-            }
+            stopVideoKeepalive(video);
+            try { video.pause(); } catch (_) {}
+            affirmVideo(video, null);
+            try { video.srcObject = null; } catch (_) {}
         }
+        const overlay = faceEl("face-overlay");
+        if (overlay) {
+            const ctx = overlay.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+        const status = faceEl("face-source-status");
+        if (status) status.hidden = true;
+        resetFaceMetricsUI();
+
         const placeholder = faceEl("face-placeholder");
         if (placeholder) placeholder.style.display = "flex";
         const statePill = faceEl("face-state");
@@ -3316,6 +3378,8 @@
 
     // ---- analysis lifecycle ---------------------------------------------
     function startFaceAnalysis() {
+        attachFaceSource();
+        resetFaceMetricsUI();
         face.analyzing = true;
         face.calibrated = false;
         face.calibrationFrames = 0;
@@ -4217,6 +4281,10 @@
         ingest: ingestFaceSignals,
         onResults: onFaceMeshResults,   // full path: extract + score + render
         start: startFaceAnalysis,
+        stop: stopFaceAnalysis,
+        disableCamera: disableFaceCamera,
+        resetMetrics: resetFaceMetricsUI,
+        initPanel: initFacePanel,
         state: face,
         lipMotion: lipMotion,
     };
