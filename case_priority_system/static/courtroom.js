@@ -1617,9 +1617,6 @@
             tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "");
             tile.dataset.pid = p.participant_id;
             tile.innerHTML = `
-                <div class="stage-avatar">
-                    <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
-                </div>
                 <div class="stage-overlay">
                     <span class="stage-live"><i data-lucide="mic"></i></span>
                     <span class="stage-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</span>
@@ -1627,13 +1624,11 @@
                 </div>
                 <span class="stage-conn" data-conn=""></span>
             `;
-            // The persistent, mesh-fed <video> sits on top of the avatar — the
-            // avatar shows through whenever the element has no frames.
+            // The persistent, mesh-fed <video> fills the stage tile without any avatar overlay.
             const v = videoElFor(p.participant_id);
             tile.appendChild(v);
             if (isMe) {
                 attachSelfVideo();
-                if (!state.micEnabled) tile.querySelector(".avatar").classList.add("muted");
             } else if (v.srcObject) {
                 // Re-attached after a stage rebuild — keep the feed rolling.
                 v.play().catch(() => {});
