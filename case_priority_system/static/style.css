@@ -116,6 +116,9 @@ body::before {
     display: flex;
     align-items: center;
     gap: 16px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
 }
 
 .logo-icon {
@@ -2833,6 +2836,51 @@ button, a, input, select {
     flex-wrap: wrap;
     min-width: 0;   /* without this the cluster's min-content props the row open */
 }
+
+.landing-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary-bg) 85%, transparent);
+    border: 1.5px solid color-mix(in srgb, var(--color-primary) 38%, transparent);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-xs);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.landing-back-btn i,
+.landing-back-btn svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.2px;
+    transition: transform 0.25s ease;
+}
+
+.landing-back-btn:hover {
+    background: var(--color-primary);
+    color: var(--color-primary-fg);
+    border-color: var(--color-primary);
+    transform: translateX(-2px);
+    box-shadow: 0 4px 14px -2px rgba(168, 126, 47, 0.35);
+}
+
+.landing-back-btn:hover i,
+.landing-back-btn:hover svg {
+    transform: translateX(-2px);
+}
+
+.landing-back-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
 .system-cluster {
     display: inline-flex;
     align-items: center;
@@ -3876,6 +3924,15 @@ button, a, input, select {
        readable instead of ellipsising to "RTX 2050 · q…". */
     .header-actions .status-indicator { display: none; }
     .header-actions .theme-toggle-btn { width: 36px; height: 36px; }
+    .landing-back-btn {
+        padding: 0;
+        width: 36px;
+        height: 36px;
+        justify-content: center;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .landing-back-btn span { display: none; }
     .logo-text span { display: none; }
     .tab-btn { padding: 10px 8px; font-size: 12.5px; }
     .tab-btn i { display: none; }
