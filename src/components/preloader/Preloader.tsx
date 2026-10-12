@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import {
+  Award,
+  BookOpen,
+  Briefcase,
+  FileCheck,
   Fingerprint,
   Gavel,
+  KeyRound,
   Landmark,
   Lock,
   Megaphone,
   Scale,
   ScrollText,
+  ShieldCheck,
   Siren,
   UserX,
   Users,
@@ -33,13 +39,29 @@ const MAX_TILT = 4;
 const BASE_TILT = { x: 8, y: -6 };
 
 /* ---------- Side-rail medallions ----------
-   The court's furniture, in circular borders, climbing the left and right screen
-   edges while "Anvaya" lands beside the gavel. Lucide's own set, so nothing extra
-   ships: the hammer, the scales, the accused, the arguing counsel, the bench, the
-   custody lock, the record and the police siren. Keep both lists RAIL_ITEMS long
-   — the timeline derives each medallion's rail and stagger from its flat index. */
-const RAIL_LEFT = [Gavel, Scale, Siren, UserX, ScrollText] as const;
-const RAIL_RIGHT = [Landmark, Megaphone, Users, Fingerprint, Lock] as const;
+   The court's judicial symbols in circular borders, flowing along continuous
+   semi-circular orbital arcs flanking the left and right screen edges.
+   8 items per rail maintain a rich, dense, unbroken infinite loop throughout the preloader. */
+const RAIL_LEFT = [
+  Gavel,
+  Scale,
+  ShieldCheck,
+  ScrollText,
+  BookOpen,
+  Siren,
+  UserX,
+  FileCheck,
+] as const;
+const RAIL_RIGHT = [
+  Landmark,
+  Megaphone,
+  Users,
+  Fingerprint,
+  Lock,
+  Briefcase,
+  Award,
+  KeyRound,
+] as const;
 const RAIL_INSET = "clamp(10px, 3vw, 38px)";
 const MEDALLION = "clamp(42px, 6.4vw, 66px)";
 
@@ -75,6 +97,7 @@ export function Preloader() {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   const rails = useRef<HTMLDivElement[]>([]);
+  const railsWrap = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const left = useRef<HTMLDivElement>(null);
   const right = useRef<HTMLDivElement>(null);
@@ -125,7 +148,7 @@ export function Preloader() {
   };
 
   const { skip } = usePreloaderTimeline(
-    { root, left, right, content, welcome, words, brandRow, text3d, brand, sheen, gavelWrap, gavel, block, skipBtn, rails },
+    { root, left, right, content, welcome, words, brandRow, text3d, brand, sheen, gavelWrap, gavel, block, skipBtn, railsWrap, rails },
     { active: show, reducedMotion, onDone },
   );
 
@@ -291,13 +314,14 @@ export function Preloader() {
             the right rail climbs at 1.5x the left, so the two edges never look
             like one mirrored motion. They live inside the content layer, so they
             blur and fade out with the rest of the curtain. */}
-        <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        <div ref={railsWrap} aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0 }}>
           {[RAIL_LEFT, RAIL_RIGHT].map((rail, ri) => {
             const railStyle: React.CSSProperties = {
               position: "absolute",
               top: 0,
               bottom: 0,
               width: MEDALLION,
+              overflow: "visible",
             };
             if (ri === 0) railStyle.left = RAIL_INSET;
             else railStyle.right = RAIL_INSET;
@@ -326,8 +350,9 @@ export function Preloader() {
                         aspectRatio: "1 / 1",
                         borderRadius: 999,
                         border: `1.5px solid ${COLORS.seam}`,
-                        background: "rgba(255,252,245,0.78)",
-                        boxShadow: "0 8px 20px -12px rgba(59,36,20,0.5)",
+                        background: "rgba(255,252,245,0.85)",
+                        backdropFilter: "blur(4px)",
+                        boxShadow: "0 10px 24px -10px rgba(59,36,20,0.38), 0 0 12px rgba(201,162,74,0.18)",
                       }}
                     >
                       <Icon style={{ width: "52%", height: "52%" }} strokeWidth={1.5} color={COLORS.muted} />

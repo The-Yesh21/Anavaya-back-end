@@ -21,21 +21,22 @@ export const ANGLE = { lift: -14, strike: 34, rebound: 14, settle: 26 } as const
 // Medallions per side rail. Preloader.tsx renders two rails of this length and
 // pushes them into `railItems` flat (left rail first), which is how the rail and
 // the stagger offset are derived below.
-export const RAIL_ITEMS = 5;
+export const RAIL_ITEMS = 8;
 
 /* ---------- Side-rail animation ----------
-   The left rail moves down-to-up (bottom to top).
-   The right rail moves up-to-down (top to bottom).
-   Along each path, medallions start small, smoothly grow to peak size at the middle
-   of the path, and shrink back down at the exit, looping seamlessly without gaps. */
+   The left rail moves down-to-up (bottom to top) along an inward semi-circular arc.
+   The right rail moves up-to-down (top to bottom) along an inward semi-circular arc.
+   Along each path, medallions start subtle at the edges, bow gracefully inward toward
+   the center stage, reach peak size and clarity at the apex, and curve back out at exit,
+   forming a rich, continuous, unbroken infinite loop. */
 const RAIL = {
-  durationLeft: 2.2,
-  durationRight: 1.7,
-  halfOvershoot: 110,
+  durationLeft: 3.6,
+  durationRight: 3.2,
+  halfOvershoot: 130,
 } as const;
 
 // Where a medallion enters its rail, as a fraction of that rail's OWN cycle: one
-// fifth of the way in per item, so a full lap's worth of medallions is always in
+// eighth of the way in per item, so a full lap's worth of medallions is always in
 // flight and the chain never gaps between the last one leaving and the next
 // arriving.
 export const railPhaseStep = (duration: number) => (duration / RAIL_ITEMS) as number;
@@ -55,6 +56,7 @@ export interface PreloaderRefs {
   gavel: RefObject<SVGGElement | null>;
   block: RefObject<SVGGElement | null>;
   skipBtn: RefObject<HTMLButtonElement | null>;
+  railsWrap?: RefObject<HTMLDivElement | null>;
   rails: RefObject<HTMLDivElement[]>;
 }
 
@@ -142,30 +144,42 @@ export function usePreloaderTimeline(
         return;
       }
 
-      // Judicial medallions: left rail climbs bottom-to-up, right rail streams
-      // up-to-down. Each medallion starts small, swells to maximum size at the
-      // middle of its path, and shrinks back down at the exit.
+      // Judicial medallions: left rail climbs bottom-to-up along an inward semi-circular arc,
+      // right rail streams up-to-down along an inward semi-circular arc.
+      // Medallions are distributed continuously along the entire cycle from the start,
+      // forming an unbroken, dense, infinite loop with smooth sinusoidal arc physics.
       const startRails = () => {
         const items = r.rails.current ?? [];
         const H = typeof window !== "undefined" ? window.innerHeight : 800;
+        const W = typeof window !== "undefined" ? window.innerWidth : 1200;
         const halfOvershoot = RAIL.halfOvershoot;
+        // Responsive semi-circular arc displacement (bowing inward toward the center stage)
+        const arcX = Math.min(Math.max(W * 0.065, 36), 96);
+
         items.forEach((el, i) => {
           if (!el) return;
           const onRightRail = i >= RAIL_ITEMS;
           const duration = onRightRail ? RAIL.durationRight : RAIL.durationLeft;
-          const step = (onRightRail ? i - RAIL_ITEMS : i) * railPhaseStep(duration);
+          const itemIndex = onRightRail ? i - RAIL_ITEMS : i;
+          // Evenly spaced phase offset across the full cycle: 0/8, 1/8, 2/8, ..., 7/8
+          const progressOffset = itemIndex / RAIL_ITEMS;
 
-          // Left rail: down to up (starts below screen, moves up)
-          // Right rail: up to down (starts above screen, moves down)
+          // Left rail: climbs bottom-to-top (H + overshoot -> -overshoot)
+          // Right rail: streams top-to-bottom (-overshoot -> H + overshoot)
           const startY = onRightRail ? -halfOvershoot : H + halfOvershoot;
           const endY = onRightRail ? H + halfOvershoot : -halfOvershoot;
 
+          // Horizontal arc direction: left rail curves right (+X), right rail curves left (-X)
+          const arcXDir = onRightRail ? -arcX : arcX;
+          // Subtle tangent rotation along the curve (+/- 12deg)
+          const startRot = onRightRail ? -12 : 12;
+          const endRot = -startRot;
+
           const loopTl = gsap.timeline({
             repeat: -1,
-            delay: step,
           });
 
-          // Constant uniform y-travel
+          // 1. Uniform constant vertical translation (butter smooth)
           loopTl.fromTo(
             el,
             { y: startY },
@@ -173,45 +187,65 @@ export function usePreloaderTimeline(
             0,
           );
 
-          // Size dynamics: starts small (0.35), reaches peak (1.25) at the middle, shrinks back to 0.35
+          // 2. Semi-circular arc (X displacement following a sine arc)
+          // First half (0 -> D/2): curves smoothly inward from 0 to peak arcXDir
           loopTl.fromTo(
             el,
-            { scale: 0.35 },
-            { scale: 1.25, duration: duration * 0.5, ease: "sine.inOut", immediateRender: false },
+            { x: 0 },
+            { x: arcXDir, duration: duration * 0.5, ease: "sine.out", immediateRender: false },
             0,
           );
+          // Second half (D/2 -> D): curves smoothly back from peak arcXDir to 0
           loopTl.to(
             el,
-            { scale: 0.35, duration: duration * 0.5, ease: "sine.inOut" },
+            { x: 0, duration: duration * 0.5, ease: "sine.in" },
             duration * 0.5,
           );
 
-          // Opacity: fades in cleanly as it enters, stays full in middle, fades out at exit
+          // 3. Subtle tangent rotation matching the arc's curvature
           loopTl.fromTo(
             el,
-            { opacity: 0 },
-            { opacity: 1, duration: duration * 0.22, ease: "sine.inOut", immediateRender: false },
+            { rotation: startRot },
+            { rotation: endRot, duration, ease: "sine.inOut", immediateRender: false },
+            0,
+          );
+
+          // 4. Optical perspective scaling: starts subtle (0.45), swells at peak apex (1.2), shrinks at exit (0.45)
+          loopTl.fromTo(
+            el,
+            { scale: 0.45 },
+            { scale: 1.2, duration: duration * 0.5, ease: "sine.inOut", immediateRender: false },
             0,
           );
           loopTl.to(
             el,
-            { opacity: 0, duration: duration * 0.22, ease: "sine.inOut" },
-            duration * 0.78,
+            { scale: 0.45, duration: duration * 0.5, ease: "sine.inOut" },
+            duration * 0.5,
           );
+
+          // 5. Opacity envelope: smooth fade-in as it enters the view, full clarity across the arc, clean fade-out at exit
+          loopTl.fromTo(
+            el,
+            { opacity: 0 },
+            { opacity: 1, duration: duration * 0.18, ease: "sine.out", immediateRender: false },
+            0,
+          );
+          loopTl.to(
+            el,
+            { opacity: 0, duration: duration * 0.18, ease: "sine.in" },
+            duration * 0.82,
+          );
+
+          // Distribute along the loop immediately: zero gaps, continuous infinite stream from time zero!
+          loopTl.progress(progressOffset);
 
           railTweens.current.push(loopTl);
         });
       };
 
-      const items = r.rails.current ?? [];
-      const H = typeof window !== "undefined" ? window.innerHeight : 800;
-      const halfOvershoot = RAIL.halfOvershoot;
-      items.forEach((el, i) => {
-        if (!el) return;
-        const onRightRail = i >= RAIL_ITEMS;
-        const startY = onRightRail ? -halfOvershoot : H + halfOvershoot;
-        gsap.set(el, { y: startY, opacity: 0, scale: 0.35 });
-      });
+      // Start the infinite semi-circular rail loops right at the start so the screen
+      // is immediately populated with the dense loop, gliding continuously without delays.
+      startRails();
 
       const words = r.words.current ?? [];
       gsap.set(words, { opacity: 0, y: 10, filter: "blur(8px)" });
@@ -220,6 +254,10 @@ export function usePreloaderTimeline(
       gsap.set(r.gavelWrap.current, { opacity: 0, x: 14, filter: "blur(6px)" });
       gsap.set(r.gavel.current, { rotation: 0, svgOrigin: "14 104" });
       if (page) gsap.set(page, { scale: 1.06 });
+
+      if (r.railsWrap?.current) {
+        tl.to(r.railsWrap.current, { opacity: 1, duration: 0.6, ease: "power2.out" }, 0.05);
+      }
 
       const impact = (at: number) => {
         tl.call(() => playTok(audioRef), [], at);
@@ -247,9 +285,6 @@ export function usePreloaderTimeline(
       sweep(T.settle, 0.9);
       impact(T.strike1);
       impact(T.strike2);
-      // A touch earlier than "Anvaya" lands, so the first lap of each rail is
-      // already complete before the curtain starts fading (T.fadeOut).
-      tl.call(startRails, [], T.brandIn - 0.35);
 
       // 4. fade + open
       tl.to(r.skipBtn.current, { opacity: 0, duration: 0.35, ease: "power2.out" }, T.fadeOut)
