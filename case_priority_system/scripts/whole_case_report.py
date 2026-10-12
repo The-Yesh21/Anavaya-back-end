@@ -149,18 +149,17 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
 
     body = "".join([
         f'<div class="page-header">'
-        f'<div class="kicker">Anavaya · Whole-Case Analysis Report</div>'
-        f"<h1>{esc(title or case_id)}</h1>"
-        f'<div class="sub">One verdict for the whole case: every document\'s extracted facts '
-        f"were merged deterministically, and the Decision Tree was run ONCE on the combined "
-        f"evidence — followed by the rule-based constitutional analysis.</div>"
-        f"<div class='meta-row'>Case {esc(case_id)} · Generated {esc(now)} · "
-        f"{len(per_doc)} document{'s' if len(per_doc) != 1 else ''} considered</div>"
+        f'<div class="kicker">REPUBLIC OF INDIA · JUDICIAL AUTOMATION &amp; TRIAGE SYSTEM</div>'
+        f"<h1>Comprehensive Whole-Case Admissibility &amp; Priority Synthesis Dossier</h1>"
+        f'<div class="sub">Unified case adjudication over all admitted evidentiary documents: deterministic cross-document '
+        f"feature merge → CART Decision Tree verdict → Rule-based constitutional justification under the Constitution of India.</div>"
+        f"<div class='meta-row'>Case Docket: <strong>{esc(case_id)}</strong> · "
+        f"Admitted Evidence: <strong>{len(per_doc)} Document{'s' if len(per_doc) != 1 else ''}</strong> · Generated: {esc(now)}</div>"
         f"{priority_badge(priority)}"
         f"</div>",
 
         section(
-            "About This Case (what the dispute is about)",
+            "I. Factual Dispute Synopsis (What the Dispute Is About)",
             f'<div class="summary">{esc(case_gist)}</div>' if case_gist
             else "<p>No per-document summaries were available to distil a case "
                  "description from.</p>",
@@ -168,76 +167,78 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
         ),
 
         section(
-            "Parties Across the Whole Case",
-            f'<p style="font-size:14px;"><strong>{esc(parties)}</strong></p>',
+            "II. Litigating Parties Across Whole Case",
+            f'<p style="font-size:13px;color:#111827;"><strong>{esc(parties)}</strong></p>',
         ),
 
         section(
-            "Whole-Case Narrative",
+            "III. Comprehensive Whole-Case Factual Narrative",
             f'<div class="summary">{esc(summary)}</div>',
         ),
 
         section(
-            "Case Classification (merged from all evidence)",
+            "IV. Merged Classification &amp; Priority Tier (Combined Evidence)",
             '<div class="chips">'
             + chip("Legal Category", category)
             + chip("Case Type", crime_type)
-            + chip("Severity", severity)
-            + chip("Vulnerability", vulnerability)
-            + chip("Influence", influence)
+            + chip("Injury Severity", severity)
+            + chip("Vulnerability Tier", vulnerability)
+            + chip("Influence Metric", influence)
             + chip("Whole-Case Priority", priority)
             + "</div>",
         ),
 
         section(
-            "How the Evidence Fits Together (corroboration map)",
+            "V. Evidentiary Corroboration &amp; Cross-Document Concordance Matrix",
             corr_html,
             accent=theme["accent"],
         ),
 
         section(
-            "Evidence Considered",
+            "VI. Admitted Document Inventory &amp; Individual Priorities",
             "<table class='merge-table'><thead><tr>"
-            "<th>Document</th><th>Type</th><th>Document Priority</th>"
+            "<th>Admitted Document</th><th>Evidence Type</th><th>Document Priority</th>"
             "</tr></thead><tbody>" + doc_rows + "</tbody></table>",
         ),
 
         section(
-            "Merge Rules Applied (auditable provenance)",
+            "VII. Deterministic Merge Provenance (Auditable Feature Attribution)",
             "<table class='merge-table'><thead><tr>"
-            "<th>Feature</th><th>Case Value</th><th>Rule</th><th>Driven By</th>"
+            "<th>Feature</th><th>Merged Value</th><th>Deterministic Rule</th><th>Driven By Evidence</th>"
             "</tr></thead><tbody>" + merge_rows + "</tbody></table>"
-            + "<p style='color:#4B5563;'><em>Deterministic merge, applied before the "
-            "Decision Tree — the tree alone decided the priority above.</em></p>",
+            + "<p style='color:#4B5563;'><em>Deterministic intake merge, executed prior to Decision Tree "
+            "evaluation — the CART Decision Tree alone determined the case priority tier above.</em></p>",
         ),
 
         section(
-            "Constitutional Articles Applied (case level)",
+            "VIII. Constitutional Provisions &amp; Fundamental Rights Engaged (Case Level)",
             rights_block(rights),
             accent=theme["accent"],
         ),
 
-        section("Legal Summary", f"<p>{esc(state_duty)}</p>"),
+        section("IX. Statutory Duty &amp; Judicial Obligation Analysis", f"<p>{esc(state_duty)}</p>"),
 
         section(
-            "Priority Rules Applied",
+            "X. Deterministic CART Decision Tree Rules Applied",
             f"<p>{esc(rules_applied)}</p>",
         ),
 
-        section("State's Perspective", f"<p>{esc(opinion)}</p>"),
+        section("XI. Sovereign State Perspective &amp; Public Interest Analysis", f"<p>{esc(opinion)}</p>"),
 
-        section("Rights Balancing Analysis", f"<p>{esc(balancing)}</p>"),
+        section("XII. Fundamental Rights Balancing &amp; Proportionality Test", f"<p>{esc(balancing)}</p>"),
 
         section(
-            "Precedents on Systemic Delay & Human/Economic Toll",
+            "XIII. Landmark Precedents on Systemic Delay &amp; Human/Economic Toll",
             delay_precedents_block(get_delay_precedents(priority, category, crime_type, severity)),
             accent="#B45309",
         ),
 
-        '<div class="legal-note"><strong>Disclaimer:</strong> This report is generated '
-        "automatically by software for triage assistance only. It does not constitute legal "
-        "advice or a judicial determination. Final priority and legal interpretation rest with "
-        "the court.</div>",
+        '<div class="legal-note"><strong>STATUTORY DISCLAIMER &amp; JUDICIAL ADVISORY NOTICE:</strong> '
+        "This document is an automated evidentiary intake and whole-case priority synthesis compiled by the "
+        "<strong>Anavaya Judicial Intelligence System</strong> solely for court calendar scheduling and triage "
+        "assistance under the Constitution of India. It does not constitute substantive legal advice, an interim "
+        "injunction, or a final judicial decree. The sovereign authority to determine admissibility, trial sequence, "
+        "and judicial relief resides exclusively with the Presiding Judge and the competent bench.</div>",
 
     ])
 

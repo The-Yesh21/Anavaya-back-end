@@ -1568,8 +1568,12 @@ def _court_context_hint(room) -> str:
         return ""
     parts = [f"Case: {ctx.get('title', '')} ({ctx.get('case_id', '')})"]
     parties = ctx.get("parties") or []
-    if parties:
-        parts.append("Main parties: " + ", ".join(parties[:8]))
+    if isinstance(parties, list):
+        clean_parties = [p for p in parties if len(str(p).strip()) > 1]
+        if clean_parties:
+            parts.append("Main parties: " + ", ".join(clean_parties[:8]))
+    elif isinstance(parties, str) and parties.strip():
+        parts.append("Main parties: " + parties.strip())
     evidence = ctx.get("evidence") or []
     if evidence:
         parts.append("Evidence on record: " + ", ".join(

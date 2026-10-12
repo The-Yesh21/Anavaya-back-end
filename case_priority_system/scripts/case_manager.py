@@ -586,8 +586,14 @@ class CaseManager:
         for doc in case.documents:
             f = doc.analysis or {}
             summary = (f.get("plain_summary") or "").strip()
-            for p in f.get("main_parties") or []:
-                p = str(p).strip()
+            mp = f.get("main_parties")
+            if isinstance(mp, str):
+                raw_parties = [x.strip() for x in mp.split(",") if x.strip()]
+            elif isinstance(mp, (list, tuple)):
+                raw_parties = [str(x).strip() for x in mp if str(x).strip()]
+            else:
+                raw_parties = []
+            for p in raw_parties:
                 if p and p.lower() not in {x.lower() for x in parties}:
                     parties.append(p)
             evidence.append({
@@ -642,9 +648,15 @@ class CaseManager:
                     shared.append("dates")
                 if fa["locs"] & fb["locs"]:
                     shared.append("places")
-                pa = (a.analysis or {}).get("main_parties") or []
-                pb = (b.analysis or {}).get("main_parties") or []
-                if {str(p).lower() for p in pa} & {str(p).lower() for p in pb}:
+                def _get_parties(doc_analysis):
+                    mp = (doc_analysis or {}).get("main_parties")
+                    if isinstance(mp, str):
+                        return {x.strip().lower() for x in mp.split(",") if x.strip()}
+                    elif isinstance(mp, (list, tuple)):
+                        return {str(x).strip().lower() for x in mp if str(x).strip()}
+                    return set()
+
+                if _get_parties(a.analysis) & _get_parties(b.analysis):
                     shared.append("parties")
                 if shared:
                     links.append(

@@ -25,6 +25,7 @@ Config (env vars, same convention as the rest of the app):
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 
@@ -35,20 +36,13 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 
-# Whisper is a general speech model with no courtroom bias, so domain words
-# like "Judge" / "Your Honour" can be misheard as phonetically similar words
-# ("George" for "Judge", "your honor" for "Your Honour", ...). Feeding the
-# decoder an initial_prompt of likely courtroom vocabulary strongly biases it
-# toward those tokens — a well-known whisper lever for fixing exactly this
-# class of error. Kept in plain English so it works for any English segment.
+# Whisper domain vocabulary prompt. Providing domain terms biases the decoder
+# toward correct courtroom spellings (e.g. 'Your Honour', 'Judge', 'FIR')
+# without confusing the decoder with conversational instruction text.
 COURT_ASR_PROMPT = (
-    "This is a recording of an Indian courtroom proceeding. Speakers address "
-    "the presiding officer as 'Your Honour' or 'Your Lordship'. People and "
-    "roles in the room: the Judge, Defence Counsel, Prosecution Counsel, the "
-    "accused, the Witness. Court vocabulary: objection, sustained, overruled, "
-    "examination-in-chief, cross-examination, affidavit, evidence, exhibit, "
-    "bail, adjourn, the court stands adjourned, verdict. "
-    "Transcribe the speech exactly as spoken, word for word."
+    "Indian courtroom proceeding: Your Honour, Your Lordship, Judge, "
+    "Defence Counsel, Prosecution, Witness, objection, sustained, "
+    "overruled, affidavit, FIR, IPC, CrPC, bail, exhibit, evidence."
 )
 
 # The whisper package is imported lazily (importing it pulls in torch, which
@@ -213,15 +207,8 @@ def transcribe_audio(audio_path: str, context_text: str = "") -> str | None:
             model, use_fp16 = _load_whisper_model()
             prompt = COURT_ASR_PROMPT
             if context_text:
-                said = " ".join(context_text.split())[-300:]
-                prompt = (
-                    COURT_ASR_PROMPT
-                    + " The speaker is CONTINUING what they were saying. The words"
-                    + " immediately before this segment were: '"
-                    + said
-                    + "'. Transcribe this segment as the rest of that sentence,"
-                    + " without repeating what is already there."
-                )
+                said = " ".join(context_text.split())[-150:]
+                prompt = f"{COURT_ASR_PROMPT} Context: {said}"
             result = model.transcribe(
                 audio,
                 language="en",
@@ -265,72 +252,94 @@ def _grew(corrected: str, raw: str) -> bool:
     return len(corrected.split()) > len(raw.split()) + 2
 
 
-def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, bool]:
-    """Clean up a spoken statement with the Ollama chat LLM.
+def _is_invalid_correction(corrected: str, raw: str) -> bool:
+    """Verifies that the LLM output is a faithful, verbatim formatting of raw speech.
 
-    Fixes punctuation/capitalization/grammar and makes the sentence flow
-    naturally without changing its meaning. context_hint (optional) carries
-    the case context (title, parties, key evidence terms) so the model knows
-    which names/terms are likely to appear in *this* trial — names that match
-    the case file are restored instead of being treated as mishearings.
-    Returns (corrected_text, used_llm). If Ollama is unavailable the text is
-    returned unchanged.
+    Rejects AI refusals, conversational commentary, and rephrased words.
+    A court transcript MUST reflect what was actually spoken word-for-word.
+    """
+    if not corrected or not raw:
+        return True
+    c_lower = corrected.lower().strip()
+
+    # 1. Refusal / meta-commentary check
+    refusals = [
+        "cannot produce", "can't produce", "cannot fulfill", "as an ai",
+        "input provided does not", "not match the specified", "the input appears",
+        "informal spoken statement", "court record", "i apologize", "here is the",
+        "corrected statement", "transcript:", "note:", "disclaimer:", "as a court reporter"
+    ]
+    if any(r in c_lower for r in refusals):
+        return True
+
+    # 2. Word extraction & preservation check
+    raw_words = re.findall(r"\b\w+\b", raw.lower())
+    corr_words = re.findall(r"\b\w+\b", corrected.lower())
+    if not raw_words or not corr_words:
+        return True
+
+    # Word count sanity check (cannot change length drastically)
+    if abs(len(corr_words) - len(raw_words)) > max(2, int(len(raw_words) * 0.20)):
+        return True
+
+    raw_set = set(raw_words)
+    corr_set = set(corr_words)
+    if not raw_set or not corr_set:
+        return True
+
+    # Overlap check: at least 80% of raw words must be retained
+    overlap = len(raw_set & corr_set)
+    if (overlap / len(raw_set)) < 0.80:
+        return True
+
+    # Check for significant new content words introduced by LLM
+    new_words = corr_set - raw_set
+    particles = {"a", "an", "the", "to", "in", "of", "and", "or", "is", "are", "was", "were"}
+    significant_new = new_words - particles
+    if len(significant_new) > 0 and len(raw_words) < 8:
+        return True
+    if len(significant_new) > max(1, int(len(raw_words) * 0.15)):
+        return True
+
+    return False
+
+
+def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, bool]:
+    """Format and punctuate a spoken statement with strict verbatim preservation.
+
+    A courtroom transcript is legal evidence and must record what was actually spoken
+    word-for-word without rephrasing, omitting, or substituting terms.
+    Short statements (<= 4 words) are returned directly from Whisper to prevent
+    hallucination and reduce latency.
+    Returns (formatted_text, used_llm).
     """
     text = (text or "").strip()
     if not text:
         return "", False
 
+    # Short utterances (e.g. "Hello bro", "Yes, Your Honour", "One minute", "No")
+    # are already cleanly punctuated by Whisper; skipping the LLM guarantees verbatim accuracy
+    # and eliminates LLM refusal on casual/short speech.
+    if len(text.split()) <= 4:
+        return text, False
+
     context_block = ""
     if context_hint:
         context_block = (
-            "\nCASE CONTEXT (this specific trial — treat these names and terms "
-            "as highly likely to appear; restore them when the audio is a close "
-            "mishearing, but never invent them when absent):\n"
-            f"{context_hint.strip()[:1200]}\n"
+            f"Case context terms for reference: {context_hint.strip()[:600]}\n"
         )
 
     system_prompt = (
-        "You are a senior court reporter finalizing the official record of an "
-        "Indian court proceeding. The text below is raw automatic speech "
-        "recognition of a spoken statement: it may contain misheard words, "
-        "informal or broken grammar, fillers, and run-on sentences.\n\n"
-        "Produce the corrected statement exactly as it should read in the "
-        "official record:\n"
-        "1. Fix speech-recognition errors: replace obviously misheard or "
-        "garbled words with the word the speaker clearly intended, using the "
-        "surrounding context (e.g. 'ware house' to 'warehouse', 'your honour' "
-        "to 'Your Honour', 'he clearly seen the whole incident happened' to "
-        "'he clearly saw the incident take place'). "
-        "This is a courtroom, so when a word is a clear mishearing of a court "
-        "term (e.g. 'George' for 'Judge', 'on your' for 'Your Honour', 'cross "
-        "animation' for 'cross-examination'), restore the court term — court "
-        "vocabulary (Judge, Your Honour, Your Lordship, Defence Counsel, "
-        "Prosecution, the accused, Witness, objection, sustained, overruled, "
-        "cross-examination, bail, verdict) is far more likely here than "
-        "phonetically similar ordinary words.\n"
-        "2. Correct all grammar: subject-verb agreement, tense, articles, "
-        "pronouns, and word order.\n"
-        "3. Remove fillers and repeated words ('uh', 'um', 'actually', 'you "
-        "know').\n"
-        "4. Punctuate and capitalize correctly; write times, dates, and amounts "
-        "in their natural formal form (6:30 pm, 12 June).\n"
-        "5. Rewrite informal or fragmented phrasing into clear, formal, neutral "
-        "language fit for an official record, keeping the speaker's sequence of "
-        "events intact. Do not summarize, shorten, or omit anything.\n"
-        "6. If the input breaks off mid-sentence (the speaker was cut off, or the "
-        "recording ended), it MUST stay broken off: end your output at the same "
-        "word, with the same ellipsis if there was one. Never invent an ending, "
-        "never add words that were not spoken, and never complete a half "
-        "sentence - a court record must not contain words the speaker did not "
-        "say.\n\n"
+        "You are an exact courtroom stenographer and transcription formatter.\n"
+        "Your task is to punctuate and format the exact spoken words below into a clean court transcript.\n\n"
+        "STRICT VERBATIM RULES:\n"
+        "1. PRESERVE EVERY WORD: Do NOT change, replace, remove, or substitute ANY words.\n"
+        "2. DO NOT FORMALIZE: If the speaker used casual, colloquial, or informal speech (such as 'bro', 'yeah', 'gonna', 'like'), keep their exact words.\n"
+        "3. DO NOT INVENT: Do NOT add facts, words, or endings the speaker did not say.\n"
+        "4. DO NOT REFUSE: Never output commentary, refusals, explanations, or notes.\n"
+        "5. ONLY FIX: Capitalization (capitalize proper nouns, 'Your Honour', and start of sentences) and standard punctuation (periods, commas, question marks).\n"
         f"{context_block}"
-        "HARD RULES:\n"
-        "- Keep every proper name (persons, companies, courts, places), date, "
-        "number, amount, and legal citation EXACTLY as recognised. Never "
-        "change, guess, or invent a name or figure, even if it seems wrong.\n"
-        "- Never add facts the speaker did not say.\n"
-        "- Output only the corrected statement, with no preamble, explanation, "
-        "or commentary."
+        "Output ONLY the formatted statement."
     )
     payload_body = {
         "model": OLLAMA_MODEL,
@@ -344,23 +353,24 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
     }
     try:
         r = requests.post(
-            f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload_body, timeout=60
+            f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload_body, timeout=20
         )
         r.raise_for_status()
         data = r.json()
         corrected = (data.get("message") or {}).get("content", "").strip()
+        if corrected.startswith('"') and corrected.endswith('"') and len(corrected) > 2:
+            corrected = corrected[1:-1].strip()
+
         if corrected:
-            # Fidelity guard. If the recogniser output broke off mid-sentence and
-            # the correction came back as a tidy, longer, complete sentence, the
-            # model invented an ending (a 3b model does that; it does not know
-            # the sentence was cut off). Words the speaker never said must not
-            # reach a court record, so the raw unfinished fragment is kept - the
-            # sentence is completed later, when the next segment of speech joins
-            # it and the whole thing is corrected as one.
+            # Fidelity guard against inventing endings on cut-off speech
             if _breaks_off(text) and not _breaks_off(corrected) and _grew(corrected, text):
-                print("Transcript correction invented an ending - keeping the raw fragment.")
+                print("Transcript correction invented an ending - keeping verbatim raw text.")
+                return text, False
+            # Strict verbatim fidelity check
+            if _is_invalid_correction(corrected, text):
+                print(f"Transcript correction altered spoken words or refused - keeping verbatim raw text: '{text}'")
                 return text, False
             return corrected, True
     except Exception as e:
-        print(f"Transcript correction via Ollama failed: {e}")
+        print(f"Transcript correction via Ollama skipped/failed: {e}")
     return text, False
