@@ -1633,6 +1633,20 @@
                 // Re-attached after a stage rebuild — keep the feed rolling.
                 v.play().catch(() => {});
             }
+            // For the Judge, clicking any participant's stage tile selects them in the facial analyzer
+            if (state.me && state.me.role === "Judge") {
+                tile.style.cursor = "pointer";
+                tile.title = `Click to analyze ${escapeHtml(p.name)}'s facial expressions`;
+                tile.addEventListener("click", (e) => {
+                    if (e.target.closest("button") || e.target.closest("input")) return;
+                    const sel = faceEl("face-source");
+                    const targetVal = isMe ? "self" : p.participant_id;
+                    if (sel && sel.value !== targetVal) {
+                        sel.value = targetVal;
+                        sel.dispatchEvent(new Event("change"));
+                    }
+                });
+            }
             els.videoStage.appendChild(tile);
             // The status has to be applied once the tile is in the document
             // (it is looked up by data-pid); a blank remote tile then says
@@ -1743,7 +1757,7 @@
         const keep = { timer: null, streamRef: stream, onLive: onLive || null };
         videoKeepalive.set(video, keep);
 
-        const tick = () => {
+        const check = () => {
             const still = keep.streamRef && (!keep.onLive || keep.onLive());
             if (!still) {
                 // Feed gone — clear the element and stop watching.
@@ -1754,28 +1768,24 @@
                 return;
             }
 
-            // If the element has a stream but isn't playing, re-attach + re-play.
-            const hasSrc = video.srcObject != null;
-            const playing = !!(video.readyState >= 2 && (video.paused === false));
-            if (hasSrc && !playing) {
-                // The underlying track is fine; the element just went quiet.
-                // Re-attach the same object and re-ask for playback.
+            // Only attempt play if paused and already attached to prevent play promise cancellation
+            if (video.srcObject && video.paused) {
                 try {
                     video.play().catch(() => {});
                 } catch (_) {}
             }
 
-            keep.timer = requestAnimationFrame(tick);
+            keep.timer = setTimeout(check, 1000);
         };
 
-        // Start the loop on the next frame so we don't burn a frame on setup.
-        keep.timer = requestAnimationFrame(tick);
+        keep.timer = setTimeout(check, 1000);
     }
 
     function stopVideoKeepalive(video) {
         const keep = videoKeepalive.get(video);
         if (!keep) return;
         if (keep.timer) {
+            try { clearTimeout(keep.timer); } catch (_) {}
             try { cancelAnimationFrame(keep.timer); } catch (_) {}
         }
         videoKeepalive.delete(video);
@@ -1827,15 +1837,19 @@
             }
             return;
         }
-        try {
-            video.srcObject = stream;
-        } catch (_) {
-            return;
+        if (video.srcObject !== stream) {
+            try {
+                video.srcObject = stream;
+            } catch (_) {
+                return;
+            }
         }
         // Force a fresh playback request so a stalled/black monitor recovers.
         // This is deliberately redone on each affirm — browsers can leave a
         // video paused after its container was hidden for a while.
-        video.play().catch(() => {});
+        try {
+            video.play().catch(() => {});
+        } catch (_) {}
     }
 
     function displayRoleFor(p) {
@@ -3070,6 +3084,53 @@
         if (cues) cues.innerHTML = "";
     }
 
+    function setFacePlaceholder(visible, text = "Feed off", icon = "user-round") {
+        const placeholder = faceEl("face-placeholder");
+        if (!placeholder) return;
+        if (visible) {
+            placeholder.style.display = "flex";
+            placeholder.innerHTML = `<i data-lucide="${icon}"></i><span>${escapeHtml(text)}</span>`;
+            lucide.createIcons();
+        } else {
+            placeholder.style.display = "none";
+        }
+    }
+
+    async function setupFaceForCurrentSource() {
+        const hasFeed = attachFaceSource();
+        const startBtn = faceEl("face-start-btn");
+        const camBtn = faceEl("face-camera-btn");
+        const statePill = faceEl("face-state");
+
+        if (hasFeed) {
+            if (statePill) {
+                statePill.textContent = "On";
+                statePill.classList.add("on");
+                statePill.classList.remove("live");
+            }
+            if (startBtn) startBtn.disabled = false;
+            if (camBtn) {
+                camBtn.innerHTML = '<i data-lucide="video-off"></i> Disable';
+                camBtn.onclick = disableFaceCamera;
+            }
+            await ensureFacePipeLibs().catch(() => {});
+            await initFaceMesh().catch(() => {});
+            lucide.createIcons();
+            toast(`Connected to ${subjectInfo().name}'s feed — start analysis to detect nervousness cues.`);
+        } else {
+            if (startBtn) startBtn.disabled = true;
+            if (statePill) {
+                statePill.textContent = "Waiting";
+                statePill.classList.remove("on", "live");
+            }
+            if (camBtn) {
+                camBtn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
+                camBtn.onclick = enableFaceCamera;
+            }
+            lucide.createIcons();
+        }
+    }
+
     function initFacePanel() {
         const panel = faceEl("face-analysis");
         if (!panel) return;
@@ -3100,18 +3161,7 @@
                     const ctx = overlay.getContext("2d");
                     if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
                 }
-                if (face.camera) {
-                    attachFaceSource();
-                    const statePill = faceEl("face-state");
-                    if (statePill) {
-                        statePill.textContent = "On";
-                        statePill.classList.add("on");
-                        statePill.classList.remove("live");
-                    }
-                    const startBtn = faceEl("face-start-btn");
-                    if (startBtn) startBtn.disabled = false;
-                    await initFaceMesh();
-                }
+                await setupFaceForCurrentSource();
             });
         }
         lucide.createIcons();
@@ -3169,7 +3219,7 @@
         const video = faceEl("face-video");
         const wrap = document.querySelector(".face-video-wrap");
         const status = faceEl("face-source-status");
-        if (!video) return;
+        if (!video) return false;
         if (wrap) wrap.classList.toggle("mirror", face.source === "self");
         if (status) status.hidden = true;
 
@@ -3179,66 +3229,89 @@
             const selfStream = (state.localStream && state.localStream.getVideoTracks().length)
                 ? state.localStream
                 : (face.ownStream || null);
-            if (selfStream) {
+            const liveSelfTrack = selfStream && selfStream.getVideoTracks().find((t) => t.readyState === "live");
+            if (liveSelfTrack) {
                 affirmVideo(video, selfStream);
                 startVideoKeepalive(video, selfStream, () => videoHasSrc(video));
+                setFacePlaceholder(false);
+                if (status) status.hidden = true;
+                return true;
             } else {
                 affirmVideo(video, null);
                 stopVideoKeepalive(video);
+                setFacePlaceholder(true, "Camera off", "video-off");
                 if (status) {
                     status.textContent = "Your camera is off. Turn on camera or enable feed.";
                     status.hidden = false;
                 }
+                return false;
             }
-            return;
         }
 
         // A remote participant's feed.
         const peer = state.peers.get(face.source);
         const stageEl = videoEls.get(face.source);
-        let track = (peer && peer.videoTrack)
-            || (stageEl && stageEl.srcObject && stageEl.srcObject.getVideoTracks && stageEl.srcObject.getVideoTracks()[0])
+        let track = (peer && peer.videoTrack && peer.videoTrack.readyState === "live" ? peer.videoTrack : null)
+            || (stageEl && stageEl.srcObject && stageEl.srcObject.getVideoTracks && stageEl.srcObject.getVideoTracks().find((t) => t.readyState === "live"))
             || null;
 
         // Fallback: inspect peer transceivers / receivers directly if track wasn't cached yet
-        if (!track && peer && peer.pc) {
+        if ((!track || track.readyState !== "live") && peer && peer.pc) {
             try {
-                const rx = peer.pc.getReceivers().find((r) => r.track && r.track.kind === "video");
+                const rx = peer.pc.getReceivers().find((r) => r.track && r.track.kind === "video" && r.track.readyState === "live");
                 if (rx && rx.track) track = rx.track;
             } catch (_) {}
         }
-        if (track && peer && !peer.videoTrack) {
+        if (track && peer && (!peer.videoTrack || peer.videoTrack.readyState !== "live")) {
             peer.videoTrack = track;
         }
 
         if (track && track.readyState === "live") {
-            const stream = (stageEl && stageEl.srcObject) ? stageEl.srcObject : new MediaStream([track]);
+            // Always create a dedicated MediaStream instance for #face-video so
+            // playback state and frame decoding never conflict with the stage tile.
+            const stream = new MediaStream([track]);
             affirmVideo(video, stream);
             startVideoKeepalive(video, stream, () => videoHasSrc(video));
+            setFacePlaceholder(false);
             if (status) status.hidden = true;
+            return true;
         } else {
-            // No track yet — clear the monitor and keep watching until one lands
-            // (refreshFaceSourceIfPending will re-attach when it does).
+            // No track yet — clear monitor and show clear waiting placeholder
             affirmVideo(video, null);
             stopVideoKeepalive(video);
+            const subj = subjectInfo();
+            setFacePlaceholder(true, `Waiting for video from ${subj.name}…`, "video-off");
             if (status) {
-                status.textContent = "Waiting for video from the selected participant…";
+                status.textContent = `Waiting for video from ${subj.name}…`;
                 status.hidden = false;
             }
+            return false;
         }
     }
 
     function refreshFaceSourceIfPending(pid) {
         // The remote's video track just arrived — if the panel is monitoring
         // them, switch the monitor feed over now.
-        if (face.camera && face.source === pid) attachFaceSource();
+        if (face.source === pid) {
+            const attached = attachFaceSource();
+            if (attached && !face.analyzing) {
+                const startBtn = faceEl("face-start-btn");
+                if (startBtn) startBtn.disabled = false;
+                const statePill = faceEl("face-state");
+                if (statePill) { statePill.textContent = "On"; statePill.classList.add("on"); }
+                const camBtn = faceEl("face-camera-btn");
+                if (camBtn) {
+                    camBtn.innerHTML = '<i data-lucide="video-off"></i> Disable';
+                    camBtn.onclick = disableFaceCamera;
+                    lucide.createIcons();
+                }
+            }
+        }
     }
 
     // ---- camera lifecycle -----------------------------------------------
     async function enableFaceCamera() {
         const btn = faceEl("face-camera-btn");
-        const video = faceEl("face-video");
-        const placeholder = faceEl("face-placeholder");
         const statePill = faceEl("face-state");
         try {
             btn.disabled = true;
@@ -3253,17 +3326,21 @@
                 });
                 face.ownsStream = true;
             }
-            attachFaceSource();
-            if (placeholder) placeholder.style.display = "none";
+            const attached = attachFaceSource();
             await ensureFacePipeLibs();
             await initFaceMesh();
             if (statePill) { statePill.textContent = "On"; statePill.classList.add("on"); }
             const startBtn = faceEl("face-start-btn");
-            if (startBtn) startBtn.disabled = false;
+            if (startBtn) startBtn.disabled = !attached;
             btn.innerHTML = '<i data-lucide="video-off"></i> Disable';
             btn.disabled = false;
             btn.onclick = disableFaceCamera;
-            toast("Feed connected — start analysis to detect nervousness cues.");
+            lucide.createIcons();
+            if (attached) {
+                toast("Feed connected — start analysis to detect nervousness cues.");
+            } else if (face.source !== "self") {
+                toast(`Waiting for ${subjectInfo().name}'s video to become available.`);
+            }
         } catch (err) {
             console.error("Face camera error:", err);
             toast("Could not access the selected feed. Check camera permissions.");
@@ -3301,8 +3378,7 @@
         if (status) status.hidden = true;
         resetFaceMetricsUI();
 
-        const placeholder = faceEl("face-placeholder");
-        if (placeholder) placeholder.style.display = "flex";
+        setFacePlaceholder(true, "Feed off", "user-round");
         const statePill = faceEl("face-state");
         if (statePill) { statePill.textContent = "Off"; statePill.classList.remove("on", "live"); }
         const camBtn = faceEl("face-camera-btn");
@@ -3379,6 +3455,7 @@
     // ---- analysis lifecycle ---------------------------------------------
     function startFaceAnalysis() {
         attachFaceSource();
+        setFacePlaceholder(false);
         resetFaceMetricsUI();
         face.analyzing = true;
         face.calibrated = false;
