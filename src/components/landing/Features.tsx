@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, FileText, FolderKanban, Network, Pause, Play, ScanSearch, Video } from "lucide-react";
+import { Bot, FileText, FolderKanban, Network, Pause, Play, Video } from "lucide-react";
 import { Reveal } from "./Reveal";
 
 const features = [
@@ -17,11 +17,6 @@ const features = [
     icon: FolderKanban,
     title: "Case Management",
     text: "Create cases, attach multiple documents, analyze individually or all at once. Aggregate priority = highest document wins.",
-  },
-  {
-    icon: ScanSearch,
-    title: "Chakshu — Evidence Fact-Checker",
-    text: "Browser-based lie detection with speech transcription, physiological analysis, and hybrid evidence verification using AI.",
   },
   {
     icon: Video,
