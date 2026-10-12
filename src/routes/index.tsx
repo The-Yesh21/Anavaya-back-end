@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Hero } from "@/components/landing/Hero";
 import { ProblemBand, StatsBar } from "@/components/landing/ProblemStats";
-import { HowItWorks } from "@/components/landing/HowItWorks";
 import { WhyItMatters } from "@/components/landing/WhyItMatters";
 import { Features, TechStack } from "@/components/landing/Features";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
@@ -38,7 +37,6 @@ function Index() {
         <Hero />
         <ProblemBand />
         <StatsBar />
-        <HowItWorks />
         <PriorityRoadmap />
         <ModelAccuracy />
         <WhyItMatters />

@@ -75,7 +75,7 @@
             <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle case list" title="Toggle case list">
                 <i data-lucide="panel-left"></i>
             </button>
-            <div class="header-logo">
+            <a href="/landing/" class="header-logo" title="Back to Landing Page">
                 <div class="logo-icon">
                     <!-- The Anavaya mark (same scales-of-justice as the favicon),
                          inlined so it inherits the header's gold/accent colors. -->
@@ -96,8 +96,12 @@
                     <h1>Anavaya</h1>
                     <span>Judicial Case priority prediction engine</span>
                 </div>
-            </div>
+            </a>
             <div class="header-actions">
+                <a href="/landing/" class="landing-back-btn" id="landing-back-btn" title="Back to Landing Page">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Landing Page</span>
+                </a>
                 <!-- System health reads as ONE cluster: the GPU chip and the
                      online pill used to stack on separate lines (and pushed the
                      theme toggle onto a third), which made the bar look broken. -->
