@@ -34,7 +34,7 @@ import requests
 # Config.
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
 
 # Whisper domain vocabulary prompt. Providing domain terms biases the decoder
 # toward correct courtroom spellings (e.g. 'Your Honour', 'Judge', 'FIR')
@@ -125,50 +125,40 @@ def _read_wav_np(path: str):
 
 
 def _make_room_for_asr():
-    """Free GPU memory held by Ollama's correction LLM before whisper runs.
+    """Free GPU memory held by Ollama ONLY when genuine VRAM exhaustion is imminent.
 
-    On a 4 GiB GPU (RTX 2050), Ollama's qwen2.5:3b stays resident at ~2.16 GB
-    and can leave whisper almost no VRAM headroom (measured 79 MiB free once
-    both are loaded) — a real speech segment could then OOM mid-transcription,
-    which whisper reports as failure and the statement is silently dropped.
-
-    Unloading qwen (keep_alive=0) right before transcribing hands whisper the
-    whole GPU; the grammar-correction step that follows reloads qwen on demand.
-    On a 4 GiB GPU (RTX 2050) Ollama's qwen2.5:3b sits resident at ~2.16 GiB
-    and torch's CUDA context + whisper-small add ~1.7 GiB more — that leaves
-    almost no headroom (measured ~150 MiB free), and free memory also swings
-    with browser GPU usage. A real speech segment could then OOM
-    mid-transcription, which whisper reports as failure and the statement is
-    silently dropped. So whenever qwen is resident (checked via /api/ps) it is
-    unloaded before whisper runs; the grammar-correction step that follows
-    reloads it on demand. No-op when qwen is not loaded or there is no CUDA
-    torch (whisper is CPU-bound there).
+    When using lightweight Whisper models ('base', 'tiny'), both Whisper (~200MB)
+    and Ollama (~2.2GB) comfortably fit in 4GB VRAM simultaneously.
+    Unloading Ollama is destructive and causes 10-15s reload delays on every utterance.
     """
+    if WHISPER_MODEL.lower() in ("base", "tiny", "tiny.en", "base.en"):
+        return
+
     try:
         import torch
         if not torch.cuda.is_available():
             return
+        free_bytes, total_bytes = torch.cuda.mem_get_info()
+        # If there is at least 1.8 GB free, whisper-small fits without unloading Ollama.
+        if free_bytes >= 1.8 * (1024 ** 3):
+            return
     except Exception:
-        return
-    # Only bother unloading if the Ollama model is actually resident.
+        pass
+
+    # Only unload if free memory is critically low AND Ollama is actually resident:
     try:
-        r = requests.get(f"{OLLAMA_URL.rstrip('/')}/api/ps", timeout=8)
+        r = requests.get(f"{OLLAMA_URL.rstrip('/')}/api/ps", timeout=3)
         r.raise_for_status()
         loaded = [m.get("name", "") for m in (r.json().get("models") or [])]
         if not any(OLLAMA_MODEL in name for name in loaded):
             return
-    except Exception:
-        return
-    try:
-        print(f"Unloading Ollama model '{OLLAMA_MODEL}' to free VRAM for ASR.")
-        r = requests.post(
+        print(f"Critically low VRAM: unloading Ollama model '{OLLAMA_MODEL}' for heavy ASR model '{WHISPER_MODEL}'.")
+        requests.post(
             f"{OLLAMA_URL.rstrip('/')}/api/generate",
             json={"model": OLLAMA_MODEL, "keep_alive": 0},
-            timeout=8,
+            timeout=5,
         )
-        r.raise_for_status()
-        # Give llama-server a beat to release the VRAM context.
-        time.sleep(0.6)
+        time.sleep(0.4)
     except Exception as e:
         print(f"Ollama VRAM pre-free skipped: {e}")
 
@@ -317,10 +307,11 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
     if not text:
         return "", False
 
-    # Short utterances (e.g. "Hello bro", "Yes, Your Honour", "One minute", "No")
-    # are already cleanly punctuated by Whisper; skipping the LLM guarantees verbatim accuracy
-    # and eliminates LLM refusal on casual/short speech.
-    if len(text.split()) <= 4:
+    # Short or already cleanly punctuated statements (e.g. "Hello bro", "Yes, Your Honour", "No")
+    # are already cleanly decoded by Whisper; skipping the LLM guarantees verbatim accuracy,
+    # prevents hallucinations, and drops latency from seconds to milliseconds.
+    words = text.split()
+    if len(words) <= 5 or (len(words) <= 10 and text[0].isupper() and text[-1] in ".!?"):
         return text, False
 
     context_block = ""
@@ -341,6 +332,7 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
         f"{context_block}"
         "Output ONLY the formatted statement."
     )
+    max_tokens = min(256, max(32, int(len(words) * 2.5)))
     payload_body = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -349,11 +341,11 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
         ],
         "stream": False,
         "think": False,
-        "options": {"temperature": 0, "num_predict": 512},
+        "options": {"temperature": 0, "num_predict": max_tokens},
     }
     try:
         r = requests.post(
-            f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload_body, timeout=20
+            f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload_body, timeout=6
         )
         r.raise_for_status()
         data = r.json()
