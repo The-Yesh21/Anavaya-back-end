@@ -2037,32 +2037,29 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
                 pass
             return {"entry": None, "raw": "", "note": "no_speech"}
         context_hint = _court_context_hint(room)
-        corrected, used_llm = await asyncio.to_thread(
-            correct_transcript_text, text, context_hint
-        )
         try:
             spoken_at = float(recorded_at) / 1000.0 if recorded_at else None
         except ValueError:
             spoken_at = None
+
+        # Record segment in courtroom manager (joins with unfinished prior statement if within continuation window)
         entry, replaces_id = courtroom_manager.record_spoken_statement(
-            room_id, participant_id, corrected, audio_file=filename,
+            room_id, participant_id, text, audio_file=filename,
             spoken_at=spoken_at, raw_text=text,
         )
         if entry is None:
             raise HTTPException(status_code=400, detail="Could not record the statement.")
-        if replaces_id:
-            # The two halves are now ONE sentence, so read it as one: correcting
-            # each fragment separately leaves the record with two half-sentences
-            # (and the joined text is what the speaker actually said).
-            joined, used_llm_join = await asyncio.to_thread(
-                correct_transcript_text, entry.text, context_hint
-            )
-            if joined and joined.strip():
-                entry = courtroom_manager.update_statement_text(
-                    room_id, entry.entry_id, joined
-                ) or entry
-                corrected = entry.text
-                used_llm = used_llm or used_llm_join
+
+        # Single-pass fast formatting on the unified sentence:
+        corrected, used_llm = await asyncio.to_thread(
+            correct_transcript_text, entry.text, context_hint
+        )
+        if corrected and corrected.strip() and corrected != entry.text:
+            entry = courtroom_manager.update_statement_text(
+                room_id, entry.entry_id, corrected
+            ) or entry
+        else:
+            corrected = entry.text
     except HTTPException:
         raise
     except Exception as e:
