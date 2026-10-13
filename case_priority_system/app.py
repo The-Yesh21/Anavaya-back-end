@@ -2247,6 +2247,40 @@ def refresh_court_context(room_id: str):
     return ctx
 
 
+@app.post("/api/court/rooms/{room_id}/link-case")
+async def link_court_case(room_id: str, payload: dict):
+    """Link (or switch) an active courtroom session to a registered case (ANV-…)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    case_id = str(payload.get("case_id", "")).strip()
+    if not case_id:
+        raise HTTPException(status_code=400, detail="case_id is required.")
+    if not CaseManager.valid_case_id(case_id):
+        raise HTTPException(status_code=400, detail="Invalid case id format (expected ANV-YYYY-NNNN).")
+    room, ctx = courtroom_manager.link_case(room_id, case_id, case_manager)
+    if room is None or ctx is None:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} or room {room_id} not found.")
+
+    # Broadcast update to all live participants in the room
+    sockets = getattr(courtroom_manager, "_room_sockets", {}).get(room_id, {})
+    if sockets:
+        system_entry = room.transcript[-1].to_dict() if room.transcript else None
+        await _broadcast(sockets, {
+            "type": "case_context_updated",
+            "case_id": case_id,
+            "case_title": room.case_title,
+            "case_context": ctx,
+            "transcript_entry": system_entry,
+        })
+
+    return {
+        "room_id": room_id,
+        "case_id": case_id,
+        "case_title": room.case_title,
+        "case_context": ctx,
+    }
+
+
 @app.get("/api/court/rooms/{room_id}/session-report.pdf")
 def download_session_report_pdf(room_id: str):
     """Downloadable session analysis report (deception + face aggregate) as PDF.
@@ -2802,6 +2836,30 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                         "enabled": updated.transcript_enabled,
                         "transcript_entry": updated.transcript[-1].to_dict(),
                     })
+                continue
+
+            # --- link case file (judge only) ----------------------------------
+            if mtype == "link_case":
+                room = courtroom_manager.get_room(room_id)
+                me = room.get_participant(bound_participant_id) if room else None
+                if me is None or me.role != "Judge":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": "Only the Judge may link or change the case file."
+                    })
+                    continue
+                cid = str(msg.get("case_id", "")).strip()
+                if cid and CaseManager.valid_case_id(cid):
+                    linked_room, ctx = courtroom_manager.link_case(room_id, cid, case_manager)
+                    if linked_room is not None and ctx is not None:
+                        system_entry = linked_room.transcript[-1].to_dict() if linked_room.transcript else None
+                        await _broadcast(sockets, {
+                            "type": "case_context_updated",
+                            "case_id": cid,
+                            "case_title": linked_room.case_title,
+                            "case_context": ctx,
+                            "transcript_entry": system_entry,
+                        })
                 continue
 
             # --- end the trial session (judge only) ---------------------------
