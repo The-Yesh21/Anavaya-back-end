@@ -131,6 +131,11 @@
         downloadReportBtn: $("download-report-btn"),
         caseContext: $("case-context"),
         contextRefreshBtn: $("context-refresh-btn"),
+        contextSwitchBtn: $("context-switch-btn"),
+        ccUnlinked: $("cc-unlinked"),
+        ccLinkSelect: $("cc-link-select"),
+        ccLinkBtn: $("cc-link-btn"),
+        ccLinkedDetails: $("cc-linked-details"),
         transcriptPowerBtn: $("transcript-power-btn"),
         transcriptOffNote: $("transcript-off-note"),
         transcriptPanel: $("transcript-panel"),
@@ -156,6 +161,8 @@
             window.location.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
         });
         if (els.contextRefreshBtn) els.contextRefreshBtn.addEventListener("click", refreshCaseContext);
+        if (els.contextSwitchBtn) els.contextSwitchBtn.addEventListener("click", toggleCasePicker);
+        if (els.ccLinkBtn) els.ccLinkBtn.addEventListener("click", linkSelectedCase);
         initCollapsiblePanels();
         if (els.pushToTalkBtn) initPushToTalk();
         if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
@@ -198,13 +205,93 @@
     // ====================================================================
     // CASE CONTEXT (linked case: parties, evidence, links)
     // ====================================================================
-    function renderCaseContext(ctx) {
-        if (!els.caseContext) return;
-        if (!ctx || !ctx.case_id) {
-            els.caseContext.style.display = "none";
+    async function populateCourtroomCaseSelect(selectedCaseId = "") {
+        const sel = document.getElementById("cc-link-select");
+        if (!sel) return;
+        try {
+            const res = await fetch("/api/case-registry");
+            if (!res.ok) return;
+            const cases = await res.json();
+            sel.innerHTML = '<option value="">Select registered case…</option>';
+            for (const c of cases) {
+                const opt = document.createElement("option");
+                opt.value = c.case_id;
+                opt.textContent = `${c.case_id} — ${c.title} (${c.document_count} doc${c.document_count === 1 ? "" : "s"})`;
+                if (selectedCaseId && c.case_id === selectedCaseId) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        } catch (e) {
+            console.warn("Could not fetch case registry for courtroom link select:", e);
+        }
+    }
+
+    async function linkSelectedCase() {
+        const sel = document.getElementById("cc-link-select");
+        const btn = document.getElementById("cc-link-btn");
+        if (!sel || !sel.value) {
+            toast("Please select a registered case from the dropdown.");
             return;
         }
+        const caseId = sel.value;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "Linking…";
+        }
+        try {
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/link-case`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ case_id: caseId }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: res.statusText }));
+                throw new Error(err.detail || "Failed to link case.");
+            }
+            const data = await res.json();
+            renderCaseContext(data.case_context);
+            if (els.caseTitle && data.case_title) {
+                els.caseTitle.textContent = data.case_title;
+            }
+            toast(`Linked to case ${caseId}.`);
+        } catch (e) {
+            toast("Error linking case: " + e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = "Link";
+            }
+        }
+    }
+
+    function toggleCasePicker() {
+        const unlinkedEl = document.getElementById("cc-unlinked");
+        if (!unlinkedEl) return;
+        const isHidden = unlinkedEl.style.display === "none";
+        unlinkedEl.style.display = isHidden ? "" : "none";
+        if (isHidden) {
+            populateCourtroomCaseSelect();
+        }
+    }
+
+    function renderCaseContext(ctx) {
+        if (!els.caseContext) return;
         els.caseContext.style.display = "";
+        const unlinkedEl = document.getElementById("cc-unlinked");
+        const linkedDetails = document.getElementById("cc-linked-details");
+
+        if (!ctx || !ctx.case_id) {
+            if (unlinkedEl) unlinkedEl.style.display = "";
+            if (linkedDetails) linkedDetails.style.display = "none";
+            if (els.contextRefreshBtn) els.contextRefreshBtn.style.display = "none";
+            if (els.contextHeadSub) els.contextHeadSub.textContent = "No linked case";
+            populateCourtroomCaseSelect();
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+
+        if (unlinkedEl) unlinkedEl.style.display = "none";
+        if (linkedDetails) linkedDetails.style.display = "";
+
         const titleEl = document.getElementById("cc-case-title");
         const idEl = document.getElementById("cc-case-id");
         const partiesEl = document.getElementById("cc-parties");
@@ -245,7 +332,7 @@
                 : "";
         }
         if (els.contextRefreshBtn) els.contextRefreshBtn.style.display = "";
-        lucide.createIcons();
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     async function refreshCaseContext() {
@@ -477,6 +564,15 @@
                 applyTranscriptState(msg.enabled);
                 if (msg.transcript_entry) appendTranscript(msg.transcript_entry);
                 toast(msg.enabled ? "Live transcript turned on." : "Live transcript turned off.");
+                break;
+            }
+            case "case_context_updated": {
+                renderCaseContext(msg.case_context);
+                if (msg.case_title && els.caseTitle) {
+                    els.caseTitle.textContent = msg.case_title;
+                }
+                if (msg.transcript_entry) appendTranscript(msg.transcript_entry);
+                toast(`Courtroom linked to ${msg.case_id || 'case file'}.`);
                 break;
             }
             case "session_ended": {
@@ -3434,14 +3530,15 @@
             stop: () => { if (face._raf) cancelAnimationFrame(face._raf); face._raf = null; },
         };
         let lastTs = 0;
+        const FACE_INFERENCE_INTERVAL_MS = 80; // ~12.5 FPS: sufficient for blink/lip cues while eliminating main-thread lockup
         const loop = () => {
             if (!face.landmarker || !face.camera) return;
             if (video.readyState >= 2) {
-                const ts = performance.now();
-                if (ts > lastTs) {
-                    lastTs = ts;
+                const now = performance.now();
+                if (now - lastTs >= FACE_INFERENCE_INTERVAL_MS) {
+                    lastTs = now;
                     try {
-                        onFaceMeshResults(landmarker.detectForVideo(video, ts));
+                        onFaceMeshResults(landmarker.detectForVideo(video, now));
                     } catch (e) {
                         console.error("Face landmark inference failed:", e);
                     }
@@ -4060,7 +4157,11 @@
     function renderFaceCueChips() {
         const wrap = faceEl("face-cues");
         if (!wrap) return;
-        const keys = [...face.activeCues];
+        const keys = [...face.activeCues].sort();
+        const cueKey = (face.analyzing ? "1:" : "0:") + keys.join(",");
+        if (face._lastCueKey === cueKey) return;
+        face._lastCueKey = cueKey;
+
         if (!keys.length) {
             wrap.innerHTML = face.analyzing ? '<span class="face-note" style="margin:0;">No active cues</span>' : "";
             return;
@@ -4069,7 +4170,9 @@
             const c = CUE_LABELS[k] || { label: k, icon: "activity", sev: "mild" };
             return `<span class="cue-chip ${c.sev}"><i data-lucide="${c.icon}"></i> ${c.label}</span>`;
         }).join("");
-        lucide.createIcons();
+        if (typeof lucide !== "undefined" && lucide.createIcons) {
+            lucide.createIcons({ root: wrap });
+        }
     }
 
     function drawFaceOverlay(ctx, lm) {

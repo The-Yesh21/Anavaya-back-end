@@ -39,7 +39,7 @@ python test_courtroom_e2e.py         # Live Courtroom WebSocket signaling + room
 
 ## Dependencies
 
-No `requirements.txt`. Key packages: `pandas`, `numpy`, `scikit-learn`, `torch`, `PyMuPDF` (fitz) / `pypdf`, `fastapi`, `uvicorn`, `openpyxl`, `requests`, `tqdm`. Courtroom ASR needs `openai-whisper` (model `small`, override `WHISPER_MODEL`; downloads to `~/.cache/whisper` on first use; runs on the NVIDIA GPU via torch; WAV decoded with stdlib `wave`, so ffmpeg isn't required). Frontend uses Tailwind via Play CDN + D3.js + MediaPipe (lazy-loaded) + Lucide icons.
+No `requirements.txt`. Key packages: `pandas`, `numpy`, `scikit-learn`, `torch`, `PyMuPDF` (fitz) / `pypdf`, `fastapi`, `uvicorn`, `openpyxl`, `requests`, `tqdm`. Courtroom ASR needs `openai-whisper` (model `base` (~140 MB, fast & co-exists with Ollama in 4GB VRAM without eviction), override `WHISPER_MODEL`; runs on the NVIDIA GPU via torch; WAV decoded with stdlib `wave`, so ffmpeg isn't required). Frontend uses Tailwind via Play CDN + D3.js + MediaPipe (lazy-loaded) + Lucide icons.
 
 ## Architecture
 

@@ -11,6 +11,10 @@
 #    3. Backend / landing code unchanged from the repo at F:\major_project
 # ============================================================================
 
+param(
+    [switch]$NoWait
+)
+
 $ErrorActionPreference = "Stop"
 $Host.UI.RawUI.WindowTitle = "Anavaya Remote Launcher"
 
@@ -64,6 +68,7 @@ Set-Location $RepoRoot
 # usually reaches the same result, but forcing removes the probe lag while
 # Ollama warms up and keeps the remote demo deterministic.
 $env:ANAVAYA_USE_LLM = "1"
+$env:WHISPER_MODEL = "base"
 
 # --- 1. Backend (FastAPI, https :8000, repo self-signed certs) ---
 if (Test-Port 8000) {
@@ -145,6 +150,8 @@ Write-Host ""
 Write-Host "  This window stays open while the demo runs." -ForegroundColor DarkGray
 Write-Host "  Close this window when done (services keep running until you stop them)." -ForegroundColor DarkGray
 Write-Host ""
-while ($true) {
-    Start-Sleep -Seconds 10
+if (-not $NoWait) {
+    while ($true) {
+        Start-Sleep -Seconds 10
+    }
 }

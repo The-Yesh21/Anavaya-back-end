@@ -1,4 +1,4 @@
-﻿// Anavaya Dashboard UI Logic
+// Anavaya Dashboard UI Logic
 document.addEventListener("DOMContentLoaded", () => {
     let casesData = [];
     let globalTreeData = null;
@@ -94,9 +94,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // Lazy-load courtroom sessions when the Courtroom tab is activated
-            if (tabId === "courtroom-tab" && typeof fetchCourtrooms === "function" && !courtroomsLoaded) {
-                fetchCourtrooms();
+            // Refresh courtroom cases and rooms when the Courtroom tab is activated
+            if (tabId === "courtroom-tab") {
+                if (typeof populateRoomCaseSelect === "function") {
+                    populateRoomCaseSelect();
+                }
+                if (typeof fetchCourtrooms === "function") {
+                    fetchCourtrooms();
+                }
             }
     }
 
@@ -1442,8 +1447,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    window.populateRoomCaseSelect = populateRoomCaseSelect;
+
     refreshRoomsBtn.addEventListener("click", () => {
         roomsListContainer.innerHTML = '<div class="loader">Refreshing…</div>';
+        populateRoomCaseSelect();
         fetchCourtrooms();
     });
 

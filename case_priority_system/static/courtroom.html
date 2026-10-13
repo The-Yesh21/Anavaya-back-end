@@ -222,7 +222,7 @@
                 </section>
 
                 <!-- Case context (linked case: parties, evidence, links) -->
-                <section class="rail-panel card collapsible-panel" id="case-context" style="display:none;">
+                <section class="rail-panel card collapsible-panel" id="case-context">
                     <div class="rail-head">
                         <button class="rail-toggle" id="context-toggle" type="button" aria-expanded="true" aria-controls="context-body">
                             <i data-lucide="folder-open"></i>
@@ -230,16 +230,31 @@
                             <span class="rail-sub" id="context-head-sub"></span>
                             <i data-lucide="chevron-down" class="rail-chevron"></i>
                         </button>
-                        <button type="button" class="cc-refresh" id="context-refresh-btn" title="Re-read the case file (new evidence?)" aria-label="Refresh case context" style="display:none;">
-                            <i data-lucide="refresh-cw"></i>
-                        </button>
+                        <div class="rail-actions" style="display:flex; gap:4px; align-items:center;">
+                            <button type="button" class="cc-refresh" id="context-switch-btn" title="Link or switch registered case file" aria-label="Link or switch case file">
+                                <i data-lucide="link"></i>
+                            </button>
+                            <button type="button" class="cc-refresh" id="context-refresh-btn" title="Re-read the case file (new evidence?)" aria-label="Refresh case context" style="display:none;">
+                                <i data-lucide="refresh-cw"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="panel-collapse" id="context-body">
-                        <p class="cc-title"><strong id="cc-case-title">—</strong> <span id="cc-case-id" class="cc-id"></span></p>
-                        <p class="cc-line" id="cc-parties"></p>
-                        <div id="cc-evidence" class="cc-evidence"></div>
-                        <p class="cc-line" id="cc-links"></p>
-                        <p class="cc-note"><i data-lucide="info"></i> The court reads every statement against this evidence — anything asserted without support here is flagged in the Session Report.</p>
+                        <!-- Unlinked state or quick-switch picker -->
+                        <div id="cc-unlinked" class="cc-unlinked-box" style="display:none; padding:10px 12px; background:var(--bg-app); border:1px dashed var(--border-color); border-radius:8px; margin-bottom:8px;">
+                            <p style="margin:0 0 6px 0; font-size:11px; color:var(--text-secondary);"><i data-lucide="folder-plus" style="width:12px; height:12px; vertical-align:middle;"></i> Link a registered case file to this session:</p>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <select id="cc-link-select" style="flex:1; font-size:11px; padding:4px 6px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);"></select>
+                                <button type="button" id="cc-link-btn" class="btn btn-sm btn-primary" style="padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer;">Link</button>
+                            </div>
+                        </div>
+                        <div id="cc-linked-details">
+                            <p class="cc-title"><strong id="cc-case-title">—</strong> <span id="cc-case-id" class="cc-id"></span></p>
+                            <p class="cc-line" id="cc-parties"></p>
+                            <div id="cc-evidence" class="cc-evidence"></div>
+                            <p class="cc-line" id="cc-links"></p>
+                            <p class="cc-note"><i data-lucide="info"></i> The court reads every statement against this evidence — anything asserted without support here is flagged in the Session Report.</p>
+                        </div>
                     </div>
                 </section>
 

@@ -1087,6 +1087,8 @@ def get_case_analysis(case_id: str):
         category=cl_feats.get("case_category", ""),
         crime_type=cl_feats.get("crime_type", ""),
         severity=cl_feats.get("severity", ""),
+        case_title=case.title or "",
+        case_text=f"{cl.get('case_gist', '')} {cl_feats.get('plain_summary', '')}",
     )
     return _repair_tree({
         "case_id": case.case_id,
@@ -1331,6 +1333,8 @@ def get_case_insights(case_id: str):
         category=feats.get("case_category", ""),
         crime_type=feats.get("crime_type", ""),
         severity=feats.get("severity", ""),
+        case_title=case.title or "",
+        case_text=f"{cl.get('case_gist', '')} {feats.get('plain_summary', '')}",
     )
 
     return _repair_tree({
@@ -2033,32 +2037,29 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
                 pass
             return {"entry": None, "raw": "", "note": "no_speech"}
         context_hint = _court_context_hint(room)
-        corrected, used_llm = await asyncio.to_thread(
-            correct_transcript_text, text, context_hint
-        )
         try:
             spoken_at = float(recorded_at) / 1000.0 if recorded_at else None
         except ValueError:
             spoken_at = None
+
+        # Record segment in courtroom manager (joins with unfinished prior statement if within continuation window)
         entry, replaces_id = courtroom_manager.record_spoken_statement(
-            room_id, participant_id, corrected, audio_file=filename,
+            room_id, participant_id, text, audio_file=filename,
             spoken_at=spoken_at, raw_text=text,
         )
         if entry is None:
             raise HTTPException(status_code=400, detail="Could not record the statement.")
-        if replaces_id:
-            # The two halves are now ONE sentence, so read it as one: correcting
-            # each fragment separately leaves the record with two half-sentences
-            # (and the joined text is what the speaker actually said).
-            joined, used_llm_join = await asyncio.to_thread(
-                correct_transcript_text, entry.text, context_hint
-            )
-            if joined and joined.strip():
-                entry = courtroom_manager.update_statement_text(
-                    room_id, entry.entry_id, joined
-                ) or entry
-                corrected = entry.text
-                used_llm = used_llm or used_llm_join
+
+        # Single-pass fast formatting on the unified sentence:
+        corrected, used_llm = await asyncio.to_thread(
+            correct_transcript_text, entry.text, context_hint
+        )
+        if corrected and corrected.strip() and corrected != entry.text:
+            entry = courtroom_manager.update_statement_text(
+                room_id, entry.entry_id, corrected
+            ) or entry
+        else:
+            corrected = entry.text
     except HTTPException:
         raise
     except Exception as e:
@@ -2241,6 +2242,40 @@ def refresh_court_context(room_id: str):
     if ctx is None:
         raise HTTPException(status_code=404, detail="Room has no linked case.")
     return ctx
+
+
+@app.post("/api/court/rooms/{room_id}/link-case")
+async def link_court_case(room_id: str, payload: dict):
+    """Link (or switch) an active courtroom session to a registered case (ANV-…)."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    case_id = str(payload.get("case_id", "")).strip()
+    if not case_id:
+        raise HTTPException(status_code=400, detail="case_id is required.")
+    if not CaseManager.valid_case_id(case_id):
+        raise HTTPException(status_code=400, detail="Invalid case id format (expected ANV-YYYY-NNNN).")
+    room, ctx = courtroom_manager.link_case(room_id, case_id, case_manager)
+    if room is None or ctx is None:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} or room {room_id} not found.")
+
+    # Broadcast update to all live participants in the room
+    sockets = getattr(courtroom_manager, "_room_sockets", {}).get(room_id, {})
+    if sockets:
+        system_entry = room.transcript[-1].to_dict() if room.transcript else None
+        await _broadcast(sockets, {
+            "type": "case_context_updated",
+            "case_id": case_id,
+            "case_title": room.case_title,
+            "case_context": ctx,
+            "transcript_entry": system_entry,
+        })
+
+    return {
+        "room_id": room_id,
+        "case_id": case_id,
+        "case_title": room.case_title,
+        "case_context": ctx,
+    }
 
 
 @app.get("/api/court/rooms/{room_id}/session-report.pdf")
@@ -2798,6 +2833,30 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                         "enabled": updated.transcript_enabled,
                         "transcript_entry": updated.transcript[-1].to_dict(),
                     })
+                continue
+
+            # --- link case file (judge only) ----------------------------------
+            if mtype == "link_case":
+                room = courtroom_manager.get_room(room_id)
+                me = room.get_participant(bound_participant_id) if room else None
+                if me is None or me.role != "Judge":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": "Only the Judge may link or change the case file."
+                    })
+                    continue
+                cid = str(msg.get("case_id", "")).strip()
+                if cid and CaseManager.valid_case_id(cid):
+                    linked_room, ctx = courtroom_manager.link_case(room_id, cid, case_manager)
+                    if linked_room is not None and ctx is not None:
+                        system_entry = linked_room.transcript[-1].to_dict() if linked_room.transcript else None
+                        await _broadcast(sockets, {
+                            "type": "case_context_updated",
+                            "case_id": cid,
+                            "case_title": linked_room.case_title,
+                            "case_context": ctx,
+                            "transcript_entry": system_entry,
+                        })
                 continue
 
             # --- end the trial session (judge only) ---------------------------

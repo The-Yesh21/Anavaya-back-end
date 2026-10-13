@@ -332,6 +332,37 @@ class CourtroomManager:
             self._persist(room)
         return ctx
 
+    def link_case(self, room_id: str, case_id: str, case_manager=None) -> tuple[Optional[Room], Optional[dict]]:
+        """Link (or switch) an active courtroom session to a registered case (ANV-…).
+
+        Rebuilds the case_context snapshot, updates room.case_id, sets the room title
+        if generic/untitled, adds an audit entry to the trial transcript, and persists.
+        """
+        room = self.get_room(room_id)
+        if room is None or case_manager is None:
+            return None, None
+
+        case_id = (case_id or "").strip()
+        if not case_id:
+            return None, None
+
+        case = case_manager.get_case(case_id)
+        if case is None:
+            return None, None
+
+        ctx = case_manager.build_case_context(case_id)
+        with self._lock:
+            room.case_id = case_id
+            room.case_context = ctx
+            if not room.case_title or room.case_title.strip() in ("Untitled Trial", "New Trial Session"):
+                room.case_title = case.title
+            room.add_entry(
+                "System", "system", "system",
+                f"Courtroom linked to Case {case.case_id} ('{case.title}') — evidentiary context loaded."
+            )
+            self._persist(room)
+        return room, ctx
+
     def get_room(self, room_id: str) -> Optional[Room]:
         """Active room by id, falling back to disk if the server restarted."""
         with self._lock:

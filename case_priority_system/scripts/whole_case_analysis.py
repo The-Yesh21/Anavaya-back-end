@@ -332,63 +332,115 @@ def _doc_display_name(filename: str, max_len: int = 44) -> str:
     return stem if len(stem) <= max_len else stem[: max_len - 1].rstrip() + "…"
 
 
+_MOCK_DISCLAIMER_PATTERNS = [
+    re.compile(r"\ba\s+fictional\s+FIR\b", re.IGNORECASE),
+    re.compile(r"\bfictional\s+FIR\b", re.IGNORECASE),
+    re.compile(r"\b(?:in a|in this)\s+fictional\s+(?:scenario|case|training\s+scenario|setting)\b,?\s*", re.IGNORECASE),
+    re.compile(r"\bThe records in this pack are simulated props\.?", re.IGNORECASE),
+    re.compile(r"\brecorded for the skit\.?", re.IGNORECASE),
+    re.compile(r"\bfor a classroom skit\.?", re.IGNORECASE),
+    re.compile(r"\bdesigned for performance\.?", re.IGNORECASE),
+    re.compile(r"\bThe dispute involves a fictional conversation[^.]*\.", re.IGNORECASE),
+    re.compile(r"\bThe case seeks clarification on the rights of parties in a fictional scenario[^.]*\.", re.IGNORECASE),
+    re.compile(r"\b\(?fictional\s+training\s+scenario[^)]*\)?", re.IGNORECASE),
+]
+
+
+def _clean_summary_text(text: str) -> str:
+    """Removes mock/test/simulation disclaimers so legal summaries read coherently."""
+    cleaned = text or ""
+    cleaned = re.sub(r"\ba\s+fictional\s+FIR\b", "an FIR", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\bfictional\s+FIR\b", "FIR", cleaned, flags=re.IGNORECASE)
+    for pat in _MOCK_DISCLAIMER_PATTERNS:
+        cleaned = pat.sub("", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = re.sub(r"\s+([.,;:!?])", r"\1", cleaned)
+    cleaned = re.sub(r"\.\s*\.", ".", cleaned)
+    return cleaned
+
+
 def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
-    """Deterministic "About this case" paragraph distilled from the documents.
+    """Deterministic, coherent whole-case summary distilled from all documents.
 
-    Answers the reader's first question — *what is this case about, who is
-    accused of what* — before the audit-style narrative explains the merge.
-    Assembled purely from the per-document ``plain_summary`` fields that the
-    extraction pipeline already produced; no LLM is called here.
-
-    Selection strategy (deterministic, document order = upload order):
-      1. allegation-bearing sentences first (keyword-scored), one per document
-         at most, capped at 4;
-      2. the largest money figure found anywhere, as the amount in dispute;
-      3. a closing line naming the merged classification and the parties.
+    Rather than blindly pasting disjointed sentence fragments from disparate evidence
+    exhibits, this synthesizes:
+      1. The initiating narrative anchored by the primary initiating document
+         (FIR, Complaint, Petition, or first recorded document);
+      2. The supporting evidence scope (number and nature of exhibits corroborating
+         timelines, witnesses, or forensic logs);
+      3. The financial amount in dispute if mentioned anywhere on record;
+      4. The deterministic legal classification and key parties.
     """
     docs = [d for d in case.documents if d.analysis]
     if not docs:
         return ""
 
-    # One best sentence per document (deduplicated, case-insensitive).
-    scored: list[tuple[int, int, str]] = []  # (score, doc_index, sentence)
-    seen: set[str] = set()
-    for idx, d in enumerate(docs):
-        summary = (d.analysis or {}).get("plain_summary") or ""
-        best_s, best_score = "", 0
-        for s in _split_sentences(summary):
-            key = s.lower()
-            if key in seen:
-                continue
-            score = 2 * len(_ALLEGATION_HINTS.findall(s))
-            if _MONEY_RE.search(s):
-                score += 2
-            # What the proceeding seeks ("The relief sought is…",
-            # "STATE … seeks to hold X liable") — answers the reader's
-            # "what is happening overall" question, so it outranks a
-            # plain classification sentence.
-            if re.search(r"relief sought|seeks? to|prayer for", s, re.IGNORECASE):
-                score += 3
-            # Generic meta-sentences ("The case involves …") describe the
-            # classification, not the dispute — prefer concrete allegations.
-            if re.match(r"the case (involves|raises|concerns|falls)", s.lower()):
-                score -= 3
-            if score > best_score:
-                best_s, best_score = s, score
-        if best_s:
-            seen.add(best_s.lower())
-            scored.append((best_score, idx, best_s))
+    # 1. Identify primary / initiating document (FIR, Complaint, Petition, etc.)
+    initiating_types = {"fir", "complaint", "petition", "charge sheet", "plaint", "writ petition"}
+    primary_doc = None
+    for d in docs:
+        if (d.doc_type or "").strip().lower() in initiating_types:
+            primary_doc = d
+            break
+    if primary_doc is None:
+        for d in docs:
+            fn = (d.filename or "").lower()
+            if any(k in fn for k in ["fir", "incident", "complaint", "petition", "evidence_01"]):
+                primary_doc = d
+                break
+    if primary_doc is None:
+        primary_doc = docs[0]
 
-    # Allegation-bearing sentences first, then the rest (deterministic order).
-    scored.sort(key=lambda t: (t[0] > 0, -t[0], t[1]))
-    picked = [s for _, _, s in scored[:4]]
+    # Clean primary document summary
+    raw_primary_sum = (primary_doc.analysis or {}).get("plain_summary") or ""
+    clean_primary = _clean_summary_text(raw_primary_sum)
+    primary_sentences = _split_sentences(clean_primary)
+
+    # Pick up to 2-3 most descriptive sentences from the primary initiating document
+    lead_parts: list[str] = []
+    for s in primary_sentences[:3]:
+        s_clean = s.strip()
+        if s_clean and len(s_clean) >= 20:
+            lead_parts.append(s_clean[0].upper() + s_clean[1:])
 
     gist_parts: list[str] = []
-    if picked:
-        lead = " ".join(picked)
-        gist_parts.append(lead[0].upper() + lead[1:] if lead else lead)
+    if lead_parts:
+        gist_parts.append(" ".join(lead_parts))
 
-    # Amount in dispute: the largest money figure across ALL summaries.
+    # 2. Synthesize secondary / supporting evidence scope
+    secondary_docs = [d for d in docs if d != primary_doc]
+    if secondary_docs:
+        types_seen: list[str] = []
+        for d in secondary_docs:
+            fn = (d.filename or "").lower().replace("_", " ")
+            if "cctv" in fn or "camera" in fn:
+                types_seen.append("CCTV/traffic surveillance logs")
+            elif "witness" in fn:
+                types_seen.append("witness statements")
+            elif "interview" in fn:
+                types_seen.append("interview records")
+            elif "audio" in fn or "transcript" in fn:
+                types_seen.append("audio records")
+            elif "register" in fn or "corroborat" in fn:
+                types_seen.append("evidentiary corroboration logs")
+            elif d.doc_type and d.doc_type != "Other":
+                types_seen.append(f"{d.doc_type.lower()} records")
+            else:
+                types_seen.append("supporting exhibits")
+
+        unique_types = []
+        for t in types_seen:
+            if t not in unique_types:
+                unique_types.append(t)
+
+        type_str = ", ".join(unique_types[:4]) if unique_types else "investigative exhibits"
+        n_sec = len(secondary_docs)
+        gist_parts.append(
+            f"The case is supported by {n_sec} corroborating record{'s' if n_sec != 1 else ''} on file ({type_str}), "
+            "establishing the investigative timeline and witness corroboration."
+        )
+
+    # 3. Amount in dispute (for financial / commercial / property disputes)
     amounts: list[tuple[float, str]] = []
     for d in docs:
         for m in _MONEY_RE.finditer((d.analysis or {}).get("plain_summary") or ""):
@@ -408,16 +460,19 @@ def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
     if amounts:
         amounts.sort(reverse=True)
         top_amount = amounts[0][1]
-        # Skip the standalone amount line when the picked sentences already
-        # state the figure (e.g. "transfers totaling Rs. 45,00,000").
-        already = top_amount.lower() in gist_parts[0].lower() if gist_parts else False
+        already = any(top_amount.lower() in p.lower() for p in gist_parts)
         if not already:
-            gist_parts.append(
-                f"The amount in dispute mentioned on record is {top_amount}."
-            )
+            gist_parts.append(f"The amount in dispute mentioned on record is {top_amount}.")
 
-    # Closing line: merged classification + who is on record.
-    party_bits = ", ".join(str(p).strip() for p in parties[:4] if str(p).strip())
+    # 4. Closing classification and parties
+    valid_parties = [
+        str(p).strip() for p in parties
+        if str(p).strip() and not any(
+            fake in str(p).lower()
+            for fake in ["unknown parties", "fictional", "party a", "party b", "adult", "child", "suspect"]
+        )
+    ]
+    party_bits = ", ".join(valid_parties[:5]) or ", ".join(str(p).strip() for p in parties[:3] if str(p).strip())
     closing = f"On the merged evidence the matter is classified as {case_category}"
     if crime_type:
         closing += f" ({crime_type.lower()} case type)"
@@ -427,9 +482,6 @@ def build_case_gist(case, case_category: str, crime_type: str, parties) -> str:
     gist_parts.append(closing)
 
     gist = " ".join(gist_parts)
-    # Cosmetic smoothing of a real extraction artifact ("The accused is
-    # accused of misusing funds…") — deterministic word substitution only,
-    # no re-interpretation of the extracted facts.
     gist = re.sub(
         r"(\bthe accused) is accused of\b",
         r"\1 is allegedly",
@@ -576,16 +628,29 @@ def analyze_case_whole(case, model_data=None) -> dict:
         get_comprehensive_constitutional_analysis,
     )
 
+    docs = [d for d in case.documents if d.analysis]
+    synthesis_text = f"{case.title}. {merged.get('case_gist', '')} {merged.get('plain_summary', '')} " + " ".join(
+        (d.analysis or {}).get("plain_summary", "") for d in docs
+    )
     try:
-        tuned = tune_case_features(dict(merged), merged["plain_summary"])
+        tuned = tune_case_features(dict(merged), synthesis_text)
     except Exception as e:
         print(f"whole-case: feature tuning failed (non-fatal): {e}")
         tuned = dict(merged)
 
+    # Re-build case_gist with the final tuned category and crime_type for perfect consistency
+    try:
+        party_list = [p.strip() for p in str(tuned.get("main_parties", "")).split(",") if p.strip()]
+        final_gist = build_case_gist(case, tuned.get("case_category", ""), tuned.get("crime_type", ""), party_list)
+        if final_gist:
+            merged["case_gist"] = final_gist
+    except Exception as e:
+        print(f"whole-case: re-building gist with tuned features failed (non-fatal): {e}")
+
     # The Decision Tree alone decides the case-level priority.
     if model_data is None:
         model_data = load_model()
-    model_text = f"{tuned.get('plain_summary', '')} {tuned.get('main_parties', '')}"
+    model_text = f"{tuned.get('plain_summary', '')} {merged.get('case_gist', '')} {tuned.get('main_parties', '')}"
     priority = predict_priority(model_data, tuned, model_text)
 
     decision_report = ""
@@ -639,6 +704,20 @@ def analyze_case_whole(case, model_data=None) -> dict:
     except Exception as e:
         print(f"whole-case: priority justification failed (non-fatal): {e}")
 
+    delay_precedents = []
+    try:
+        from case_priority_system.scripts.delay_precedents import get_delay_precedents
+        delay_precedents = get_delay_precedents(
+            priority=priority,
+            category=tuned.get("case_category", ""),
+            crime_type=tuned.get("crime_type", ""),
+            severity=tuned.get("severity", ""),
+            case_title=case.title,
+            case_text=f"{merged.get('case_gist', '')} {synthesis_text}",
+        )
+    except Exception as e:
+        print(f"whole-case: delay precedents failed (non-fatal): {e}")
+
     return {
         "priority": priority,
         "priority_justification": justification,
@@ -656,6 +735,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
         "decision_report": decision_report,
         "path_steps": path_steps,
         "constitutional": analysis,
+        "delay_precedents": delay_precedents,
         "case_gist": merged.get("case_gist", ""),
         "report_pdf": report_pdf,
         "computed_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),

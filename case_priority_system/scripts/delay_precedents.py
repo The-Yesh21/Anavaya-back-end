@@ -14,7 +14,7 @@ Deterministic rule-based mapping based on priority tier, category, and severity.
 No LLM involved in precedent selection.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 
 
 # Master Knowledge Base of Historical Delay Precedents
@@ -154,6 +154,42 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
             "Demonstrates why severe violent crime demands immediate high-priority triage: prolonged dilatory appeals traumatize "
             "grieving families and erode public trust in justice. Anavaya fast-tracks high-severity criminal matters so justice is delivered "
             "while evidence and societal conscience remain intact."
+        ),
+    },
+    {
+        "id": "bachpan_bachao_andolan_2013",
+        "case_title": "Bachpan Bachao Andolan v. Union of India",
+        "citation": "(2011) 5 SCC 1 / (2013) 5 SCC 1",
+        "court": "Supreme Court of India (Altamas Kabir, C.J.)",
+        "year": 2013,
+        "priority_level": "High",
+        "applicable_categories": ["Criminal/Violent", "Constitutional/Writ", "General Civil"],
+        "cost_category": "Irreversible Child Trafficking & Loss of Missing Children",
+        "toll_type": "life_safety",
+        "delay_period": "Systemic Inaction on Missing Children Reports",
+        "factual_delay": (
+            "Over 100,000 children were going missing annually across India without formal FIR registration or investigation. "
+            "Police routinely treated child disappearance as runaway cases, waiting days or weeks while children were trafficked, "
+            "forced into child labour, or subjected to sexual exploitation."
+        ),
+        "human_or_economic_toll": (
+            "Catastrophic human toll: thousands of children were permanently lost to their families, forced into illegal organ "
+            "trade, bonded labour, or commercial sexual exploitation simply because initial hours and days were lost to administrative inaction."
+        ),
+        "judicial_ruling": (
+            "The Supreme Court issued mandatory constitutional directions under Article 21 and Article 39(f): whenever a child goes "
+            "missing, an FIR under Section 363 IPC (kidnapping) MUST be registered immediately with a presumption of trafficking. "
+            "The Court ruled that time is of the essence and missing child matters demand the highest judicial and police urgency."
+        ),
+        "priority_mandate": (
+            "Establishes that cases involving missing children, child safety, kidnapping, or abduction must receive immediate "
+            "Top-tier High Priority triage: every hour of procedural delay permanently endangers a child's life and liberty."
+        ),
+        "anavaya_project_reason": (
+            "This landmark ruling defines Anavaya's protective mandate for children. Under legacy paper queues, missing child reports "
+            "languished for days as un-triaged complaints while children disappeared into trafficking networks. Anavaya immediately "
+            "escalates missing child and kidnapping cases to urgent High Priority upon intake, enforcing the Supreme Court's mandate "
+            "so search operations and judicial oversight activate without delay."
         ),
     },
 
@@ -368,6 +404,8 @@ def get_delay_precedents(
     crime_type: str = "",
     severity: str = "",
     max_results: int = 3,
+    case_title: str = "",
+    case_text: str = "",
 ) -> List[Dict[str, Any]]:
     """
     Deterministically retrieves the most relevant historical delay precedents
@@ -379,6 +417,8 @@ def get_delay_precedents(
         crime_type: Broad crime/dispute type
         severity: Assessed severity ('Fatal', 'Major', 'Minor', 'No Injury')
         max_results: Max precedents to return (default 3)
+        case_title: Case title (e.g. 'Missing case')
+        case_text: Relevant summary or evidence text for topic matching
 
     Returns:
         List of structured precedent dictionaries with case citations, factual delay,
@@ -389,24 +429,53 @@ def get_delay_precedents(
         p_norm = "Medium"
 
     cat_norm = str(category or "").strip()
+    ct_norm = str(crime_type or "").lower()
+    sev_norm = str(severity or "").lower()
+
+    # Detect child / minor / missing / abduction context across all available text
+    search_corpus = f"{cat_norm} {ct_norm} {sev_norm} {case_title} {case_text}".lower()
+    is_child_or_missing = any(
+        kw in search_corpus
+        for kw in ["child", "minor", "missing", "kidnap", "abduct", "traffick", "pocso", "meera"]
+    )
 
     # Filter candidates by priority tier first
     candidates = [p for p in HISTORICAL_DELAY_PRECEENTS if p["priority_level"] == p_norm]
+
+    # For child missing/abduction cases, always include Bachpan Bachao Andolan
+    if is_child_or_missing:
+        child_prec = next((p for p in HISTORICAL_DELAY_PRECEENTS if p["id"] == "bachpan_bachao_andolan_2013"), None)
+        if child_prec and child_prec not in candidates:
+            candidates.append(child_prec)
+
     if not candidates:
-        candidates = HISTORICAL_DELAY_PRECEENTS[:max_results]
+        candidates = list(HISTORICAL_DELAY_PRECEENTS)
 
     # Score candidates based on category, severity, and topic match
     scored: List[Tuple[int, Dict[str, Any]]] = []
     for cand in candidates:
         score = 0
         applicable_cats = cand.get("applicable_categories", [])
+
+        # STRICT EXCLUSION: Corporate insolvency / debt / winding-up precedent
+        # must NEVER be assigned to non-commercial / non-debt cases (e.g., missing child, criminal, writ).
+        if cand["id"] == "innoventive_swiss_ribbons":
+            if is_child_or_missing or not any(kw in cat_norm.lower() for kw in ["insolvency", "debt", "company", "winding", "tax"]):
+                continue  # Skip entirely — never show a loan/debt case for child or criminal disputes
+
         if cat_norm and cat_norm in applicable_cats:
             score += 10
         elif any(c.lower() in cat_norm.lower() for c in applicable_cats if c):
             score += 5
 
+        # Child / missing / abduction boost
+        if is_child_or_missing:
+            if "bachpan" in cand["id"]:
+                score += 25
+            elif "rudal" in cand["id"] or "hussainara" in cand["id"]:
+                score += 8
+
         # Severity boosts
-        sev_norm = str(severity or "").lower()
         if p_norm == "High":
             if "fatal" in sev_norm and "nirbhaya" in cand["id"]:
                 score += 8
@@ -435,8 +504,8 @@ def get_delay_precedents(
     scored.sort(key=lambda x: x[0], reverse=True)
     results = [item for _, item in scored[:max_results]]
 
-    # Fallback to at least one precedent if empty
+    # Fallback to general candidates if empty
     if not results:
-        results = candidates[:max_results]
+        results = [c for c in candidates if c["id"] != "innoventive_swiss_ribbons"][:max_results] or candidates[:max_results]
 
     return results

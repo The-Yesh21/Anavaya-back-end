@@ -484,11 +484,27 @@ def classify_legal_category(text, features=None):
 def tune_case_features(features, text):
     """Tunes the LLM's extracted labels into consistent legal categories for the report and model."""
     tuned = normalize_llm_data(features)
+    existing_cat = features.get("case_category")
     legal_category = classify_legal_category(text, tuned)
+
+    # If the incoming features already have a strong legal category (e.g., from merged document majority vote),
+    # do not let a noisy keyword match on summary/register text overwrite it to Company or Debt.
+    if existing_cat and existing_cat in ALLOWED_LEGAL_CATEGORIES and existing_cat != "General Civil":
+        if legal_category in ["Company/Winding Up", "Insolvency/Debt"] and existing_cat not in ["Company/Winding Up", "Insolvency/Debt"]:
+            legal_category = existing_cat
     tuned["case_category"] = legal_category
     tuned["crime_type"] = LEGAL_TO_MODEL_CATEGORY.get(legal_category, tuned.get("crime_type", "Non-Violent"))
 
     lower_text = text.lower()
+
+    # Keywords for severe offences against life, personal liberty, or endangered minors
+    child_or_violent_kws = [
+        "rape", "sexual assault", "molest", "kidnap", "abduct", "missing child",
+        "child missing", "minor missing", "traffick", "pocso", "child in danger",
+        "missing person", "homicide", "murder"
+    ]
+    is_severe_person_offence = any(kw in lower_text for kw in child_or_violent_kws)
+
     no_injury_legal_categories = {
         "Excise/Tax",
         "Customs/Import-Export",
@@ -498,14 +514,19 @@ def tune_case_features(features, text):
         "General Civil",
     }
     if legal_category in no_injury_legal_categories:
-        tuned["severity"] = "No Injury"
+        # Do NOT force No Injury if it's an endangered child or violent offence
+        if not is_severe_person_offence:
+            tuned["severity"] = "No Injury"
         if not any(term in lower_text for term in [
             "minor", "child", "widow", "elderly", "disabled", "worker", "labour", "tenant",
             "pregnant", "homeless", "adivasi", "tribal", "dalit", "scheduled",
             "backward class", "orphan", "senior citizen", "migrant", "refugee",
             "daily wage", "landless", "poor", "economically weaker",
         ]):
-            tuned["vulnerability"] = "Low"
+            if not is_severe_person_offence:
+                tuned["vulnerability"] = "Low"
+        else:
+            tuned["vulnerability"] = "High"
 
     influence_terms = [
         "union of india", "state of", "government", "collector", "assistant director",
@@ -519,11 +540,14 @@ def tune_case_features(features, text):
     if any(term in lower_text or term in str(tuned.get("main_parties", "")).lower() for term in influence_terms):
         tuned["influence"] = "High"
 
-    # Enforce High severity/vulnerability for specific severe crimes (e.g., rape) to ensure High priority
-    if any(kw in lower_text for kw in ['rape', 'sexual assault', 'molest']):
+    # Enforce High severity/vulnerability for severe offences against life, safety, or children
+    if is_severe_person_offence:
         tuned["crime_type"] = "Violent"
-        tuned["severity"] = "Major"
+        tuned["severity"] = "Fatal" if any(k in lower_text for k in ["murder", "killed", "fatal", "death"]) else "Major"
         tuned["vulnerability"] = "High"
+        if any(kw in lower_text for kw in ["kidnap", "abduct", "missing child", "child missing", "traffick", "pocso", "rape", "murder"]):
+            if tuned["case_category"] not in ["Criminal/Violent", "Constitutional/Writ"]:
+                tuned["case_category"] = "Criminal/Violent"
 
     return tuned# Module-level cache: attempt BART initialization at most ONCE per process.
 # Torch/BART is heavy (~1GB) and on some machines (e.g. Windows DLL init

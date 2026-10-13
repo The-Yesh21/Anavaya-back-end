@@ -92,10 +92,10 @@
 <div class="decision-hero">
   <div class="priority-badge">Medium Priority</div>
   <h2>Sample_Medium_Priority_FIR.pdf</h2>
-  <p>Sample First Information Report (FIR) FIR No.: 2026/MP/0147 Date & Time of Report: 04 August 2026, 17:30 Police Station: Central City Police Station Case Priority: Medium Sections Invoked: Illustrative only: Theft and property damage related provisio Initial Police Action: Crime scene documented, CCTV footage requested, fingerprints to be collected, nearby patrol units alerted, FIR registered and investigation initiated. This falls under Property/Land as it involves property disputes, land matters, tenancy, or ownership issues. Primary constitutional articles engaged: Article 300A, Article 14, Article 21.</p>
+  <p>Mr. Arun Kumar reported that his backpack, laptop, and accessories were stolen from a parked motorcycle. The vehicle lock showed signs of forced entry. The case involves property damage and loss, with no immediate threat to life or ongoing violent incident. The investigation is ongoing.</p>
   <div class="metric-grid">
-    <div class="metric"><span>Legal Category</span><strong>Property/Land</strong></div>
-    <div class="metric"><span>Model Category</span><strong>Property</strong></div>
+    <div class="metric"><span>Legal Category</span><strong>Excise/Tax</strong></div>
+    <div class="metric"><span>Model Category</span><strong>Non-Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>No Injury</strong></div>
     <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
     <div class="metric"><span>Influence</span><strong>High</strong></div>
