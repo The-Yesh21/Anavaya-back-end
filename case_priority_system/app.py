@@ -1087,6 +1087,8 @@ def get_case_analysis(case_id: str):
         category=cl_feats.get("case_category", ""),
         crime_type=cl_feats.get("crime_type", ""),
         severity=cl_feats.get("severity", ""),
+        case_title=case.title or "",
+        case_text=f"{cl.get('case_gist', '')} {cl_feats.get('plain_summary', '')}",
     )
     return _repair_tree({
         "case_id": case.case_id,
@@ -1331,6 +1333,8 @@ def get_case_insights(case_id: str):
         category=feats.get("case_category", ""),
         crime_type=feats.get("crime_type", ""),
         severity=feats.get("severity", ""),
+        case_title=case.title or "",
+        case_text=f"{cl.get('case_gist', '')} {feats.get('plain_summary', '')}",
     )
 
     return _repair_tree({

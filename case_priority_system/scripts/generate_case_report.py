@@ -289,7 +289,7 @@ def build_report_html(case_file, features, priority, analysis):
 
         section(
             "X. Landmark Precedents on Systemic Delay &amp; Human/Economic Toll",
-            delay_precedents_block(get_delay_precedents(priority, category, crime_type, severity)),
+            delay_precedents_block(get_delay_precedents(priority, category, crime_type, severity, case_title=case_file, case_text=summary)),
             accent="#B45309",
         ),
 
