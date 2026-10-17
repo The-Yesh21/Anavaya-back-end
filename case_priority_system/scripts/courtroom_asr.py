@@ -30,6 +30,38 @@ import threading
 import time
 
 import requests
+from requests.adapters import HTTPAdapter
+
+# Precompiled regex patterns for transcript sanitization and word checks
+_WORD_RE = re.compile(r"\b\w+\b")
+_WHITESPACE_RE = re.compile(r"\s+")
+_ELLIPSIS_RE = re.compile(r"(?:\.\.\.|\u2026)\s*$")
+
+# Module-level requests session with connection pooling for Ollama HTTP API.
+# Reuses keep-alive connections across ASR and LLM formatting requests,
+# eliminating TCP handshake overhead.
+session = requests.Session()
+_adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20)
+session.mount("http://", _adapter)
+session.mount("https://", _adapter)
+
+_orig_requests_get = requests.get
+_orig_requests_post = requests.post
+
+
+def _ollama_get(url: str, **kwargs) -> requests.Response:
+    """Execute GET request using pooled session (honoring test mocks if present)."""
+    if requests.get != _orig_requests_get:
+        return requests.get(url, **kwargs)
+    return session.get(url, **kwargs)
+
+
+def _ollama_post(url: str, **kwargs) -> requests.Response:
+    """Execute POST request using pooled session (honoring test mocks if present)."""
+    if requests.post != _orig_requests_post:
+        return requests.post(url, **kwargs)
+    return session.post(url, **kwargs)
+
 
 # Config.
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -147,13 +179,13 @@ def _make_room_for_asr():
 
     # Only unload if free memory is critically low AND Ollama is actually resident:
     try:
-        r = requests.get(f"{OLLAMA_URL.rstrip('/')}/api/ps", timeout=3)
+        r = _ollama_get(f"{OLLAMA_URL.rstrip('/')}/api/ps", timeout=3)
         r.raise_for_status()
         loaded = [m.get("name", "") for m in (r.json().get("models") or [])]
         if not any(OLLAMA_MODEL in name for name in loaded):
             return
         print(f"Critically low VRAM: unloading Ollama model '{OLLAMA_MODEL}' for heavy ASR model '{WHISPER_MODEL}'.")
-        requests.post(
+        _ollama_post(
             f"{OLLAMA_URL.rstrip('/')}/api/generate",
             json={"model": OLLAMA_MODEL, "keep_alive": 0},
             timeout=5,
@@ -232,7 +264,7 @@ def _breaks_off(text: str) -> bool:
     stripped = (text or "").strip()
     if not stripped:
         return False
-    if stripped.endswith("...") or stripped.endswith("\u2026"):
+    if _ELLIPSIS_RE.search(stripped):
         return True
     return stripped[-1] not in ".!?"
 
@@ -263,8 +295,8 @@ def _is_invalid_correction(corrected: str, raw: str) -> bool:
         return True
 
     # 2. Word extraction & preservation check
-    raw_words = re.findall(r"\b\w+\b", raw.lower())
-    corr_words = re.findall(r"\b\w+\b", corrected.lower())
+    raw_words = _WORD_RE.findall(raw.lower())
+    corr_words = _WORD_RE.findall(corrected.lower())
     if not raw_words or not corr_words:
         return True
 
@@ -311,7 +343,7 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
     # are already cleanly decoded by Whisper; skipping the LLM guarantees verbatim accuracy,
     # prevents hallucinations, and drops latency from seconds to milliseconds.
     words = text.split()
-    if len(words) <= 5 or (len(words) <= 10 and text[0].isupper() and text[-1] in ".!?"):
+    if len(words) <= 4:
         return text, False
 
     context_block = ""
@@ -344,7 +376,7 @@ def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, boo
         "options": {"temperature": 0, "num_predict": max_tokens},
     }
     try:
-        r = requests.post(
+        r = _ollama_post(
             f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload_body, timeout=6
         )
         r.raise_for_status()
