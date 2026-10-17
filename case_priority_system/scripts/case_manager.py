@@ -157,6 +157,8 @@ class CaseManager:
         self.documents_dir = documents_dir
         self._cases: dict[str, Case] = {}
         self._lock = threading.Lock()
+        self._index_file = os.path.join(self.cases_dir, "_index.json")
+        self._index_cache: dict = {"mtime": 0.0, "index": {}}
         os.makedirs(self.cases_dir, exist_ok=True)
         os.makedirs(self.documents_dir, exist_ok=True)
 
@@ -453,13 +455,18 @@ class CaseManager:
         case = self.get_case(case_id)
         if case is None:
             raise ValueError(f"Case {case_id} not found.")
-        for doc in list(case.documents):
-            if not doc.priority:
-                try:
-                    self.analyze_document(case, doc, model_data)
-                except Exception as e:
-                    print(f"Case {case_id}: analysis of '{doc.filename}' failed: {e}")
-        self.refresh_aggregate(case)
+        documents = [d for d in list(case.documents) if not d.priority]
+        if documents:
+            try:
+                from case_priority_system.scripts.whole_case_analysis import analyze_documents
+                analyze_documents(documents, case, model_data=model_data, case_manager=self)
+            except Exception as e:
+                for doc in documents:
+                    try:
+                        self.analyze_document(case, doc, model_data)
+                    except Exception as doc_e:
+                        print(f"Case {case_id}: analysis of '{doc.filename}' failed: {doc_e}")
+        self.refresh_aggregate(case, model_data=model_data)
         return case
 
     def refresh_aggregate(self, case: Case, model_data=None) -> None:
@@ -714,21 +721,47 @@ class CaseManager:
             print(f"case_manager: failed to load {case_id}: {e}")
             return None
 
+    def _load_index(self) -> dict:
+        """Load _index.json with mtime-based in-memory caching.
+
+        If unchanged, return a shallow copy of the cached dictionary rather
+        than re-reading and parsing JSON from disk on every single case lookup.
+        """
+        if not os.path.exists(self._index_file):
+            return {}
+        try:
+            mtime = os.path.getmtime(self._index_file)
+            if self._index_cache["mtime"] == mtime and self._index_cache["index"]:
+                return self._index_cache["index"].copy()
+            with open(self._index_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._index_cache["mtime"] = mtime
+            self._index_cache["index"] = data
+            return data.copy()
+        except Exception as e:
+            return {}
+
+    def _save_index(self, index_data: dict) -> None:
+        """Save _index.json atomically and update the in-memory cache."""
+        tmp = self._index_file + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(index_data, f, indent=2)
+        os.replace(tmp, self._index_file)
+        try:
+            mtime = os.path.getmtime(self._index_file)
+        except OSError:
+            mtime = 0.0
+        self._index_cache["mtime"] = mtime
+        self._index_cache["index"] = index_data.copy()
+
     def _new_case_id(self) -> str:
         """ANV-YYYY-NNNN; sequence counter persisted in cases/_index.json."""
         with self._lock:
-            seq = 0
-            if os.path.exists(INDEX_PATH):
-                try:
-                    with open(INDEX_PATH, "r", encoding="utf-8") as f:
-                        seq = int(json.load(f).get("next_seq", 0))
-                except Exception:
-                    seq = 0
+            index_data = self._load_index()
+            seq = int(index_data.get("next_seq", 0))
             seq += 1
-            tmp = INDEX_PATH + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"next_seq": seq}, f)
-            os.replace(tmp, INDEX_PATH)
+            index_data["next_seq"] = seq
+            self._save_index(index_data)
         year = datetime.now().year
         candidate = f"ANV-{year}-{seq:04d}"
         # Defensive: never reuse an id that already exists on disk.
