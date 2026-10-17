@@ -1199,11 +1199,10 @@
                 // own speakers into their mic (echo), so stay modest.
                 gain.gain.value = Math.min(previousLevelFor(remotePid), 1.2);
             }
-            peerGain = { ctx, gain, level: gain.gain.value };
-            // Route the peer's incoming audio through the gain before the speakers.
             const src = ctx.createMediaElementSource(audio);
             src.connect(gain);
             gain.connect(ctx.destination);
+            peerGain = { ctx, gain, level: gain.gain.value, src };
         } catch (e) {
             // AudioContext may fail on some browsers/contexts — non-fatal, audio
             // still plays through the element directly (no per-peer boost).
@@ -1483,7 +1482,11 @@
         if (face.remoteMeter && face.remoteMeter.owner === remotePid) face.remoteMeter = null;
         // Tear down this peer's gain node so we don't leak AudioContexts.
         if (entry.gain) {
-            try { entry.gain.ctx.close(); } catch (_) {}
+            try {
+                if (entry.gain.src && typeof entry.gain.src.disconnect === "function") entry.gain.src.disconnect();
+                if (entry.gain.gain && typeof entry.gain.gain.disconnect === "function") entry.gain.gain.disconnect();
+                if (entry.gain.ctx && entry.gain.ctx.state !== "closed") entry.gain.ctx.close();
+            } catch (_) {}
             peerVolumes.delete(remotePid);
         }
         if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
@@ -1526,6 +1529,14 @@
         // the user is holding to talk.
         for (const entry of state.peers.values()) {
             try { entry.pc.getSenders().forEach((s) => gate(s.track)); } catch (_) {}
+        }
+        // Web Audio lifecycle: suspend audio processing when mic is muted, resume when open
+        if (face.meter && face.meter.ctx && face.meter.ctx.state !== "closed") {
+            if (!open && face.meter.ctx.state === "running") {
+                face.meter.ctx.suspend().catch(() => {});
+            } else if (open && face.meter.ctx.state === "suspended") {
+                face.meter.ctx.resume().catch(() => {});
+            }
         }
     }
 
@@ -2014,36 +2025,19 @@
         + '<span>The court is in session. Statements will appear here.</span>'
         + '</div>';
 
-    function renderTranscript(entries) {
-        els.transcriptFeed.innerHTML = "";
-        if (!entries || !entries.length) {
-            els.transcriptFeed.innerHTML = TRANSCRIPT_EMPTY_HTML;
-            updateTranscriptCount();
-            return;
-        }
-        for (const e of entries) appendTranscript(e, /*scroll*/false);
-        updateTranscriptCount();
-        scrollToBottom();
+    let scrollRafId = null;
+    function scrollToBottom() {
+        if (!els.transcriptFeed) return;
+        if (scrollRafId) return;
+        scrollRafId = requestAnimationFrame(() => {
+            scrollRafId = null;
+            if (els.transcriptFeed) {
+                els.transcriptFeed.scrollTop = els.transcriptFeed.scrollHeight;
+            }
+        });
     }
 
-    // Entry tally shown next to "Live Transcript" so the folded dock still
-    // says how much record there is.
-    function updateTranscriptCount() {
-        if (!els.transcriptCount) return;
-        const n = els.transcriptFeed.querySelectorAll(".entry").length;
-        els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
-    }
-
-    function appendTranscript(entry, scroll = true, replacesEntryId = "") {
-        // Clear the empty placeholder if present.
-        const empty = els.transcriptFeed.querySelector(".transcript-empty");
-        if (empty) empty.remove();
-        // The count is refreshed at the end of every append below.
-
-        // Spoken statements are assembled server-side from consecutive
-        // push-to-talk segments (see courtroom_manager.record_spoken_statement):
-        // the completed sentence arrives with the id of the fragment it replaces,
-        // so the entry already on screen is updated instead of duplicated.
+    function createTranscriptElement(entry, replacesEntryId = "") {
         const replaced = replacesEntryId
             ? els.transcriptFeed.querySelector(`[data-entry-id="${replacesEntryId}"]`)
             : null;
@@ -2106,6 +2100,43 @@
                     ${audioHtml}
                 </div>`;
         }
+        return { node, replaced };
+    }
+
+    function renderTranscript(entries) {
+        els.transcriptFeed.innerHTML = "";
+        if (!entries || !entries.length) {
+            els.transcriptFeed.innerHTML = TRANSCRIPT_EMPTY_HTML;
+            updateTranscriptCount();
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        for (const e of entries) {
+            const { node } = createTranscriptElement(e);
+            fragment.appendChild(node);
+        }
+        els.transcriptFeed.appendChild(fragment);
+        lucide.createIcons();
+        updateTranscriptCount();
+        scrollToBottom();
+    }
+
+    // Entry tally shown next to "Live Transcript" so the folded dock still
+    // says how much record there is.
+    function updateTranscriptCount() {
+        if (!els.transcriptCount) return;
+        const n = els.transcriptFeed.querySelectorAll(".entry").length;
+        els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
+    }
+
+    function appendTranscript(entry, scroll = true, replacesEntryId = "") {
+        // Clear the empty placeholder if present.
+        const empty = els.transcriptFeed.querySelector(".transcript-empty");
+        if (empty) empty.remove();
+        // The count is refreshed at the end of every append below.
+
+        const { node, replaced } = createTranscriptElement(entry, replacesEntryId);
+
         if (replaced && replaced.parentNode) replaced.replaceWith(node);
         else els.transcriptFeed.appendChild(node);
         lucide.createIcons();
@@ -2125,10 +2156,6 @@
         if (displayRole.startsWith("Prosecution Counsel")) return "Prosecution";
         if (displayRole.startsWith("Witness")) return "Witness";
         return displayRole.split(" ")[0];
-    }
-
-    function scrollToBottom() {
-        els.transcriptFeed.scrollTop = els.transcriptFeed.scrollHeight;
     }
 
     function formatTime(iso) {
@@ -2827,7 +2854,12 @@
     async function blobToWav(blob) {
         const arrayBuf = await blob.arrayBuffer();
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuf = await ctx.decodeAudioData(arrayBuf);
+        let audioBuf;
+        try {
+            audioBuf = await ctx.decodeAudioData(arrayBuf);
+        } finally {
+            try { if (ctx.state !== "closed") await ctx.close(); } catch (_) {}
+        }
         const targetRate = 16000;
         const outLen = Math.max(1, Math.ceil(audioBuf.duration * targetRate));
         const offline = new OfflineAudioContext(1, outLen, targetRate);
@@ -4264,8 +4296,9 @@
                 ctx.resume().catch(() => {});
                 const analyser = ctx.createAnalyser();
                 analyser.fftSize = 512;
-                ctx.createMediaStreamSource(stream).connect(analyser);
-                face.meter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize), source: stream };
+                const sourceNode = ctx.createMediaStreamSource(stream);
+                sourceNode.connect(analyser);
+                face.meter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize), sourceNode, stream };
             } else {
                 // Remote: REUSE the peer's live gain chain (speaker glow / volume
                 // boost). Creating a second MediaElementSource for the same
@@ -4300,20 +4333,35 @@
     }
 
     function detachSpeechMeter() {
-        // Self meter: the context is ours, so close it.
+        // Self meter: the context and nodes are ours, so disconnect and close.
         if (face.meter) {
-            try { face.meter.ctx.close(); } catch (_) {}
+            try {
+                if (face.meter.sourceNode && typeof face.meter.sourceNode.disconnect === "function") {
+                    face.meter.sourceNode.disconnect();
+                }
+                if (face.meter.analyser && typeof face.meter.analyser.disconnect === "function") {
+                    face.meter.analyser.disconnect();
+                }
+                if (face.meter.ctx && face.meter.ctx.state !== "closed") {
+                    face.meter.ctx.close().catch(() => {});
+                }
+            } catch (_) {}
             face.meter = null;
         }
         // Remote meter: the context + analyser belong to the peer (live
         // playback). Only undo the tap we made ourselves.
         if (face.remoteMeter) {
-            if (face.remoteMeter.source && face.remoteMeter.analyser) {
-                try { face.remoteMeter.source.disconnect(face.remoteMeter.analyser); } catch (_) {}
-            }
-            if (face.remoteMeter.ownCtx) {
-                try { face.remoteMeter.ctx.close(); } catch (_) {}
-            }
+            try {
+                if (face.remoteMeter.source && face.remoteMeter.analyser) {
+                    face.remoteMeter.source.disconnect(face.remoteMeter.analyser);
+                }
+                if (face.remoteMeter.analyser && typeof face.remoteMeter.analyser.disconnect === "function") {
+                    face.remoteMeter.analyser.disconnect();
+                }
+                if (face.remoteMeter.ownCtx && face.remoteMeter.ctx && face.remoteMeter.ctx.state !== "closed") {
+                    face.remoteMeter.ctx.close().catch(() => {});
+                }
+            } catch (_) {}
             face.remoteMeter = null;
         }
     }
@@ -4433,24 +4481,54 @@
             .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
-    // Clean up on unload.
+    // Clean up on unload: stop tracks, cancel rAF loops, close peers and AudioContexts.
     window.addEventListener("beforeunload", () => {
-        try { state.ws && state.ws.close(); } catch (_) {}
-        for (const pid of [...state.peers.keys()]) closePeer(pid);
-        if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop());
-        stopAutoTranscription();
-        stopAutoDictation();
-        try { clipPlayer.pause(); } catch (_) {}
-        if (clipGain) {
-            try { clipGain.ctx.close(); } catch (_) {}
-            clipGain = null;
+        // 1. Cancel active requestAnimationFrame loops
+        if (face && face._raf) {
+            try { cancelAnimationFrame(face._raf); } catch (_) {}
+            face._raf = null;
+        }
+        if (scrollRafId) {
+            try { cancelAnimationFrame(scrollRafId); } catch (_) {}
+            scrollRafId = null;
+        }
+        // Stop all video keepalives
+        try {
+            for (const [video] of videoKeepalive.entries()) {
+                stopVideoKeepalive(video);
+            }
+        } catch (_) {}
+
+        // 2. Cleanly stop all local media tracks
+        if (state.localStream) {
+            try {
+                state.localStream.getTracks().forEach((t) => {
+                    try { t.stop(); } catch (_) {}
+                });
+            } catch (_) {}
         }
         disableFaceCamera();
-        // Stop any keepalive still running on the self tile.
-        if (state.me) {
-            const selfV = videoElFor(state.me.participant_id);
-            stopVideoKeepalive(selfV);
+
+        // 3. Close WebRTC peer connections
+        for (const pid of [...state.peers.keys()]) {
+            try { closePeer(pid); } catch (_) {}
         }
+
+        // 4. Clean up Web Audio nodes and contexts
+        detachSpeechMeter();
+        if (clipGain) {
+            try {
+                if (clipGain.gain && typeof clipGain.gain.disconnect === "function") clipGain.gain.disconnect();
+                if (clipGain.ctx && clipGain.ctx.state !== "closed") clipGain.ctx.close();
+            } catch (_) {}
+            clipGain = null;
+        }
+        try { clipPlayer.pause(); } catch (_) {}
+
+        // 5. Clean up dictation and WebSocket
+        stopAutoTranscription();
+        stopAutoDictation();
+        try { if (state.ws) state.ws.close(); } catch (_) {}
     });
 
     // Test seam for _courtroom_face_check.cjs: lets an automated check drive the

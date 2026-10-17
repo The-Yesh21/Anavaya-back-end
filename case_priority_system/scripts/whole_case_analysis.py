@@ -35,6 +35,7 @@ dossier export.
 
 from __future__ import annotations
 
+import concurrent.futures
 import os
 import re
 from collections import Counter
@@ -602,6 +603,45 @@ def build_priority_justification(tuned: dict, priority: str,
     return " ".join(sentences)
 
 
+def analyze_documents(documents: list, case, model_data=None, case_manager=None) -> list[tuple[any, Optional[Exception]]]:
+    """In multi-document analysis: Use concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(documents)))
+    to extract text and analyze attached evidence documents in parallel rather than purely sequentially,
+    cutting whole-case analysis time significantly.
+    """
+    if not documents:
+        return []
+
+    if case_manager is None:
+        try:
+            from case_priority_system.scripts.case_manager import manager as default_cm
+            case_manager = default_cm
+        except Exception:
+            pass
+
+    max_workers = min(4, len(documents))
+    results = []
+
+    def _worker(doc):
+        try:
+            if case_manager is not None:
+                case_manager.analyze_document(case, doc, model_data=model_data)
+            return (doc, None)
+        except Exception as e:
+            print(f"whole-case: parallel analysis failed for '{getattr(doc, 'filename', 'document')}': {e}")
+            return (doc, e)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_doc = {executor.submit(_worker, doc): doc for doc in documents}
+        for future in concurrent.futures.as_completed(future_to_doc):
+            results.append(future.result())
+
+    return results
+
+
+analyze_documents_parallel = analyze_documents
+analyze_case_documents = analyze_documents
+
+
 def analyze_case_whole(case, model_data=None) -> dict:
     """Run the case-level analysis over ALL analysed documents.
 
@@ -613,6 +653,11 @@ def analyze_case_whole(case, model_data=None) -> dict:
     Case. Raises nothing — failures degrade to a partial result where the
     invariant-critical parts (priority) simply stay absent.
     """
+    # In multi-document analysis: extract text and analyze attached evidence documents in parallel
+    unanalysed = [d for d in getattr(case, "documents", []) if not getattr(d, "priority", None)]
+    if unanalysed:
+        analyze_documents(unanalysed, case, model_data=model_data)
+
     merged, merge_info = merge_case_features(case)
     if not merged:
         return {}

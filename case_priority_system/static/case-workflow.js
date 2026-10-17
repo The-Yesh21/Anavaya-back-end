@@ -19,6 +19,17 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     };
 
+    // Lightweight debounce utility for workflow inputs
+    const debounce = (UI && typeof UI.debounce === "function")
+        ? UI.debounce
+        : (fn, waitMs = 150) => {
+            let timer = null;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), waitMs);
+            };
+        };
+
     const $ = (id) => document.getElementById(id);
     const DOC_TYPES = ["FIR", "Police Report", "Medical", "Statement", "Other"];
 
@@ -350,54 +361,112 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         setWorkspaceAction(c);
         $("workspace-doc-count").textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
-        const docListEl = $("workspace-doc-list");
-        if (!docs.length) {
-            docListEl.innerHTML = `<div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>`;
-        } else {
-            docListEl.innerHTML = docs.map((d) => `
-                <div class="ws-doc-item ${d.priority ? "" : "pending"}" data-doc-id="${esc(d.doc_id)}">
-                    <div class="ws-doc-main">
-                        <i data-lucide="file-text"></i>
-                        <div class="ws-doc-info">
-                            <strong>${esc(d.filename)}</strong>
-                            <span class="ws-doc-meta">${esc(d.doc_type)} · ${esc((d.uploaded_at || "").replace("T", " ").slice(0, 16))}</span>
-                        </div>
-                    </div>
-                    <div class="ws-doc-side">
-                        ${d.priority ? prioBadge(d.priority) : `<span class="ws-doc-pending">Analysis pending</span>`}
-                        <a class="ws-doc-download" href="/api/cases/${encodeURIComponent(c.case_id)}/documents/${encodeURIComponent(d.doc_id)}/download" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
-                        <button class="ws-doc-delete" data-doc-id="${esc(d.doc_id)}" data-filename="${esc(d.filename)}" title="Delete ${esc(d.filename)}"><i data-lucide="trash-2"></i></button>
-                    </div>
-                </div>`).join("");
-        // Attach delete handlers.
-        docListEl.querySelectorAll(".ws-doc-delete").forEach((btn) => {
-            btn.addEventListener("click", async () => {
-                const did = btn.getAttribute("data-doc-id");
-                const fname = btn.getAttribute("data-filename");
-                if (!confirm(`Remove "${fname}" from this case? The case priority will be recalculated.`)) return;
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
-                if (typeof lucide !== "undefined") lucide.createIcons();
-                try {
-                    const res = await fetch(`/api/cases/${encodeURIComponent(c.case_id)}/documents/${encodeURIComponent(did)}`, { method: "DELETE" });
-                    if (!res.ok) {
-                        const err = await res.json().catch(() => ({}));
-                        throw new Error(err.detail || "Delete failed");
-                    }
-                    // Refresh workspace to show updated doc list + recalculated priority.
-                    await openCaseWorkspace(c.case_id);
-                    fetchRegistry();
-                } catch (err) {
-                    alert("Failed to delete document: " + err.message);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i data-lucide="trash-2"></i>';
-                    if (typeof lucide !== "undefined") lucide.createIcons();
-                }
-            });
-        });
-        }
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        renderDocuments(docs, c.case_id);
         renderCaseLevelPanel(c);
+    }
+
+    // Batch DOM rendering for workspace documents with DocumentFragment
+    function renderDocuments(docs, caseId) {
+        const docListEl = $("workspace-doc-list");
+        if (!docListEl) return;
+        if (!docs || !docs.length) {
+            docListEl.innerHTML = `<div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>`;
+            return;
+        }
+        docListEl.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        docs.forEach((d) => {
+            const item = document.createElement("div");
+            item.className = `ws-doc-item ${d.priority ? "" : "pending"}`;
+            item.setAttribute("data-doc-id", d.doc_id || "");
+            item.innerHTML = `
+                <div class="ws-doc-main">
+                    <i data-lucide="file-text"></i>
+                    <div class="ws-doc-info">
+                        <strong>${esc(d.filename)}</strong>
+                        <span class="ws-doc-meta">${esc(d.doc_type)} · ${esc((d.uploaded_at || "").replace("T", " ").slice(0, 16))}</span>
+                    </div>
+                </div>
+                <div class="ws-doc-side">
+                    ${d.priority ? prioBadge(d.priority) : `<span class="ws-doc-pending">Analysis pending</span>`}
+                    <a class="ws-doc-download" href="/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(d.doc_id)}/download" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
+                    <button class="ws-doc-delete" data-doc-id="${esc(d.doc_id)}" data-filename="${esc(d.filename)}" title="Delete ${esc(d.filename)}"><i data-lucide="trash-2"></i></button>
+                </div>`;
+
+            const delBtn = item.querySelector(".ws-doc-delete");
+            if (delBtn) {
+                delBtn.addEventListener("click", async () => {
+                    const did = delBtn.getAttribute("data-doc-id");
+                    const fname = delBtn.getAttribute("data-filename");
+                    if (!confirm(`Remove "${fname}" from this case? The case priority will be recalculated.`)) return;
+                    delBtn.disabled = true;
+                    delBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                    try {
+                        const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(did)}`, { method: "DELETE" });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || "Delete failed");
+                        }
+                        await openCaseWorkspace(caseId);
+                        fetchRegistry();
+                    } catch (err) {
+                        alert("Failed to delete document: " + err.message);
+                        delBtn.disabled = false;
+                        delBtn.innerHTML = '<i data-lucide="trash-2"></i>';
+                        if (typeof lucide !== "undefined") lucide.createIcons();
+                    }
+                });
+            }
+            fragment.appendChild(item);
+        });
+        docListEl.appendChild(fragment);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // Batch DOM rendering for courtroom sessions with DocumentFragment
+    function renderSessions(sessions, containerId = "rooms-list-container") {
+        const container = $(containerId);
+        if (!container) return;
+        if (!sessions || !sessions.length) {
+            container.innerHTML = `<div class="empty-state" style="padding:30px 0;">
+                <div class="empty-icon"><i data-lucide="gavel"></i></div>
+                <h3>No Trials Yet</h3>
+                <p>Create a courtroom session above to begin a live trial with counsel.</p>
+            </div>`;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+        container.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        sessions.forEach((r) => {
+            const isActive = r.active;
+            const statusClass = r.phase === "Concluded" ? "priority-low" : "priority-high";
+            const phaseLabel = r.phase || "Opening";
+            const inviteUrl = `${window.location.origin}/court/${r.room_id}`;
+            const card = document.createElement("div");
+            card.className = `courtroom-card ${isActive ? "" : "inactive"}`;
+            card.innerHTML = `
+                <div class="cc-header">
+                    <span class="cc-title">${esc(r.case_title)}</span>
+                    <span class="priority-pill ${statusClass}">${phaseLabel}</span>
+                </div>
+                <div class="cc-meta">
+                    <span><i data-lucide="users"></i> ${r.participant_count} participant${r.participant_count !== 1 ? "s" : ""}</span>
+                    <span><i data-lucide="scroll-text"></i> ${r.transcript_entries} entries</span>
+                    <span><i data-lucide="clock"></i> ${new Date(r.created_at).toLocaleDateString()}</span>
+                    ${r.case_id ? `<span class="cc-linked-case" title="Linked case file — the trial runs with this case's evidence context"><i data-lucide="folder-open"></i> ${esc(r.case_id)}</span>` : ""}
+                </div>
+                <div class="cc-actions">
+                    <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
+                    <button class="cc-copy" data-invite-room="${r.room_id}"><i data-lucide="link"></i> Invite Link</button>
+                    <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
+                    <button class="cc-delete" data-delete-room="${r.room_id}" title="Delete this trial session and its recordings" aria-label="Delete room ${r.room_id}"><i data-lucide="trash-2"></i> Delete</button>
+                </div>`;
+            fragment.appendChild(card);
+        });
+        container.appendChild(fragment);
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     // Show/hide the whole-case analysis block that lives in the Analysis tab.
@@ -929,7 +998,9 @@ document.addEventListener("DOMContentLoaded", () => {
             case_category: "Category", crime_type: "Case type", severity: "Severity",
             vulnerability: "Vulnerability", influence: "Influence",
         };
-        wrap.innerHTML = items.map((it) => {
+        wrap.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        items.forEach((it) => {
             const hasWeight = it.weight !== null && it.weight !== undefined;
             const weightPct = hasWeight ? Math.max(4, it.weight) : 0;
             const weightCls = !hasWeight ? "none" : it.weight >= 70 ? "high" : it.weight >= 40 ? "mid" : "low";
@@ -943,26 +1014,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 : it.priority
                     ? prioBadge(it.priority)
                     : `<span class="ev-pending">not analysed</span>`;
-            return `
-                <div class="ev-card ${hasWeight ? "" : "ev-unanalysed"}">
-                    <div class="ev-card-top">
-                        <i data-lucide="${it.doc_type && it.doc_type.toLowerCase().includes("image") ? "image" : "file-text"}"></i>
-                        <span class="ev-name" title="${esc(it.filename)}">${esc(it.filename)}</span>
-                        <span class="ev-type">${esc(it.doc_type || "")}</span>
-                        ${status}
+            const card = document.createElement("div");
+            card.className = `ev-card ${hasWeight ? "" : "ev-unanalysed"}`;
+            card.innerHTML = `
+                <div class="ev-card-top">
+                    <i data-lucide="${it.doc_type && it.doc_type.toLowerCase().includes("image") ? "image" : "file-text"}"></i>
+                    <span class="ev-name" title="${esc(it.filename)}">${esc(it.filename)}</span>
+                    <span class="ev-type">${esc(it.doc_type || "")}</span>
+                    ${status}
+                </div>
+                ${it.summary ? `<div class="ev-says">${esc(it.summary)}</div>` : ""}
+                <div class="ev-weight-row">
+                    <div class="ev-bar" role="meter" aria-valuenow="${hasWeight ? it.weight : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Evidence weight of ${esc(it.filename)}">
+                        <div class="ev-bar-fill ${weightCls}" style="width:${weightPct}%"></div>
                     </div>
-                    ${it.summary ? `<div class="ev-says">${esc(it.summary)}</div>` : ""}
-                    <div class="ev-weight-row">
-                        <div class="ev-bar" role="meter" aria-valuenow="${hasWeight ? it.weight : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Evidence weight of ${esc(it.filename)}">
-                            <div class="ev-bar-fill ${weightCls}" style="width:${weightPct}%"></div>
-                        </div>
-                        <span class="ev-weight-num ${weightCls}">${hasWeight ? it.weight : "—"}</span>
-                    </div>
-                    ${signals ? `<div class="ev-signals">${signals}</div>` : ""}
-                    ${drives.length ? `<div class="ev-drives">Sets the case's <strong>${esc(drives.join(", "))}</strong></div>` : ""}
-                    ${(it.connects || []).length ? `<div class="ev-connects"><em>Connects to:</em>${(it.connects || []).map((cnn) => `<span class="ev-link"><strong>${esc(cnn.with)}</strong>${(cnn.shared || []).length ? ` — shared ${esc(cnn.shared.join(", "))}` : ""}${(cnn.dates && cnn.dates.length) ? ` · ${esc(cnn.dates.join(", "))}` : ""}${(cnn.parties && cnn.parties.length) ? ` · ${esc(cnn.parties.join(", "))}` : ""}</span>`).join("")}</div>` : ""}
-                </div>`;
-        }).join("");
+                    <span class="ev-weight-num ${weightCls}">${hasWeight ? it.weight : "—"}</span>
+                </div>
+                ${signals ? `<div class="ev-signals">${signals}</div>` : ""}
+                ${drives.length ? `<div class="ev-drives">Sets the case's <strong>${esc(drives.join(", "))}</strong></div>` : ""}
+                ${(it.connects || []).length ? `<div class="ev-connects"><em>Connects to:</em>${(it.connects || []).map((cnn) => `<span class="ev-link"><strong>${esc(cnn.with)}</strong>${(cnn.shared || []).length ? ` — shared ${esc(cnn.shared.join(", "))}` : ""}${(cnn.dates && cnn.dates.length) ? ` · ${esc(cnn.dates.join(", "))}` : ""}${(cnn.parties && cnn.parties.length) ? ` · ${esc(cnn.parties.join(", "))}` : ""}</span>`).join("")}</div>` : ""}
+            `;
+            fragment.appendChild(card);
+        });
+        wrap.appendChild(fragment);
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     // The Decision Tree's actual path for this case, annotated with WHY each
@@ -1228,9 +1303,34 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Expose helpers on UI bridge
+    if (UI) {
+        UI.renderDocuments = renderDocuments;
+        UI.renderSessions = renderSessions;
+    }
+
+    // =================================================================
+    // 6. WORKFLOW TAB SEARCH & FILTER DEBOUNCING (150ms)
+    // =================================================================
+    function setupWorkflowTabDebouncing() {
+        const inputs = document.querySelectorAll(
+            ".tab-content input, .tab-content select, #cases-sidebar input, #cases-sidebar select"
+        );
+        inputs.forEach((input) => {
+            if (input.type === "file" || input.type === "submit" || input.type === "button") return;
+            if (input.dataset.debounced) return;
+            input.dataset.debounced = "true";
+            const eventType = (input.tagName === "SELECT") ? "change" : "input";
+            input.addEventListener(eventType, debounce((e) => {
+                input.dispatchEvent(new CustomEvent("workflow-debounced-input", { bubbles: true, detail: { value: input.value } }));
+            }, 150));
+        });
+    }
+
     // =================================================================
     // INIT
     // =================================================================
     fetchRegistry();
     loadGpuBadge();
+    setupWorkflowTabDebouncing();
 });

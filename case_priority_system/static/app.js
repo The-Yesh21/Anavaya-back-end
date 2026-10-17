@@ -37,6 +37,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     fetchNetworkInfo();
 
+    // Lightweight debounce utility
+    function debounce(fn, waitMs = 150) {
+        let timer = null;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), waitMs);
+        };
+    }
+
     // Bridge so the separately-loaded case-workflow module (wizard, case
     // workspace) can interact with the dashboard state without
     // being inside this closure.
@@ -50,6 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
         refreshStats: () => { updateStats(casesData); populateFilters(casesData); renderCasesList(casesData); },
         selectCaseFn: (c) => selectCase(c),
         escHtml: escHtml,
+        debounce: debounce,
+        renderCases: (cases) => renderCasesList(cases),
     };
 
     // Elements
@@ -407,6 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const fragment = document.createDocumentFragment();
         filtered.forEach(c => {
             const evidenceRows = c._evidence_rows || [];
             const cleanTitle = (c.Case_File || "").replace(/_/g, " ").replace(/\[WHOLE CASE\]\s*/i, "").replace(/\.[Pp][Dd][Ff]$/, "");
@@ -485,19 +497,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     closeSidebar();
                 }
             });
-            casesListContainer.appendChild(item);
+            fragment.appendChild(item);
         });
+        const targetContainer = casesListContainer.querySelector("tbody") || casesListContainer;
+        targetContainer.appendChild(fragment);
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
+    const renderCases = renderCasesList;
 
-    // Search and Filter Listeners (debounced search)
-    let searchDebounceTimer = null;
-    searchInput.addEventListener("input", () => {
-        clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(() => renderCasesList(casesData), 150);
-    });
-    filterPriority.addEventListener("change", () => renderCasesList(casesData));
-    filterCategory.addEventListener("change", () => renderCasesList(casesData));
+    // Search and Filter Listeners (debounced 150ms across search & filter changes)
+    const debouncedFilterCases = debounce(() => renderCasesList(casesData), 150);
+    searchInput.addEventListener("input", debouncedFilterCases);
+    filterPriority.addEventListener("change", debouncedFilterCases);
+    filterCategory.addEventListener("change", debouncedFilterCases);
 
     // Clear All cases
     const clearAllBtn = document.getElementById("clear-all-btn");
@@ -535,7 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.addEventListener("click", () => {
             const p = btn.getAttribute("data-priority");
             filterPriority.value = (filterPriority.value === p) ? "all" : p;
-            renderCasesList(casesData);
+            debouncedFilterCases();
         });
     });
 
@@ -920,9 +932,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (traceWrap) traceWrap.style.display = "block";
 
             // If we are currently on the tree tab, update tree highlighting immediately
-            const activeTab = document.querySelector(".tab-btn.active").getAttribute("data-tab");
+            const activeTabBtn = document.querySelector(".tab-btn.active");
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute("data-tab") : null;
             if (activeTab === "tree-tab" && globalTreeData) {
                 drawDecisionTree(globalTreeData);
+            } else {
+                treeRenderPending = true;
             }
         } catch (err) {
             stepsContainer.innerHTML = `<div class="loader" style="color: #B3402E">Error loading path trace steps.</div>`;
@@ -1052,14 +1067,50 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    let treeRenderPending = false;
+    let cachedTreeHierarchy = null;
+    let cachedLayoutWidth = 0;
+    let cachedLayoutHeight = 0;
+    let cachedLayoutCaseFile = null;
+    let cachedLayoutActiveNodesKey = null;
+
+    function isTreePanelVisible() {
+        const treeTab = document.getElementById("tree-tab");
+        const canvasContainer = document.querySelector(".tree-canvas-container");
+        if (!treeTab || !canvasContainer) return false;
+        const isTabActive = treeTab.classList.contains("active") || treeTab.offsetParent !== null;
+        return isTabActive && canvasContainer.clientWidth > 0 && canvasContainer.clientHeight > 0;
+    }
+
     // D3.js Decision Tree Graph Visualizer
     function drawDecisionTree(data) {
+        if (!data) return;
         const svgElement = document.getElementById("tree-svg");
         const canvasContainer = document.querySelector(".tree-canvas-container");
-        
+        if (!svgElement || !canvasContainer) return;
+
+        // Lazy-render: do not run tree simulation/layout when the decision tree panel or modal is hidden
+        if (!isTreePanelVisible()) {
+            treeRenderPending = true;
+            return;
+        }
+
         const width = canvasContainer.clientWidth;
         const height = canvasContainer.clientHeight;
+        const currentCaseFile = selectedCase ? (selectedCase.Case_File || "") : "";
+        const currentNodesKey = (activePathNodes || []).join(",");
 
+        // Cache tree layout when rendered for the active case: skip re-rendering if active case & dimensions have not changed
+        if (cachedLayoutCaseFile === currentCaseFile &&
+            cachedLayoutActiveNodesKey === currentNodesKey &&
+            cachedLayoutWidth === width &&
+            cachedLayoutHeight === height &&
+            svgElement.childNodes.length > 0) {
+            treeRenderPending = false;
+            return;
+        }
+
+        treeRenderPending = false;
         d3.select(svgElement).selectAll("*").remove();
 
         const svg = d3.select(svgElement)
@@ -1103,19 +1154,26 @@ document.addEventListener("DOMContentLoaded", () => {
             banner.style.display = "none";
         }
 
-        // Setup hierarchy tree
-        const treemap = d3.tree().size([height - 80, width - 260]);
-        let root = d3.hierarchy(data, d => d.children);
-        
-        root.x0 = height / 2;
-        root.y0 = 40;
+        // Setup hierarchy tree with layout caching
+        let root;
+        if (cachedTreeHierarchy && cachedLayoutWidth === width && cachedLayoutHeight === height && cachedTreeHierarchy.data === data) {
+            root = cachedTreeHierarchy;
+        } else {
+            const treemap = d3.tree().size([height - 80, width - 260]);
+            root = d3.hierarchy(data, d => d.children);
+            root.x0 = height / 2;
+            root.y0 = 40;
+            treemap(root);
+            root.descendants().forEach(d => {
+                d.y = d.y + 40;
+            });
+            cachedTreeHierarchy = root;
+            cachedLayoutWidth = width;
+            cachedLayoutHeight = height;
+        }
 
-        treemap(root);
-
-        // Move tree layout horizontally so it starts cleanly from left
-        root.descendants().forEach(d => {
-            d.y = d.y + 40;
-        });
+        cachedLayoutCaseFile = currentCaseFile;
+        cachedLayoutActiveNodesKey = currentNodesKey;
 
         // Add Links
         const link = mainGroup.selectAll("path.tree-link")

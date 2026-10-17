@@ -17,11 +17,13 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 
 logger = logging.getLogger(__name__)
 
 # Paths
 EXCEL_PATH = 'case_priority_system/case_results.xlsx'
+RESULTS_EXCEL = EXCEL_PATH
 MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 STATIC_DIR = 'case_priority_system/static'
 REPORTS_DIR = 'case_priority_system/reports'
@@ -33,6 +35,69 @@ REPORTS_DIR = 'case_priority_system/reports'
 # use the deterministic rule-based extractor and return priority in ~2s.
 
 app = FastAPI(title="Anavaya Judicial Case Priority Dashboard API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+STATIC_EXTS = (
+    ".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".mp4",
+    ".ico", ".woff", ".woff2", ".ttf", ".webp", ".gif"
+)
+
+@app.middleware("http")
+async def add_cache_control_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path.lower()
+    if any(path.endswith(ext) for ext in STATIC_EXTS):
+        response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+# In-memory mtime cache for case_results.xlsx
+_excel_cache = {"mtime": 0.0, "data": []}
+_cases_df_cache = {"mtime": 0.0, "mtime_ns": None, "size": None, "df": None}
+
+
+def _invalidate_excel_cache():
+    _excel_cache["mtime"] = 0.0
+    _excel_cache["data"] = []
+    _cases_df_cache["df"] = None
+    _cases_df_cache["mtime"] = 0.0
+    _cases_df_cache["mtime_ns"] = None
+    _cases_df_cache["size"] = None
+
+
+def _update_excel_cache(df=None):
+    try:
+        if os.path.exists(RESULTS_EXCEL):
+            mtime = os.path.getmtime(RESULTS_EXCEL)
+            if df is not None:
+                clean_df = df.replace({np.nan: None})
+                _excel_cache["mtime"] = mtime
+                _excel_cache["data"] = clean_df.to_dict(orient="records")
+                _cases_df_cache["mtime"] = mtime
+                _cases_df_cache["df"] = clean_df
+                return
+            _invalidate_excel_cache()
+    except Exception:
+        _invalidate_excel_cache()
+
+
+def _read_cases_df():
+    """Read case_results.xlsx, re-reading only when the file changes on disk."""
+    if os.path.exists(RESULTS_EXCEL):
+        try:
+            mtime = os.path.getmtime(RESULTS_EXCEL)
+            if _cases_df_cache["df"] is not None and _cases_df_cache.get("mtime") == mtime:
+                return _cases_df_cache["df"]
+            df = pd.read_excel(RESULTS_EXCEL)
+            df = df.replace({np.nan: None})
+            _cases_df_cache["mtime"] = mtime
+            _cases_df_cache["df"] = df
+            _excel_cache["mtime"] = mtime
+            _excel_cache["data"] = df.to_dict(orient="records")
+            return df
+        except Exception:
+            pass  # fall through to a fresh read below (e.g. file locked)
+    df = pd.read_excel(RESULTS_EXCEL)
+    return df.replace({np.nan: None})
 
 # Initialize and load model
 model_data = None
@@ -525,6 +590,7 @@ async def upload_case(file: UploadFile = File(...)):
         new_row_df = pd.DataFrame([new_case])
         excel_df = pd.concat([excel_df, new_row_df], ignore_index=True)
         excel_df.to_excel(EXCEL_PATH, index=False)
+        _update_excel_cache(excel_df)
 
         # Clean up the uploaded temp file (keep the repo root tidy)
         if os.path.exists(temp_path):
@@ -592,38 +658,19 @@ def get_case_report_pdf(case_file: str):
                         filename=os.path.basename(report_path))
 
 
-# The dashboard and decision-path endpoints read case_results.xlsx on every
-# request. Reading + parsing the workbook with pandas costs ~1s, so cache the
-# parsed frame and re-read only when the file changes on disk (mtime + size).
-_cases_df_cache = {"mtime_ns": None, "size": None, "df": None}
-
-
-def _read_cases_df():
-    """Read case_results.xlsx, re-reading only when the file changes on disk."""
-    if os.path.exists(EXCEL_PATH):
-        st = os.stat(EXCEL_PATH)
-        key = (st.st_mtime_ns, st.st_size)
-        if (_cases_df_cache["df"] is not None
-                and _cases_df_cache["mtime_ns"] == key[0]
-                and _cases_df_cache["size"] == key[1]):
-            return _cases_df_cache["df"]
-        try:
-            df = pd.read_excel(EXCEL_PATH)
-            df = df.replace({np.nan: None})
-            _cases_df_cache.update({"mtime_ns": key[0], "size": key[1], "df": df})
-            return df
-        except Exception:
-            pass  # fall through to a fresh read below (e.g. file locked)
-    df = pd.read_excel(EXCEL_PATH)
-    return df.replace({np.nan: None})
-
-
 @app.get("/api/cases")
 def get_cases():
-    if not os.path.exists(EXCEL_PATH):
+    if not os.path.exists(RESULTS_EXCEL):
         raise HTTPException(status_code=404, detail="Excel results file not found.")
     try:
-        return _read_cases_df().to_dict(orient="records")
+        current_mtime = os.path.getmtime(RESULTS_EXCEL)
+        if _excel_cache["mtime"] == current_mtime and _excel_cache["data"]:
+            return _excel_cache["data"]
+        df = _read_cases_df()
+        data = df.to_dict(orient="records")
+        _excel_cache["mtime"] = current_mtime
+        _excel_cache["data"] = data
+        return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
 
@@ -654,7 +701,7 @@ def delete_case_by_file(case_file: str):
                     df = df[~df["Case_File"].isin(doc_filenames)]
                 if len(df) < before:
                     df.to_excel(EXCEL_PATH, index=False)
-                    _cases_df_cache.update({"df": None})
+                    _update_excel_cache(df)
             except Exception as e:
                 print(f"case delete: Excel cleanup failed for {case_file}: {e}")
         return {"deleted": case_file, "title": case.title}
@@ -669,7 +716,7 @@ def delete_case_by_file(case_file: str):
         if len(df) == before:
             raise HTTPException(status_code=404, detail=f"Case '{case_file}' not found.")
         df.to_excel(EXCEL_PATH, index=False)
-        _cases_df_cache.update({"df": None})
+        _update_excel_cache(df)
         return {"deleted": case_file, "remaining": len(df)}
     except HTTPException:
         raise
@@ -824,6 +871,9 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
     new_df = pd.DataFrame(rows)
     excel_df = pd.concat([excel_df, new_df], ignore_index=True)
     excel_df.to_excel(EXCEL_PATH, index=False)
+    _update_excel_cache(excel_df)
+
+_append_to_excel = _append_case_documents_to_excel
 
 
 def _get_case_or_404(case_id: str):
@@ -865,7 +915,7 @@ def delete_case_by_id(case_id: str):
                 df = df[~df["Case_File"].isin(doc_filenames)]
             if len(df) < before:
                 df.to_excel(EXCEL_PATH, index=False)
-                _cases_df_cache.update({"df": None})
+                _update_excel_cache(df)
         except Exception as e:
             print(f"case delete: Excel cleanup failed for {case_id}: {e}")
     return {"deleted": case_id, "title": case.title}
@@ -937,13 +987,14 @@ async def analyze_case(case_id: str):
         asyncio.create_task(asyncio.to_thread(preload_ollama_model))
 
     case = _get_case_or_404(case_id)
+    documents = [d for d in list(case.documents) if not d.priority]
     errors = []
-    for doc in list(case.documents):
-        if not doc.priority:
-            try:
-                case_manager.analyze_document(case, doc, model_data)
-            except Exception as e:
-                errors.append(f"{doc.filename}: {str(e)}")
+    if documents:
+        from case_priority_system.scripts.whole_case_analysis import analyze_documents
+        results = analyze_documents(documents, case, model_data=model_data, case_manager=case_manager)
+        for doc, err in results:
+            if err:
+                errors.append(f"{doc.filename}: {str(err)}")
     case_manager.refresh_aggregate(case, model_data=model_data)
     _append_case_documents_to_excel(case, case_id)
     payload = case.to_dict()
@@ -2957,8 +3008,16 @@ async def not_found_handler(request: Request, exc: Exception):
     )
 
 
-# Mount static folder
-app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")
+# Mount static folder with Cache-Control headers
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if any(path.lower().endswith(ext) for ext in STATIC_EXTS):
+            response.headers["Cache-Control"] = "public, max-age=3600"
+        return response
+
+
+app.mount("/", CachedStaticFiles(directory=STATIC_DIR), name="static")
 
 
 if __name__ == "__main__":

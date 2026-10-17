@@ -14,7 +14,32 @@ Deterministic rule-based mapping based on priority tier, category, and severity.
 No LLM involved in precedent selection.
 """
 
+import functools
+import re
 from typing import Dict, List, Any, Tuple
+
+
+# Module-level precompiled regex patterns for topic, category, and severity matching
+CHILD_MISSING_PATTERN = re.compile(
+    r"child|minor|missing|kidnap|abduct|traffick|pocso|meera",
+    re.IGNORECASE,
+)
+COMMERCIAL_DEBT_PATTERN = re.compile(
+    r"insolvency|debt|company|winding|tax",
+    re.IGNORECASE,
+)
+PROPERTY_LAND_PATTERN = re.compile(
+    r"property|land",
+    re.IGNORECASE,
+)
+LIBERTY_CUSTODY_PATTERN = re.compile(
+    r"liberty|unlawful|custody",
+    re.IGNORECASE,
+)
+FATAL_PATTERN = re.compile(
+    r"fatal",
+    re.IGNORECASE,
+)
 
 
 # Master Knowledge Base of Historical Delay Precedents
@@ -398,47 +423,16 @@ HISTORICAL_DELAY_PRECEENTS: List[Dict[str, Any]] = [
 ]
 
 
-def get_delay_precedents(
-    priority: str,
-    category: str = "",
-    crime_type: str = "",
-    severity: str = "",
-    max_results: int = 3,
-    case_title: str = "",
-    case_text: str = "",
-) -> List[Dict[str, Any]]:
-    """
-    Deterministically retrieves the most relevant historical delay precedents
-    matching the case's assigned priority tier, category, and severity.
-
-    Args:
-        priority: Assessed priority ('High', 'Medium', 'Low')
-        category: Case category (e.g. 'Criminal/Violent', 'Insolvency/Debt', 'Property/Land')
-        crime_type: Broad crime/dispute type
-        severity: Assessed severity ('Fatal', 'Major', 'Minor', 'No Injury')
-        max_results: Max precedents to return (default 3)
-        case_title: Case title (e.g. 'Missing case')
-        case_text: Relevant summary or evidence text for topic matching
-
-    Returns:
-        List of structured precedent dictionaries with case citations, factual delay,
-        human/economic toll, and judicial priority mandates.
-    """
-    p_norm = str(priority or "Medium").strip().capitalize()
-    if p_norm not in ["High", "Medium", "Low"]:
-        p_norm = "Medium"
-
-    cat_norm = str(category or "").strip()
-    ct_norm = str(crime_type or "").lower()
-    sev_norm = str(severity or "").lower()
-
-    # Detect child / minor / missing / abduction context across all available text
-    search_corpus = f"{cat_norm} {ct_norm} {sev_norm} {case_title} {case_text}".lower()
-    is_child_or_missing = any(
-        kw in search_corpus
-        for kw in ["child", "minor", "missing", "kidnap", "abduct", "traffick", "pocso", "meera"]
-    )
-
+@functools.lru_cache(maxsize=128)
+def _cached_delay_precedents(
+    p_norm: str,
+    cat_norm: str,
+    ct_norm: str,
+    sev_norm: str,
+    max_results: int,
+    is_child_or_missing: bool,
+) -> Tuple[Dict[str, Any], ...]:
+    """Inner core precedent selector cached on hashable feature keys."""
     # Filter candidates by priority tier first
     candidates = [p for p in HISTORICAL_DELAY_PRECEENTS if p["priority_level"] == p_norm]
 
@@ -460,7 +454,7 @@ def get_delay_precedents(
         # STRICT EXCLUSION: Corporate insolvency / debt / winding-up precedent
         # must NEVER be assigned to non-commercial / non-debt cases (e.g., missing child, criminal, writ).
         if cand["id"] == "innoventive_swiss_ribbons":
-            if is_child_or_missing or not any(kw in cat_norm.lower() for kw in ["insolvency", "debt", "company", "winding", "tax"]):
+            if is_child_or_missing or not COMMERCIAL_DEBT_PATTERN.search(cat_norm):
                 continue  # Skip entirely — never show a loan/debt case for child or criminal disputes
 
         if cat_norm and cat_norm in applicable_cats:
@@ -477,17 +471,17 @@ def get_delay_precedents(
 
         # Severity boosts
         if p_norm == "High":
-            if "fatal" in sev_norm and "nirbhaya" in cand["id"]:
+            if FATAL_PATTERN.search(sev_norm) and "nirbhaya" in cand["id"]:
                 score += 8
-            elif ("liberty" in sev_norm or "unlawful" in sev_norm or "custody" in sev_norm) and "rudal" in cand["id"]:
+            elif LIBERTY_CUSTODY_PATTERN.search(sev_norm) and "rudal" in cand["id"]:
                 score += 8
             elif "undertrial" in cand["id"] or "hussainara" in cand["id"]:
                 score += 6
         elif p_norm == "Medium":
-            if "insolvency" in cat_norm.lower() or "debt" in cat_norm.lower() or "company" in cat_norm.lower():
+            if COMMERCIAL_DEBT_PATTERN.search(cat_norm):
                 if "innoventive" in cand["id"]:
                     score += 9
-            elif "property" in cat_norm.lower() or "land" in cat_norm.lower():
+            elif PROPERTY_LAND_PATTERN.search(cat_norm):
                 if "tukaram" in cand["id"]:
                     score += 9
             elif "bhopal" in cand["id"]:
@@ -508,4 +502,64 @@ def get_delay_precedents(
     if not results:
         results = [c for c in candidates if c["id"] != "innoventive_swiss_ribbons"][:max_results] or candidates[:max_results]
 
-    return results
+    return tuple(results)
+
+
+def get_delay_precedents(
+    priority: str,
+    category: str = "",
+    crime_type: str = "",
+    severity: str = "",
+    max_results: int = 3,
+    case_title: str = "",
+    case_text: str = "",
+) -> List[Dict[str, Any]]:
+    """
+    Deterministically retrieves the most relevant historical delay precedents
+    matching the case's assigned priority tier, category, and severity.
+
+    Cached via functools.lru_cache(maxsize=128) on hashable feature keys,
+    eliminating redundant computation on repeated requests.
+
+    Args:
+        priority: Assessed priority ('High', 'Medium', 'Low')
+        category: Case category (e.g. 'Criminal/Violent', 'Insolvency/Debt', 'Property/Land')
+        crime_type: Broad crime/dispute type
+        severity: Assessed severity ('Fatal', 'Major', 'Minor', 'No Injury')
+        max_results: Max precedents to return (default 3)
+        case_title: Case title (e.g. 'Missing case')
+        case_text: Relevant summary or evidence text for topic matching
+
+    Returns:
+        List of structured precedent dictionaries with case citations, factual delay,
+        human/economic toll, and judicial priority mandates.
+    """
+    p_norm = str(priority or "Medium").strip().capitalize()
+    if p_norm not in ["High", "Medium", "Low"]:
+        p_norm = "Medium"
+
+    cat_norm = str(category or "").strip()
+    ct_norm = str(crime_type or "").lower().strip()
+    sev_norm = str(severity or "").lower().strip()
+
+    is_child_or_missing = bool(
+        CHILD_MISSING_PATTERN.search(cat_norm)
+        or CHILD_MISSING_PATTERN.search(ct_norm)
+        or CHILD_MISSING_PATTERN.search(sev_norm)
+        or CHILD_MISSING_PATTERN.search(str(case_title or ""))
+        or CHILD_MISSING_PATTERN.search(str(case_text or ""))
+    )
+
+    cached_tuple = _cached_delay_precedents(
+        p_norm,
+        cat_norm,
+        ct_norm,
+        sev_norm,
+        int(max_results),
+        is_child_or_missing,
+    )
+    return [dict(p) for p in cached_tuple]
+
+
+get_delay_precedents.cache_info = _cached_delay_precedents.cache_info
+get_delay_precedents.cache_clear = _cached_delay_precedents.cache_clear
