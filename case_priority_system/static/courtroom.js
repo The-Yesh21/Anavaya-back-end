@@ -611,6 +611,7 @@
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" },
         ],
     };
 
@@ -698,7 +699,11 @@
                     noiseSuppression: true,
                     autoGainControl: true,
                 },
-                video: true,
+                video: {
+                    width: { ideal: 640, max: 960 },
+                    height: { ideal: 360, max: 540 },
+                    frameRate: { ideal: 24, max: 30 }
+                },
             });
         } catch (e) {
             console.warn("Camera+microphone access denied or unavailable. Falling back to audio-only.", e);
@@ -829,48 +834,114 @@
         entry.status = status;
         const tile = tileEl || document.querySelector(`.stage-tile[data-pid="${remotePid}"]`);
         if (tile) {
-            tile.classList.toggle("conn-connecting", status === "connecting");
-            tile.classList.toggle("conn-failed", status === "failed");
+            const isRetrying = (entry.iceRestartAttempts || 0) > 0 || !!entry.restartTimer;
+            const isConnecting = status === "connecting";
+            tile.classList.toggle("conn-connecting", isConnecting || (status === "failed" && isRetrying));
+            tile.classList.toggle("conn-failed", status === "failed" && !isRetrying);
             const chip = tile.querySelector(".stage-conn");
             if (chip) {
-                chip.textContent = status === "failed" ? "Not connected"
-                    : status === "connecting" ? "Connecting…" : "";
+                if (status === "failed") {
+                    chip.textContent = isRetrying ? "Reconnecting…" : "Not connected";
+                } else if (status === "connecting") {
+                    chip.textContent = isRetrying ? "Reconnecting…" : "Connecting…";
+                } else {
+                    chip.textContent = "";
+                }
             }
         }
         updateMediaNotice();
     }
 
+    let mediaNoticeTimer = null;
+
     // Room-level banner: names the participants we cannot reach and, when the
     // server has no relay configured, says why — so "blank tile" stops being
-    // silent. Returns how many peers are currently unreachable.
+    // silent. Only shows the notice if a peer has been in failed state for at
+    // least 8 seconds. If retrying or connecting, shows friendly reconnecting status
+    // without alarming the user.
     function updateMediaNotice() {
         if (!els.mediaNotice) return 0;
+        const now = Date.now();
         const failed = [];
+        const reconnecting = [];
+        let minWait = Infinity;
+
         for (const [pid, entry] of state.peers) {
-            if (peerStatusOf(entry) !== "failed") continue;
-            const p = state.participants.find((x) => x.participant_id === pid);
-            failed.push((p && p.name) || "a participant");
+            const status = peerStatusOf(entry);
+            if (status === "failed") {
+                if (!entry.failedSince) {
+                    entry.failedSince = now;
+                }
+                const elapsed = now - entry.failedSince;
+                const isRetrying = (entry.iceRestartAttempts || 0) > 0 || !!entry.restartTimer;
+                const p = state.participants.find((x) => x.participant_id === pid);
+                const name = (p && p.name) || "a participant";
+
+                if (elapsed >= 8000 && !isRetrying) {
+                    failed.push(name);
+                } else {
+                    reconnecting.push(name);
+                    if (elapsed < 8000) {
+                        minWait = Math.min(minWait, 8000 - elapsed);
+                    }
+                }
+            } else {
+                entry.failedSince = null;
+                if (status === "connecting") {
+                    const isRetrying = (entry.iceRestartAttempts || 0) > 0 || !!entry.restartTimer;
+                    if (isRetrying) {
+                        const p = state.participants.find((x) => x.participant_id === pid);
+                        reconnecting.push((p && p.name) || "a participant");
+                    }
+                }
+            }
         }
-        if (!failed.length) {
-            els.mediaNotice.hidden = true;
+
+        if (mediaNoticeTimer) {
+            clearTimeout(mediaNoticeTimer);
+            mediaNoticeTimer = null;
+        }
+        if (minWait < Infinity) {
+            mediaNoticeTimer = setTimeout(() => {
+                mediaNoticeTimer = null;
+                updateMediaNotice();
+            }, Math.max(minWait, 100));
+        }
+
+        // Only show the notice if a peer has been in failed state for at least 8 seconds
+        if (failed.length) {
+            const names = failed.length <= 2
+                ? failed.join(", ")
+                : `${failed.slice(0, 2).join(", ")} +${failed.length - 2} more`;
+            let text = `No media connection with ${names} — their video and voice can't reach you.`;
+            if (RTC_CONFIG.relaySeen) {
+                text += " Retrying through the relay; you can also try again.";
+            } else if (RTC_CONFIG.turnConfigured) {
+                // A relay is configured but never produced a relay candidate, so the
+                // two sides share no reachable path and the relay isn't the way out.
+                text += " The configured TURN relay isn't answering, so a participant on another network or mobile data can't connect — retry, use the same network, or check the relay credentials.";
+            } else {
+                text += " This room has no TURN relay, so participants on a different network or mobile data can't connect — use the same network, or configure one in case_priority_system/courtroom_turn.json.";
+            }
+            els.mediaNoticeText.textContent = text;
+            if (els.mediaRetryBtn) els.mediaRetryBtn.style.display = "";
+            els.mediaNotice.hidden = false;
+            return failed.length;
+        }
+
+        // If retrying or connecting, show friendly reconnecting status without alarming the user
+        if (reconnecting.length) {
+            const names = reconnecting.length <= 2
+                ? reconnecting.join(", ")
+                : `${reconnecting.slice(0, 2).join(", ")} +${reconnecting.length - 2} more`;
+            els.mediaNoticeText.textContent = `Reconnecting with ${names}…`;
+            if (els.mediaRetryBtn) els.mediaRetryBtn.style.display = "none";
+            els.mediaNotice.hidden = false;
             return 0;
         }
-        const names = failed.length <= 2
-            ? failed.join(", ")
-            : `${failed.slice(0, 2).join(", ")} +${failed.length - 2} more`;
-        let text = `No media connection with ${names} — their video and voice can't reach you.`;
-        if (RTC_CONFIG.relaySeen) {
-            text += " Retrying through the relay; you can also try again.";
-        } else if (RTC_CONFIG.turnConfigured) {
-            // A relay is configured but never produced a relay candidate, so the
-            // two sides share no reachable path and the relay isn't the way out.
-            text += " The configured TURN relay isn't answering, so a participant on another network or mobile data can't connect — retry, use the same network, or check the relay credentials.";
-        } else {
-            text += " This room has no TURN relay, so participants on a different network or mobile data can't connect — use the same network, or configure one in case_priority_system/courtroom_turn.json.";
-        }
-        els.mediaNoticeText.textContent = text;
-        els.mediaNotice.hidden = false;
-        return failed.length;
+
+        els.mediaNotice.hidden = true;
+        return 0;
     }
 
     // Re-negotiate a peer's ICE: the usual cure for a path that went stale (the
@@ -901,12 +972,14 @@
             if (peerStatusOf(entry) === "failed") {
                 entry.iceRestartAttempts = 0;
                 entry.timedOut = false;   // give the retry a fresh window
+                entry.failedSince = Date.now();
                 if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
                 scheduleIceRestart(pid);
                 n++;
             }
         }
         if (n) toast(`Retrying the media connection for ${n} participant${n === 1 ? "" : "s"}…`);
+        updateMediaNotice();
         return n;
     }
 
@@ -978,6 +1051,24 @@
         return needsSignaling;
     }
 
+    // Cap outgoing video bitrate to prevent CPU saturation and bandwidth spikes (Google Meet standard)
+    function applyBitrateLimits(pc) {
+        if (!pc || typeof pc.getSenders !== "function") return;
+        try {
+            const senders = pc.getSenders();
+            const sender = senders.find((s) => s.track && s.track.kind === "video");
+            if (sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
+                const params = sender.getParameters();
+                if (!params.encodings || !params.encodings.length) {
+                    params.encodings = [{}];
+                }
+                params.encodings[0].maxBitrate = 400000;
+                params.encodings[0].maxFramerate = 24;
+                sender.setParameters(params).catch(() => {});
+            }
+        } catch (_) {}
+    }
+
     // The single funnel for "the SDP must change". Browsers reject a second
     // offer that isn't preceded by its answer ("the order of m-lines doesn't
     // match"), and two racing createOffer() calls used to leave a participant
@@ -999,6 +1090,7 @@
         try {
             const offer = await pc.createOffer(opts.iceRestart ? { iceRestart: true } : undefined);
             await pc.setLocalDescription(offer);
+            applyBitrateLimits(pc);
             state.ws.send(JSON.stringify({
                 type: "sdp_offer",
                 target_participant_id: remotePid,
@@ -1159,6 +1251,24 @@
     //     offer's m-lines become ours; attachLocalTracks() then gives them our
     //     tracks before the answer goes out.
     function createPeerConnection(remotePid, offerer) {
+        // Ensure STUN/TURN fallback includes Google STUN servers
+        const googleStuns = [
+            "stun:stun.l.google.com:19302",
+            "stun:stun1.l.google.com:19302",
+            "stun:stun2.l.google.com:19302",
+        ];
+        if (!RTC_CONFIG.iceServers) RTC_CONFIG.iceServers = [];
+        const existingUrls = new Set();
+        for (const s of RTC_CONFIG.iceServers) {
+            if (!s || !s.urls) continue;
+            if (typeof s.urls === "string") existingUrls.add(s.urls);
+            else if (Array.isArray(s.urls)) s.urls.forEach((u) => existingUrls.add(u));
+        }
+        for (const url of googleStuns) {
+            if (!existingUrls.has(url)) {
+                RTC_CONFIG.iceServers.push({ urls: url });
+            }
+        }
         const pc = new RTCPeerConnection(RTC_CONFIG);
 
         if (offerer) {
@@ -1219,7 +1329,9 @@
             connectTimer: setTimeout(() => onPeerConnectTimeout(remotePid), MEDIA_CONNECT_TIMEOUT_MS),
             timedOut: false,
             status: "connecting",
+            pendingIceCandidates: [],
         };
+        peer.pendingIceCandidates = [];
         state.peers.set(remotePid, peer);
 
         pc.ontrack = (event) => {
@@ -1368,8 +1480,13 @@
         // room. Their m-lines start receive-only and attachLocalTracks() fills
         // them in if a stream ever arrives.
         if (!state.pendingOfferTargets.size) return;
-        for (const pid of [...state.pendingOfferTargets]) {
+        const targets = [...state.pendingOfferTargets];
+        for (let i = 0; i < targets.length; i++) {
+            const pid = targets[i];
             state.pendingOfferTargets.delete(pid);
+            if (i > 0) {
+                await new Promise((r) => setTimeout(r, 120));
+            }
             await makeOffer(pid);
         }
     }
@@ -1382,6 +1499,10 @@
         }
         await attachLocalTracks(remotePid);
         await negotiateWith(remotePid);
+        const entry = state.peers.get(remotePid);
+        if (entry && entry.pc) {
+            applyBitrateLimits(entry.pc);
+        }
     }
 
     async function onRemoteOffer(remotePid, data) {
@@ -1411,11 +1532,22 @@
                 try { await pc.setLocalDescription({ type: "rollback" }); } catch (_) {}
             }
             await pc.setRemoteDescription(new RTCSessionDescription(data));
+            if (entry.pendingIceCandidates && entry.pendingIceCandidates.length) {
+                for (const cand of entry.pendingIceCandidates) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(cand));
+                    } catch (e) {
+                        console.warn("Buffered candidate error:", e);
+                    }
+                }
+                entry.pendingIceCandidates = [];
+            }
             // THE step that makes the answerer audible: give the m-lines the
             // offer just created our own tracks, so the answer sends them.
             const needsSignaling = await attachLocalTracks(remotePid);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+            applyBitrateLimits(pc);
             state.ws.send(JSON.stringify({
                 type: "sdp_answer",
                 target_participant_id: remotePid,
@@ -1448,6 +1580,16 @@
                 return;
             }
             await pc.setRemoteDescription(new RTCSessionDescription(data));
+            if (entry.pendingIceCandidates && entry.pendingIceCandidates.length) {
+                for (const cand of entry.pendingIceCandidates) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(cand));
+                    } catch (e) {
+                        console.warn("Buffered candidate error:", e);
+                    }
+                }
+                entry.pendingIceCandidates = [];
+            }
             // Confirm the mic made it into the negotiated session (and re-offer
             // if not — e.g. our offer was rolled back by glare in the meantime).
             if (micRouteState(pc) === "sending") trackSyncPending.delete(remotePid);
@@ -1463,11 +1605,13 @@
 
     async function onRemoteIce(remotePid, data) {
         const entry = state.peers.get(remotePid);
-        if (!entry) return;
-        try {
-            await entry.pc.addIceCandidate(new RTCIceCandidate(data));
-        } catch (e) {
-            // Harmless if it arrives before the SDP is set.
+        if (entry && entry.pc) {
+            if (entry.pc.remoteDescription && entry.pc.remoteDescription.type) {
+                await entry.pc.addIceCandidate(new RTCIceCandidate(data)).catch((e) => console.warn("addIceCandidate error:", e));
+            } else {
+                if (!entry.pendingIceCandidates) entry.pendingIceCandidates = [];
+                entry.pendingIceCandidates.push(data);
+            }
         }
     }
 
