@@ -30,10 +30,32 @@ export const RAIL_ITEMS = 8;
    the center stage, reach peak size and clarity at the apex, and curve back out at exit,
    forming a rich, continuous, unbroken infinite loop. */
 const RAIL = {
-  durationLeft: 3.6,
-  durationRight: 3.2,
+  durationLeft: 3.4,
+  durationRight: 3.0,
   halfOvershoot: 130,
 } as const;
+
+/**
+ * Fast-Slow-Fast easing curve for orbital side rails:
+ * Medallions sweep in with high velocity at the boundaries (p ~ 0), decelerate smoothly as
+ * they approach the center focal point (p = 0.5), linger gracefully at the apex while swelling
+ * to peak scale (1.2x), and accelerate smoothly back to high speed toward the exit (p ~ 1).
+ *
+ * Mathematical derivation:
+ * Let u = 2p - 1 in [-1, 1].
+ * y(p) = a * p + ((1 - a) / 2) * (u^3 + 1)
+ *
+ * Velocity profile:
+ * y'(p) = a + 3 * (1 - a) * (2p - 1)^2
+ * At p = 0:   velocity = 3 - 2a (~2.44x base speed) -> fast, energetic start
+ * At p = 0.5: velocity = a (~0.28x base speed)       -> slow, lingering at center apex
+ * At p = 1:   velocity = 3 - 2a (~2.44x base speed) -> fast exit acceleration
+ */
+export const fastSlowFastEase = (p: number): number => {
+  const a = 0.28;
+  const u = 2 * p - 1;
+  return a * p + ((1 - a) * 0.5) * (u * u * u + 1);
+};
 
 // Where a medallion enters its rail, as a fraction of that rail's OWN cycle: one
 // eighth of the way in per item, so a full lap's worth of medallions is always in
@@ -179,11 +201,12 @@ export function usePreloaderTimeline(
             repeat: -1,
           });
 
-          // 1. Uniform constant vertical translation (butter smooth)
+          // 1. Fast-Slow-Fast vertical translation:
+          // Moves fast at start and end, lingers gracefully at center apex
           loopTl.fromTo(
             el,
             { y: startY },
-            { y: endY, duration, ease: "none", immediateRender: false },
+            { y: endY, duration, ease: fastSlowFastEase, immediateRender: false },
             0,
           );
 
