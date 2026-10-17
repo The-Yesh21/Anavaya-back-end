@@ -1834,6 +1834,61 @@
         renderStage();
         renderRoster();
         updateMediaNotice();
+        syncMeetControls();
+    }
+
+    function syncMeetControls() {
+        // 1. Sync roster online count
+        const rOnline = document.getElementById("roster-online");
+        const rosterBadge = document.getElementById("roster-badge");
+        if (rOnline && rosterBadge) rosterBadge.textContent = rOnline.textContent || "0";
+
+        // 2. Sync transcript count
+        const feed = document.getElementById("transcript-feed");
+        const transcriptBadge = document.getElementById("transcript-badge");
+        if (feed && transcriptBadge) {
+            const n = feed.querySelectorAll(".entry").length;
+            transcriptBadge.textContent = String(n);
+        }
+
+        // 3. Sync Judge Face button & drawer tab
+        const isJudge = state.me && state.me.role === "Judge";
+        const btnFace = document.getElementById("toggle-drawer-face");
+        const drawerNavFace = document.getElementById("drawer-tab-nav-face");
+        if (btnFace) btnFace.style.display = isJudge ? "inline-grid" : "none";
+        if (drawerNavFace) drawerNavFace.style.display = isJudge ? "inline-flex" : "none";
+
+        // 4. Sync Leave / Adjourn label
+        const leaveLabel = document.getElementById("leave-btn-label");
+        if (leaveLabel) {
+            leaveLabel.textContent = isJudge ? "Adjourn" : "Leave";
+        }
+
+        // 5. Sync bottom bar mic state
+        const btnControlMic = document.getElementById("control-mic-btn");
+        if (btnControlMic) {
+            const isOff = !state.micEnabled;
+            btnControlMic.classList.toggle("off", isOff);
+            const icon = btnControlMic.querySelector("i, svg");
+            const targetIcon = isOff ? "mic-off" : "mic";
+            if (icon && icon.getAttribute("data-lucide") !== targetIcon) {
+                btnControlMic.innerHTML = `<i data-lucide="${targetIcon}"></i>`;
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+        }
+
+        // 6. Sync bottom bar cam state
+        const btnControlCam = document.getElementById("control-cam-btn");
+        if (btnControlCam) {
+            const isOff = !state.videoEnabled;
+            btnControlCam.classList.toggle("off", isOff);
+            const icon = btnControlCam.querySelector("i, svg");
+            const targetIcon = isOff ? "video-off" : "video";
+            if (icon && icon.getAttribute("data-lucide") !== targetIcon) {
+                btnControlCam.innerHTML = `<i data-lucide="${targetIcon}"></i>`;
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+        }
     }
 
     // "Me" first, then everyone else in join order.
@@ -1864,16 +1919,23 @@
             const displayRole = isMe ? state.me.display_role : displayRoleFor(p);
             const camOff = isMe && !state.videoEnabled;
             const initials = (p.name || "?").trim().charAt(0).toUpperCase();
+            const role = p.role || "Witness";
+            const isMuted = isMe ? !state.micEnabled : false;
             const tile = document.createElement("div");
             tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "");
             tile.dataset.pid = p.participant_id;
             tile.innerHTML = `
                 <div class="stage-overlay">
-                    <span class="stage-live"><i data-lucide="mic"></i></span>
+                    <span class="stage-pill-avatar role-bg-${role}">${initials}</span>
                     <span class="stage-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</span>
-                    <span class="stage-role">${escapeHtml(camOff ? "Camera off" : displayRole)}</span>
+                    <span class="stage-role role-${role}">${escapeHtml(camOff ? "Camera off" : displayRole)}</span>
                 </div>
+                <span class="stage-mic-indicator ${isMuted ? "muted" : "unmuted"}"><i data-lucide="${isMuted ? "mic-off" : "mic"}"></i></span>
                 <span class="stage-conn" data-conn=""></span>
+                <div class="stage-cam-off">
+                    <div class="cam-off-avatar role-border-${role}">${initials}</div>
+                    <span class="cam-off-pill">Camera off</span>
+                </div>
             `;
             // The persistent, mesh-fed <video> fills the stage tile without any avatar overlay.
             const v = videoElFor(p.participant_id);
@@ -2268,9 +2330,11 @@
     // Entry tally shown next to "Live Transcript" so the folded dock still
     // says how much record there is.
     function updateTranscriptCount() {
-        if (!els.transcriptCount) return;
+        if (!els.transcriptFeed) return;
         const n = els.transcriptFeed.querySelectorAll(".entry").length;
-        els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
+        if (els.transcriptCount) els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
+        const transcriptBadge = document.getElementById("transcript-badge");
+        if (transcriptBadge) transcriptBadge.textContent = String(n);
     }
 
     function appendTranscript(entry, scroll = true, replacesEntryId = "") {
