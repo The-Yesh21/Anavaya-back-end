@@ -74,6 +74,10 @@ class Participant:
         return asdict(self)
 
 
+# Alias for explicit role clarity and backwards-compatibility
+CourtroomParticipant = Participant
+
+
 @dataclass
 class TranscriptEntry:
     """One line of the official record.
@@ -182,6 +186,13 @@ class Room:
     # presiding judge can turn it off for everyone (and back on). The record is
     # still written while off — only the live view is hidden.
     transcript_enabled: bool = True
+    _participant_map: dict[str, Participant] = field(default_factory=dict, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._rebuild_participant_map()
+
+    def _rebuild_participant_map(self) -> None:
+        self._participant_map = {p.participant_id: p for p in self.participants}
 
     # ---- roster helpers -------------------------------------------------
 
@@ -202,18 +213,25 @@ class Room:
         return True
 
     def get_participant(self, participant_id: str) -> Optional[Participant]:
-        for p in self.participants:
-            if p.participant_id == participant_id:
-                return p
-        return None
+        """O(1) participant lookup by id."""
+        if not hasattr(self, "_participant_map"):
+            self._rebuild_participant_map()
+        return self._participant_map.get(participant_id)
 
     def add_participant(self, participant: Participant) -> None:
         self.participants.append(participant)
+        if not hasattr(self, "_participant_map"):
+            self._participant_map = {}
+        self._participant_map[participant.participant_id] = participant
 
     def remove_participant(self, participant_id: str) -> Optional[Participant]:
+        if not hasattr(self, "_participant_map"):
+            self._rebuild_participant_map()
         for i, p in enumerate(self.participants):
             if p.participant_id == participant_id:
+                self._participant_map.pop(participant_id, None)
                 return self.participants.pop(i)
+        self._participant_map.pop(participant_id, None)
         return None
 
     # ---- transcript helpers --------------------------------------------
@@ -275,8 +293,31 @@ class CourtroomManager:
     def __init__(self, storage_dir: str = COURTROOMS_DIR):
         self.storage_dir = storage_dir
         self._rooms: dict[str, Room] = {}
-        self._lock = threading.Lock()
+        # Secondary lookup mapping (room_id, participant_id) -> CourtroomParticipant for O(1) access
+        self._participant_lookup: dict[tuple[str, str], Participant] = {}
+        self._participants = self._participant_lookup
+        self._lock = threading.RLock()
         os.makedirs(self.storage_dir, exist_ok=True)
+
+    def _index_room_participants(self, room: Room) -> None:
+        """Register all room participants in the secondary lookup dictionary."""
+        for p in room.participants:
+            self._participant_lookup[(room.room_id, p.participant_id)] = p
+
+    def get_participant(self, room_id: str, participant_id: str) -> Optional[Participant]:
+        """O(1) secondary index lookup mapping (room_id, participant_id) -> CourtroomParticipant."""
+        with self._lock:
+            p = self._participant_lookup.get((room_id, participant_id))
+            if p is not None:
+                return p
+        room = self.get_room(room_id)
+        if room is not None:
+            with self._lock:
+                p = room.get_participant(participant_id)
+                if p is not None:
+                    self._participant_lookup[(room_id, participant_id)] = p
+                return p
+        return None
 
     # ---- room lifecycle ------------------------------------------------
 
@@ -314,6 +355,7 @@ class CourtroomManager:
                            f"Linked to case {room.case_id} — the court record now has the case file context.")
         with self._lock:
             self._rooms[room_id] = room
+            self._index_room_participants(room)
             self._persist(room)
         return room
 
@@ -373,6 +415,7 @@ class CourtroomManager:
         if room is not None:
             with self._lock:
                 self._rooms[room_id] = room
+                self._index_room_participants(room)
         return room
 
     def list_rooms(self) -> list[dict]:
@@ -428,6 +471,7 @@ class CourtroomManager:
                 joined_at=_now_iso(),
             )
             room.add_participant(participant)
+            self._participant_lookup[(room.room_id, participant.participant_id)] = participant
 
             display_role = ROLE_LABELS.get(role, role)
             if role == WITNESS_ROLE:
@@ -456,6 +500,7 @@ class CourtroomManager:
         with self._lock:
             participant = room.remove_participant(participant_id)
             if participant is not None:
+                self._participant_lookup.pop((room_id, participant_id), None)
                 display_role = ROLE_LABELS.get(participant.role, participant.role)
                 room.add_entry(
                     actor=participant.name,
@@ -465,6 +510,19 @@ class CourtroomManager:
                 )
                 self._persist(room)
         return participant
+
+    def cleanup_stale_room_audio(self, room_id: str) -> bool:
+        """Delete temporary WAV audio segments when a trial session is ended or room is deleted, preventing disk bloat."""
+        cleaned = False
+        audio_dir = os.path.join(self.storage_dir, "audio", room_id)
+        if os.path.isdir(audio_dir):
+            try:
+                import shutil
+                shutil.rmtree(audio_dir, ignore_errors=True)
+                cleaned = True
+            except OSError:
+                pass
+        return cleaned
 
     def delete_room(self, room_id: str) -> bool:
         """Permanently delete a trial room: memory, disk JSON, and audio clips.
@@ -477,6 +535,9 @@ class CourtroomManager:
             if room_id in self._rooms:
                 del self._rooms[room_id]
                 removed = True
+            to_remove = [k for k in self._participant_lookup if k[0] == room_id]
+            for k in to_remove:
+                del self._participant_lookup[k]
         json_path = os.path.join(self.storage_dir, f"{room_id}.json")
         if os.path.exists(json_path):
             try:
@@ -484,10 +545,7 @@ class CourtroomManager:
                 removed = True
             except OSError:
                 pass
-        audio_dir = os.path.join(self.storage_dir, "audio", room_id)
-        if os.path.isdir(audio_dir):
-            import shutil
-            shutil.rmtree(audio_dir, ignore_errors=True)
+        if self.cleanup_stale_room_audio(room_id):
             removed = True
         return removed
 
@@ -536,6 +594,8 @@ class CourtroomManager:
                     text="The Presiding Judge ended the session. The court stands adjourned.",
                 )
                 self._persist(room)
+        # Delete temporary WAV audio segments when trial session is ended to prevent disk bloat
+        self.cleanup_stale_room_audio(room_id)
         return room
 
     def record_statement(self, room_id: str, participant_id: str, text: str,
@@ -1030,3 +1090,8 @@ def _room_from_dict(data: dict) -> Room:
 
 # Module-level singleton used by app.py.
 manager = CourtroomManager()
+
+
+def cleanup_stale_room_audio(room_id: str) -> bool:
+    """Module-level cleanup helper delegating to manager.cleanup_stale_room_audio."""
+    return manager.cleanup_stale_room_audio(room_id)
