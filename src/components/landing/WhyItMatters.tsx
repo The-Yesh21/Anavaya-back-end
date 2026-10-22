@@ -48,7 +48,7 @@ export function WhyItMatters() {
           <blockquote className="font-display mt-8 text-3xl leading-[1.3] text-balance text-foreground sm:text-4xl">
             "In India, over 4 crore cases are pending across courts. Officers manually triage thousands of
             documents daily.{" "}
-            <span className="text-gradient-gold">Anavaya changes that — instantly.</span>"
+            <span className="font-serif italic font-normal text-gradient-gold">Anavaya changes that — instantly.</span>"
           </blockquote>
           <p className="mt-6 max-w-lg text-[0.9375rem] leading-[1.7] text-muted-foreground">
             Without reliable triage, urgent matters involving personal liberty can be lost in the sheer
