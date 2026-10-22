@@ -573,7 +573,7 @@ async def upload_case(file: UploadFile = File(...)):
                     constitutional=constitutional_analysis,
                     report_pdf=report_pdf,
                 )
-                case_manager.refresh_aggregate(reg_case)
+                case_manager.refresh_aggregate(reg_case, model_data=model_data)
                 new_case['Case_ID'] = reg_case.case_id
                 new_case['Document_Type'] = 'FIR'
             except Exception as e:
@@ -844,7 +844,7 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
             'Priority_Rules_Applied': cl_con.get('priority_rules_detailed', ''),
             'Decision_Report': cl.get('decision_report', ''),
             'Decision_Path': cl.get('decision_report', ''),
-            'Predicted_Priority': cl.get('priority'),
+            'Predicted_Priority': cl.get('priority') or getattr(case, 'aggregate_priority', None),
             'Category': cl_feats.get('case_category', 'N/A'),
             'Broad_Model_Category': cl_feats.get('crime_type', 'N/A'),
             'Severity': cl_feats.get('severity', 'N/A'),
@@ -945,7 +945,7 @@ async def create_case(case_title: str = Form(""), created_by: str = Form(""),
         try:
             doc = case_manager.add_document(case.case_id, fir_file.file, doc_type="FIR", filename=fir_name)
             case_manager.analyze_document(case, doc, model_data)
-            case_manager.refresh_aggregate(case)
+            case_manager.refresh_aggregate(case, model_data=model_data)
             _append_case_documents_to_excel(case, case.case_id)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to analyse FIR: {str(e)}")
@@ -1518,7 +1518,7 @@ def delete_case_document(case_id: str, doc_id: str):
     # Recompute aggregate from the remaining documents.
     case = case_manager.get_case(case_id)
     if case is not None:
-        case_manager.refresh_aggregate(case)
+        case_manager.refresh_aggregate(case, model_data=model_data)
         _append_case_documents_to_excel(case, case_id)
     return {"deleted": doc_id, "filename": removed.filename, **case.to_dict()} if case else {"deleted": doc_id, "filename": removed.filename}
 
