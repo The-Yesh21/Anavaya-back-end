@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Scale } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { HandwrittenText } from "./HandwrittenText";
 import { APP_URL } from "./constants";
 
 function HeroVisual() {
@@ -163,16 +164,21 @@ export function Hero() {
           <Reveal delay={120}>
             <h1 className="font-display mt-8 text-5xl leading-[1.05] font-semibold tracking-tight text-balance text-foreground sm:text-6xl lg:text-7xl">
               Every Case Matters.
-              <span className="text-gradient-gold mt-2 block drop-shadow-xs">Anavaya sorts it.</span>
+              <span className="mt-2.5 block text-gradient-gold drop-shadow-xs">
+                <HandwrittenText text="Anavaya sorts it." delay={300} />
+              </span>
             </h1>
           </Reveal>
 
           <Reveal delay={240}>
             <p className="mt-7 max-w-xl text-[1.125rem] leading-[1.75] text-muted-foreground">
-              An AI-powered case priority and triage system for judicial authorities. Classifies FIRs,
-              complaints, and court documents into High, Medium, and Low priority in seconds —{" "}
-              <em className="emphasis font-normal not-italic text-primary/95 underline decoration-primary/40 underline-offset-4">
-                grounded in the Constitution of India.
+              Behind every case file is a{" "}
+              <span className="font-serif italic font-medium text-foreground">human life on hold</span>.
+              When millions wait in the shadows of judicial delay, Anavaya ensures that urgent cries for{" "}
+              <span className="font-serif italic font-medium text-foreground">liberty, protection, and fundamental rights</span>{" "}
+              are never buried in paper —{" "}
+              <em className="font-serif italic font-normal text-primary underline decoration-primary/40 underline-offset-4">
+                triaging cases in seconds with the living conscience of the Constitution of India.
               </em>
             </p>
           </Reveal>

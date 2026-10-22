@@ -26,7 +26,7 @@ export function ClosingCTA() {
 
         <Reveal delay={120}>
           <h2 className="font-display mt-7 text-4xl font-semibold tracking-tight text-foreground sm:text-6xl">
-            Justice shouldn't wait.
+            Justice shouldn't <span className="font-serif italic font-normal text-gradient-gold">wait.</span>
           </h2>
         </Reveal>
 

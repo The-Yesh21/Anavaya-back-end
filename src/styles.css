@@ -377,6 +377,41 @@
   animation: marquee 38s linear infinite;
 }
 
+@keyframes ink-settle {
+  0% {
+    opacity: 0.12;
+    filter: blur(2.5px);
+    transform: translateY(3px) scale(0.96);
+  }
+  60% {
+    opacity: 0.92;
+    filter: blur(0.3px);
+    transform: translateY(-0.5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-ink-settle {
+  animation: ink-settle 170ms cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+}
+
+@keyframes nib-bob {
+  0%, 100% {
+    transform: translate3d(-12px, 0px, 0) rotate(32deg);
+  }
+  50% {
+    transform: translate3d(-12px, -3.5px, 0) rotate(29deg);
+  }
+}
+
+.animate-nib-bob {
+  animation: nib-bob 240ms ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -397,7 +432,9 @@
   .animate-spin-slow,
   .animate-spin-slower,
   .animate-pulse-glow,
-  .animate-marquee {
+  .animate-marquee,
+  .animate-ink-settle,
+  .animate-nib-bob {
     animation: none !important;
   }
 }

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Hero } from "@/components/landing/Hero";
 import { ProblemBand, StatsBar } from "@/components/landing/ProblemStats";
+import { TriageSandbox } from "@/components/landing/TriageSandbox";
 import { WhyItMatters } from "@/components/landing/WhyItMatters";
 import { Features, TechStack } from "@/components/landing/Features";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
@@ -10,7 +11,7 @@ import { SiteHeader } from "@/components/landing/SiteHeader";
 
 const title = "Anavaya — AI-Powered Judicial Case Priority System";
 const description =
-  "Anavaya triages FIRs, complaints, and court documents into High, Medium, and Low priority in seconds — deterministic, auditable, and grounded in the Constitution of India.";
+  "Behind every case file is a human life on hold. Anavaya ensures that urgent cries for liberty, protection, and justice are never buried in judicial backlogs — triaging cases in seconds, grounded in the Constitution of India.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,6 +37,7 @@ function Index() {
       <main id="main" className="relative z-10">
         <Hero />
         <ProblemBand />
+        <TriageSandbox />
         <StatsBar />
         <PriorityRoadmap />
         <ModelAccuracy />
