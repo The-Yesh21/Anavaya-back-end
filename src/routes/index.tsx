@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Hero } from "@/components/landing/Hero";
 import { ProblemBand, StatsBar } from "@/components/landing/ProblemStats";
+import { TriageSandbox } from "@/components/landing/TriageSandbox";
 import { WhyItMatters } from "@/components/landing/WhyItMatters";
 import { Features, TechStack } from "@/components/landing/Features";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
@@ -36,6 +37,7 @@ function Index() {
       <main id="main" className="relative z-10">
         <Hero />
         <ProblemBand />
+        <TriageSandbox />
         <StatsBar />
         <PriorityRoadmap />
         <ModelAccuracy />
