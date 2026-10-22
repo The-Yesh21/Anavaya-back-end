@@ -192,6 +192,7 @@
                         </button>
                         <button type="button" id="toggle-drawer-face" class="control-circle-btn" title="Witness Face & Expression Analysis (Judge only)" aria-label="Face Analysis" style="display:none;">
                             <i data-lucide="scan-face"></i>
+                            <span id="face-live-badge" class="control-badge live-badge" style="display:none;">LIVE</span>
                         </button>
                         <button type="button" id="leave-call-btn" class="control-leave-btn" title="Leave or Adjourn Session" aria-label="Leave Call">
                             <i data-lucide="phone-off"></i>
@@ -454,6 +455,11 @@
             panels.forEach(p => {
                 if (p.id === TAB_INFO[tabName].panelId) {
                     p.classList.add("active-drawer-panel");
+                    p.classList.remove("collapsed");
+                    const tog = p.querySelector(".rail-toggle");
+                    if (tog) tog.setAttribute("aria-expanded", "true");
+                    const body = p.querySelector(".panel-collapse");
+                    if (body && "inert" in body) body.inert = false;
                 } else {
                     p.classList.remove("active-drawer-panel");
                 }
@@ -479,6 +485,10 @@
                 openDrawer(tabName);
             }
         }
+
+        window.__openDrawer = openDrawer;
+        window.__closeDrawer = closeDrawer;
+        window.__toggleDrawer = toggleDrawer;
 
         if (closeDrawerBtn) closeDrawerBtn.addEventListener("click", closeDrawer);
         if (btnTranscript) btnTranscript.addEventListener("click", () => toggleDrawer("transcript"));

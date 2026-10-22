@@ -668,6 +668,130 @@ body::before {
     }
 }
 
+/* Judge Face Analysis: Active target scan aura */
+.stage-tile.analyzing-face {
+    border-color: var(--gold-400) !important;
+    box-shadow: 0 0 0 2px var(--gold-400), 0 0 26px rgba(212, 175, 55, 0.45) !important;
+}
+
+/* Quick Analyze Face button on remote participant tiles (Judge only) */
+.stage-face-trigger {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 15;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(18, 17, 15, 0.78);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    color: #F7EFDC;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.stage-face-trigger:hover {
+    background: rgba(212, 175, 55, 0.28);
+    border-color: var(--gold-400);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(212, 175, 55, 0.3);
+}
+.stage-face-trigger.active {
+    background: rgba(212, 175, 55, 0.35);
+    border-color: var(--gold-400);
+    color: #FFFFFF;
+    box-shadow: 0 0 14px rgba(212, 175, 55, 0.5);
+}
+.stage-face-trigger i,
+.stage-face-trigger svg {
+    width: 14px;
+    height: 14px;
+    color: var(--gold-400);
+}
+
+/* Live HUD pill on stage tile */
+.stage-face-hud {
+    position: absolute;
+    top: 12px;
+    right: 52px;
+    z-index: 15;
+    display: none;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(18, 17, 15, 0.84);
+    color: #F7EFDC;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+}
+.stage-face-hud.visible {
+    display: inline-flex;
+}
+.stage-face-hud .face-hud-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+}
+.stage-face-hud.level-low .face-hud-dot {
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+}
+.stage-face-hud.level-low {
+    border-color: rgba(34, 197, 94, 0.35);
+}
+.stage-face-hud.level-medium .face-hud-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+}
+.stage-face-hud.level-medium {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #fef3c7;
+}
+.stage-face-hud.level-high .face-hud-dot {
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444;
+    animation: hud-pulse 1.2s infinite;
+}
+.stage-face-hud.level-high {
+    border-color: rgba(239, 68, 68, 0.6);
+    background: rgba(60, 10, 10, 0.88);
+    color: #fee2e2;
+}
+@keyframes hud-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+.control-badge.live-badge {
+    background: #d97706;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 8px;
+    animation: live-pulse 1.5s infinite;
+}
+@keyframes live-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.7); }
+    50% { box-shadow: 0 0 0 4px rgba(217, 119, 6, 0); }
+}
+
 .stage-tile video {
     position: absolute;
     inset: 0;

@@ -1729,6 +1729,7 @@
         // no other role (the server also rejects their behavior logs).
         if (isJudge) initFacePanel();
         initTranscriptControl(isJudge);
+        syncMeetControls();
         // Re-affirm every live video element after the courtroom root is shown,
         // so feeds that went black while covered by another panel recover now.
         reaffirmAllRoomVideos();
@@ -1805,7 +1806,8 @@
     // is read on demand) — on phones the whole rail starts folded.
     function defaultPanelCollapsed(id) {
         const narrow = window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
-        if (id === "case-context" || id === "face-analysis") return true;
+        if (id === "case-context") return true;
+        if (id === "face-analysis") return false;
         if (narrow && (id === "roster-panel" || id === "phase-controls")) return true;
         return false;
     }
@@ -1855,8 +1857,10 @@
         const isJudge = state.me && state.me.role === "Judge";
         const btnFace = document.getElementById("toggle-drawer-face");
         const drawerNavFace = document.getElementById("drawer-tab-nav-face");
+        const faceLiveBadge = document.getElementById("face-live-badge");
         if (btnFace) btnFace.style.display = isJudge ? "inline-grid" : "none";
         if (drawerNavFace) drawerNavFace.style.display = isJudge ? "inline-flex" : "none";
+        if (faceLiveBadge) faceLiveBadge.style.display = (isJudge && typeof face !== "undefined" && face && face.analyzing) ? "inline-block" : "none";
 
         // 4. Sync Leave / Adjourn label
         const leaveLabel = document.getElementById("leave-btn-label");
@@ -1921,8 +1925,12 @@
             const initials = (p.name || "?").trim().charAt(0).toUpperCase();
             const role = p.role || "Witness";
             const isMuted = isMe ? !state.micEnabled : false;
+            const isJudge = state.me && state.me.role === "Judge";
+            const isTargetOfAnalysis = isJudge && typeof face !== "undefined" && face && face.analyzing &&
+                ((isMe && face.source === "self") || (!isMe && face.source === p.participant_id));
+
             const tile = document.createElement("div");
-            tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "");
+            tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "") + (isTargetOfAnalysis ? " analyzing-face" : "");
             tile.dataset.pid = p.participant_id;
             tile.innerHTML = `
                 <div class="stage-overlay">
@@ -1936,6 +1944,17 @@
                     <div class="cam-off-avatar role-border-${role}">${initials}</div>
                     <span class="cam-off-pill">Camera off</span>
                 </div>
+                ${isJudge ? `
+                    <button type="button" class="stage-face-trigger ${isTargetOfAnalysis ? "active" : ""}" title="${isTargetOfAnalysis ? "Chakshu AI analyzing face (click to stop)" : `Analyze ${escapeHtml(p.name)}'s face & nervousness`}" data-pid="${p.participant_id}">
+                        <i data-lucide="scan-face"></i>
+                        <span>${isTargetOfAnalysis ? "Analyzing" : "Analyze Face"}</span>
+                    </button>
+                    <div class="stage-face-hud ${isTargetOfAnalysis ? "visible" : ""}" id="stage-face-hud-${p.participant_id}">
+                        <span class="face-hud-dot"></span>
+                        <strong class="face-hud-score">${isTargetOfAnalysis && face.gauge ? face.gauge + "%" : "0%"}</strong>
+                        <span class="face-hud-label">${isTargetOfAnalysis ? "Calm" : ""}</span>
+                    </div>
+                ` : ""}
             `;
             // The persistent, mesh-fed <video> fills the stage tile without any avatar overlay.
             const v = videoElFor(p.participant_id);
@@ -1946,17 +1965,30 @@
                 // Re-attached after a stage rebuild — keep the feed rolling.
                 v.play().catch(() => {});
             }
-            // For the Judge, clicking any participant's stage tile selects them in the facial analyzer
-            if (state.me && state.me.role === "Judge") {
+            // For the Judge, clicking the stage tile or "Analyze Face" selects and starts facial analysis
+            if (isJudge) {
                 tile.style.cursor = "pointer";
                 tile.title = `Click to analyze ${escapeHtml(p.name)}'s facial expressions`;
-                tile.addEventListener("click", (e) => {
+                const triggerBtn = tile.querySelector(".stage-face-trigger");
+                if (triggerBtn) {
+                    triggerBtn.addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        if (isTargetOfAnalysis) {
+                            stopFaceAnalysis(true);
+                            renderStage();
+                            syncMeetControls();
+                            toast(`Stopped facial analysis for ${escapeHtml(p.name)}.`);
+                        } else {
+                            await selectAndStartFaceAnalysis(p.participant_id, true);
+                        }
+                    });
+                }
+                tile.addEventListener("click", async (e) => {
                     if (e.target.closest("button") || e.target.closest("input")) return;
-                    const sel = faceEl("face-source");
-                    const targetVal = isMe ? "self" : p.participant_id;
-                    if (sel && sel.value !== targetVal) {
-                        sel.value = targetVal;
-                        sel.dispatchEvent(new Event("change"));
+                    if (isTargetOfAnalysis) {
+                        if (typeof window.__openDrawer === "function") window.__openDrawer("face");
+                    } else {
+                        await selectAndStartFaceAnalysis(p.participant_id, true);
                     }
                 });
             }
@@ -3467,6 +3499,51 @@
         }
     }
 
+    async function selectAndStartFaceAnalysis(targetPid, autoStart = true) {
+        if (!state.me || state.me.role !== "Judge") return;
+        const isMe = targetPid === state.me.participant_id || targetPid === "self";
+        const sourceVal = isMe ? "self" : targetPid;
+
+        face.source = sourceVal;
+        const sel = faceEl("face-source");
+        if (sel) sel.value = sourceVal;
+
+        // 1. Open drawer to Face tab
+        if (typeof window.__openDrawer === "function") {
+            window.__openDrawer("face");
+        }
+
+        // 2. Unfold panel
+        const panel = faceEl("face-analysis");
+        if (panel) setPanelCollapsed(panel, false);
+
+        // 3. Reset metrics & overlay
+        resetFaceMetricsUI();
+        const overlay = faceEl("face-overlay");
+        if (overlay) {
+            const ctx = overlay.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+
+        // 4. Connect feed
+        await setupFaceForCurrentSource();
+
+        // 5. Start analysis if requested
+        if (autoStart) {
+            const hasFeed = attachFaceSource();
+            if (hasFeed) {
+                startFaceAnalysis();
+                toast(`Chakshu AI: Live facial analysis active for ${subjectInfo().name}.`);
+            } else if (!isMe) {
+                face.autoStartPending = true;
+                toast(`Chakshu AI: Waiting for ${subjectInfo().name}'s video to start analysis.`);
+            }
+        }
+
+        renderStage();
+        syncMeetControls();
+    }
+
     function initFacePanel() {
         const panel = faceEl("face-analysis");
         if (!panel) return;
@@ -3476,10 +3553,16 @@
             return;
         }
         panel.style.display = "flex";
+        panel.classList.remove("collapsed");
+        const toggle = panel.querySelector(".rail-toggle");
+        if (toggle) toggle.setAttribute("aria-expanded", "true");
+        const body = panel.querySelector(".panel-collapse");
+        if (body && "inert" in body) body.inert = false;
         // If the panel was covered by another panel (e.g. the transcript/PDF)
         // while the camera was supposed to keep running, re-affirm the monitor so
         // it recovers rather than staying black until a source change.
         reaffirmAllRoomVideos();
+        populateFaceSourceSelect();
         const camBtn = faceEl("face-camera-btn");
         if (camBtn) camBtn.addEventListener("click", enableFaceCamera);
         const startBtn = faceEl("face-start-btn");
@@ -3498,6 +3581,8 @@
                     if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
                 }
                 await setupFaceForCurrentSource();
+                renderStage();
+                syncMeetControls();
             });
         }
         lucide.createIcons();
@@ -3641,6 +3726,12 @@
                     camBtn.onclick = disableFaceCamera;
                     lucide.createIcons();
                 }
+                if (face.autoStartPending) {
+                    face.autoStartPending = false;
+                    startFaceAnalysis();
+                    renderStage();
+                    syncMeetControls();
+                }
             }
         }
     }
@@ -3726,6 +3817,10 @@
         if (startBtn) startBtn.disabled = true;
         const stopBtn = faceEl("face-stop-btn");
         if (stopBtn) stopBtn.disabled = true;
+        document.querySelectorAll(".stage-tile.analyzing-face").forEach(t => t.classList.remove("analyzing-face"));
+        document.querySelectorAll(".stage-face-hud").forEach(h => h.classList.remove("visible"));
+        syncMeetControls();
+        renderStage();
         lucide.createIcons();
     }
 
@@ -3843,6 +3938,8 @@
             statePill.classList.remove("on");
         }
         renderFaceCueChips();
+        syncMeetControls();
+        renderStage();
     }
 
     function stopFaceAnalysis(sendSummary = true) {
@@ -3867,6 +3964,10 @@
         face.activeCues.clear();
         face.cueStreak = {};
         renderFaceCueChips();
+        document.querySelectorAll(".stage-tile.analyzing-face").forEach(t => t.classList.remove("analyzing-face"));
+        document.querySelectorAll(".stage-face-hud").forEach(h => h.classList.remove("visible"));
+        syncMeetControls();
+        renderStage();
         if (sendSummary) {
             sendBehaviorEntry(summary);
             sendFaceSummary();
@@ -4350,6 +4451,44 @@
         const scoreEl = faceEl("face-score");
         if (scoreEl) scoreEl.textContent = `${score}%`;
 
+        // Update stage tile HUD on the video stage grid for the Judge
+        const activePid = (face.source === "self" || !face.source) ? state.me?.participant_id : face.source;
+        if (activePid) {
+            const activeTile = document.querySelector(`.stage-tile[data-pid="${activePid}"]`);
+            if (activeTile) {
+                if (!activeTile.classList.contains("analyzing-face")) {
+                    activeTile.classList.add("analyzing-face");
+                }
+                let hud = activeTile.querySelector(".stage-face-hud");
+                if (hud) {
+                    hud.classList.add("visible");
+                    const hudScore = hud.querySelector(".face-hud-score");
+                    const hudLabel = hud.querySelector(".face-hud-label");
+                    if (hudScore) hudScore.textContent = `${score}%`;
+
+                    let levelClass = "low";
+                    let levelText = "Calm";
+                    if (score >= 60) {
+                        levelClass = "high";
+                        levelText = "High Stress";
+                    } else if (score >= 30) {
+                        levelClass = "medium";
+                        levelText = "Elevated";
+                    }
+
+                    if (face.activeCues && face.activeCues.size > 0) {
+                        if (face.activeCues.has("gaze_left")) levelText += " · Gaze Shift";
+                        else if (face.activeCues.has("lip_press")) levelText += " · Lip Press";
+                        else if (face.activeCues.has("lip_tremor")) levelText += " · Tremor";
+                        else if (face.activeCues.has("brow_furrow")) levelText += " · Furrowed";
+                    }
+
+                    hud.className = `stage-face-hud visible level-${levelClass}`;
+                    if (hudLabel) hudLabel.textContent = levelText;
+                }
+            }
+        }
+
         const blinks = faceEl("fm-blinks");
         if (blinks) blinks.textContent = `${bpm} bpm (${face.stats.blinks})`;
 
@@ -4761,6 +4900,12 @@
     window.__anavayaCourt = {
         pushMessage: handleMessage,
         state: state,
+        face: face,
+        renderStage: renderStage,
+        renderCourt: renderCourt,
+        syncMeetControls: syncMeetControls,
+        renderFaceLive: renderFaceLive,
+        selectAndStartFaceAnalysis: selectAndStartFaceAnalysis,
     };
 
     init();
