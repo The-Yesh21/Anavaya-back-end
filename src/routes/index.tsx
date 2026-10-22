@@ -10,7 +10,7 @@ import { SiteHeader } from "@/components/landing/SiteHeader";
 
 const title = "Anavaya — AI-Powered Judicial Case Priority System";
 const description =
-  "Anavaya triages FIRs, complaints, and court documents into High, Medium, and Low priority in seconds — deterministic, auditable, and grounded in the Constitution of India.";
+  "Behind every case file is a human life on hold. Anavaya ensures that urgent cries for liberty, protection, and justice are never buried in judicial backlogs — triaging cases in seconds, grounded in the Constitution of India.";
 
 export const Route = createFileRoute("/")({
   head: () => ({

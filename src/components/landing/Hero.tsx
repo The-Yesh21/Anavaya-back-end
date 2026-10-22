@@ -169,10 +169,10 @@ export function Hero() {
 
           <Reveal delay={240}>
             <p className="mt-7 max-w-xl text-[1.125rem] leading-[1.75] text-muted-foreground">
-              An AI-powered case priority and triage system for judicial authorities. Classifies FIRs,
-              complaints, and court documents into High, Medium, and Low priority in seconds —{" "}
+              Behind every case file is a human life on hold. When millions wait in the shadows of judicial delay,
+              Anavaya ensures that urgent cries for liberty, protection, and fundamental rights are never buried in paper —{" "}
               <em className="emphasis font-normal not-italic text-primary/95 underline decoration-primary/40 underline-offset-4">
-                grounded in the Constitution of India.
+                triaging cases in seconds with the living conscience of the Constitution of India.
               </em>
             </p>
           </Reveal>
