@@ -3315,27 +3315,17 @@
         eyeOuterR: 263,
     };
 
-    const CALIBRATION_FRAMES = 120;        // ~4 s of neutral face
-    const CALIBRATION_TIMEOUT_MS = 15000;  // don't stall at "Calibrating…" if the face is rarely found
-    const CALIBRATION_MIN_FRAMES = 30;     // fewest samples we'll trust a baseline from
-    const CUE_PERSIST_FRAMES = 45;  // a cue must persist ~0.75-1.5 s to count (rejects momentary twitches)
-    const CUE_LOG_INTERVAL_MS = 25000;
-    // Lateral gaze: how many baseline deviations (eye-widths) count as a real
-    // look-away. Looking to the subject's OWN LEFT is the classic
-    // construction/deception direction (eyes move to image-right because an
-    // unmirrored camera frame puts the subject's left at larger x).
-    const LATERAL_GAZE_SIGMA = 2.6;
-    // Smallest baseline spread we'll trust for gaze (in eye-half-widths). A very
-    // still calibration would otherwise make landmark noise look like a
-    // direction, and this metric is the one most likely to over-fire.
-    const GAZE_MIN_STD = 0.04;
-    // Calm-face suppression: brief spikes are noise. The reported index is an
-    // EMA over frames, and the transcript only carries cues that held on long
-    // enough to be deliberate. A session aggregate — not the peak — defines
-    // the person's demeanor in the record.
-    const SCORE_EMA_ALPHA = 0.06;   // ~16-frame time constant (≈0.27 s)
-    const SPEECH_GRACE_MS = 3000;   // no cue logging until speech has been seen
-    const CUE_LOG_MIN_CUES = 2;     // need ≥2 concurrent cues before logging
+    const CALIBRATION_FRAMES = 25;         // ~2 s of initial face calibration (instantaneous)
+    const CALIBRATION_TIMEOUT_MS = 5000;   // 5s max timeout to establish baseline
+    const CALIBRATION_MIN_FRAMES = 12;     // fewest samples to establish baseline (~1s)
+    const CUE_PERSIST_FRAMES = 5;          // ~400ms holding cue (natural conscious expression)
+    const CUE_LOG_INTERVAL_MS = 15000;
+    // Lateral gaze: how many baseline deviations (eye-widths) count as a real look-away.
+    const LATERAL_GAZE_SIGMA = 1.8;
+    const GAZE_MIN_STD = 0.03;
+    const SCORE_EMA_ALPHA = 0.12;          // responsive smoothing (~8 frames)
+    const SPEECH_GRACE_MS = 1000;
+    const CUE_LOG_MIN_CUES = 1;
 
     // ---- articulation vs. emotion --------------------------------------
     // Two things go wrong in a naive version of this analysis.
@@ -3563,6 +3553,10 @@
         // it recovers rather than staying black until a source change.
         reaffirmAllRoomVideos();
         populateFaceSourceSelect();
+        // Background pre-warm MediaPipe landmarker so starting analysis is instantaneous
+        ensureFacePipeLibs().then(() => ensureFaceLandmarker()).catch((err) => {
+            console.warn("Background MediaPipe pre-warm:", err);
+        });
         const camBtn = faceEl("face-camera-btn");
         if (camBtn) camBtn.addEventListener("click", enableFaceCamera);
         const startBtn = faceEl("face-start-btn");
@@ -3747,11 +3741,18 @@
             // Self: reuse the shared mesh camera when available; only ask the
             // browser for a dedicated stream if the user joined audio-only.
             // Remote: no permission needed — we mirror their video track.
-            if (face.source === "self" && (!state.localStream || !state.localStream.getVideoTracks().length)) {
-                face.ownStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, facingMode: "user" },
-                });
-                face.ownsStream = true;
+            if (face.source === "self") {
+                const hasLiveMeshTrack = state.localStream && state.localStream.getVideoTracks().some(t => t.readyState === "live");
+                if (!hasLiveMeshTrack && !face.ownStream) {
+                    try {
+                        face.ownStream = await navigator.mediaDevices.getUserMedia({
+                            video: { width: 640, height: 480, facingMode: "user" },
+                        });
+                        face.ownsStream = true;
+                    } catch (e) {
+                        console.warn("Dedicated camera request failed:", e);
+                    }
+                }
             }
             const attached = attachFaceSource();
             await ensureFacePipeLibs();
@@ -3762,7 +3763,7 @@
             btn.innerHTML = '<i data-lucide="video-off"></i> Disable';
             btn.disabled = false;
             btn.onclick = disableFaceCamera;
-            lucide.createIcons();
+            if (typeof lucide !== "undefined") lucide.createIcons();
             if (attached) {
                 toast("Feed connected — start analysis to detect nervousness cues.");
             } else if (face.source !== "self") {
@@ -3829,26 +3830,37 @@
     // CPU delegate if GPU is unavailable (headless / software rendering).
     async function ensureFaceLandmarker() {
         if (face.landmarker) return face.landmarker;
-        const fileset = await Vision.FilesetResolver.forVisionTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
-        );
-        const make = (delegate) => Vision.FaceLandmarker.createFromOptions(fileset, {
-            baseOptions: {
-                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                delegate,
-            },
-            runningMode: "VIDEO",
-            numFaces: 1,
-            outputFaceBlendshapes: false,
-            outputFacialTransformationMatrixes: false,
-        });
-        try {
-            face.landmarker = await make("GPU");
-        } catch (e) {
-            console.warn("GPU FaceLandmarker unavailable — using CPU.", e);
-            face.landmarker = await make("CPU");
-        }
-        return face.landmarker;
+        if (face._landmarkerPromise) return face._landmarkerPromise;
+        face._landmarkerPromise = (async () => {
+            await ensureFacePipeLibs();
+            const fileset = await Vision.FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+            );
+            const make = (delegate) => Vision.FaceLandmarker.createFromOptions(fileset, {
+                baseOptions: {
+                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                    delegate,
+                },
+                runningMode: "VIDEO",
+                numFaces: 1,
+                outputFaceBlendshapes: false,
+                outputFacialTransformationMatrixes: false,
+            });
+            const makeWithTimeout = (delegate, ms = 3000) => {
+                return Promise.race([
+                    make(delegate),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(`${delegate} initialization timed out`)), ms))
+                ]);
+            };
+            try {
+                face.landmarker = await makeWithTimeout("GPU", 3000);
+            } catch (e) {
+                console.warn("GPU FaceLandmarker unavailable or timed out — using CPU delegate.", e);
+                face.landmarker = await make("CPU");
+            }
+            return face.landmarker;
+        })();
+        return face._landmarkerPromise;
     }
 
     // Starts a requestAnimationFrame loop feeding the monitor <video> (local or
@@ -3885,7 +3897,20 @@
     }
 
     // ---- analysis lifecycle ---------------------------------------------
-    function startFaceAnalysis() {
+    async function startFaceAnalysis() {
+        const startBtn = faceEl("face-start-btn");
+        const stopBtn = faceEl("face-stop-btn");
+        const statePill = faceEl("face-state");
+
+        if (!face.landmarker || !face.camera) {
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Starting…';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+            await setupFaceForCurrentSource();
+        }
+
         attachFaceSource();
         setFacePlaceholder(false);
         resetFaceMetricsUI();
@@ -3913,7 +3938,7 @@
         face.speakingBaselineReady = false;
         face.bout = null;
         face.prevSpeaking = false;
-        face.scoreOn = false;
+        face.scoreOn = true;
         face.indexSum = 0;
         face.indexFrames = 0;
         face.speaking = false;
@@ -3923,15 +3948,15 @@
         face.sessionStartIso = new Date().toISOString();
         attachSpeechMeter();
 
-        const startBtn = faceEl("face-start-btn");
-        if (startBtn) startBtn.disabled = true;
-        const stopBtn = faceEl("face-stop-btn");
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i data-lucide="play"></i> Start Analysis';
+        }
         if (stopBtn) stopBtn.disabled = false;
         const scoreEl = faceEl("face-score");
         if (scoreEl) scoreEl.textContent = "0%";
         const fill = faceEl("face-gauge-fill");
         if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
-        const statePill = faceEl("face-state");
         if (statePill) {
             statePill.textContent = "Calibrating…";
             statePill.classList.add("live");
@@ -4209,7 +4234,7 @@
 
         const out = ingestFaceSignals(extractFaceSignals(lm));
         if (!out) return;                       // baseline still calibrating
-        renderFaceLive(out.score, out.bpm);
+        renderFaceLive(out.score, out.bpm, out.zSignals);
         maybeLogFaceCues();
     }
 
@@ -4354,35 +4379,25 @@
         }
         const bpm = face.stats.blinkTimes.length * 3;
 
-        // ---- cue detection: strict thresholds + persistence gating ----
-        // Cues only accumulate while the subject is SPEAKING — a person
-        // listening quietly (blinking, looking around, shifting) is not
-        // "nervous". Thresholds raised from the old 2.0–2.2σ (which fired
-        // constantly on calm faces) to 2.8–3.0σ, well into deliberate-motion
-        // territory.
+        // ---- cue detection: real-time behavioral expression tracking ----
         const S = face.speaking;
-        // Scoring is turned on only once we know how this person talks: cues are
-        // not even accumulated during the learning window of a bout.
-        const SCORE_ON = S && speakReady;
-        face.scoreOn = SCORE_ON;
-        // Lateral gaze: the sign of lateralZ is the direction in the subject's
-        // own frame — positive (image-right) = the subject's LEFT.
+        const isSpeaking = S && speakReady;
+        face.scoreOn = true;
         face.lateralZ = lateralZ;
+
+        // Cues evaluate in real time. Lip tremor evaluates during speech;
+        // brow furrowing, brow raising, gaze avoidance, and lip pressing evaluate continuously.
         const frame = {
-            rapid_blink: SCORE_ON && bpm > 30,
-            gaze_left: SCORE_ON && lateralZ > LATERAL_GAZE_SIGMA,
-            gaze_right: SCORE_ON && lateralZ < -LATERAL_GAZE_SIGMA,
-            lip_press: SCORE_ON && zLipOpen < -3.0 && lipOpen < b.lipOpenMean * 0.7,
-            // Tremor must clear the floor as well as the z-gate: a quiet mic can
-            // otherwise turn its own noise into a cue.
-            lip_tremor: SCORE_ON && zLipTremor > 2.8 && lipTremor > MIN_STD.lipTremor * 2,
-            frown: SCORE_ON && zFrown > 2.8,
-            brow_furrow: SCORE_ON && zBrowGap < -2.8,
-            brow_raise: SCORE_ON && zBrowRaise > 2.8,
+            rapid_blink: bpm > 26,
+            gaze_left: lateralZ > LATERAL_GAZE_SIGMA,
+            gaze_right: lateralZ < -LATERAL_GAZE_SIGMA,
+            lip_press: !isSpeaking && zLipOpen < -1.8 && lipOpen < b.lipOpenMean * 0.8,
+            lip_tremor: isSpeaking && zLipTremor > 1.8 && lipTremor > MIN_STD.lipTremor * 1.5,
+            frown: zFrown > 1.8,
+            brow_furrow: zBrowGap < -1.8,
+            brow_raise: zBrowRaise > 1.8,
         };
-        // Persistence gating + per-cue duration accounting. A cue must hold
-        // for CUE_PERSIST_FRAMES (~0.75 s) before it counts at all; its total
-        // active time feeds the session aggregate.
+
         const nowMs = Date.now();
         const dtSec = face.lastFrameAt ? Math.min(0.5, (nowMs - face.lastFrameAt) / 1000) : 0;
         face.lastFrameAt = nowMs;
@@ -4391,37 +4406,37 @@
             if (frame[key] && face.cueStreak[key] >= CUE_PERSIST_FRAMES) {
                 face.activeCues.add(key);
                 face.cueDurations[key] = (face.cueDurations[key] || 0) + dtSec;
-            } else if (!frame[key]) face.activeCues.delete(key);
+            } else if (!frame[key]) {
+                face.activeCues.delete(key);
+            }
         }
 
-        // ---- nervousness index (0-100), speech-gated + EMA-smoothed ----
-        // Raw instantaneous score first...
-        const zPool = SCORE_ON ? [
-            // Capped so a full head-turn cannot peg the gauge on its own.
-            Math.min(6, Math.abs(lateralZ)),
-            Math.max(0, zLipTremor),
-            Math.max(0, -zLipOpen),
+        // Live tension pool: accounts for gaze deviation, brow tension, frowning, and lip cues
+        const zPool = [
+            Math.min(5, Math.abs(lateralZ)),
             Math.max(0, -zBrowGap),
-        ] : [];
+            Math.max(0, zBrowRaise),
+            Math.max(0, zFrown),
+            isSpeaking ? Math.max(0, zLipTremor) : Math.max(0, -zLipOpen),
+        ];
         let raw = 0;
         if (zPool.length) {
             const avgZ = zPool.reduce((a, v) => a + v, 0) / zPool.length;
-            // A deviation has to clear 1.4 sigma before it counts at all, and the
-            // cue bonus is capped (4 metrics feed the pool, not 6).
-            raw = Math.min(100, Math.max(0, Math.round(((avgZ - 1.4) / 2.2) * 100)));
-            raw = Math.min(100, raw + Math.min(18, face.activeCues.size * 6));
-            if (bpm > 34) raw = Math.min(100, raw + 6);
+            if (avgZ > 1.05) {
+                raw = Math.min(100, Math.max(0, Math.round(((avgZ - 1.05) / 1.7) * 100)));
+            }
+            raw = Math.min(100, raw + Math.min(25, face.activeCues.size * 8));
+            if (bpm > 30) raw = Math.min(100, raw + 8);
         }
-        // ...but a calm face must READ calm: the reported index is a slow EMA
-        // and - whenever the subject is quiet, or still inside the learning
-        // window of a speaking bout - it decays toward zero instead of idling at
-        // whatever it last showed.
+
         const nowScore = Date.now();
-        const scoreDt = face.lastScoreAt ? Math.min(1, (nowScore - face.lastScoreAt) / 1000) : 0;
         face.lastScoreAt = nowScore;
         if (!face.emaStarted) { face.emaScore = raw; face.emaStarted = true; }
-        if (SCORE_ON) face.emaScore = face.emaScore + SCORE_EMA_ALPHA * (raw - face.emaScore);
-        else face.emaScore = face.emaScore * Math.exp(-QUIET_DECAY_PER_SEC * scoreDt);
+        if (raw > face.emaScore) {
+            face.emaScore = face.emaScore + 0.25 * (raw - face.emaScore);
+        } else {
+            face.emaScore = face.emaScore + 0.08 * (raw - face.emaScore);
+        }
         let score = Math.round(face.emaScore);
         if (score < 3) score = 0;                          // floor: calm is calm
         face.gauge = score;
@@ -4432,7 +4447,11 @@
             face.stats.peakAtSpeaking = S;
         }
 
-        return { score: score, bpm: bpm };
+        return {
+            score: score,
+            bpm: bpm,
+            zSignals: { zBrowGap, zBrowRaise, zFrown, zLipOpen, zLipTremor, lateralZ }
+        };
     }
 
     // ---- rendering ----
@@ -4442,7 +4461,7 @@
         el.className = cls || "";
     }
 
-    function renderFaceLive(score, bpm) {
+    function renderFaceLive(score, bpm, zSignals = {}) {
         const fill = faceEl("face-gauge-fill");
         if (fill) {
             fill.style.width = `${score}%`;
@@ -4492,42 +4511,44 @@
         const blinks = faceEl("fm-blinks");
         if (blinks) blinks.textContent = `${bpm} bpm (${face.stats.blinks})`;
 
+        // Live, responsive expression readout
         const expr = faceEl("fm-expression");
         if (score >= 60) setMetric(expr, "High stress", "tension");
         else if (score >= 30) setMetric(expr, "Elevated", "elevated");
+        else if (face.activeCues.has("brow_furrow") || zSignals.zBrowGap < -1.8) setMetric(expr, "Tense", "elevated");
+        else if (face.activeCues.has("brow_raise") || zSignals.zBrowRaise > 1.8) setMetric(expr, "Alert / Surprised", "elevated");
+        else if (face.activeCues.has("frown") || zSignals.zFrown > 1.8) setMetric(expr, "Troubled", "elevated");
         else setMetric(expr, "Neutral", "");
 
+        // Live, responsive lips readout
         const lips = faceEl("fm-lips");
-        if (face.activeCues.has("lip_tremor")) setMetric(lips, "Trembling", "tension");
-        else if (face.activeCues.has("lip_press")) setMetric(lips, "Pressing", "tension");
+        if (face.activeCues.has("lip_tremor") || zSignals.zLipTremor > 1.8) setMetric(lips, "Trembling", "tension");
+        else if (face.activeCues.has("lip_press") || zSignals.zLipOpen < -1.8) setMetric(lips, "Pressed", "tension");
+        else if (face.audioSpeaking || face.visualTalking) setMetric(lips, "Articulating", "elevated");
         else setMetric(lips, "Stable", "");
 
+        // Live, responsive brows readout
         const brows = faceEl("fm-brows");
-        if (face.activeCues.has("brow_furrow")) setMetric(brows, "Furrowed", "tension");
-        else if (face.activeCues.has("brow_raise")) setMetric(brows, "Raised", "elevated");
+        if (face.activeCues.has("brow_furrow") || zSignals.zBrowGap < -1.8) setMetric(brows, "Furrowed", "tension");
+        else if (face.activeCues.has("brow_raise") || zSignals.zBrowRaise > 1.8) setMetric(brows, "Raised", "elevated");
         else setMetric(brows, "Relaxed", "");
 
-        // Gaze direction: strict (cue-qualifying) value wins, otherwise show the
-        // raw deviation so the read-out moves as the eyes move.
+        // Live, responsive gaze readout
         const gazeEl = faceEl("fm-gaze");
         if (gazeEl) {
             const lz = face.lateralZ || 0;
-            if (face.activeCues.has("gaze_left")) setMetric(gazeEl, "Left", "tension");
-            else if (face.activeCues.has("gaze_right")) setMetric(gazeEl, "Right", "elevated");
-            else if (lz > 1.2) setMetric(gazeEl, "Left", "elevated");
-            else if (lz < -1.2) setMetric(gazeEl, "Right", "elevated");
+            if (face.activeCues.has("gaze_left") || lz > 1.5) setMetric(gazeEl, "Left (Avoidance)", "tension");
+            else if (face.activeCues.has("gaze_right") || lz < -1.5) setMetric(gazeEl, "Right (Recall)", "elevated");
+            else if (lz > 0.8) setMetric(gazeEl, "Left", "elevated");
+            else if (lz < -0.8) setMetric(gazeEl, "Right", "elevated");
             else setMetric(gazeEl, "Center", "");
         }
 
-        // Why cues are (or aren't) counting: the mic may be closed, in which
-        // case visible mouth movement keeps the analysis live.
+        // Live speaking status
         const spkEl = faceEl("fm-speaking");
         if (spkEl) {
-            const label = face.audioSpeaking ? "Voice" : (face.visualTalking ? "Mouth" : "Quiet");
-            // "Learning" = this speaking bout is still inside the window in which
-            // nothing is scored (see SPEAK_BASE_WARMUP).
-            const learning = face.speaking && !face.scoreOn;
-            setMetric(spkEl, learning ? `${label} / learning` : label, face.scoreOn ? "elevated" : "");
+            const label = face.audioSpeaking ? "Voice (Active)" : (face.visualTalking ? "Mouth (Moving)" : "Quiet (Listening)");
+            setMetric(spkEl, label, (face.audioSpeaking || face.visualTalking) ? "elevated" : "");
         }
 
         renderFaceCueChips();
@@ -4905,6 +4926,7 @@
         renderCourt: renderCourt,
         syncMeetControls: syncMeetControls,
         renderFaceLive: renderFaceLive,
+        onFaceMeshResults: onFaceMeshResults,
         selectAndStartFaceAnalysis: selectAndStartFaceAnalysis,
     };
 
