@@ -3,6 +3,7 @@ import { Hero } from "@/components/landing/Hero";
 import { ProblemBand, StatsBar } from "@/components/landing/ProblemStats";
 import { TriageSandbox } from "@/components/landing/TriageSandbox";
 import { WhyItMatters } from "@/components/landing/WhyItMatters";
+import { LawyerReviews } from "@/components/landing/LawyerReviews";
 import { Features, TechStack } from "@/components/landing/Features";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
 import { PriorityRoadmap } from "@/components/landing/PriorityRoadmap";
@@ -42,6 +43,7 @@ function Index() {
         <PriorityRoadmap />
         <ModelAccuracy />
         <WhyItMatters />
+        <LawyerReviews />
         <Features />
         <TechStack />
         <ClosingCTA />
