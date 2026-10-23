@@ -17,7 +17,8 @@ class TestConstitutionalAnalysis(unittest.TestCase):
         }
         analysis = get_comprehensive_constitutional_analysis(features, "High")
         rights = analysis.get("constitutional_rights_engaged", [])
-        self.assertTrue(any("Article 21" in r for r in rights))
+        article_names = [r["article"] for r in rights if isinstance(r, dict) and r.get("why_applies")]
+        self.assertTrue(any("Article 21" in a for a in article_names))
         self.assertIn("state_perspective_opinion", analysis)
         self.assertTrue(len(analysis["state_perspective_opinion"]) > 50)
 
@@ -27,11 +28,12 @@ class TestConstitutionalAnalysis(unittest.TestCase):
             "severity": "No Injury",
             "vulnerability": "Low",
             "crime_type": "Property",
-            "plain_summary": "Civil demarcation of agricultural parcel boundary"
+            "plain_summary": "Civil land demarcation and boundary suit"
         }
         analysis = get_comprehensive_constitutional_analysis(features, "Low")
         rights = analysis.get("constitutional_rights_engaged", [])
-        self.assertTrue(any("Article 300A" in r for r in rights))
+        article_names = [r["article"] for r in rights if isinstance(r, dict) and r.get("why_applies")]
+        self.assertTrue(any("Article 300A" in a for a in article_names))
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,7 +16,7 @@ class TestDelayPrecedents(unittest.TestCase):
             case_text="Investigation into missing 7 year old child kidnapped near park"
         )
         self.assertTrue(len(precedents) > 0)
-        names = [p["case_name"] for p in precedents]
+        names = [p.get("case_title", "") for p in precedents]
         self.assertTrue(any("Bachpan Bachao Andolan" in n for n in names))
         # Ensure corporate loan precedents do not leak into child matters
         self.assertFalse(any("Innoventive" in n for n in names))
@@ -30,7 +30,7 @@ class TestDelayPrecedents(unittest.TestCase):
             case_text="NCLT liquidation petition regarding corporate loan default"
         )
         self.assertTrue(len(precedents) > 0)
-        names = [p["case_name"] for p in precedents]
+        names = [p.get("case_title", "") for p in precedents]
         self.assertTrue(any("Innoventive" in n or "Bhopal" in n for n in names))
 
 if __name__ == "__main__":
