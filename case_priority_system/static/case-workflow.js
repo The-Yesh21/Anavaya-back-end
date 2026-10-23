@@ -234,12 +234,19 @@ document.addEventListener("DOMContentLoaded", () => {
             if (title) fd.append("case_title", title);
             if (firFile) fd.append("fir_file", firFile);
 
+            if (firFile && window.AnavayaPipelineLoader) {
+                window.AnavayaPipelineLoader.show("Ingesting Case FIR...", "Parsing First Information Report, extracting legal entities, and predicting case priority.");
+            }
             const res = await fetch("/api/cases", { method: "POST", body: fd });
             if (!res.ok) {
+                if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.detail || "Case creation failed");
             }
             const caseData = await res.json();
+            if (firFile && window.AnavayaPipelineLoader) {
+                await window.AnavayaPipelineLoader.complete();
+            }
 
             closeWizard();
             // Open the case site: switch to the Case tab and render it.
@@ -263,8 +270,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             } catch (_) { /* non-fatal */ }
         } catch (err) {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
             alert("Error: " + err.message);
         } finally {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="folder-plus"></i> Create &amp; Open Case';
             if (typeof lucide !== "undefined") lucide.createIcons();
@@ -1224,12 +1233,19 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Analyzing…';
         if (typeof lucide !== "undefined") lucide.createIcons();
         try {
+            if (window.AnavayaPipelineLoader) {
+                window.AnavayaPipelineLoader.show("Synthesizing Evidence...", "Analyzing case documents, corroborating evidence facts, and computing whole-case priority.");
+            }
             const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}/analyze`, { method: "POST" });
             if (!res.ok) {
+                if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.detail || "Analysis failed");
             }
             const data = await res.json();
+            if (window.AnavayaPipelineLoader) {
+                await window.AnavayaPipelineLoader.complete();
+            }
             await openCaseWorkspace(currentWorkspaceCaseId);
             // Refresh the Excel-backed case list so getCasesData() has the
             // latest analysis results before we try to find the matching row.
@@ -1252,8 +1268,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             } catch (_) { /* non-fatal */ }
         } catch (err) {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
             alert("Analysis failed: " + err.message);
         } finally {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
             btn.disabled = false;
             // Re-render from the latest state (the try block refreshed
             // lastWorkspaceCase) so the label is never stale.
