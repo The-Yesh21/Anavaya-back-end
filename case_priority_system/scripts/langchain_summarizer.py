@@ -1,3 +1,11 @@
+
+_HTTP_SESSION = None
+
+def _get_http_session():
+    global _HTTP_SESSION
+    if _HTTP_SESSION is None and requests is not None:
+        _HTTP_SESSION = requests.Session()
+    return _HTTP_SESSION
 """
 Ollama-powered legal case summarizer and feature extractor.
 
@@ -267,7 +275,7 @@ def extract_with_ollama(
     model_name: Optional[str] = None,
     ollama_url: Optional[str] = None,
     temperature: float = 0.0,
-    max_tokens: int = 4096,
+    max_tokens: int = 768,
     timeout: int = 300,
     seed: int = 42,
 ) -> Optional[dict]:
@@ -298,7 +306,7 @@ def extract_with_ollama(
         return None
 
     # Truncate text to keep prompt sizes reasonable for a local model
-    max_chars = 12000
+    max_chars = 7500
     truncated = text[:max_chars] if len(text) > max_chars else text
 
     user_prompt = USER_PROMPT_TEMPLATE.format(text=truncated)
@@ -314,15 +322,18 @@ def extract_with_ollama(
         # the chain-of-thought block when the model supports it, which speeds
         # up extraction. It is ignored gracefully if unsupported.
         "think": False,
+        "keep_alive": "60m",
         "options": {
             "temperature": temperature,
             "num_predict": max_tokens,
+            "num_ctx": 4096,
             "seed": seed,
         },
     }
 
     try:
-        response = requests.post(f"{url}/api/chat", json=payload, timeout=timeout)
+        sess = _get_http_session() or requests
+        response = sess.post(f"{url}/api/chat", json=payload, timeout=timeout)
         response.raise_for_status()
         data = response.json()
         content = (data.get("message") or {}).get("content", "").strip()

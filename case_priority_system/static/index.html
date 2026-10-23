@@ -685,20 +685,123 @@
         </div>
     </div>
 
-    <!-- Analysis Loading Overlay -->
-    <div id="upload-loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner-container">
-            <!-- Book Analysis Loader -->
-            <div class="book">
-                <div class="book__pg-shadow"></div>
-                <div class="book__pg"></div>
-                <div class="book__pg book__pg--2"></div>
-                <div class="book__pg book__pg--3"></div>
-                <div class="book__pg book__pg--4"></div>
-                <div class="book__pg book__pg--5"></div>
+    <!-- Judicial Processing Pipeline Multi-Stage Overlay -->
+    <div id="upload-loading-overlay" class="loading-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="overlay-status-title">
+        <div class="loading-pipeline-card">
+            <!-- Ambient Accent Glow -->
+            <div class="pipeline-ambient-glow" aria-hidden="true"></div>
+
+            <!-- Top HUD Bar: Branded Badge + Realtime Elapsed Clock -->
+            <div class="pipeline-header">
+                <div class="pipeline-badge">
+                    <span class="pipeline-badge-pulse" aria-hidden="true"></span>
+                    <span class="pipeline-badge-text">JUDICIAL INFERENCE PIPELINE</span>
+                </div>
+                <div class="pipeline-timer-wrap">
+                    <i data-lucide="clock" class="pipeline-timer-icon" aria-hidden="true"></i>
+                    <span class="pipeline-timer" id="pipeline-timer" title="Elapsed inference time">0.0s</span>
+                </div>
             </div>
-            <h3 id="overlay-status-title">Analyzing Case Document...</h3>
-            <p id="overlay-status-desc">Reading PDF contents, computing priority, and generating the legal report.</p>
+
+            <!-- Central Animated Law Codex Visualizer -->
+            <div class="pipeline-viz-wrap">
+                <div class="book" aria-hidden="true">
+                    <div class="book__pg-shadow"></div>
+                    <div class="book__pg"></div>
+                    <div class="book__pg book__pg--2"></div>
+                    <div class="book__pg book__pg--3"></div>
+                    <div class="book__pg book__pg--4"></div>
+                    <div class="book__pg book__pg--5"></div>
+                </div>
+            </div>
+
+            <!-- Status Headline & Explanatory Subtitle -->
+            <div class="pipeline-titles">
+                <h3 id="overlay-status-title" class="pipeline-title">Ingesting Case Document...</h3>
+                <p id="overlay-status-desc" class="pipeline-desc">Reading PDF contents, verifying digital text layers, and preparing feature vectors.</p>
+            </div>
+
+            <!-- Global Progress Bar with Stage Pill and % Indicator -->
+            <div class="pipeline-progress-container">
+                <div class="pipeline-progress-meta">
+                    <span class="pipeline-stage-pill" id="pipeline-stage-pill">Stage 1 of 5</span>
+                    <span class="pipeline-pct-label" id="pipeline-pct-label">20%</span>
+                </div>
+                <div class="pipeline-progress-bar-track">
+                    <div class="pipeline-progress-bar-fill" id="pipeline-progress-fill" style="width: 20%;">
+                        <div class="pipeline-progress-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5-Stage Visual Workflow Stepper -->
+            <div class="pipeline-stepper" id="pipeline-stepper">
+                <div class="pipeline-step active" data-step="1">
+                    <div class="step-indicator">
+                        <span class="step-num">1</span>
+                        <i data-lucide="file-text" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Ingestion</div>
+                        <div class="step-sub">OCR & Text</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="2">
+                    <div class="step-indicator">
+                        <span class="step-num">2</span>
+                        <i data-lucide="cpu" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Extraction</div>
+                        <div class="step-sub">Facts & Entities</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="3">
+                    <div class="step-indicator">
+                        <span class="step-num">3</span>
+                        <i data-lucide="git-branch" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Tree Model</div>
+                        <div class="step-sub">ML Inference</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="4">
+                    <div class="step-indicator">
+                        <span class="step-num">4</span>
+                        <i data-lucide="scale" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Constitutional</div>
+                        <div class="step-sub">Articles Audit</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="5">
+                    <div class="step-indicator">
+                        <span class="step-num">5</span>
+                        <i data-lucide="file-check-2" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Synthesis</div>
+                        <div class="step-sub">Docket Dossier</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Machine Status Micro-Ticker -->
+            <div class="pipeline-micro-log" id="pipeline-micro-log">
+                <span class="micro-dot" aria-hidden="true"></span>
+                <span class="micro-text" id="pipeline-micro-text">[1/5] Ingesting PDF text and parsing forensic docket parameters...</span>
+            </div>
         </div>
     </div>
     <script src="invite.js"></script>

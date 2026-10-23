@@ -612,9 +612,159 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // =================================================================
+    // Judicial Intelligence Pipeline Stepper Controller
+    // =================================================================
+    const AnavayaPipelineLoader = {
+        timerId: null,
+        stepTimerId: null,
+        startTime: 0,
+        currentStep: 1,
+
+        stages: [
+            {
+                step: 1,
+                pct: 20,
+                title: "Ingesting Case Document...",
+                desc: "Parsing document structure, verifying digital text layers, and preparing input buffers.",
+                micro: "[1/5] Ingesting document stream & validating forensic text encoding..."
+            },
+            {
+                step: 2,
+                pct: 45,
+                title: "Extracting Legal Facts & Parties...",
+                desc: "Parsing petitioner/respondent entities, offense category, criminal severity, and vulnerability flags.",
+                micro: "[2/5] High-speed entity extraction: Severity, Vulnerability & Case Category..."
+            },
+            {
+                step: 3,
+                pct: 70,
+                title: "Evaluating ML Decision Tree Classifier...",
+                desc: "Vectorizing legal dimensions into feature array and traversing the CART Decision Tree.",
+                micro: "[3/5] Traversed CART decision tree branch nodes: High / Medium / Low..."
+            },
+            {
+                step: 4,
+                pct: 88,
+                title: "Auditing Constitutional Articles & Rights...",
+                desc: "Auditing Article 21 (Personal Liberty & Speedy Trial), Article 14 (Equality), and Supreme Court doctrines.",
+                micro: "[4/5] Executing rule-based constitutional doctrine & State duty audit..."
+            },
+            {
+                step: 5,
+                pct: 98,
+                title: "Synthesizing Docket Verdict & Report...",
+                desc: "Generating explainable decision path trace, judicial rationale, and certified case dossier PDF.",
+                micro: "[5/5] Synthesizing decision path graph and rendering case dossier..."
+            }
+        ],
+
+        show(customTitle, customDesc) {
+            const overlay = document.getElementById("upload-loading-overlay");
+            if (!overlay) return;
+            overlay.style.display = "flex";
+            this.startTime = performance.now();
+            this.currentStep = 1;
+            this.renderStep(1, customTitle, customDesc);
+
+            if (this.timerId) clearInterval(this.timerId);
+            const timerEl = document.getElementById("pipeline-timer");
+            if (timerEl) timerEl.textContent = "0.0s";
+            this.timerId = setInterval(() => {
+                if (timerEl) {
+                    const elapsed = ((performance.now() - this.startTime) / 1000).toFixed(1);
+                    timerEl.textContent = `${elapsed}s`;
+                }
+            }, 100);
+
+            if (this.stepTimerId) clearTimeout(this.stepTimerId);
+            const advance = (nextStep, delay) => {
+                this.stepTimerId = setTimeout(() => {
+                    if (this.currentStep < nextStep) {
+                        this.renderStep(nextStep);
+                    }
+                    if (nextStep === 2) advance(3, 1100);
+                    else if (nextStep === 3) advance(4, 950);
+                    else if (nextStep === 4) advance(5, 950);
+                }, delay);
+            };
+            advance(2, 850);
+        },
+
+        renderStep(stepNum, customTitle, customDesc) {
+            this.currentStep = stepNum;
+            const stage = this.stages[stepNum - 1] || this.stages[0];
+
+            const titleEl = document.getElementById("overlay-status-title");
+            const descEl = document.getElementById("overlay-status-desc");
+            const pillEl = document.getElementById("pipeline-stage-pill");
+            const pctEl = document.getElementById("pipeline-pct-label");
+            const fillEl = document.getElementById("pipeline-progress-fill");
+            const microEl = document.getElementById("pipeline-micro-text");
+
+            if (titleEl) titleEl.textContent = (customTitle && stepNum === 1) ? customTitle : stage.title;
+            if (descEl) descEl.textContent = (customDesc && stepNum === 1) ? customDesc : stage.desc;
+            if (pillEl) pillEl.textContent = `Stage ${stage.step} of 5`;
+            if (pctEl) pctEl.textContent = `${stage.pct}%`;
+            if (fillEl) fillEl.style.width = `${stage.pct}%`;
+            if (microEl) microEl.textContent = stage.micro;
+
+            const steps = document.querySelectorAll(".pipeline-step");
+            steps.forEach((el) => {
+                const s = parseInt(el.getAttribute("data-step"), 10);
+                el.classList.remove("active", "completed", "pending");
+                if (s < stepNum) {
+                    el.classList.add("completed");
+                } else if (s === stepNum) {
+                    el.classList.add("active");
+                } else {
+                    el.classList.add("pending");
+                }
+            });
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        },
+
+        async complete() {
+            if (this.stepTimerId) clearTimeout(this.stepTimerId);
+            this.renderStep(5);
+            const pillEl = document.getElementById("pipeline-stage-pill");
+            const pctEl = document.getElementById("pipeline-pct-label");
+            const fillEl = document.getElementById("pipeline-progress-fill");
+            const titleEl = document.getElementById("overlay-status-title");
+            const descEl = document.getElementById("overlay-status-desc");
+            const microEl = document.getElementById("pipeline-micro-text");
+
+            if (pillEl) pillEl.textContent = "Verified";
+            if (pctEl) pctEl.textContent = "100%";
+            if (fillEl) fillEl.style.width = "100%";
+            if (titleEl) titleEl.textContent = "Docket Classification Complete!";
+            if (descEl) descEl.textContent = "Priority determined and constitutional dossier compiled successfully.";
+            if (microEl) microEl.textContent = "[100%] Priority classified & case dossier successfully compiled.";
+
+            const steps = document.querySelectorAll(".pipeline-step");
+            steps.forEach((el) => {
+                el.classList.remove("active", "pending");
+                el.classList.add("completed");
+            });
+            if (typeof lucide !== "undefined") lucide.createIcons();
+
+            await new Promise((r) => setTimeout(r, 450));
+            this.hide();
+        },
+
+        hide() {
+            if (this.timerId) clearInterval(this.timerId);
+            if (this.stepTimerId) clearTimeout(this.stepTimerId);
+            const overlay = document.getElementById("upload-loading-overlay");
+            if (overlay) {
+                overlay.style.display = "none";
+            }
+        }
+    };
+    window.AnavayaPipelineLoader = AnavayaPipelineLoader;
+
     // File upload handler
     const fileInput = document.getElementById("pdf-file-input");
-    const loadingOverlay = document.getElementById("upload-loading-overlay");
 
     fileInput.addEventListener("change", async (e) => {
         const file = e.target.files[0];
@@ -631,8 +781,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const formData = new FormData();
         formData.append("file", file);
 
-        // Show premium loading overlay
-        loadingOverlay.style.display = "flex";
+        // Show multi-stage judicial pipeline loader
+        AnavayaPipelineLoader.show();
 
         try {
             const response = await fetch("/api/upload", {
@@ -646,6 +796,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const newCase = await response.json();
+            await AnavayaPipelineLoader.complete();
             
             // Append or update in local memory
             const existingIdx = casesData.findIndex(c => c.Case_File === newCase.Case_File);
@@ -670,10 +821,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
         } catch (err) {
+            AnavayaPipelineLoader.hide();
             console.error("Analysis failed:", err);
             alert(`Error: ${err.message}`);
         } finally {
-            loadingOverlay.style.display = "none";
+            AnavayaPipelineLoader.hide();
             fileInput.value = ""; // clear input
         }
     });

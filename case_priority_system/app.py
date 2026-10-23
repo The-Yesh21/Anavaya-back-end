@@ -581,7 +581,7 @@ async def upload_case(file: UploadFile = File(...)):
         
         # 8. Append to EXCEL_PATH
         if os.path.exists(EXCEL_PATH):
-            excel_df = pd.read_excel(EXCEL_PATH)
+            excel_df = _read_cases_df().copy()
         else:
             excel_df = pd.DataFrame(columns=list(new_case.keys()))
             

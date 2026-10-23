@@ -3992,3 +3992,397 @@ button, a, input, select {
     width: 12px;
     height: 12px;
 }
+
+
+/* =====================================================================
+   Judicial Intelligence Pipeline Stepper & Overlay
+   ===================================================================== */
+.loading-pipeline-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    padding: 2.25rem 2.5rem;
+    border-radius: 2rem;
+    box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border-color);
+    max-width: 580px;
+    width: 92%;
+    text-align: center;
+    overflow: hidden;
+    backdrop-filter: blur(16px);
+    transition: all 0.3s ease;
+}
+
+.pipeline-ambient-glow {
+    position: absolute;
+    top: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 320px;
+    height: 180px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 28%, transparent) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(35px);
+    animation: pipelineGlowPulse 4s ease-in-out infinite;
+}
+
+@keyframes pipelineGlowPulse {
+    0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+    50% { opacity: 0.85; transform: translateX(-50%) scale(1.12); }
+}
+
+.pipeline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--color-primary);
+    text-transform: uppercase;
+}
+
+.pipeline-badge-pulse {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    box-shadow: 0 0 8px var(--color-primary);
+    animation: badgeDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes badgeDotPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.45; }
+}
+
+.pipeline-timer-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--bg-app) 75%, transparent);
+    border: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: var(--text-secondary);
+}
+
+.pipeline-timer-icon {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.2;
+}
+
+.pipeline-viz-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0.5rem 0 0.25rem 0;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-title {
+    font-family: var(--font-heading);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 750;
+    margin: 0;
+    letter-spacing: -0.01em;
+    min-height: 1.6rem;
+    transition: color 0.2s ease;
+}
+
+.pipeline-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin: 0;
+    min-height: 2.4rem;
+}
+
+.pipeline-progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.pipeline-stage-pill {
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    padding: 0.15rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.pipeline-pct-label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: var(--text-primary);
+}
+
+.pipeline-progress-bar-track {
+    width: 100%;
+    height: 6px;
+    background: color-mix(in srgb, var(--border-color) 80%, transparent);
+    border-radius: 9999px;
+    overflow: hidden;
+    position: relative;
+}
+
+.pipeline-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #c9933b, #10b981);
+    background-size: 200% 100%;
+    border-radius: 9999px;
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.pipeline-progress-bar-glow {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 18px;
+    background: #ffffff;
+    opacity: 0.75;
+    filter: blur(3px);
+    border-radius: 9999px;
+}
+
+.pipeline-stepper {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.35rem;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.pipeline-step .step-indicator {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.pipeline-step .step-num {
+    font-size: 0.78rem;
+    font-weight: 750;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.pipeline-step .step-icon {
+    width: 17px;
+    height: 17px;
+    stroke-width: 2.2;
+    display: none;
+}
+
+.pipeline-step .step-check {
+    width: 17px;
+    height: 17px;
+    stroke-width: 2.6;
+    display: none;
+}
+
+.pipeline-step .step-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    width: 100%;
+}
+
+.pipeline-step .step-name {
+    font-size: 0.72rem;
+    font-weight: 750;
+    color: var(--text-secondary);
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 100%;
+    transition: color 0.2s ease;
+}
+
+.pipeline-step .step-sub {
+    font-size: 0.62rem;
+    color: var(--text-muted, #888);
+    line-height: 1.1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+/* Step States */
+.pipeline-step.pending .step-indicator {
+    background: color-mix(in srgb, var(--border-color) 35%, transparent);
+    border: 1.5px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.pipeline-step.pending .step-num {
+    display: inline-block;
+}
+
+.pipeline-step.active {
+    transform: translateY(-2px);
+}
+
+.pipeline-step.active .step-indicator {
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--color-primary) 45%, transparent);
+    animation: stepPulse 1.6s ease-in-out infinite;
+}
+
+.pipeline-step.active .step-num {
+    display: none;
+}
+
+.pipeline-step.active .step-icon {
+    display: inline-block;
+}
+
+.pipeline-step.active .step-name {
+    color: var(--color-primary);
+    font-weight: 800;
+}
+
+.pipeline-step.active .step-sub {
+    color: var(--text-primary);
+}
+
+@keyframes stepPulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent); }
+    50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-primary) 0%, transparent); }
+}
+
+.pipeline-step.completed .step-indicator {
+    background: #10b981;
+    border: 2px solid #10b981;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
+.pipeline-step.completed .step-num,
+.pipeline-step.completed .step-icon {
+    display: none;
+}
+
+.pipeline-step.completed .step-check {
+    display: inline-block;
+}
+
+.pipeline-step.completed .step-name {
+    color: var(--text-primary);
+}
+
+.pipeline-step.completed .step-sub {
+    color: #10b981;
+    font-weight: 600;
+}
+
+/* Micro Status Ticker */
+.pipeline-micro-log {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--bg-app) 75%, transparent);
+    border: 1px solid var(--border-color);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    text-align: left;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-micro-log .micro-dot {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    animation: badgeDotPulse 1.2s ease-in-out infinite;
+}
+
+.pipeline-micro-log .micro-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+    .loading-pipeline-card {
+        padding: 1.5rem 1.25rem;
+        gap: 0.9rem;
+    }
+    .pipeline-step .step-indicator {
+        width: 30px;
+        height: 30px;
+    }
+    .pipeline-step .step-sub {
+        display: none;
+    }
+    .pipeline-step .step-name {
+        font-size: 0.62rem;
+    }
+}

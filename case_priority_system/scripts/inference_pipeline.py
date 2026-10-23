@@ -364,8 +364,22 @@ FEATURE_DEFAULTS = {
     "plain_summary": "Summary unavailable.",
 }
 
+_MODEL_CACHE = {"data": None, "mtime": 0.0}
+
 def load_model():
-    print(f"Loading model from {MODEL_PATH}...")
+    global _MODEL_CACHE
+    if os.path.exists(MODEL_PATH):
+        try:
+            mtime = os.path.getmtime(MODEL_PATH)
+            if _MODEL_CACHE["data"] is not None and _MODEL_CACHE["mtime"] == mtime:
+                return _MODEL_CACHE["data"]
+            print(f"Loading model from {MODEL_PATH}...")
+            with open(MODEL_PATH, 'rb') as f:
+                _MODEL_CACHE["data"] = pickle.load(f)
+                _MODEL_CACHE["mtime"] = mtime
+            return _MODEL_CACHE["data"]
+        except Exception as e:
+            print(f"Error loading model from {MODEL_PATH}: {e}")
     with open(MODEL_PATH, 'rb') as f:
         return pickle.load(f)
 
@@ -1158,11 +1172,12 @@ def call_ollama_api(text, model=None):
         "model": active_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": USER_PROMPT_TEMPLATE.format(text=text[:12000])},
+            {"role": "user", "content": USER_PROMPT_TEMPLATE.format(text=text[:7500])},
         ],
         "stream": False,
         "think": False,
-        "options": {"temperature": 0, "num_predict": 4096, "seed": 42},
+        "keep_alive": "60m",
+        "options": {"temperature": 0, "num_predict": 768, "num_ctx": 4096, "seed": 42},
     }
 
     try:
