@@ -380,7 +380,7 @@ def safe_transform_encoder(encoders, key, value, default=0):
         return int(encoder.transform([value])[0])
     return default
 
-@app.post("/api/upload")
+@app.post("/api/upload", summary="Quick Document Ingestion & Priority Classification", tags=["Triage Pipeline"])
 async def upload_case(file: UploadFile = File(...)):
     # Accept PDFs and images (JPG, PNG, WEBP, BMP, TIFF).
     _ALLOWED_EXTS = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff")
