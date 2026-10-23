@@ -50,12 +50,12 @@ export type ModelMetrics = {
 };
 
 export const MODEL_METRICS: ModelMetrics = {
-  "generatedAt": "2026-09-03T20:10:36+00:00",
+  "generatedAt": "2026-10-23T13:20:34+00:00",
   "model": {
     "type": "DecisionTreeClassifier (CART)",
     "max_depth": 8,
-    "actual_depth": 6,
-    "leaves": 9,
+    "actual_depth": 7,
+    "leaves": 12,
     "n_features": 225,
     "classes": [
       "High",
@@ -64,26 +64,26 @@ export const MODEL_METRICS: ModelMetrics = {
     ]
   },
   "corpus": {
-    "total_rows": 3377,
-    "synthetic_and_templates": 1580,
-    "real_judgments": 265,
+    "total_rows": 4538,
+    "synthetic_and_templates": 2580,
+    "real_judgments": 426,
     "constitutional": 1532,
     "class_distribution": {
-      "Medium": 1656,
-      "High": 1089,
-      "Low": 632
+      "Medium": 2198,
+      "High": 1466,
+      "Low": 874
     }
   },
   "headline": {
-    "holdoutAccuracy": 0.9924528301886792,
-    "holdoutRows": 265,
-    "holdoutMacroF1": 0.9800065552277942,
-    "cvMeanAccuracy": 0.9985193951347797,
-    "cvStd": 0.001324098031222601,
+    "holdoutAccuracy": 0.9835680751173709,
+    "holdoutRows": 426,
+    "holdoutMacroF1": 0.961864436681839,
+    "cvMeanAccuracy": 0.9980168925974677,
+    "cvStd": 0.0008240243633486447,
     "cvFolds": 5,
-    "policyFidelity": 0.9988155167308261,
-    "policyMacroF1": 0.9987645333778569,
-    "baselineAccuracy": 0.4903760734379627,
+    "policyFidelity": 0.99889819303658,
+    "policyMacroF1": 0.998898767856263,
+    "baselineAccuracy": 0.48435434111943587,
     "baselineClass": "Medium"
   },
   "confusionMatrix": {
@@ -94,74 +94,74 @@ export const MODEL_METRICS: ModelMetrics = {
     ],
     "matrix": [
       [
-        1089,
+        1466,
         0,
         0
       ],
       [
         0,
-        632,
+        874,
         0
       ],
       [
+        3,
         2,
-        2,
-        1652
+        2193
       ]
     ]
   },
   "perClass": [
     {
       "label": "High",
-      "precision": 0.998166819431714,
+      "precision": 0.9979577944179714,
       "recall": 1.0,
-      "f1": 0.9990825688073395,
-      "support": 1089
+      "f1": 0.9989778534923339,
+      "support": 1466
     },
     {
       "label": "Low",
-      "precision": 0.9968454258675079,
+      "precision": 0.997716894977169,
       "recall": 1.0,
-      "f1": 0.9984202211690363,
-      "support": 632
+      "f1": 0.9988571428571429,
+      "support": 874
     },
     {
       "label": "Medium",
       "precision": 1.0,
-      "recall": 0.9975845410628019,
-      "f1": 0.9987908101571947,
-      "support": 1656
+      "recall": 0.9977252047315741,
+      "f1": 0.9988613072193122,
+      "support": 2198
     }
   ],
   "holdoutPerClass": [
     {
       "label": "High",
-      "precision": 0.8947368421052632,
+      "precision": 0.8108108108108109,
       "recall": 1.0,
-      "f1": 0.9444444444444444,
-      "support": 17
+      "f1": 0.8955223880597015,
+      "support": 30
     },
     {
       "label": "Low",
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
-      "support": 21
+      "support": 40
     },
     {
       "label": "Medium",
       "precision": 1.0,
-      "recall": 0.9911894273127754,
-      "f1": 0.995575221238938,
-      "support": 227
+      "recall": 0.9803370786516854,
+      "f1": 0.9900709219858156,
+      "support": 356
     }
   ],
   "cvPerFold": [
-    1.0,
-    0.9970414201183432,
-    0.997037037037037,
-    0.9985185185185185,
-    1.0
+    0.998898678414097,
+    0.9966960352422908,
+    0.9977973568281938,
+    0.9988974641675854,
+    0.9977949283351709
   ],
   "caveat": "Ground-truth labels are produced by infer_priority_label(), a codified court-priority policy derived from CONSTITUTION_GUIDELINES.md - not by human judicial annotation. These scores therefore measure how faithfully the tree reproduces that written policy, which is exactly the auditability property the system is designed for. They are not a claim about agreement with judges."
 };

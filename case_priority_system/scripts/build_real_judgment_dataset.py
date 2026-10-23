@@ -1,38 +1,30 @@
 """
 Build a REAL-JUDGMENT training corpus from the public KanoonGPT/indian-case-laws
-HuggingFace dataset (Indian High Court judgments; text sourced from the public
-AWS Open Data mirror, CC-BY-4.0).
+dataset (Indian High Court judgments; text sourced from the public AWS Open Data
+mirror, CC-BY-4.0).
 
-The dataset rows carry metadata only, but each exposes a public S3 `pdf_link`
-with the actual judgment PDF. For every usable judgment we:
-
-  1. download the PDF from the public AWS S3 bucket over plain HTTPS,
-  2. extract text with PyMuPDF (same reader as the production pipeline),
-  3. extract features with the SAME deterministic pipeline the production app
-     uses (`fast_extract_features` + `tune_case_features` — no LLM needed),
-  4. label priority with the SAME policy used for PDF-derived rows
-     (`infer_priority_label`),
-  5. append the row to `data/real_report_training_cases.csv` (merged with the
-     existing PDF-derived rows, deduplicated on `source_file`).
-
-This gives the Decision Tree real out-of-domain legal language to learn from
-and lets us measure *honest* generalization on genuine judgments instead of
-only synthetic templates.
+Streams judgment records directly via the HuggingFace Datasets Server HTTP API
+(or `datasets` library if installed), downloads judgment PDFs from AWS S3,
+extracts text with PyMuPDF, extracts features with Anavaya's deterministic
+pipeline (`fast_extract_features` + `tune_case_features`), labels priority via
+`infer_priority_label`, and appends the rows to `data/real_report_training_cases.csv`.
 
 Usage (from repo root):
-    python case_priority_system/scripts/build_real_judgment_dataset.py \
-        --scan 120 --max-rows 60 \
-        --out case_priority_system/data/real_report_training_cases.csv
+    python case_priority_system/scripts/build_real_judgment_dataset.py --scan 200 --max-rows 100 --offset 150
 """
 import argparse
 import itertools
+import json
 import os
 import re
 import sys
+import time
+import urllib.request
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 import pandas as pd
+import fitz
 
 from case_priority_system.scripts.inference_pipeline import (
     fast_extract_features,
@@ -44,18 +36,10 @@ from case_priority_system.scripts.train_model import (
     REAL_TRAINING_DATA_PATH,
 )
 
-try:
-    import requests
-except ImportError:
-    requests = None
-
 DEFAULT_OUT = REAL_TRAINING_DATA_PATH
 HF_DATASET = "KanoonGPT/indian-case-laws"
-S3_BASE = "https://indian-high-court-judgments.s3.ap-south-1.amazonaws.com"
-# How much of the judgment text to store per row (matches the PDF-row builder
-# which stores ~2500 chars).
 STORE_CHARS = 2500
-MIN_TEXT_CHARS = 1200
+MIN_TEXT_CHARS = 1000
 
 
 def usable_judgment(text: str) -> bool:
@@ -65,22 +49,22 @@ def usable_judgment(text: str) -> bool:
     judicial_markers = [
         "judgment", "judgement", "court", "petition", "appeal",
         "respondent", "petitioner", "allowed", "dismissed", "order",
-        "held", "versus", "v.",
+        "held", "versus", "v.", "fir", "act",
     ]
     hits = sum(1 for m in judicial_markers if m in lowered)
-    return hits >= 4
+    return hits >= 3
 
 
-def download_pdf(url: str, timeout: int = 40):
+def download_pdf(url: str, timeout: int = 25):
     """Returns PDF bytes, or None on failure."""
-    if requests is None:
-        return None
     try:
-        resp = requests.get(url, timeout=timeout)
-        if resp.status_code == 200 and resp.content[:4] == b"%PDF":
-            return resp.content
-    except Exception as e:
-        print(f"  download failed: {e}")
+        req = urllib.request.Request(url, headers={"User-Agent": "AnavayaScraper/2.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            content = resp.read()
+            if content[:4] == b"%PDF":
+                return content
+    except Exception:
+        pass
     return None
 
 
@@ -90,7 +74,7 @@ def build_row_from_text(text: str, source: str, idx: int) -> dict | None:
         features = tune_case_features(
             fast_extract_features(text, os.path.basename(source)), text
         )
-    except Exception as e:  # keep the batch robust to odd inputs
+    except Exception as e:
         print(f"  skip {source}: feature extraction failed ({e})")
         return None
 
@@ -116,31 +100,68 @@ def build_row_from_text(text: str, source: str, idx: int) -> dict | None:
     }
 
 
+def stream_hf_records(offset: int = 0, limit: int = 150):
+    """Streams dataset records from HuggingFace Datasets Server HTTP API with pagination."""
+    batch_size = 100
+    current_offset = offset
+    remaining = limit
+
+    while remaining > 0:
+        fetch_count = min(batch_size, remaining)
+        url = (
+            f"https://datasets-server.huggingface.co/rows?"
+            f"dataset={HF_DATASET}&config=default&split=train&"
+            f"offset={current_offset}&limit={fetch_count}"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "AnavayaScraper/2.0"})
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                rows = data.get("rows", [])
+                if not rows:
+                    break
+                for item in rows:
+                    yield item.get("row", {})
+                current_offset += len(rows)
+                remaining -= len(rows)
+                if len(rows) < fetch_count:
+                    break
+        except Exception as e:
+            print(f"HTTP stream error at offset {current_offset}: {e}")
+            break
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scan", type=int, default=120,
+    ap.add_argument("--scan", type=int, default=150,
                     help="how many dataset rows to scan before stopping")
-    ap.add_argument("--max-rows", type=int, default=60,
-                    help="hard cap on usable rows kept (0 = unlimited)")
+    ap.add_argument("--max-rows", type=int, default=80,
+                    help="hard cap on usable rows kept")
+    ap.add_argument("--offset", type=int, default=200,
+                    help="dataset offset index to start scanning from")
     ap.add_argument("--out", default=DEFAULT_OUT, help="output CSV path")
     args = ap.parse_args()
 
-    print(f"Streaming {HF_DATASET} ...")
-    try:
-        from datasets import load_dataset
-    except ImportError as e:
-        sys.exit("pip install datasets first — " + str(e))
+    print(f"Streaming {HF_DATASET} from offset {args.offset} (target: {args.max_rows} usable cases) ...")
 
-    ds = load_dataset(HF_DATASET, split="train", streaming=True)
+    existing_sources = set()
+    if os.path.exists(args.out):
+        try:
+            prev = pd.read_csv(args.out)
+            if "source_file" in prev.columns:
+                existing_sources = set(prev["source_file"].dropna().astype(str))
+            print(f"Existing corpus has {len(prev)} rows ({len(existing_sources)} unique sources).")
+        except Exception:
+            pass
 
-    rows, seen_sources = [], set()
+    rows = []
+    pending = []
     scanned = 0
 
-    def persist(pending):
-        """Merge + write accumulated rows so a long/interrupted run never loses work."""
-        new_df = pd.DataFrame(pending)
-        if new_df.empty:
+    def persist(new_rows):
+        if not new_rows:
             return
+        new_df = pd.DataFrame(new_rows)
         existing = pd.DataFrame()
         if os.path.exists(args.out):
             existing = pd.read_csv(args.out)
@@ -149,11 +170,14 @@ def main():
         combined = combined.reset_index(drop=True)
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
         combined.to_csv(args.out, index=False)
+        print(f"  [Auto-saved] Total corpus now: {len(combined)} cases")
 
-    pending = []
-    for item in itertools.islice(iter(ds), args.scan):
+    for item in stream_hf_records(offset=args.offset, limit=args.scan):
         scanned += 1
         source = str(item.get("source_filename") or f"kno_{scanned:05d}.pdf")
+        if source in existing_sources:
+            continue
+
         pdf_url = str(item.get("source_pdf_s3_url") or "").strip()
         if not pdf_url:
             continue
@@ -162,54 +186,42 @@ def main():
         if pdf_bytes is None:
             continue
 
-        # extract text the same way the inference pipeline does
-        import fitz
         try:
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             text = "".join(doc[i].get_text() for i in range(min(6, len(doc))))
             doc.close()
         except Exception as e:
-            print(f"  extract failed for {source}: {e}")
             continue
 
         if not usable_judgment(text):
-            print(f"  {source}: only {len(text)} chars — skipping (order/order fragment)")
             continue
 
-        row = build_row_from_text(text, source, len(rows))
+        row = build_row_from_text(text, source, len(existing_sources) + len(rows))
         if row is None:
             continue
-        if source in seen_sources:
-            continue
-        seen_sources.add(source)
+
+        existing_sources.add(source)
         rows.append(row)
         pending.append(row)
-        print(f"  [{len(rows):3d}] {source} ({len(text)} chars) -> {row['priority']} | {row['case_category']}")
+        print(f"  + [{len(rows):3d}] {source} ({len(text)} ch) -> {row['priority']} | {row['case_category']}")
+
         if len(pending) >= 15:
             persist(pending)
             pending = []
+
         if args.max_rows and len(rows) >= args.max_rows:
             break
 
     persist(pending)
-    print(f"Scanned {scanned} dataset rows -> {len(rows)} usable judgments.")
+    print(f"\nScanned {scanned} candidate cases -> added {len(rows)} new usable judgments.")
 
-    combined = pd.DataFrame()
     if os.path.exists(args.out):
-        combined = pd.read_csv(args.out)
-    if combined.empty:
-        print("No rows merged; output untouched.")
-        return
-
-    print(f"Final {args.out}: {len(combined)} total rows.")
-    print("\nPriority distribution:")
-    print(combined["priority"].value_counts().to_string())
-    print("\nCategory distribution:")
-    print(combined["case_category"].value_counts().to_string())
-    print("\nSource mix:")
-    print(combined["source_file"].apply(
-        lambda s: "PDF" if s.lower().endswith(".pdf") else "HF"
-    ).value_counts().to_string())
+        final_df = pd.read_csv(args.out)
+        print(f"\nUpdated {args.out}: {len(final_df)} total real judgment cases.")
+        print("\nPriority distribution:")
+        print(final_df["priority"].value_counts().to_string())
+        print("\nCategory distribution:")
+        print(final_df["case_category"].value_counts().to_string())
 
 
 if __name__ == "__main__":
