@@ -615,6 +615,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // =================================================================
     // Judicial Intelligence Pipeline Stepper Controller
     // =================================================================
+    /**
+ * AnavayaPipelineLoader State Machine
+ * Coordinates 5 asynchronous computational stages with progressive HUD updates.
+ */
     const AnavayaPipelineLoader = {
         timerId: null,
         stepTimerId: null,
