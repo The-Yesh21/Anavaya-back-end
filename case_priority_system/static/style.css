@@ -3770,14 +3770,15 @@ button, a, input, select {
     min-height: 560px;
 }
 .tree-node-panel {
-    width: 280px;
+    width: 330px;
     flex-shrink: 0;
-    background: color-mix(in srgb, var(--bg-well) 40%, transparent);
+    background: var(--bg-card);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-card);
     padding: var(--space-4);
     overflow-y: auto;
-    max-height: 620px;
+    max-height: 640px;
+    box-shadow: var(--shadow-card);
 }
 .node-panel-empty {
     display: flex;
@@ -3792,6 +3793,11 @@ button, a, input, select {
 }
 .node-panel-empty svg { width: 30px; height: 30px; color: var(--color-primary); opacity: 0.6; }
 
+.node-panel-header {
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-color);
+}
 .node-panel-title {
     font-family: var(--font-heading);
     font-size: 15px;
@@ -3799,23 +3805,294 @@ button, a, input, select {
     color: var(--text-primary);
     margin-bottom: 4px;
 }
-.node-panel-type {
+.node-panel-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--color-primary);
-    margin-bottom: 12px;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
 }
+.node-panel-type-badge.is-leaf {
+    background: var(--gold-100);
+    color: var(--gold-800);
+    border: 1px solid var(--gold-300);
+}
+.node-panel-type-badge.is-split {
+    background: var(--bg-well);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+.node-panel-type-badge svg { width: 12px; height: 12px; }
+
+/* Verdict banner */
+.node-verdict-banner {
+    border-radius: var(--radius-card);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+    border: 1.5px solid;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.node-verdict-banner.high {
+    background: var(--color-high-bg);
+    border-color: var(--color-high-border);
+    color: var(--color-high);
+}
+.node-verdict-banner.medium {
+    background: var(--color-medium-bg);
+    border-color: var(--color-medium-border);
+    color: var(--color-medium);
+}
+.node-verdict-banner.low {
+    background: var(--color-low-bg);
+    border-color: var(--color-low-border);
+    color: var(--color-low);
+}
+.verdict-banner-label {
+    font-size: 9.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+.verdict-banner-val {
+    font-family: var(--font-heading);
+    font-size: 17px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+.verdict-banner-val svg { width: 17px; height: 17px; }
+.verdict-banner-sub {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+/* "Why This Priority" Rationale & Drivers Card */
+.node-why-card {
+    background: var(--bg-well);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-card);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.node-why-card.high {
+    border-left: 4px solid var(--color-high);
+    background: color-mix(in srgb, var(--color-high-bg) 25%, var(--bg-card));
+}
+.node-why-card.medium {
+    border-left: 4px solid var(--color-medium);
+    background: color-mix(in srgb, var(--color-medium-bg) 25%, var(--bg-card));
+}
+.node-why-card.low {
+    border-left: 4px solid var(--color-low);
+    background: color-mix(in srgb, var(--color-low-bg) 25%, var(--bg-card));
+}
+.why-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+.why-card-header svg { width: 15px; height: 15px; color: var(--gold-600); }
+.why-card-case-context {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--border-color);
+    line-height: 1.4;
+}
+.why-card-case-context strong {
+    color: var(--text-primary);
+}
+.why-card-narrative {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-3);
+}
+.why-card-narrative strong {
+    color: var(--text-primary);
+}
+.why-card-narrative em {
+    font-style: normal;
+    font-weight: 700;
+    color: var(--gold-800);
+}
+
+/* Drivers list */
+.drivers-title {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.drivers-title svg { width: 12px; height: 12px; }
+.driver-chip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.driver-chip-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.driver-chip-item.highlight {
+    background: var(--gold-50);
+    border-color: var(--gold-300);
+}
+.driver-chip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+}
+.driver-chip-name {
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+}
+.driver-chip-name svg { width: 12px; height: 12px; }
+.driver-chip-val {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+}
+.driver-chip-val.urgent {
+    background: var(--color-high-bg);
+    color: var(--color-high);
+    border: 1px solid var(--color-high-border);
+}
+.driver-chip-val.elevated {
+    background: var(--color-medium-bg);
+    color: var(--color-medium);
+    border: 1px solid var(--color-medium-border);
+}
+.driver-chip-val.standard {
+    background: var(--color-low-bg);
+    color: var(--color-low);
+    border: 1px solid var(--color-low-border);
+}
+.driver-chip-desc {
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+/* Distribution meter */
+.node-distribution-wrap {
+    margin-top: 4px;
+}
+.distribution-bar {
+    height: 7px;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    display: flex;
+    background: var(--bg-well);
+    margin: 5px 0 6px 0;
+    border: 1px solid var(--border-color);
+}
+.bar-segment {
+    height: 100%;
+}
+.bar-segment.high { background: var(--color-high); }
+.bar-segment.medium { background: var(--color-medium); }
+.bar-segment.low { background: var(--color-low); }
+
+.distribution-labels {
+    display: flex;
+    gap: 8px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+.distribution-label-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.label-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.label-dot.high { background: var(--color-high); }
+.label-dot.medium { background: var(--color-medium); }
+.label-dot.low { background: var(--color-low); }
+
+/* Path step trail mini */
+.node-path-trail {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+}
+.trail-step-item {
+    font-size: 11px;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    padding: 3px 5px;
+    border-radius: var(--radius-sm);
+}
+.trail-step-item.current {
+    background: var(--gold-100);
+    border-left: 3px solid var(--gold-600);
+}
+.trail-step-badge {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+.trail-step-badge.yes { background: rgba(78, 122, 102, 0.15); color: var(--color-low); }
+.trail-step-badge.no { background: rgba(179, 64, 46, 0.15); color: var(--color-high); }
+.trail-step-badge.raised { background: var(--gold-100); color: var(--gold-800); border: 1px solid var(--gold-300); }
+.trail-step-badge.high { background: var(--color-high-bg); color: var(--color-high); }
+.trail-step-badge.medium { background: var(--color-medium-bg); color: var(--color-medium); }
+.trail-step-badge.low { background: var(--color-low-bg); color: var(--color-low); }
+
 .node-panel-row {
     padding: 8px 0;
     border-bottom: 1px dashed var(--border-color);
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--text-secondary);
     line-height: 1.5;
 }
 .node-panel-row:last-child { border-bottom: none; }
-.node-panel-row strong { color: var(--text-primary); display: block; margin-bottom: 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.node-panel-row strong { color: var(--text-primary); display: block; margin-bottom: 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
 .node-panel-row .panel-priority { font-weight: 800; font-size: 15px; font-family: var(--font-heading); }
 
 /* Path-only mode hides everything off the active path */
