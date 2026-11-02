@@ -34,7 +34,7 @@ function Test-Port($Port) {
     return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
-function Wait-Port($Port, $Label, $Seconds = 60) {
+function Wait-Port($Port, $Label, $Seconds = 90) {
     Write-Host ("  waiting for {0} on :{1} ..." -f $Label, $Port)
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while (-not (Test-Port $Port)) {
