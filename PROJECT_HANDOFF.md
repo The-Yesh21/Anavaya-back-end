@@ -164,7 +164,10 @@ F:\major_project
 
 Timeline from git history (commits are terse — "Adding"); the notable milestones:
 
-- **2026-08-12 (HEAD):** final "Adding" commits — current working tree is **clean**.
+- **2026-11-02 (HEAD):**
+  - **Decision Tree Node Inspector ("Why High Priority"):** Re-architected `#tree-node-panel` in `app.js` and `style.css`. Clicking terminal leaf nodes (such as Node 4) now renders an authoritative judicial explanation of why the case reached its specific priority tier, breaking down case-specific feature drivers (Severity: Major/Fatal, Victim Vulnerability: High, Cognizable Crime Category, Article 21 constitutional trigger), the traversed Decision Tree route, and training sample distribution with class purity meters. Auto-focuses on the active case's leaf verdict when viewing the tree tab.
+  - **Showcase Case Pack & Trial Script:** Added Apollo Hope Pediatric ICU kidnapping case (`ANV-2026-0042`) with 5 verifiable PDF exhibits and exhibition script.
+- **2026-08-12:** final "Adding" commits — baseline working tree.
 - **2026-08-09 — Instant priority pipeline, expanded constitutional knowledge, PDF case reports:**
   - **Instant/rule-based pipeline:** `fast_extract_features()` + `tune_case_features()` give a
     ~2s deterministic upload path when the GPU LLM is unavailable (no Ollama needed).
