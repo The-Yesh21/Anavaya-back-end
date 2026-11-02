@@ -5,6 +5,12 @@
        @import url("tokens.css");
    ===================================================================== */
 
+/**
+ * Anavaya Design System Tokens
+ * Theme Harmony:
+ * - Light: White & Gold Parchment (Warm Paper #FBF8F2, Gold Accents #C9933B)
+ * - Dark: Charcoal Luminescence (Rich Dark #181614, Warm Surface #24211D)
+ */
 :root {
     color-scheme: light;              /* native controls (scrollbars, form widgets) follow the theme */
 

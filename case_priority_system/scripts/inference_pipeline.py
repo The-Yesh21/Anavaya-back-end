@@ -1334,7 +1334,8 @@ def safe_transform_encoder(encoders, key, value, default=0):
         return encoder.transform([value])[0]
     return default
 
-def build_model_input(model_data, features, text_description):
+def build_model_input(model_data: dict, features: dict, text_description: str):
+    """Constructs one-hot encoded and vectorised feature vector for CART Decision Tree inference."""
     """Builds the exact feature frame expected by the saved Decision Tree."""
     tfidf = model_data['tfidf']
     encoders = model_data['encoders']

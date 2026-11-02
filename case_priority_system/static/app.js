@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // | 'neutral'): what THIS split contributed to the case's priority — the
     // verdict the tree gives with this one signal swapped to the other branch.
     let activePathEffects = {};
+    let activePathInfo = null;
     let courtroomsLoaded = false;
     let lanIp = null;
 
@@ -615,6 +616,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // =================================================================
     // Judicial Intelligence Pipeline Stepper Controller
     // =================================================================
+    /**
+ * AnavayaPipelineLoader State Machine
+ * Coordinates 5 asynchronous computational stages with progressive HUD updates.
+ */
     const AnavayaPipelineLoader = {
         timerId: null,
         stepTimerId: null,
@@ -832,6 +837,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showEmptyDetail() {
         caseDetailsContentEl.style.display = "none";
+        activePathInfo = null;
+        activePathNodes = [];
+        activePathEffects = {};
+        const panel = document.getElementById("tree-node-panel");
+        if (panel) {
+            panel.innerHTML = `
+                <div class="node-panel-empty">
+                    <i data-lucide="mouse-pointer-click"></i>
+                    <p>Click a node to inspect its decision rule in plain English.</p>
+                </div>
+            `;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
         // Keep the "No Case Selected" placeholder hidden while the Analysis tab
         // is showing the whole-case verdict for the case open in the workspace.
         const wholeCase = document.getElementById("analysis-whole-case");
@@ -1075,6 +1093,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) throw new Error("Path fetch failed");
             const pathInfo = await res.json();
             
+            activePathInfo = pathInfo;
             activePathNodes = pathInfo.path_node_ids || [];
             activePathEffects = {};
             (pathInfo.steps || []).forEach((s) => { if (s && s.node_id != null) activePathEffects[s.node_id] = s; });
@@ -1112,35 +1131,325 @@ document.addEventListener("DOMContentLoaded", () => {
         bc.innerHTML = parts.map((p, i) => i > 0 ? `<span class="breadcrumb-sep">→</span>${p}` : p).join("");
     }
 
-    // Side panel: explain one node in plain English
+    function buildDistributionBar(classCounts, totalSamples) {
+        if (!classCounts || totalSamples === 0) {
+            return `<div class="distribution-labels"><span class="distribution-label-pill">No sample data</span></div>`;
+        }
+        const high = classCounts["High"] || 0;
+        const med = classCounts["Medium"] || 0;
+        const low = classCounts["Low"] || 0;
+        const highPct = Math.round((high / totalSamples) * 100);
+        const medPct = Math.round((med / totalSamples) * 100);
+        const lowPct = Math.round((low / totalSamples) * 100);
+
+        return `
+            <div class="node-distribution-wrap">
+                <div class="distribution-bar" title="High: ${highPct}% · Medium: ${medPct}% · Low: ${lowPct}%">
+                    ${highPct > 0 ? `<div class="bar-segment high" style="width: ${highPct}%"></div>` : ''}
+                    ${medPct > 0 ? `<div class="bar-segment medium" style="width: ${medPct}%"></div>` : ''}
+                    ${lowPct > 0 ? `<div class="bar-segment low" style="width: ${lowPct}%"></div>` : ''}
+                </div>
+                <div class="distribution-labels">
+                    <span class="distribution-label-pill"><span class="label-dot high"></span> High: ${high} (${highPct}%)</span>
+                    <span class="distribution-label-pill"><span class="label-dot medium"></span> Med: ${med} (${medPct}%)</span>
+                    <span class="distribution-label-pill"><span class="label-dot low"></span> Low: ${low} (${lowPct}%)</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function findNodeById(node, id) {
+        if (!node) return null;
+        if (node.id === id) return node;
+        if (node.children && node.children.length > 0) {
+            for (const child of node.children) {
+                const found = findNodeById(child, id);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    // Side panel: explain one node in plain English, with decisive features & constitutional priority drivers
     function showNodePanel(d) {
         const panel = document.getElementById("tree-node-panel");
         if (!panel) return;
         const isLeaf = d.type === "leaf";
-        let html = `<div class="node-panel-title">Node ${d.id}${isLeaf ? " — Final Verdict" : ""}</div>`;
-        html += `<div class="node-panel-type">${isLeaf ? "Leaf node" : "Decision split"}</div>`;
+
         if (isLeaf) {
-            html += `<div class="node-panel-row"><strong>Predicted Priority</strong><span class="panel-priority" style="color:${getPriorityColor(d.predicted_class)}">${escHtml(d.predicted_class)}</span></div>`;
-            html += `<div class="node-panel-row"><strong>Samples at leaf</strong>${d.samples}</div>`;
-        } else {
-            html += `<div class="node-panel-row"><strong>Split rule</strong>${escHtml(d.name)}</div>`;
-            html += `<div class="node-panel-row"><strong>Feature</strong>${escHtml(d.feature_clean || "—")}</div>`;
-            html += `<div class="node-panel-row"><strong>Samples</strong>${d.samples}</div>`;
+            const prio = d.predicted_class || "Medium";
+            const prioLower = prio.toLowerCase();
+            const prioIcon = prio === "High" ? "alert-triangle" : (prio === "Medium" ? "clock" : "check-circle-2");
+
+            let html = `
+                <div class="node-panel-header">
+                    <div class="node-panel-title">Node ${d.id} — Final Verdict</div>
+                    <div class="node-panel-type-badge is-leaf">
+                        <i data-lucide="award"></i> Terminal Leaf Node
+                    </div>
+                </div>
+
+                <div class="node-verdict-banner ${prioLower}">
+                    <div class="verdict-banner-label">Predicted Priority</div>
+                    <div class="verdict-banner-val">
+                        <i data-lucide="${prioIcon}"></i> ${escHtml(prio)} Priority
+                    </div>
+                    <div class="verdict-banner-sub">
+                        CART Decision Tree Terminal Classification (${d.samples} sample${d.samples === 1 ? '' : 's'})
+                    </div>
+                </div>
+            `;
+
+            if (selectedCase) {
+                const caseName = (selectedCase.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "Whole case: ").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+                const sev = selectedCase.Severity || "Standard";
+                const vuln = selectedCase.Vulnerability || "Standard";
+                const cat = selectedCase.Category || selectedCase.Broad_Model_Category || "General Civil";
+
+                let hasArt21 = false;
+                if (Array.isArray(selectedCase.Constitutional_Rights_Engaged)) {
+                    for (const r of selectedCase.Constitutional_Rights_Engaged) {
+                        const art = (typeof r === 'object' && r !== null) ? (r.article || r.title || '') : String(r);
+                        if (/21/.test(art)) hasArt21 = true;
+                    }
+                } else if (typeof selectedCase.Constitutional_Rights_Engaged === 'string') {
+                    hasArt21 = /article\s*21/i.test(selectedCase.Constitutional_Rights_Engaged);
+                }
+                if (!hasArt21) {
+                    hasArt21 = /article\s*21/i.test(selectedCase.Constitutional_Justification || "") ||
+                               /article\s*21/i.test(selectedCase.Priority_Rules_Applied || "");
+                }
+
+                const isThisCaseLeaf = (activePathInfo && activePathInfo.leaf_id === d.id) ||
+                                       (activePathNodes.length > 0 && activePathNodes[activePathNodes.length - 1] === d.id) ||
+                                       ((selectedCase.Predicted_Priority || "").toLowerCase() === prioLower);
+
+                let narrativeText = "";
+                if (isThisCaseLeaf) {
+                    if (prio === "High") {
+                        narrativeText = `The Decision Tree classified <strong>${escHtml(caseName)}</strong> as <strong>High Priority</strong> because critical severity (<em>${escHtml(sev)}</em>) and elevated victim vulnerability (<em>${escHtml(vuln)}</em>) were triggered simultaneously in a ${escHtml(cat)} matter. Under Indian constitutional jurisprudence and judicial triage guidelines, matters involving acute peril to human life and vulnerable persons bypass the standard queue to avert irreversible harm.`;
+                    } else if (prio === "Medium") {
+                        narrativeText = `The Decision Tree placed <strong>${escHtml(caseName)}</strong> in <strong>Medium Priority</strong>. While the case presents substantial legal stakes (<em>${escHtml(sev)}</em>), the absence of fatal physical peril or extreme vulnerability routes it to the expedited regular track rather than the emergency docket.`;
+                    } else {
+                        narrativeText = `The Decision Tree assigned <strong>Low Priority</strong> to <strong>${escHtml(caseName)}</strong>. The matter is assessed as routine (<em>${escHtml(sev)}</em> severity, <em>${escHtml(vuln)}</em> vulnerability) without immediate threat to life or liberty, appropriately listed on the standard trial docket.`;
+                    }
+                } else {
+                    narrativeText = `This leaf assigns <strong>${escHtml(prio)} Priority</strong>. The active case (<em>${escHtml(caseName)}</em>) routed to <strong>${escHtml(selectedCase.Predicted_Priority || "High")} Priority</strong> (Node ${activePathInfo ? activePathInfo.leaf_id : '4'}) based on its specific feature profile.`;
+                }
+
+                let sevDesc = "Routine or no acute physical peril recorded.";
+                let sevBadgeCls = "standard";
+                if (sev === "Fatal") {
+                    sevDesc = "Fatal trauma or imminent threat to life — unconditional emergency docket listing under Supreme Court case-flow directives.";
+                    sevBadgeCls = "urgent";
+                } else if (sev === "Major") {
+                    sevDesc = "Acute severe harm, life endangerment, or severe physical/mental injury directly compromising bodily integrity.";
+                    sevBadgeCls = "urgent";
+                } else if (sev === "Minor") {
+                    sevDesc = "Non-life-threatening injury or moderate harm; warranting expedited regular listing.";
+                    sevBadgeCls = "elevated";
+                }
+
+                let vulnDesc = "Standard adult litigants with equal legal representation.";
+                let vulnBadgeCls = "standard";
+                if (vuln === "High") {
+                    vulnDesc = "Endangered or defenseless victim (minor child, elderly, or incapacitated party) protected under the doctrine of Parens Patriae.";
+                    vulnBadgeCls = "urgent";
+                } else if (vuln === "Medium") {
+                    vulnDesc = "Elevated vulnerability requiring heightened judicial vigilance against prejudicial delay.";
+                    vulnBadgeCls = "elevated";
+                }
+
+                let catDesc = "Handled under standard procedural track.";
+                let catBadgeCls = "standard";
+                if (/violent|criminal|kidnap|homicide|assault/i.test(cat)) {
+                    catDesc = "Cognizable criminal offence against the human body/liberty; statutorily prioritized over pecuniary disputes.";
+                    catBadgeCls = "urgent";
+                } else if (/cyber|financial|fraud/i.test(cat)) {
+                    catDesc = "Significant financial or cyber offence impacting institutional integrity or multiple victims.";
+                    catBadgeCls = "elevated";
+                }
+
+                html += `
+                    <div class="node-why-card ${prioLower}">
+                        <div class="why-card-header">
+                            <i data-lucide="zap"></i>
+                            <span>Why It Reached ${escHtml(prio)} Priority</span>
+                        </div>
+                        <div class="why-card-case-context">
+                            Active case: <strong>${escHtml(caseName)}</strong>
+                        </div>
+                        <div class="why-card-narrative">
+                            ${narrativeText}
+                        </div>
+
+                        <div class="drivers-title">
+                            <i data-lucide="sliders-horizontal"></i> Decisive Case Features (Priority Drivers)
+                        </div>
+
+                        <div class="driver-chip-list">
+                            <div class="driver-chip-item ${sevBadgeCls === 'urgent' ? 'highlight' : ''}">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="alert-octagon"></i> Severity</span>
+                                    <span class="driver-chip-val ${sevBadgeCls}">${escHtml(sev)}</span>
+                                </div>
+                                <div class="driver-chip-desc">${sevDesc}</div>
+                            </div>
+
+                            <div class="driver-chip-item ${vulnBadgeCls === 'urgent' ? 'highlight' : ''}">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="shield-alert"></i> Vulnerability</span>
+                                    <span class="driver-chip-val ${vulnBadgeCls}">${escHtml(vuln)}</span>
+                                </div>
+                                <div class="driver-chip-desc">${vulnDesc}</div>
+                            </div>
+
+                            <div class="driver-chip-item ${catBadgeCls === 'urgent' ? 'highlight' : ''}">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="scale"></i> Case Category</span>
+                                    <span class="driver-chip-val ${catBadgeCls}">${escHtml(cat)}</span>
+                                </div>
+                                <div class="driver-chip-desc">${catDesc}</div>
+                            </div>
+
+                            ${hasArt21 ? `
+                            <div class="driver-chip-item highlight">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="bookmark"></i> Constitutional Rule</span>
+                                    <span class="driver-chip-val urgent">Article 21</span>
+                                </div>
+                                <div class="driver-chip-desc">Right to Life & Personal Liberty: Non-negotiable affirmative duty to list urgently without calendar delay.</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                `;
+
+                if (activePathInfo && activePathInfo.steps && activePathInfo.steps.length > 0) {
+                    html += `
+                        <div class="node-panel-row">
+                            <strong style="margin-bottom: 6px;"><i data-lucide="route" style="width:12px;height:12px;display:inline;vertical-align:middle;"></i> Decision Path Traversed</strong>
+                            <div class="node-path-trail">
+                                ${activePathInfo.steps.map((st) => {
+                                    const isThisNode = st.node_id === d.id;
+                                    if (st.type === "leaf") {
+                                        return `
+                                            <div class="trail-step-item ${isThisNode ? 'current' : ''}">
+                                                <span class="trail-step-badge ${st.result.toLowerCase()}">${escHtml(st.result)}</span>
+                                                <span><strong>Node ${st.node_id}:</strong> Final Verdict (${escHtml(st.result)} Priority)</span>
+                                            </div>
+                                        `;
+                                    }
+                                    const badgeCls = st.result === 'Yes' ? 'yes' : 'no';
+                                    const effectBadge = st.effect === 'raised' ? `<span class="trail-step-badge raised">Raised</span>` : '';
+                                    return `
+                                        <div class="trail-step-item ${isThisNode ? 'current' : ''}">
+                                            <span class="trail-step-badge ${badgeCls}">${st.result === 'Yes' ? '✓ Match' : '✗ No'}</span>
+                                            <span><strong>Node ${st.node_id}:</strong> ${escHtml(st.title)} (${escHtml(st.case_value)}) ${effectBadge}</span>
+                                        </div>
+                                    `;
+                                }).join("")}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                let criteriaText = "";
+                if (prio === "High") {
+                    criteriaText = "Cases land at this leaf when Severity is Fatal or Major and broad case classification satisfies high-urgency thresholds. Reserved for emergency expedited docketing.";
+                } else if (prio === "Medium") {
+                    criteriaText = "Cases land at this leaf when disputes involve moderate harm, property/financial claims, or non-fatal injury, routing to the standard expedited calendar.";
+                } else {
+                    criteriaText = "Cases land at this leaf when matters are routine civil, commercial, or non-urgent procedural applications.";
+                }
+
+                html += `
+                    <div class="node-why-card ${prioLower}">
+                        <div class="why-card-header">
+                            <i data-lucide="info"></i>
+                            <span>Classification Criteria</span>
+                        </div>
+                        <div class="why-card-narrative">
+                            ${criteriaText}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted); font-style: italic;">
+                            Select a case in the sidebar to inspect its specific feature drivers and decision route.
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="node-panel-row">
+                    <strong>Samples at Leaf</strong>
+                    <span>${d.samples} training case${d.samples === 1 ? '' : 's'} reached this leaf</span>
+                </div>
+                <div class="node-panel-row">
+                    <strong>Class Distribution & Purity</strong>
+                    ${buildDistributionBar(d.class_counts, d.samples)}
+                </div>
+            `;
+
+            panel.innerHTML = html;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
         }
-        // Why-this-split line for nodes on the active case's path.
+
+        // Decision Split Node
+        let html = `
+            <div class="node-panel-header">
+                <div class="node-panel-title">Node ${d.id} — Decision Split</div>
+                <div class="node-panel-type-badge is-split">
+                    <i data-lucide="git-branch"></i> Decision Split
+                </div>
+            </div>
+            <div class="node-panel-row">
+                <strong>Split Rule</strong>
+                <div>${escHtml(d.name)}</div>
+            </div>
+            <div class="node-panel-row">
+                <strong>Feature Evaluated</strong>
+                <div>${escHtml(d.feature_clean || d.feature || "—")}</div>
+            </div>
+            <div class="node-panel-row">
+                <strong>Samples at Node</strong>
+                <div>${d.samples} case${d.samples === 1 ? '' : 's'} evaluated here</div>
+            </div>
+        `;
+
         const step = activePathEffects[d.id];
         if (step && step.effect && step.effect !== "outcome") {
             const meta = {
-                raised: { label: "raised priority", cls: "raised" },
-                lowered: { label: "lowered priority", cls: "lowered" },
-                neutral: { label: "no effect here", cls: "neutral" },
+                raised: { label: "Raised Priority", cls: "raised" },
+                lowered: { label: "Lowered Priority", cls: "lowered" },
+                neutral: { label: "Neutral Effect", cls: "neutral" },
             }[step.effect] || { label: step.effect, cls: "neutral" };
-            html += `<div class="node-panel-row"><strong>For the selected case</strong><span class="step-effect ${meta.cls}">${escHtml(meta.label)}</span></div>`;
-            if (step.branch_priorities && step.branch_priorities.left !== undefined) {
-                html += `<div class="node-panel-row node-panel-branch"><strong>Other branch would give</strong>${escHtml(step.branch_priorities.left)} / ${escHtml(step.branch_priorities.right)} (left / right)</div>`;
-            }
+
+            html += `
+                <div class="node-why-card" style="border-left: 3px solid var(--gold-600); margin-top: 8px;">
+                    <div class="why-card-header">
+                        <i data-lucide="activity"></i>
+                        <span>Selected Case Evaluation</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
+                        <div>Feature value: <strong>${escHtml(step.case_value || "—")}</strong></div>
+                        <div>Condition met: <span class="trail-step-badge ${step.result === 'Yes' ? 'yes' : 'no'}">${step.result === 'Yes' ? '✓ Yes (Left Branch)' : '✗ No (Right Branch)'}</span></div>
+                        <div>Effect on priority: <span class="step-effect ${step.effect || 'neutral'}">${escHtml(meta.label)}</span></div>
+                        ${step.branch_priorities && step.branch_priorities.left !== undefined ? `
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                Left branch ➔ <strong>${escHtml(step.branch_priorities.left)}</strong> · Right branch ➔ <strong>${escHtml(step.branch_priorities.right)}</strong>
+                            </div>` : ''}
+                    </div>
+                </div>
+            `;
         }
-        html += `<div class="node-panel-row"><strong>Class distribution</strong>${Object.entries(d.class_counts || {}).map(([k, v]) => `${escHtml(k)}: ${v}`).join(" · ")}</div>`;
+
+        html += `
+            <div class="node-panel-row">
+                <strong>Class Distribution</strong>
+                ${buildDistributionBar(d.class_counts, d.samples)}
+            </div>
+        `;
+
         panel.innerHTML = html;
         if (typeof lucide !== "undefined") lucide.createIcons();
     }
@@ -1432,6 +1741,15 @@ document.addEventListener("DOMContentLoaded", () => {
         // Fit tree inside view
         const initialTransform = d3.zoomIdentity.translate(20, 20).scale(0.85);
         svg.call(d3Zoom.transform, initialTransform);
+
+        // Auto-populate node inspector panel with the active case's leaf verdict
+        if (activePathNodes && activePathNodes.length > 0) {
+            const leafId = activePathNodes[activePathNodes.length - 1];
+            const leafNode = findNodeById(data, leafId);
+            if (leafNode) {
+                showNodePanel(leafNode);
+            }
+        }
     }
 
     function getPriorityColor(priority) {

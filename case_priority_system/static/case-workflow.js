@@ -291,7 +291,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return res.json();
     }
 
-    async function openCaseWorkspace(caseId) {
+    /**
+ * Loads a case workspace into active state, binding document lists, sessions, and case-level verdicts.
+ * @param {string} caseId - System case identifier (ANV-YYYY-NNNN).
+ */
+async function openCaseWorkspace(caseId) {
         currentWorkspaceCaseId = caseId;
         UI.setCurrentCaseId(caseId);
         $("case-workspace-empty").style.display = "none";
