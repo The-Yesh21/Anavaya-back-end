@@ -31,7 +31,16 @@ if (-not (Test-Path "$RepoRoot\case_priority_system\app.py")) { Write-Host "Repo
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
 function Test-Port($Port) {
-    return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+    if ([bool](Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue)) { return $true }
+    try {
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        $tcp.Connect("127.0.0.1", $Port)
+        $c = $tcp.Connected
+        $tcp.Close()
+        return $c
+    } catch {
+        return $false
+    }
 }
 
 function Wait-Port($Port, $Label, $Seconds = 90) {
