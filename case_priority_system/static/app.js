@@ -1102,6 +1102,33 @@ document.addEventListener("DOMContentLoaded", () => {
             const traceWrap = document.getElementById("path-trace-wrap");
             if (traceWrap) traceWrap.style.display = "block";
 
+            // Clearly identify whether we are tracing Whole-Case or an individual document
+            const isWholeCase = /\[WHOLE CASE\]/i.test(c.Case_File || "");
+            const cleanDocName = (c.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+            const scopeEl = document.getElementById("path-trace-scope");
+            const switchWrap = document.getElementById("path-trace-switch-wrap");
+            if (scopeEl) {
+                if (isWholeCase) {
+                    scopeEl.innerHTML = `<span class="path-scope-badge whole"><i data-lucide="scale"></i> Whole-Case Combined Path</span>`;
+                } else {
+                    scopeEl.innerHTML = `<span class="path-scope-badge doc"><i data-lucide="file-text"></i> Single Document: <em>${escHtml(cleanDocName)}</em></span>`;
+                }
+            }
+            if (switchWrap) {
+                if (!isWholeCase && c.Case_ID) {
+                    const wholeRow = casesData.find(r => r.Case_ID === c.Case_ID && String(r.Document_Type || "").toLowerCase() === "whole case");
+                    if (wholeRow) {
+                        switchWrap.innerHTML = `<button class="path-scope-switch-btn" id="switch-to-whole-case-btn" title="View the whole case's Decision Tree path"><i data-lucide="layers"></i> View Whole-Case Path (${escHtml(wholeRow.Predicted_Priority)})</button>`;
+                        const btn = document.getElementById("switch-to-whole-case-btn");
+                        if (btn) btn.addEventListener("click", () => selectCase(wholeRow));
+                    } else {
+                        switchWrap.innerHTML = "";
+                    }
+                } else {
+                    switchWrap.innerHTML = "";
+                }
+            }
+
             // If we are currently on the tree tab, update tree highlighting immediately
             const activeTabBtn = document.querySelector(".tab-btn.active");
             const activeTab = activeTabBtn ? activeTabBtn.getAttribute("data-tab") : null;
