@@ -167,6 +167,20 @@
         initCollapsiblePanels();
         if (els.pushToTalkBtn) initPushToTalk();
         if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
+        const leaveCallBtn = $("leave-call-btn");
+        if (leaveCallBtn) {
+            leaveCallBtn.addEventListener("click", () => {
+                if (typeof window.__handleLeaveCall === "function") {
+                    window.__handleLeaveCall();
+                } else {
+                    requestEndSession();
+                }
+            });
+        }
+        const ctrlMicBtn = $("control-mic-btn");
+        if (ctrlMicBtn) ctrlMicBtn.addEventListener("click", toggleMic);
+        const ctrlCamBtn = $("control-cam-btn");
+        if (ctrlCamBtn) ctrlCamBtn.addEventListener("click", toggleVideo);
         if (els.mediaRetryBtn) els.mediaRetryBtn.addEventListener("click", () => restartMediaConnections());
         els.joinName.focus();
     }
@@ -3436,6 +3450,9 @@
         eyeTopR: 386,
         eyeOuterL: 33,
         eyeOuterR: 263,
+        noseTip: 4,
+        upperLipBase: 164,
+        chinBottom: 152,
     };
 
     const CALIBRATION_FRAMES = 25;         // ~2 s of initial face calibration (instantaneous)
@@ -3529,6 +3546,8 @@
         meter: null,                // { ctx, analyser, buf, source } for self mic level
         remoteMeter: null,          // { ctx, analyser, buf, stream } for remote feed level
         sessionStartIso: "",
+        emotions: { neutral: 100, joy: 0, stress: 0, anger: 0, fear: 0, sadness: 0, surprise: 0, disgust: 0, skepticism: 0 },
+        dominantEmotion: { key: "neutral", label: "Neutral / Composed", emoji: "😐", score: 95, cls: "calm" },
     };
 
     const CUE_LABELS = {
@@ -3553,6 +3572,10 @@
         if (blinks) blinks.textContent = "0";
         const expr = faceEl("fm-expression");
         if (expr) { expr.textContent = "—"; expr.className = ""; }
+        const stressVal = faceEl("fm-stress-val");
+        if (stressVal) { stressVal.textContent = "0% (Calm)"; stressVal.className = "calm"; }
+        const confEl = faceEl("fm-confidence");
+        if (confEl) { confEl.textContent = "—"; confEl.className = ""; }
         const lips = faceEl("fm-lips");
         if (lips) { lips.textContent = "—"; lips.className = ""; }
         const brows = faceEl("fm-brows");
@@ -3561,6 +3584,8 @@
         if (gazeEl) { gazeEl.textContent = "—"; gazeEl.className = ""; }
         const spkEl = faceEl("fm-speaking");
         if (spkEl) { spkEl.textContent = "—"; spkEl.className = ""; }
+        const priBadge = document.getElementById("fes-primary-badge");
+        if (priBadge) priBadge.textContent = "Neutral · 95%";
         const cues = faceEl("face-cues");
         if (cues) cues.innerHTML = "";
     }
@@ -3966,7 +3991,7 @@
                 },
                 runningMode: "VIDEO",
                 numFaces: 1,
-                outputFaceBlendshapes: false,
+                outputFaceBlendshapes: true,
                 outputFacialTransformationMatrixes: false,
             });
             const makeWithTimeout = (delegate, ms = 3000) => {
@@ -4148,6 +4173,9 @@
             mean_index: face.indexFrames ? Math.round(face.indexSum / face.indexFrames) : 0,
             end_index: face.gauge || 0,
             peak_during_speech: !!(face.stats.peakAtSpeaking),
+            dominant_emotion: face.dominantEmotion ? face.dominantEmotion.label : "Neutral / Composed",
+            dominant_emotion_score: face.dominantEmotion ? face.dominantEmotion.score : 95,
+            emotions: face.emotions ? { ...face.emotions } : {},
             counters: { ...face.cueDurations },
             active_durations: { ...face.cueDurations },
             cue_events: face.stats.cueEvents || 0,
@@ -4311,15 +4339,122 @@
         const mouthMidY = (lm[L.lipMidUpper].y + lm[L.lipMidLower].y) / 2;
         const cornerMidY = (lm[L.lipLeftCorner].y + lm[L.lipRightCorner].y) / 2;
         const frown = (cornerMidY - mouthMidY) / unit;   // corners sag below the lip midline
+        const smile = Math.max(0, (mouthMidY - cornerMidY) / unit); // corners rise above mouth midline
         const browGap = lmDist(lm[L.browInnerL], lm[L.browInnerR]) / unit;
         const browRaise = (lmDist(lm[L.browInnerL], lm[L.eyeTopL]) + lmDist(lm[L.browInnerR], lm[L.eyeTopR])) / 2 / unit;
         const ear = (eyeAspectRatio(lm, L.leftEye) + eyeAspectRatio(lm, L.rightEye)) / 2;
         // Both eyes averaged so a head turn or an asymmetric eye cannot produce a
         // phantom direction; the sign carries the direction (see eyeGazeX).
         const gazeX = (eyeGazeX(lm, L.leftEye, L.leftIris) + eyeGazeX(lm, L.rightEye, L.rightIris)) / 2;
+        const noseSneer = (lm[L.noseTip] && lm[L.upperLipBase]) ? Math.max(0, 0.40 - lmDist(lm[L.upperLipBase], lm[L.noseTip]) / unit) : 0;
+        const jawDrop = (lm[L.lipUpper] && lm[L.lipLower]) ? lmDist(lm[L.lipUpper], lm[L.lipLower]) / unit : lipOpen;
 
         return { lipOpen: lipOpen, lipWidth: lipWidth, frown: frown, browGap: browGap,
-                 browRaise: browRaise, ear: ear, gazeX: gazeX };
+                 browRaise: browRaise, ear: ear, gazeX: gazeX, smile: smile, noseSneer: noseSneer, jawDrop: jawDrop };
+    }
+
+    // Helper: extracts MediaPipe face blendshapes into a fast key-value map
+    function extractFaceBlendshapes(results) {
+        const map = {};
+        if (results && results.faceBlendshapes && results.faceBlendshapes.length && results.faceBlendshapes[0].categories) {
+            for (const cat of results.faceBlendshapes[0].categories) {
+                map[cat.categoryName] = cat.score;
+            }
+        }
+        return map;
+    }
+
+    // Comprehensive Human Emotion Classifier (FACS action units + blendshapes)
+    function classifyEmotions(sig, zSig, blend, isSpeaking, bpm, rawStress) {
+        blend = blend || {};
+        const hasBlend = Object.keys(blend).length > 0;
+
+        // 1. Joy / Happiness (AU6 + AU12: Cheek Raiser + Lip Corner Puller)
+        const blendJoy = hasBlend ? Math.max(0, ((blend.mouthSmileLeft || 0) + (blend.mouthSmileRight || 0)) / 2 * 0.75 + (blend.cheekSquintLeft || 0) * 0.25) : 0;
+        const geoJoy = Math.max(0, Math.min(1, (sig.smile || 0) * 7.5 + Math.max(0, (sig.lipWidth || 0.45) - 0.45) * 3.5));
+        const joyRaw = hasBlend ? (blendJoy * 0.75 + geoJoy * 0.25) : geoJoy;
+
+        // 2. Anger / Hostility (AU4 + AU5 + AU7 + AU23/24)
+        const blendAnger = hasBlend ? Math.max(0, ((blend.browDownLeft || 0) + (blend.browDownRight || 0)) / 2 * 0.6 + (blend.jawForward || 0) * 0.25 + ((blend.eyeSquintLeft || 0) + (blend.eyeSquintRight || 0)) / 2 * 0.15) : 0;
+        const geoAnger = Math.max(0, Math.min(1, Math.max(0, -zSig.zBrowGap - 1.2) * 0.35 + (sig.frown > 0.003 ? 0.25 : 0) + (zSig.zFrown > 1.3 ? 0.2 : 0)));
+        const angerRaw = hasBlend ? (blendAnger * 0.7 + geoAnger * 0.3) : geoAnger;
+
+        // 3. Sadness / Distress (AU1 + AU4 + AU15)
+        const blendSad = hasBlend ? Math.max(0, (blend.browInnerUp || 0) * 0.45 + ((blend.mouthFrownLeft || 0) + (blend.mouthFrownRight || 0)) / 2 * 0.55) : 0;
+        const geoSad = Math.max(0, Math.min(1, Math.max(0, zSig.zFrown - 1.1) * 0.35 + (sig.frown > 0.005 ? 0.35 : 0)));
+        const sadRaw = hasBlend ? (blendSad * 0.7 + geoSad * 0.3) : geoSad;
+
+        // 4. Fear / Apprehension (AU1 + AU2 + AU4 + AU5 + AU20)
+        const blendFear = hasBlend ? Math.max(0, (blend.browInnerUp || 0) * 0.35 + ((blend.eyeWideLeft || 0) + (blend.eyeWideRight || 0)) / 2 * 0.4 + (blend.mouthStretchLeft || 0) * 0.25) : 0;
+        const geoFear = Math.max(0, Math.min(1, Math.max(0, zSig.zBrowRaise - 1.5) * 0.25 + Math.max(0, (zSig.zEar || 0) - 1.2) * 0.25 + (Math.abs(zSig.lateralZ) > 1.8 ? 0.25 : 0)));
+        const fearRaw = hasBlend ? (blendFear * 0.7 + geoFear * 0.3) : geoFear;
+
+        // 5. Surprise / Shock (AU1 + AU2 + AU5 + AU26)
+        const blendSurprise = hasBlend ? Math.max(0, ((blend.browOuterUpLeft || 0) + (blend.browOuterUpRight || 0)) / 2 * 0.4 + ((blend.eyeWideLeft || 0) + (blend.eyeWideRight || 0)) / 2 * 0.3 + (blend.jawOpen || 0) * 0.3) : 0;
+        const geoSurprise = Math.max(0, Math.min(1, Math.max(0, zSig.zBrowRaise - 1.5) * 0.45 + (sig.lipOpen > 0.09 && !isSpeaking ? 0.35 : 0)));
+        const surpriseRaw = hasBlend ? (blendSurprise * 0.7 + geoSurprise * 0.3) : geoSurprise;
+
+        // 6. Disgust / Contempt (AU9 + AU10 + AU14)
+        const blendDisgust = hasBlend ? Math.max(0, ((blend.noseSneerLeft || 0) + (blend.noseSneerRight || 0)) / 2 * 0.6 + Math.abs((blend.mouthSmileLeft || 0) - (blend.mouthSmileRight || 0)) * 0.4) : 0;
+        const geoDisgust = Math.max(0, Math.min(1, (sig.noseSneer > 0.02 ? 0.4 : 0) + (zSig.zFrown > 1.4 ? 0.25 : 0)));
+        const disgustRaw = hasBlend ? (blendDisgust * 0.7 + geoDisgust * 0.3) : geoDisgust;
+
+        // 7. Skepticism / Scrutiny / Doubt
+        const blendSkepticism = hasBlend ? Math.max(0, Math.abs((blend.browOuterUpLeft || 0) - (blend.browOuterUpRight || 0)) * 0.5 + ((blend.eyeSquintLeft || 0) + (blend.eyeSquintRight || 0)) / 2 * 0.5) : 0;
+        const geoSkepticism = Math.max(0, Math.min(1, (Math.abs(zSig.lateralZ) > 1.2 ? 0.3 : 0) + (zSig.zBrowRaise > 1.2 && zSig.zBrowRaise < 2.5 ? 0.3 : 0)));
+        const skepticismRaw = hasBlend ? (blendSkepticism * 0.7 + geoSkepticism * 0.3) : geoSkepticism;
+
+        // 8. Stress / Tension
+        const stressRaw = Math.min(1, rawStress / 100);
+
+        // Sum of expressive cues
+        const totalExpressive = joyRaw + angerRaw + sadRaw + fearRaw + surpriseRaw + disgustRaw + skepticismRaw + stressRaw;
+        const neutralRaw = Math.max(0.10, 1.0 - totalExpressive * 0.95);
+
+        // Compute normalized percentages:
+        const sumAll = neutralRaw + joyRaw + angerRaw + sadRaw + fearRaw + surpriseRaw + disgustRaw + skepticismRaw + stressRaw;
+        const pct = (val) => Math.min(100, Math.max(0, Math.round((val / sumAll) * 100)));
+
+        const emotions = {
+            neutral: pct(neutralRaw),
+            joy: pct(joyRaw),
+            stress: Math.round(rawStress),
+            anger: pct(angerRaw),
+            fear: pct(fearRaw),
+            sadness: pct(sadRaw),
+            surprise: pct(surpriseRaw),
+            disgust: pct(disgustRaw),
+            skepticism: pct(skepticismRaw),
+        };
+
+        // Determine primary/dominant emotion:
+        let dominant = { key: "neutral", label: "Neutral / Composed", emoji: "😐", score: emotions.neutral, cls: "calm" };
+
+        if (rawStress >= 60 && emotions.stress > 50) {
+            dominant = { key: "stress", label: "High Stress", emoji: "⚡", score: emotions.stress, cls: "tension" };
+        } else if (rawStress >= 30 && emotions.stress > 35) {
+            dominant = { key: "stress", label: "Elevated Stress", emoji: "⚡", score: emotions.stress, cls: "elevated" };
+        } else if (emotions.joy > 40 && emotions.joy > emotions.neutral) {
+            dominant = { key: "joy", label: "Joy / Positive", emoji: "😊", score: emotions.joy, cls: "joy" };
+        } else if (emotions.anger > 35 && emotions.anger > emotions.neutral) {
+            dominant = { key: "anger", label: "Anger / Hostility", emoji: "😠", score: emotions.anger, cls: "anger" };
+        } else if (emotions.fear > 35 && emotions.fear > emotions.neutral) {
+            dominant = { key: "fear", label: "Fear / Alarm", emoji: "😨", score: emotions.fear, cls: "fear" };
+        } else if (emotions.sadness > 35 && emotions.sadness > emotions.neutral) {
+            dominant = { key: "sadness", label: "Sadness / Distress", emoji: "😟", score: emotions.sadness, cls: "sadness" };
+        } else if (emotions.surprise > 40 && emotions.surprise > emotions.neutral) {
+            dominant = { key: "surprise", label: "Surprise / Shock", emoji: "😲", score: emotions.surprise, cls: "surprise" };
+        } else if (emotions.disgust > 35 && emotions.disgust > emotions.neutral) {
+            dominant = { key: "disgust", label: "Disgust / Contempt", emoji: "🤢", score: emotions.disgust, cls: "disgust" };
+        } else if (emotions.skepticism > 35 && emotions.skepticism > emotions.neutral) {
+            dominant = { key: "skepticism", label: "Skeptical / Doubt", emoji: "🤔", score: emotions.skepticism, cls: "skepticism" };
+        } else if (rawStress >= 25) {
+            dominant = { key: "stress", label: "Tense", emoji: "⚡", score: emotions.stress, cls: "elevated" };
+        } else {
+            dominant = { key: "neutral", label: "Neutral / Composed", emoji: "😐", score: Math.max(70, emotions.neutral), cls: "calm" };
+        }
+
+        return { emotions, dominant };
     }
 
     function onFaceMeshResults(results) {
@@ -4355,9 +4490,10 @@
         drawFaceOverlay(ctx, lm);
         if (!face.analyzing) return;
 
-        const out = ingestFaceSignals(extractFaceSignals(lm));
+        const blend = extractFaceBlendshapes(results);
+        const out = ingestFaceSignals(extractFaceSignals(lm), blend);
         if (!out) return;                       // baseline still calibrating
-        renderFaceLive(out.score, out.bpm, out.zSignals);
+        renderFaceLive(out.score, out.bpm, out.zSignals, out.emotions, out.dominantEmotion);
         maybeLogFaceCues();
     }
 
@@ -4367,7 +4503,7 @@
     // Kept separate from the drawing path so an automated check can drive it
     // with synthetic signals instead of a camera (_courtroom_face_check.cjs).
     // Returns null while the baseline is still calibrating.
-    function ingestFaceSignals(sig) {
+    function ingestFaceSignals(sig, blend = {}) {
         const lipOpen = sig.lipOpen, lipWidth = sig.lipWidth, frown = sig.frown;
         const browGap = sig.browGap, browRaise = sig.browRaise;
         const ear = sig.ear, gazeX = sig.gazeX;
@@ -4433,9 +4569,12 @@
         // scored during that window (see SCORE_ON). Once learned, the baseline
         // persists across bouts and only micro-adapts.
         if (face.speaking && !face.prevSpeaking) {
-            const acc = {};
-            for (const k of SPEAK_METRICS) acc[k] = [];
-            face.bout = { frames: 0, acc: acc };
+            const nowSpeaking = Date.now();
+            if (!face.bout || (nowSpeaking - (face.lastSpeakingSeenAt || 0) > 1200)) {
+                const acc = {};
+                for (const k of SPEAK_METRICS) acc[k] = [];
+                face.bout = { frames: 0, acc: acc };
+            }
         }
         face.prevSpeaking = face.speaking;
         if (face.speaking && face.bout) {
@@ -4534,23 +4673,55 @@
             }
         }
 
-        // Live tension pool: accounts for gaze deviation, brow tension, frowning, and lip cues
-        const zPool = [
-            Math.min(5, Math.abs(lateralZ)),
-            Math.max(0, -zBrowGap),
-            Math.max(0, zBrowRaise),
-            Math.max(0, zFrown),
-            isSpeaking ? Math.max(0, zLipTremor) : Math.max(0, -zLipOpen),
-        ];
+        // Multi-channel physiological tension: prevents single/double cues from being diluted
+        const sBrowFurrow = Math.max(0, -zBrowGap);
+        const sBrowRaise = Math.max(0, zBrowRaise * 0.85);
+        const sGaze = Math.max(0, Math.abs(lateralZ) - 0.35);
+        const sLipTremor = isSpeaking ? Math.max(0, zLipTremor * 1.35) : 0;
+        const sLipPress = !isSpeaking ? Math.max(0, -zLipOpen * 1.1) : 0;
+        const sFrown = Math.max(0, zFrown * 0.95);
+        const sBlink = bpm > 26 ? Math.min(3, (bpm - 26) / 4) : 0;
+
+        const hasBlend = blend && Object.keys(blend).length > 0;
+        const sBlendBrow = hasBlend ? Math.max(0, ((blend.browDownLeft || 0) + (blend.browDownRight || 0)) / 2 * 3.0) : 0;
+        const sBlendPress = hasBlend ? Math.max(0, ((blend.mouthPressLeft || 0) + (blend.mouthPressRight || 0)) / 2 * 3.0) : 0;
+
+        const tSignals = [
+            sBrowFurrow * 1.15,
+            sBrowRaise,
+            sGaze * 1.1,
+            sLipTremor,
+            sLipPress,
+            sFrown,
+            sBlink,
+            sBlendBrow,
+            sBlendPress
+        ].sort((a, b) => b - a);
+
+        const top1 = tSignals[0];
+        const top2 = tSignals[1];
+        const top3 = tSignals[2];
+
         let raw = 0;
-        if (zPool.length) {
-            const avgZ = zPool.reduce((a, v) => a + v, 0) / zPool.length;
-            if (avgZ > 1.05) {
-                raw = Math.min(100, Math.max(0, Math.round(((avgZ - 1.05) / 1.7) * 100)));
-            }
-            raw = Math.min(100, raw + Math.min(25, face.activeCues.size * 8));
-            if (bpm > 30) raw = Math.min(100, raw + 8);
+        if (top1 > 1.1) {
+            // Priority given to the strongest physiological tension markers
+            const effectiveTension = top1 * 0.55 + top2 * 0.32 + top3 * 0.13;
+            raw = Math.min(100, Math.max(0, Math.round(((effectiveTension - 1.0) / 1.7) * 100)));
         }
+        raw = Math.min(100, raw + Math.min(28, face.activeCues.size * 9));
+        if (bpm > 30) raw = Math.min(100, raw + 8);
+
+        // Comprehensive emotion classification
+        const emotionRes = classifyEmotions(
+            sig,
+            { zBrowGap, zBrowRaise, zFrown, zLipOpen, zLipTremor, lateralZ, zEar },
+            blend,
+            isSpeaking,
+            bpm,
+            raw
+        );
+        face.emotions = emotionRes.emotions;
+        face.dominantEmotion = emotionRes.dominant;
 
         const nowScore = Date.now();
         face.lastScoreAt = nowScore;
@@ -4573,7 +4744,9 @@
         return {
             score: score,
             bpm: bpm,
-            zSignals: { zBrowGap, zBrowRaise, zFrown, zLipOpen, zLipTremor, lateralZ }
+            zSignals: { zBrowGap, zBrowRaise, zFrown, zLipOpen, zLipTremor, lateralZ },
+            emotions: emotionRes.emotions,
+            dominantEmotion: emotionRes.dominant,
         };
     }
 
@@ -4584,7 +4757,7 @@
         el.className = cls || "";
     }
 
-    function renderFaceLive(score, bpm, zSignals = {}) {
+    function renderFaceLive(score, bpm, zSignals = {}, emotions = null, dominantEmotion = null) {
         const fill = faceEl("face-gauge-fill");
         if (fill) {
             fill.style.width = `${score}%`;
@@ -4626,7 +4799,10 @@
                     }
 
                     hud.className = `stage-face-hud visible level-${levelClass}`;
-                    if (hudLabel) hudLabel.textContent = levelText;
+                    if (hudLabel) {
+                        const emText = dominantEmotion ? `${dominantEmotion.emoji} ${dominantEmotion.label}` : "Neutral";
+                        hudLabel.textContent = `${emText} (${dominantEmotion ? dominantEmotion.score : 0}%) · ${levelText}`;
+                    }
                 }
             }
         }
@@ -4634,14 +4810,48 @@
         const blinks = faceEl("fm-blinks");
         if (blinks) blinks.textContent = `${bpm} bpm (${face.stats.blinks})`;
 
-        // Live, responsive expression readout
+        // Live, responsive expression & emotion readout
         const expr = faceEl("fm-expression");
-        if (score >= 60) setMetric(expr, "High stress", "tension");
-        else if (score >= 30) setMetric(expr, "Elevated", "elevated");
-        else if (face.activeCues.has("brow_furrow") || zSignals.zBrowGap < -1.8) setMetric(expr, "Tense", "elevated");
-        else if (face.activeCues.has("brow_raise") || zSignals.zBrowRaise > 1.8) setMetric(expr, "Alert / Surprised", "elevated");
-        else if (face.activeCues.has("frown") || zSignals.zFrown > 1.8) setMetric(expr, "Troubled", "elevated");
-        else setMetric(expr, "Neutral", "");
+        if (expr) {
+            if (dominantEmotion) {
+                setMetric(expr, `${dominantEmotion.emoji} ${dominantEmotion.label}`, dominantEmotion.cls);
+            } else if (score >= 60) setMetric(expr, "High stress", "tension");
+            else if (score >= 30) setMetric(expr, "Elevated", "elevated");
+            else setMetric(expr, "Neutral", "calm");
+        }
+
+        // Live stress readout
+        const stressVal = faceEl("fm-stress-val");
+        if (stressVal) {
+            let sTxt = `${score}% (Calm)`;
+            let sCls = "calm";
+            if (score >= 60) { sTxt = `${score}% (High Stress)`; sCls = "tension"; }
+            else if (score >= 30) { sTxt = `${score}% (Elevated)`; sCls = "elevated"; }
+            setMetric(stressVal, sTxt, sCls);
+        }
+
+        // Live emotion confidence readout
+        const confEl = faceEl("fm-confidence");
+        if (confEl && dominantEmotion) {
+            setMetric(confEl, `${dominantEmotion.score}%`, "calm");
+        }
+
+        // Update Emotion Spectrum bars
+        const priBadge = document.getElementById("fes-primary-badge");
+        if (priBadge && dominantEmotion) {
+            priBadge.textContent = `${dominantEmotion.emoji} ${dominantEmotion.label} · ${dominantEmotion.score}%`;
+        }
+        if (emotions) {
+            for (const [emKey, emPct] of Object.entries(emotions)) {
+                const row = document.querySelector(`.fes-bar-row[data-emotion="${emKey}"]`);
+                if (row) {
+                    const fillBar = row.querySelector(".fes-bar-fill");
+                    const pctText = row.querySelector(".fes-bar-pct");
+                    if (fillBar) fillBar.style.width = `${emPct}%`;
+                    if (pctText) pctText.textContent = `${emPct}%`;
+                }
+            }
+        }
 
         // Live, responsive lips readout
         const lips = faceEl("fm-lips");

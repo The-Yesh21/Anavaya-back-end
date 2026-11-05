@@ -520,6 +520,9 @@ def session_report_markdown(report: dict, room_title: str = "",
                 f"baseline calm {f.get('calm_sec', 0)}s; peak arousal {f.get('peak_index', 0)}%; "
                 f"session mean {f.get('mean_index', 0)}%."
             )
+            if f.get("dominant_emotion"):
+                score_str = f" ({f.get('dominant_emotion_score', 0)}% confidence)" if f.get("dominant_emotion_score") else ""
+                lines.append(f"- **Dominant Demeanour & Emotion:** {f.get('dominant_emotion')}{score_str}.")
             counters = f.get("counters") or {}
             if counters:
                 totals = ", ".join(
@@ -654,6 +657,7 @@ def session_report_pdf_path(report: dict, room_title: str = "",
             f'<span>Calm Baseline: <strong>{f.get("calm_sec", 0)}s</strong></span>'
             f'<span>Peak Stress Index: <strong>{f.get("peak_index", 0)}%</strong></span>'
             f'<span>Mean Index: <strong>{f.get("mean_index", 0)}%</strong></span>'
+            f'<span>Dominant Emotion: <strong>{esc(f.get("dominant_emotion", "Neutral"))}</strong></span>'
             f'</div>'
             f'{cues_row}'
             f'</div>'

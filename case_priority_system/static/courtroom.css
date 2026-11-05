@@ -1613,6 +1613,122 @@ body::before {
     color: var(--color-medium);
     text-shadow: 0 0 8px rgba(232, 146, 46, 0.2);
 }
+.fm strong.calm {
+    color: var(--color-low);
+}
+.fm strong.joy {
+    color: #eab308;
+    text-shadow: 0 0 8px rgba(234, 179, 8, 0.25);
+}
+.fm strong.anger {
+    color: #ef4444;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+.fm strong.fear {
+    color: #c084fc;
+}
+.fm strong.sadness {
+    color: #60a5fa;
+}
+.fm strong.surprise {
+    color: #38bdf8;
+}
+.fm strong.disgust {
+    color: #34d399;
+}
+.fm strong.skepticism {
+    color: #fb923c;
+}
+
+/* Real-Time Human Emotion Spectrum */
+.face-emotion-spectrum {
+    margin: 10px 0 6px 0;
+    padding: 10px 12px;
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.fes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+}
+.fes-title {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.fes-title i, .fes-title svg {
+    width: 13px;
+    height: 13px;
+    color: var(--color-primary);
+}
+.fes-primary {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(201, 162, 75, 0.16);
+    color: var(--color-primary-light);
+    border: 1px solid rgba(201, 162, 75, 0.35);
+}
+.fes-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.fes-bar-row {
+    display: grid;
+    grid-template-columns: 66px 1fr 34px;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+.fes-bar-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.fes-bar-track {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.fes-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.24s var(--ease-out);
+    background: var(--color-primary);
+}
+.fes-bar-pct {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Emotion color fills */
+.fes-bar-row[data-emotion="neutral"] .fes-bar-fill { background: #64748B; }
+.fes-bar-row[data-emotion="joy"] .fes-bar-fill { background: linear-gradient(90deg, #ca8a04, #eab308); }
+.fes-bar-row[data-emotion="stress"] .fes-bar-fill { background: linear-gradient(90deg, #dc2626, #ef4444); }
+.fes-bar-row[data-emotion="anger"] .fes-bar-fill { background: linear-gradient(90deg, #b91c1c, #f87171); }
+.fes-bar-row[data-emotion="fear"] .fes-bar-fill { background: linear-gradient(90deg, #9333ea, #c084fc); }
+.fes-bar-row[data-emotion="sadness"] .fes-bar-fill { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.fes-bar-row[data-emotion="surprise"] .fes-bar-fill { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+.fes-bar-row[data-emotion="disgust"] .fes-bar-fill { background: linear-gradient(90deg, #059669, #34d399); }
+.fes-bar-row[data-emotion="skepticism"] .fes-bar-fill { background: linear-gradient(90deg, #ea580c, #fb923c); }
 
 /* Elevated live nervousness gauge */
 .face-gauge {
