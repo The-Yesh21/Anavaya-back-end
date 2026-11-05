@@ -35,6 +35,7 @@
             { label: "Warn witness",   text: "The witness is directed to answer the question.", cls: "ruling" },
         ],
         Defence: [
+            { label: "Case Context & Evidence", text: "", cls: "action-context-btn", isContextTrigger: true, icon: "folder-open" },
             { label: "Object",         text: "Objection — ",                    cls: "objection" },
             { label: "Examine witness",text: "Witness, please state for the record: ", cls: "" },
             { label: "No further questions", text: "No further questions, Your Honour.", cls: "" },
@@ -721,8 +722,13 @@
             }
         }
         attachSelfVideo();
-        // Enforce the default mic gate on a freshly acquired stream (closed
-        // unless the user explicitly opened the mic / is holding to talk).
+        // Enforce muted mic on entry — audio tracks are silenced immediately:
+        if (state.localStream) {
+            state.localStream.getAudioTracks().forEach((t) => {
+                try { t.enabled = false; } catch (_) {}
+            });
+        }
+        state.micEnabled = false;
         applyMicGate();
         if (state.me) {
             renderCourt();
@@ -1048,6 +1054,7 @@
                 needsSignaling = true;
             }
         }
+        applyMicGate();
         return needsSignaling;
     }
 
@@ -1274,6 +1281,9 @@
         if (offerer) {
             const local = state.localStream;
             const audioTrack = local ? local.getAudioTracks()[0] : null;
+            if (audioTrack) {
+                audioTrack.enabled = Boolean(state.micEnabled || ptt.recording);
+            }
             const videoTrack = local ? local.getVideoTracks()[0] : null;
             const senderInit = (track) => ({
                 direction: track ? "sendrecv" : "recvonly",
@@ -1281,6 +1291,7 @@
             });
             pc.addTransceiver(audioTrack || "audio", senderInit(audioTrack));
             pc.addTransceiver(videoTrack || "video", senderInit(videoTrack));
+            applyMicGate();
         }
 
         // Remote audio element for this peer.
@@ -1854,13 +1865,29 @@
         }
 
         // 3. Sync Judge Face button & drawer tab
-        const isJudge = state.me && state.me.role === "Judge";
+        const isJudge = Boolean(state.me && state.me.role === "Judge");
+        const myRole = (state.me && state.me.role) || "";
+        const myDisplay = (state.me && state.me.display_role) || "";
+        const isDefence = myRole === "Defence" || myRole === "Defense" || myDisplay.toLowerCase().includes("defence") || myDisplay.toLowerCase().includes("defense");
+        const isProsecution = myRole === "Prosecution" || myDisplay.toLowerCase().includes("prosecution");
+        const canViewCaseContext = isJudge || isDefence || isProsecution;
+
         const btnFace = document.getElementById("toggle-drawer-face");
         const drawerNavFace = document.getElementById("drawer-tab-nav-face");
         const faceLiveBadge = document.getElementById("face-live-badge");
         if (btnFace) btnFace.style.display = isJudge ? "inline-grid" : "none";
         if (drawerNavFace) drawerNavFace.style.display = isJudge ? "inline-flex" : "none";
         if (faceLiveBadge) faceLiveBadge.style.display = (isJudge && typeof face !== "undefined" && face && face.analyzing) ? "inline-block" : "none";
+
+        // Sync Case Context visibility (Judge, Defence, Prosecution)
+        const btnCase = document.getElementById("toggle-drawer-case");
+        const drawerNavCase = document.getElementById("drawer-tab-nav-case") || document.querySelector('.drawer-tab-btn[data-tab="case"]');
+        if (btnCase) btnCase.style.display = canViewCaseContext ? "inline-grid" : "none";
+        if (drawerNavCase) drawerNavCase.style.display = canViewCaseContext ? "inline-flex" : "none";
+
+        // Only Judge can link or switch case file
+        const contextSwitchBtn = document.getElementById("context-switch-btn");
+        if (contextSwitchBtn) contextSwitchBtn.style.display = isJudge ? "inline-flex" : "none";
 
         // 4. Sync Leave / Adjourn label
         const leaveLabel = document.getElementById("leave-btn-label");
@@ -2235,8 +2262,17 @@
         for (const a of actions) {
             const btn = document.createElement("button");
             btn.className = `quick-action ${a.cls}`;
-            btn.textContent = a.label;
+            btn.innerHTML = a.icon ? `<i data-lucide="${a.icon}"></i> <span>${a.label}</span>` : a.label;
             btn.addEventListener("click", () => {
+                if (a.isContextTrigger) {
+                    if (typeof window.__openDrawer === "function") {
+                        window.__openDrawer("case");
+                    } else if (els.caseContext) {
+                        els.caseContext.scrollIntoView({ behavior: "smooth" });
+                    }
+                    toast("Case Context & Evidence opened for Defence review.");
+                    return;
+                }
                 // If the action needs a suffix (objection/examine), put focus in the box with the prefix.
                 if (a.text.endsWith("— ") || a.text.endsWith(": ")) {
                     els.statementInput.value = a.text;
@@ -2249,6 +2285,9 @@
                 }
             });
             els.quickActions.appendChild(btn);
+        }
+        if (typeof lucide !== "undefined") {
+            try { lucide.createIcons({ root: els.quickActions }); } catch (_) {}
         }
     }
 
@@ -2802,25 +2841,95 @@
     // the room ended (phase Concluded, new joins refused) and closes every
     // socket; each client lands back on the join card, now showing the
     // official record's download links.
-    function requestEndSession() {
-        if (!state.ws || !state.me || state.me.role !== "Judge") return;
+    async function requestEndSession() {
+        const isJudge = state.me && state.me.role === "Judge";
+        if (!isJudge) {
+            toast("Only the Presiding Judge may adjourn the courtroom session.");
+            return;
+        }
         const ok = window.confirm(
-            "End this trial session for everyone? The transcript stays available for download, and no one will be able to rejoin.\n\nYou will be returned to the dashboard after the session ends."
+            "Adjourn this trial session for everyone? The transcript and analysis reports will be preserved for download.\n\nYou (Presiding Judge) will be returned to the dashboard."
         );
         if (!ok) return;
-        if (els.endSessionBtn) els.endSessionBtn.disabled = true;
+
         state.iEnded = true;
-        state.ws.send(JSON.stringify({ type: "end_session" }));
+        if (els.endSessionBtn) els.endSessionBtn.disabled = true;
+        const leaveLabel = document.getElementById("leave-btn-label");
+        if (leaveLabel) leaveLabel.textContent = "Adjourning…";
+
+        let sentWs = false;
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            try {
+                state.ws.send(JSON.stringify({ type: "end_session" }));
+                sentWs = true;
+            } catch (err) {
+                console.warn("WebSocket send end_session failed:", err);
+            }
+        }
+
+        // Guaranteed REST fallback: always POST to /api/court/rooms/{room_id}/end
+        try {
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/end`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ended_by: state.me.name || "The Presiding Judge" }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                handleSessionEnded(data.room || { room_id: ROOM_ID, status: "ended" }, true);
+                return;
+            }
+        } catch (e) {
+            console.error("REST end courtroom failed:", e);
+        }
+
+        if (!sentWs) {
+            if (els.endSessionBtn) els.endSessionBtn.disabled = false;
+            if (leaveLabel) leaveLabel.textContent = "Adjourn";
+            toast("Could not adjourn courtroom session. Please try again.");
+        }
     }
 
+    // Handles Leave / Adjourn call from the bottom control bar
+    window.__handleLeaveCall = function () {
+        const isJudge = state.me && state.me.role === "Judge";
+        if (isJudge) {
+            requestEndSession();
+        } else {
+            const ok = window.confirm(
+                "Leave this trial session? You will be taken to the transcript download and exit screen."
+            );
+            if (ok) {
+                handleSessionEnded({ room_id: ROOM_ID, status: "ended" }, false);
+            }
+        }
+    };
+
     // The join card, dressed as a "session ended" screen.
-    function showEndedJoinCard(room) {
+    function showEndedJoinCard(room, wasJudge = false) {
         // The session is over — a pending pre-entry countdown must not linger.
         stopJoinCountdown();
         const title = (room && room.case_title) || "Trial";
         els.joinCaseTitle.textContent = `${title} — concluded`;
-        els.joinSubtitle.textContent =
-            "The Presiding Judge adjourned this session. The official record is preserved below — no one can rejoin.";
+
+        const joinBackLink = document.getElementById("join-back-link");
+        const endedExitBtn = document.getElementById("ended-exit-btn");
+        const endedNote = document.getElementById("session-ended-note");
+
+        if (wasJudge) {
+            els.joinSubtitle.textContent =
+                "The trial session was adjourned. Returning Presiding Judge to the dashboard…";
+            if (joinBackLink) joinBackLink.style.display = "";
+            if (endedExitBtn) endedExitBtn.style.display = "none";
+            if (endedNote) endedNote.textContent = "The court stands adjourned. Preparing your dashboard return…";
+        } else {
+            els.joinSubtitle.textContent =
+                "The Presiding Judge adjourned this session. The official record is preserved below — download your copy and exit.";
+            if (joinBackLink) joinBackLink.style.display = "none";
+            if (endedExitBtn) endedExitBtn.style.display = "inline-flex";
+            if (endedNote) endedNote.textContent = "The court stands adjourned. Official court documents are available for download below.";
+        }
+
         els.joinForm.style.display = "none";
         const warn = document.getElementById("join-media-warning");
         if (warn) warn.style.display = "none";
@@ -2828,11 +2937,26 @@
         if (md) md.href = `/api/court/rooms/${ROOM_ID}/transcript`;
         if (pdf) pdf.href = `/api/court/rooms/${ROOM_ID}/transcript.pdf`;
         if (rep) rep.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
+        if (endedExitBtn) {
+            endedExitBtn.onclick = (e) => {
+                if (window.opener && !window.opener.closed) {
+                    try {
+                        window.close();
+                        e.preventDefault();
+                        return;
+                    } catch (_) {}
+                }
+            };
+        }
         if (els.sessionEndedPanel) els.sessionEndedPanel.style.display = "block";
-        if (md || pdf || rep) lucide.createIcons();
+        if (md || pdf || rep || endedExitBtn) lucide.createIcons();
     }
 
-    function handleSessionEnded(room) {
+    function handleSessionEnded(room, forcedJudgeState) {
+        const wasJudge = (typeof forcedJudgeState === "boolean")
+            ? forcedJudgeState
+            : Boolean((state.me && state.me.role === "Judge") || state.iEnded);
+
         // Tear down the live session: peers, local media, analyzers.
         for (const pid of [...state.peers.keys()]) closePeer(pid);
         try { if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
@@ -2849,25 +2973,24 @@
         // record before the teardown — the aggregate must survive the adjournment.
         try { stopFaceAnalysis(); } catch (_) {}
         disableFaceCamera();
+
         // Back to the join card, now showing the ended state.
         els.root.style.display = "none";
         els.joinOverlay.style.display = "";
         hideJoinError();
-        showEndedJoinCard(room);
+        showEndedJoinCard(room, wasJudge);
         state.me = null;
         if (state.ws) {
             try { state.ws.onclose = null; state.ws.close(); } catch (_) {}
             state.ws = null;
         }
-        toast("Session ended — the transcript is preserved.");
-        // The Judge who clicked "End Session" is sent back to the dashboard /
-        // analysis view they opened the trial from: a short countdown on the
-        // ended card, then close this tab and focus the opener (or navigate to
-        // the dashboard when there is no opener). Other participants keep the
-        // ended card with the record downloads.
-        if (state.iEnded) {
-            state.iEnded = false;
+
+        if (wasJudge) {
+            toast("Session adjourned — returning to dashboard.");
             scheduleReturnToDashboard();
+        } else {
+            toast("Court adjourned. Official transcript and report preserved below.");
+            // Non-judge remains on the download / exit card!
         }
     }
 

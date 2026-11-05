@@ -18,7 +18,7 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 import requests
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, Response, JSONResponse
+from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
@@ -2424,6 +2424,34 @@ def post_face_summary(room_id: str, payload: dict):
     return fs.to_dict()
 
 
+@app.post("/api/court/rooms/{room_id}/end")
+async def end_courtroom_session(room_id: str, payload: dict = None):
+    """Adjourn and conclude a courtroom session. Broadcasts session_ended and persists the final state."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+
+    ended_by = "The Presiding Judge"
+    if payload and isinstance(payload, dict):
+        ended_by = payload.get("ended_by", ended_by)
+
+    ended = courtroom_manager.end_room(room_id, ended_by)
+    if ended is not None:
+        sockets = getattr(courtroom_manager, "_room_sockets", {}).get(room_id, {})
+        await _broadcast(sockets, {
+            "type": "session_ended",
+            "room": ended.public_state(),
+        })
+        for ws in list(sockets.values()):
+            try:
+                await ws.close()
+            except Exception:
+                pass
+    return {"status": "ended", "room": ended.public_state() if ended else room.public_state()}
+
+
 @app.post("/api/court/rooms/{room_id}/refresh-context")
 def refresh_court_context(room_id: str):
     """Rebuild the linked case's context snapshot (evidence changed mid-trial)."""
@@ -3130,6 +3158,15 @@ def read_index():
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return {"message": "Anavaya Dashboard backend is running. Setup the front-end files in static/ directory."}
+
+
+@app.get("/landing")
+@app.get("/landing/")
+def read_landing(request: Request):
+    """Fallback route for landing page when accessed directly without nginx proxy."""
+    # When behind the nginx reverse proxy, nginx serves :8084 directly.
+    # If hit on the standalone FastAPI server, redirect to Vite landing or index.
+    return RedirectResponse(url="/", status_code=302)
 
 # Branded 404. StaticFiles answers an unknown path with a bare "Not Found",
 # which is what a mistyped tunnel URL used to show. Serve static/404.html to

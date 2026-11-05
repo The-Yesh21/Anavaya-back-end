@@ -1822,6 +1822,24 @@ body::before {
     background: rgba(201, 162, 75, 0.32);
     color: #FFFFFF;
 }
+.quick-action.action-context-btn {
+    color: #F7EFDC;
+    background: linear-gradient(135deg, rgba(201, 162, 75, 0.25), rgba(168, 126, 47, 0.3));
+    border-color: rgba(201, 162, 75, 0.55);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.quick-action.action-context-btn:hover {
+    background: linear-gradient(135deg, rgba(201, 162, 75, 0.4), rgba(168, 126, 47, 0.45));
+    border-color: rgba(227, 200, 119, 0.8);
+    color: #FFFFFF;
+    box-shadow: 0 0 10px rgba(201, 162, 75, 0.35);
+}
+.quick-action.action-context-btn i {
+    width: 13px;
+    height: 13px;
+}
 
 /* Floating bottom control dock */
 .court-control-bar {
