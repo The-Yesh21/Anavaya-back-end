@@ -24,7 +24,7 @@ function check(name, ok, detail) {
 
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: CHROME });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ ignoreHTTPSErrors: true });
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });

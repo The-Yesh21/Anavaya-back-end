@@ -372,16 +372,72 @@
                                 </div>
                             </div>
                             <div class="face-metrics">
-                                <div class="fm"><span class="fm-label">Expression</span><strong id="fm-expression">—</strong></div>
+                                <div class="fm"><span class="fm-label">Emotion</span><strong id="fm-expression">—</strong></div>
+                                <div class="fm"><span class="fm-label">Stress / Tension</span><strong id="fm-stress-val">0% (Calm)</strong></div>
                                 <div class="fm"><span class="fm-label">Lips</span><strong id="fm-lips">—</strong></div>
                                 <div class="fm"><span class="fm-label">Brows</span><strong id="fm-brows">—</strong></div>
                                 <div class="fm"><span class="fm-label">Blinks</span><strong id="fm-blinks">0</strong></div>
                                 <div class="fm"><span class="fm-label">Gaze</span><strong id="fm-gaze">—</strong></div>
                                 <div class="fm"><span class="fm-label">Speaking</span><strong id="fm-speaking">—</strong></div>
+                                <div class="fm"><span class="fm-label">Confidence</span><strong id="fm-confidence">—</strong></div>
+                            </div>
+                            <!-- Real-Time Human Emotion Spectrum -->
+                            <div class="face-emotion-spectrum" id="face-emotion-spectrum">
+                                <div class="fes-header">
+                                    <span class="fes-title"><i data-lucide="sparkles"></i> Emotion Spectrum</span>
+                                    <span class="fes-primary" id="fes-primary-badge">Neutral · 95%</span>
+                                </div>
+                                <div class="fes-bars" id="fes-bars">
+                                    <div class="fes-bar-row" data-emotion="neutral">
+                                        <span class="fes-bar-label">Neutral</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 95%;"></div></div>
+                                        <span class="fes-bar-pct">95%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="joy">
+                                        <span class="fes-bar-label">Joy</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="stress">
+                                        <span class="fes-bar-label">Stress</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="anger">
+                                        <span class="fes-bar-label">Anger</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="fear">
+                                        <span class="fes-bar-label">Fear</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="sadness">
+                                        <span class="fes-bar-label">Sadness</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="surprise">
+                                        <span class="fes-bar-label">Surprise</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="disgust">
+                                        <span class="fes-bar-label">Disgust</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="skepticism">
+                                        <span class="fes-bar-label">Skepticism</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="face-gauge">
                                 <div class="face-gauge-track"><div id="face-gauge-fill" class="face-gauge-fill"></div></div>
-                                <div class="face-gauge-readout"><strong id="face-score">0%</strong><span>nervousness</span></div>
+                                <div class="face-gauge-readout"><strong id="face-score">0%</strong><span>Tension Index</span></div>
                             </div>
                             <div id="face-cues" class="face-cues"></div>
                             <div class="face-actions">
