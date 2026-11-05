@@ -2607,212 +2607,603 @@ def download_transcript_pdf(room_id: str):
         raise HTTPException(status_code=500, detail="PDF generation dependencies not available.")
 
     def esc(text):
-        return html_mod.escape(str(text))
+        return html_mod.escape(str(text or ""))
 
-    # -- Build HTML --
+    # -- Build Timestamps & Meta --
     now_str = datetime.now().strftime("%d %B %Y, %H:%M")
     created_str = ""
     try:
         created_str = datetime.fromisoformat(room.created_at).strftime("%d %B %Y, %H:%M")
     except (ValueError, TypeError):
-        created_str = room.created_at
+        created_str = room.created_at or "N/A"
 
-    # Collect unique participants with their roles
-    participants_html = ""
+    # -- Appearances / Judicial Roster --
+    seen_participants = {}
     if room.participants:
         for p in room.participants:
             label = ROLE_LABELS.get(p.role, p.role)
-            participants_html += (
-                f'<div class="participant-row">'
-                f'<span class="part-name">{esc(p.name)}</span>'
-                f'<span class="part-role">{esc(label)}</span>'
-                f'</div>'
-            )
+            seen_participants[p.name] = (label, "Active Roster")
 
-    # Build transcript entries
+    for e in room.transcript:
+        if e.actor and e.actor not in ("System", "system") and e.actor not in seen_participants:
+            label = ROLE_LABELS.get(e.role, e.role)
+            seen_participants[e.actor] = (label, "Appeared in Record")
+
+    roster_rows = ""
+    for name, (role_lbl, status_txt) in seen_participants.items():
+        role_lower = role_lbl.lower()
+        slug = "judge" if "judge" in role_lower else ("defence" if "defence" in role_lower else ("prosecution" if "prosecution" in role_lower else "witness"))
+        roster_rows += f"""
+        <tr>
+            <td class="r-role"><span class="role-badge {slug}">{esc(role_lbl)}</span></td>
+            <td class="r-name"><strong>{esc(name)}</strong></td>
+            <td class="r-status">{esc(status_txt)}</td>
+        </tr>
+        """
+
+    # -- Transcript Colloquy Entries --
     entries_html = ""
-    role_colors = {
-        "Presiding Judge": "#1B2A4A",
-        "Defence Counsel": "#C25606",
-        "Prosecution Counsel": "#B3402E",
-        "system": "#6B7280",
-    }
     for entry in room.transcript:
         ts = ""
         try:
-            ts = datetime.fromisoformat(entry.timestamp).strftime("%H:%M")
+            ts = datetime.fromisoformat(entry.timestamp).strftime("%H:%M:%S")
         except (ValueError, TypeError):
-            ts = entry.timestamp
+            ts = entry.timestamp or ""
 
-        if entry.kind == "phase":
-            entries_html += (
-                f'<div class="entry entry-phase">'
-                f'<div class="phase-marker">▸ {esc(entry.text)}</div>'
-                f'</div>'
-            )
-        elif entry.kind == "system":
-            entries_html += (
-                f'<div class="entry entry-system">'
-                f'<div class="system-text">{esc(entry.text)}</div>'
-                f'</div>'
-            )
-        elif entry.kind == "action":
-            color = role_colors.get(entry.role, "#6B7280")
-            entries_html += (
-                f'<div class="entry entry-action">'
-                f'<div class="entry-header">'
-                f'<span class="entry-role" style="color:{color}">{esc(entry.role)}</span>'
-                f'<span class="entry-actor">{esc(entry.actor)}</span>'
-                f'<span class="entry-time">{esc(ts)}</span>'
-                f'</div>'
-                f'<div class="entry-action-text">{esc(entry.text)}</div>'
-                f'</div>'
-            )
-        elif entry.kind == "behavior":
-            color = role_colors.get(entry.role, "#6B7280")
-            entries_html += (
-                f'<div class="entry entry-behavior">'
-                f'<div class="entry-header">'
-                f'<span class="entry-role" style="color:{color}">{esc(entry.role)}</span>'
-                f'<span class="entry-actor">{esc(entry.actor)}</span>'
-                f'<span class="entry-time">{esc(ts)}</span>'
-                f'</div>'
-                f'<div class="entry-behavior-text">{esc(entry.text)}</div>'
-                f'</div>'
-            )
+        kind = getattr(entry, "kind", "statement")
+        role = getattr(entry, "role", "") or ""
+        actor = getattr(entry, "actor", "") or "Speaker"
+        text = getattr(entry, "text", "") or ""
+        role_label = ROLE_LABELS.get(role, role)
+
+        role_lower = role.lower()
+        slug = "judge" if "judge" in role_lower else ("defence" if "defence" in role_lower else ("prosecution" if "prosecution" in role_lower else ("witness" if "witness" in role_lower else "system")))
+
+        if kind == "phase":
+            entries_html += f"""
+            <div class="phase-divider">
+                <table class="phase-table">
+                    <tr>
+                        <td class="phase-icon-cell">&#167;</td>
+                        <td class="phase-content-cell">
+                            <div class="phase-kicker">SESSION PHASE TRANSITION</div>
+                            <div class="phase-title">{esc(text.upper())}</div>
+                        </td>
+                        <td class="phase-ts-cell">{esc(ts)}</td>
+                    </tr>
+                </table>
+            </div>
+            """
+        elif kind == "system":
+            entries_html += f"""
+            <div class="system-event">
+                <span class="sys-ts">{esc(ts)}</span>
+                <span class="sys-text">&#9432; {esc(text)}</span>
+            </div>
+            """
+        elif kind == "action":
+            entries_html += f"""
+            <div class="colloquy-card action-card">
+                <table class="colloquy-header-table">
+                    <tr>
+                        <td class="ch-badge-cell">
+                            <span class="role-badge action">PROCEDURAL ACTION</span>
+                        </td>
+                        <td class="ch-name-cell">
+                            <strong>{esc(actor)}</strong> <span class="speaker-role-sub">({esc(role_label)})</span>
+                        </td>
+                        <td class="ch-time-cell">{esc(ts)}</td>
+                    </tr>
+                </table>
+                <div class="colloquy-action-content">&#9878; {esc(text)}</div>
+            </div>
+            """
+        elif kind == "behavior":
+            entries_html += f"""
+            <div class="colloquy-card behavior-card">
+                <table class="colloquy-header-table">
+                    <tr>
+                        <td class="ch-badge-cell">
+                            <span class="role-badge behavior">CHAKSHU AI</span>
+                        </td>
+                        <td class="ch-name-cell">
+                            <strong>{esc(actor)}</strong> <span class="speaker-role-sub">({esc(role_label)})</span>
+                        </td>
+                        <td class="ch-time-cell">{esc(ts)}</td>
+                    </tr>
+                </table>
+                <div class="colloquy-behavior-content">&#128065; {esc(text)}</div>
+            </div>
+            """
         else:  # statement
-            color = role_colors.get(entry.role, "#6B7280")
-            entries_html += (
-                f'<div class="entry entry-statement">'
-                f'<div class="entry-header">'
-                f'<span class="entry-role" style="color:{color}">{esc(entry.role)}</span>'
-                f'<span class="entry-actor">{esc(entry.actor)}</span>'
-                f'<span class="entry-time">{esc(ts)}</span>'
-                f'</div>'
-                f'<div class="entry-text">{esc(entry.text)}</div>'
-                f'</div>'
-            )
+            entries_html += f"""
+            <div class="colloquy-card statement-{slug}">
+                <table class="colloquy-header-table">
+                    <tr>
+                        <td class="ch-badge-cell">
+                            <span class="role-badge {slug}">{esc(role_label)}</span>
+                        </td>
+                        <td class="ch-name-cell">
+                            <strong>{esc(actor)}</strong>
+                        </td>
+                        <td class="ch-time-cell">{esc(ts)}</td>
+                    </tr>
+                </table>
+                <div class="colloquy-content">{esc(text)}</div>
+            </div>
+            """
 
     html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head><body>
-<div class="page-header">
-    <div class="kicker">ANAVAYA · LIVE COURTROOM</div>
-    <h1>Official Transcript of Proceedings</h1>
-    <div class="sub">Case: {esc(room.case_title)}</div>
-    <div class="meta-row">
-        Room {esc(room.room_id)} · Opened {esc(created_str)} · By {esc(room.created_by)}
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+
+<div class="page-banner">
+    <div class="banner-kicker">REPUBLIC OF INDIA &#183; JUDICIAL AUTOMATION &amp; TRIAGE SYSTEM</div>
+    <h1 class="banner-title">Official Transcript of Court Proceedings</h1>
+    <div class="banner-sub">Autonomous Courtroom Recording, Biometric Demeanor Log &amp; Colloquy Record</div>
+    <div class="banner-meta">
+        Room <strong>#{esc(room.room_id)}</strong> &#183; Presiding / Host: <strong>{esc(room.created_by)}</strong> &#183; Opened: <strong>{esc(created_str)}</strong>
     </div>
 </div>
 
-<div class="section">
-    <div class="section-title">Case Details</div>
-    <div class="detail-grid">
-        <div class="detail"><span class="dt">Case Title</span><span class="dd">{esc(room.case_title)}</span></div>
-        <div class="detail"><span class="dt">Room ID</span><span class="dd">{esc(room.room_id)}</span></div>
-        <div class="detail"><span class="dt">Date Opened</span><span class="dd">{esc(created_str)}</span></div>
-        <div class="detail"><span class="dt">Final Phase</span><span class="dd">{esc(room.phase)}</span></div>
-        <div class="detail"><span class="dt">Total Entries</span><span class="dd">{len(room.transcript)}</span></div>
-    </div>
+<div class="section-box">
+    <div class="section-heading">I. Case Particulars &amp; Session Registry</div>
+    <table class="particulars-table">
+        <tr>
+            <td class="p-lbl">CASE TITLE</td>
+            <td class="p-val"><strong>{esc(room.case_title)}</strong></td>
+        </tr>
+        <tr>
+            <td class="p-lbl">ROOM IDENTIFIER</td>
+            <td class="p-val">#{esc(room.room_id)}</td>
+        </tr>
+        <tr>
+            <td class="p-lbl">RECORDED PHASE</td>
+            <td class="p-val"><span class="badge-status">{esc(room.phase or "Active / Concluded")}</span></td>
+        </tr>
+        <tr>
+            <td class="p-lbl">SESSION INITIATED</td>
+            <td class="p-val">{esc(created_str)}</td>
+        </tr>
+        <tr>
+            <td class="p-lbl">TOTAL LOGGED EVENTS</td>
+            <td class="p-val">{len(room.transcript)} events recorded</td>
+        </tr>
+        <tr>
+            <td class="p-lbl">AUTHENTICATION DATE</td>
+            <td class="p-val">{esc(now_str)}</td>
+        </tr>
+    </table>
 </div>
 
-<div class="section">
-    <div class="section-title">Participants</div>
-    {participants_html}
+<div class="section-box">
+    <div class="section-heading">II. Appearances &amp; Judicial Roster</div>
+    <table class="roster-table">
+        <thead>
+            <tr>
+                <th style="width: 32%;">ROLE / DESIGNATION</th>
+                <th style="width: 46%;">OFFICIAL / COUNSEL NAME</th>
+                <th style="width: 22%;">RECORD STATUS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {roster_rows if roster_rows else '<tr><td colspan="3" style="text-align:center;color:#64748B;padding:6px;">No external participants registered on record.</td></tr>'}
+        </tbody>
+    </table>
 </div>
 
-<div class="section">
-    <div class="section-title">Proceedings</div>
-    <div class="transcript-body">
+<div class="section-box">
+    <div class="section-heading">III. Verbatim Colloquy &amp; Event Transcript</div>
+    <div class="transcript-stream">
         {entries_html}
     </div>
 </div>
 
-<div class="legal-note">
-    <strong>Disclaimer:</strong> This transcript is generated from the live courtroom session.
-    It includes all recorded statements, actions, and phase changes. Audio recordings of spoken
-    statements are stored separately and can be accessed from the courtroom interface.
+<div class="attestation-box">
+    <table class="attest-table">
+        <tr>
+            <td class="attest-main">
+                <div class="attest-heading">AUTHENTICATION OF PROCEEDINGS</div>
+                <div class="attest-body">
+                    This official transcript is generated directly from the Anavaya Virtual Courtroom runtime.
+                    It documents verbatim spoken testimony, procedural motions, biometric demeanor cues captured via
+                    the Chakshu AI engine, and judicial rulings in chronological sequence.
+                </div>
+            </td>
+            <td class="attest-seal-col">
+                <div class="seal-container">
+                    <div class="seal-stars">&#9733; &#9733; &#9733;</div>
+                    <div class="seal-court">ANAVAYA DIGITAL BENCH</div>
+                    <div class="seal-date">{esc(now_str)}</div>
+                    <div class="seal-verified">OFFICIAL RECORD CERTIFIED</div>
+                </div>
+            </td>
+        </tr>
+    </table>
 </div>
 
-<div class="page-footer">
-    Anavaya — AI-Powered Judicial System · Transcript generated {esc(now_str)}
-    · Room {esc(room.room_id)} · {esc(room.case_title)}
-</div>
-</body></html>"""
+</body>
+</html>
+"""
 
-    # -- CSS (court document styling) --
-    # A4 print notes: PyMuPDF's Story engine supports only a conservative CSS
-    # subset (no flexbox/tables/@page margin boxes/counters), so the layout is
-    # built from simple blocks with pt/mm sizes — the old px sizes rendered
-    # oversized and cramped on the sheet — and the running footer with page
-    # numbers is stamped onto every page with fitz AFTER layout (see below).
-    # Entries use a hanging indent (speaker label outdented, wrapped text
-    # aligned under itself) and never break mid-entry across pages.
     css = """
-    body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt;
-           color: #1F2937; line-height: 1.45; margin: 0; padding: 0; }
+    html { margin: 0; }
+    body {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 10pt;
+        color: #1E293B;
+        line-height: 1.45;
+        margin: 0;
+        padding: 0;
+    }
 
-    /* ---- First-page letterhead ---- */
-    .page-header { background: #1B2A4A; color: #FFFFFF; padding: 9mm 10mm 7mm;
-                   border-bottom: 2.5mm solid #C9A227; margin: 0 0 6mm; }
-    .page-header .kicker { font-family: Helvetica, Arial, sans-serif; font-size: 8pt;
-                   letter-spacing: 2.5px; text-transform: uppercase; color: #C9A227; }
-    .page-header h1 { margin: 2mm 0 1.5mm; font-size: 17pt; font-weight: 700; color: #FFFFFF; }
-    .page-header .sub { font-size: 11pt; color: #C7D2E5; font-family: Helvetica, Arial, sans-serif; }
-    .meta-row { margin-top: 2.5mm; font-family: Helvetica, Arial, sans-serif; font-size: 8.5pt;
-                color: #E5E9F3; }
+    /* Page Banner */
+    .page-banner {
+        background: #1B2A4A;
+        color: #FFFFFF;
+        padding: 18px 20px 16px 20px;
+        border-bottom: 4px solid #C9A227;
+        border-radius: 4px;
+        margin-bottom: 14px;
+    }
+    .banner-kicker {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 7.5pt;
+        font-weight: 700;
+        letter-spacing: 2.2px;
+        text-transform: uppercase;
+        color: #C9A227;
+    }
+    .banner-title {
+        font-family: Helvetica, Arial, sans-serif;
+        margin: 4px 0 3px 0;
+        font-size: 17pt;
+        font-weight: 800;
+        color: #FFFFFF;
+        letter-spacing: 0.5px;
+    }
+    .banner-sub {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 9pt;
+        color: #CBD5E1;
+        margin-bottom: 6px;
+    }
+    .banner-meta {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8.5pt;
+        color: #E2E8F0;
+        padding-top: 4px;
+        border-top: 0.5px solid #334155;
+    }
 
-    /* ---- Sections ---- */
-    .section { margin: 0 0 6mm; page-break-inside: avoid; }
-    .section-title { font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt;
-             font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;
-             color: #1B2A4A; padding: 0 0 1.5mm 0; margin: 0 0 3mm;
-             border-bottom: 1.5px solid #1B2A4A; }
+    /* Section Box */
+    .section-box {
+        margin-bottom: 14px;
+    }
+    .section-heading {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 9.5pt;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: #1B2A4A;
+        padding-bottom: 3px;
+        margin-bottom: 6px;
+        border-bottom: 1.5px solid #1B2A4A;
+    }
 
-    /* Case details: one labelled line each, aligned and airy. */
-    .detail { font-family: Helvetica, Arial, sans-serif; font-size: 10pt;
-              padding: 1mm 0; border-bottom: 0.5px solid #F3F4F6; }
-    .dt { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.8px;
-          color: #6B7280; margin-right: 4mm; }
-    .dd { font-size: 10pt; font-weight: 600; color: #111827; }
+    /* Particulars Table */
+    .particulars-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 4px;
+    }
+    .particulars-table td {
+        padding: 5px 8px;
+        border: 0.5px solid #E2E8F0;
+        font-family: Helvetica, Arial, sans-serif;
+    }
+    .p-lbl {
+        background: #F8FAFC;
+        color: #475569;
+        font-size: 8pt;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        width: 28%;
+    }
+    .p-val {
+        background: #FFFFFF;
+        color: #0F172A;
+        font-size: 9pt;
+        width: 72%;
+    }
+    .badge-status {
+        background: #EFF6FF;
+        color: #1D4ED8;
+        border: 0.5px solid #BFDBFE;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 700;
+        font-size: 8pt;
+        text-transform: uppercase;
+    }
 
-    /* Participants: name first, role after a separator on the same line. */
-    .participant-row { font-family: Helvetica, Arial, sans-serif; padding: 1.6mm 0;
-                       border-bottom: 0.5px solid #F3F4F6; }
-    .part-name { font-weight: 700; font-size: 10pt; color: #111827; }
-    .part-role { font-size: 9pt; color: #6B7280; margin-left: 4mm; }
+    /* Roster Table */
+    .roster-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 4px;
+    }
+    .roster-table th {
+        background: #F1F5F9;
+        color: #475569;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 7.5pt;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-align: left;
+        padding: 5px 8px;
+        border: 0.5px solid #CBD5E1;
+    }
+    .roster-table td {
+        padding: 5px 8px;
+        border: 0.5px solid #E2E8F0;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 9pt;
+    }
+    .r-role { width: 32%; }
+    .r-name { width: 46%; color: #0F172A; }
+    .r-status { width: 22%; color: #64748B; font-size: 8pt; }
 
-    /* Proceedings */
-    .transcript-body { padding: 0; }
-    .entry { padding: 2mm 0 1.6mm; border-bottom: 0.5px solid #F3F4F6;
-             page-break-inside: avoid; }
-    /* Hanging indent: the speaker label outdents and the wrapped statement
-       aligns under itself — the alignment problem the printed sheet had. */
-    .entry-header { font-family: Helvetica, Arial, sans-serif; margin-bottom: 0.8mm; }
-    .entry-role { display: inline-block; width: 42mm; font-size: 8.5pt; font-weight: 700;
-                  text-transform: uppercase; letter-spacing: 0.8px; }
-    .entry-actor { display: inline-block; font-size: 9.5pt; color: #374151; }
-    .entry-time { display: inline-block; float: right; font-size: 8.5pt; color: #9CA3AF; }
-    .entry-text, .entry-action-text, .entry-behavior-text {
-        margin: 0; padding: 0 0 0 10mm; text-indent: -10mm; }
-    .entry-text { font-size: 10.5pt; color: #1F2937; }
-    .entry-action-text { font-style: italic; }
-    .entry-behavior { border-left: 1.2mm solid #B45309; background: #FFFBF0;
-                      padding-left: 2.5mm; page-break-inside: avoid; }
-    .entry-behavior-text { font-size: 10pt; color: #713F12; font-style: italic; }
-    .entry-phase { background: #F8FAFC; padding: 2.5mm 3mm; margin: 1.5mm 0;
-                   border-left: 1.2mm solid #C9A227; border-radius: 0 2mm 2mm 0; }
-    .phase-marker { font-family: Helvetica, Arial, sans-serif; font-size: 9pt;
-                    font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
-                    color: #1B2A4A; }
-    .entry-system { padding: 1.2mm 0; page-break-inside: avoid; }
-    .system-text { font-size: 9pt; color: #6B7280; font-style: italic; padding-left: 4mm; }
+    /* Role Badges */
+    .role-badge {
+        display: inline-block;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 7.5pt;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: #FFFFFF;
+    }
+    .role-badge.judge { background: #1B2A4A; }
+    .role-badge.defence { background: #B45309; }
+    .role-badge.prosecution { background: #991B1B; }
+    .role-badge.witness { background: #0F766E; }
+    .role-badge.action { background: #4338CA; }
+    .role-badge.behavior { background: #D97706; }
+    .role-badge.system { background: #64748B; }
 
-    .legal-note { background: #FFFBEB; border: 0.5px solid #FDE68A;
-                  border-left: 1.5mm solid #C9A227;
-            padding: 3mm 4mm; border-radius: 1.5mm; font-size: 9pt; color: #713F12;
-            margin: 0 0 5mm; page-break-inside: avoid; }
-    .page-footer { margin: 4mm 0 0; padding-top: 2mm; border-top: 0.5px solid #E5E7EB;
-            font-size: 8pt; color: #9CA3AF; font-family: Helvetica, Arial, sans-serif; }
+    /* Colloquy Stream */
+    .transcript-stream {
+        margin-top: 4px;
+    }
+    .colloquy-card {
+        border: 0.5px solid #E2E8F0;
+        border-radius: 4px;
+        margin-bottom: 6px;
+        page-break-inside: avoid;
+        background: #FFFFFF;
+    }
+    .statement-judge {
+        border-left: 3.5px solid #1B2A4A;
+        background: #F8FAFC;
+    }
+    .statement-defence {
+        border-left: 3.5px solid #B45309;
+        background: #FFFDF9;
+    }
+    .statement-prosecution {
+        border-left: 3.5px solid #991B1B;
+        background: #FEF9F9;
+    }
+    .statement-witness {
+        border-left: 3.5px solid #0F766E;
+        background: #F2FBF9;
+    }
+
+    .colloquy-header-table {
+        width: 100%;
+        border-collapse: collapse;
+        padding: 3px 8px;
+        background: #F8FAFC;
+        border-bottom: 0.5px solid #E2E8F0;
+    }
+    .ch-badge-cell {
+        width: 110px;
+        text-align: left;
+        vertical-align: middle;
+    }
+    .ch-name-cell {
+        text-align: left;
+        vertical-align: middle;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 9pt;
+        color: #0F172A;
+    }
+    .ch-time-cell {
+        width: 60px;
+        text-align: right;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #94A3B8;
+        vertical-align: middle;
+    }
+    .speaker-role-sub {
+        font-size: 7.5pt;
+        color: #64748B;
+        margin-left: 4px;
+    }
+
+    .colloquy-content {
+        padding: 6px 10px 7px 10px;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 9.5pt;
+        line-height: 1.48;
+        color: #1E293B;
+    }
+
+    /* Action Cards */
+    .action-card {
+        border-left: 3.5px solid #4338CA;
+        background: #EEF2FF;
+    }
+    .colloquy-action-content {
+        padding: 6px 10px 7px 10px;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 9pt;
+        font-weight: 600;
+        color: #3730A3;
+        font-style: italic;
+    }
+
+    /* Behavior Cards */
+    .behavior-card {
+        border-left: 3.5px solid #D97706;
+        background: #FFFBEB;
+    }
+    .colloquy-behavior-content {
+        padding: 6px 10px 7px 10px;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8.5pt;
+        line-height: 1.4;
+        color: #92400E;
+    }
+
+    /* Phase Transitions */
+    .phase-divider {
+        margin: 8px 0 6px 0;
+        padding: 6px 10px;
+        background: #0F172A;
+        border-radius: 4px;
+        page-break-inside: avoid;
+    }
+    .phase-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .phase-icon-cell {
+        width: 24px;
+        font-size: 15pt;
+        font-weight: bold;
+        color: #F59E0B;
+        vertical-align: middle;
+    }
+    .phase-content-cell {
+        vertical-align: middle;
+    }
+    .phase-kicker {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 6.5pt;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: #94A3B8;
+    }
+    .phase-title {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 10.5pt;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        color: #F8FAFC;
+    }
+    .phase-ts-cell {
+        text-align: right;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #94A3B8;
+        vertical-align: middle;
+        width: 65px;
+    }
+
+    /* System Events */
+    .system-event {
+        padding: 3px 8px;
+        margin: 2px 0 4px 0;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #64748B;
+        background: #F8FAFC;
+        border-left: 2.5px solid #CBD5E1;
+        border-radius: 0 3px 3px 0;
+        page-break-inside: avoid;
+    }
+    .sys-ts {
+        font-weight: 700;
+        color: #94A3B8;
+        margin-right: 6px;
+    }
+
+    /* Attestation Box */
+    .attestation-box {
+        margin-top: 14px;
+        padding: 12px 14px;
+        background: #F8FAFC;
+        border: 0.5px solid #E2E8F0;
+        border-left: 4px solid #1B2A4A;
+        border-radius: 4px;
+        page-break-inside: avoid;
+    }
+    .attest-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .attest-main {
+        vertical-align: top;
+        padding-right: 14px;
+    }
+    .attest-heading {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8.5pt;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #1B2A4A;
+        margin-bottom: 4px;
+    }
+    .attest-body {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        line-height: 1.45;
+        color: #475569;
+    }
+    .attest-seal-col {
+        width: 170px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    .seal-container {
+        border: 1.5px dashed #C9A227;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #FFFDF5;
+    }
+    .seal-stars {
+        color: #C9A227;
+        font-size: 9pt;
+        letter-spacing: 2px;
+    }
+    .seal-court {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 7.5pt;
+        font-weight: 800;
+        color: #1B2A4A;
+        margin: 2px 0;
+    }
+    .seal-date {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 6.5pt;
+        color: #64748B;
+    }
+    .seal-verified {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 6.5pt;
+        font-weight: 700;
+        color: #047857;
+        margin-top: 2px;
+    }
     """
 
     full_html = (
@@ -2821,57 +3212,107 @@ def download_transcript_pdf(room_id: str):
         f"<body>{html}</body></html>"
     )
 
-    # -- Render PDF --
+    # -- Two-Pass Layout & Render --
     import tempfile
-    fd, pdf_path = tempfile.mkstemp(suffix=".pdf", prefix="transcript_")
-    os.close(fd)
+    fd_raw, raw_path = tempfile.mkstemp(suffix=".pdf", prefix="transcript_raw_")
+    os.close(fd_raw)
+    fd_final, final_path = tempfile.mkstemp(suffix=".pdf", prefix="transcript_final_")
+    os.close(fd_final)
+
     try:
-        story = fitz.Story(html=full_html, user_css=css, em=11)
-        writer = fitz.DocumentWriter(pdf_path)
-        rect = fitz.paper_rect("a4")
+        page_rect = fitz.paper_rect("a4")
+        margin_x = 36
+        top_margin = 44
+        bottom_margin = 48
+        body_rect = fitz.Rect(
+            margin_x, top_margin, page_rect.width - margin_x, page_rect.height - bottom_margin
+        )
+
+        story = fitz.Story(html=full_html, user_css=css, em=10.5)
+        writer = fitz.DocumentWriter(raw_path)
         more = 1
         while more:
-            dev = writer.begin_page(rect)
-            more, _ = story.place(rect)
+            dev = writer.begin_page(page_rect)
+            more, _ = story.place(body_rect)
             story.draw(dev)
             writer.end_page()
         writer.close()
 
-        # Running footer stamped after layout (fitz Story CSS has no margin
-        # boxes or page counters): a hairline + "Room <id> · Page N of M"
-        # bottom-centre on every page, inside the print margins.
-        try:
-            doc = fitz.open(pdf_path)
-            total = doc.page_count
-            mm = 72 / 25.4
-            for page in doc:
+        # Pass 2: Post-processing pagination, running headers & footers
+        doc = fitz.open(raw_path)
+        if len(doc) > 1 and len(doc[-1].get_text().strip()) <= 15:
+            doc.delete_page(len(doc) - 1)
+
+        total_pages = len(doc)
+        for idx, page in enumerate(doc):
+            r = page.rect
+            # Running footer stamped on ALL pages
+            page.draw_line(
+                fitz.Point(margin_x, r.height - 32),
+                fitz.Point(r.width - margin_x, r.height - 32),
+                color=(0.82, 0.85, 0.90),
+                width=0.6,
+            )
+            page.insert_text(
+                fitz.Point(margin_x, r.height - 20),
+                "ANAVAYA VIRTUAL COURTROOM · OFFICIAL PROCEEDINGS RECORD",
+                fontsize=7.2,
+                color=(0.42, 0.46, 0.52),
+                fontname="helv",
+            )
+            p_str = f"Page {idx + 1} of {total_pages}"
+            page.insert_text(
+                fitz.Point(r.width - margin_x - len(p_str) * 5.4, r.height - 20),
+                p_str,
+                fontsize=7.2,
+                color=(0.42, 0.46, 0.52),
+                fontname="helv",
+            )
+
+            # Running header stamped on Page 2+
+            if idx > 0:
                 page.draw_line(
-                    fitz.Point(18 * mm, page.rect.height - 14 * mm),
-                    fitz.Point(page.rect.width - 18 * mm, page.rect.height - 14 * mm),
-                    color=(0.898, 0.906, 0.922), width=0.6,
+                    fitz.Point(margin_x, 30),
+                    fitz.Point(r.width - margin_x, 30),
+                    color=(0.82, 0.85, 0.90),
+                    width=0.6,
                 )
-                label = f"Room {room.room_id}  ·  Page {page.number + 1} of {total}"
-                fs = 8
-                tw = fitz.get_text_length(label, fontname="helv", fontsize=fs)
+                h_left = f"ANAVAYA PROCEEDINGS TRANSCRIPT · ROOM #{room.room_id} · {room.case_title[:35]}"
                 page.insert_text(
-                    fitz.Point((page.rect.width - tw) / 2, page.rect.height - 8 * mm),
-                    label, fontname="helv", fontsize=fs, color=(0.42, 0.447, 0.502),
+                    fitz.Point(margin_x, 23),
+                    h_left,
+                    fontsize=7.2,
+                    color=(0.42, 0.46, 0.52),
+                    fontname="helv",
                 )
-            doc.saveIncr()
-            doc.close()
-        except Exception as fe:
-            print(f"Transcript PDF footer stamp failed (non-fatal): {fe}")
+                h_right = "OFFICIAL RECORD"
+                page.insert_text(
+                    fitz.Point(r.width - margin_x - len(h_right) * 5.2, 23),
+                    h_right,
+                    fontsize=7.2,
+                    color=(0.55, 0.58, 0.62),
+                    fontname="helv",
+                )
+
+        doc.save(final_path, garbage=4, deflate=True)
+        doc.close()
+
+        try:
+            os.remove(raw_path)
+        except Exception:
+            pass
 
         safe_title = "".join(c if c.isalnum() or c in "- " else "_" for c in room.case_title)[:60]
         filename = f"{safe_title.strip()}_{room_id}_transcript.pdf"
-        return FileResponse(pdf_path, media_type="application/pdf",
+        return FileResponse(final_path, media_type="application/pdf",
                             filename=filename)
     except Exception as e:
-        if os.path.exists(pdf_path):
-            try:
-                os.remove(pdf_path)
-            except Exception:
-                pass
+        for p in (raw_path, final_path):
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 
