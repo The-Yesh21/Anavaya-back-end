@@ -478,7 +478,32 @@
 }
 .detail-scope i { width: 13px; height: 13px; flex: none; }
 
-.workspace-doc-list { display: flex; flex-direction: column; gap: 10px; }
+.workspace-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold-500, #C9A24B) color-mix(in srgb, var(--bg-well, #F6F1E6) 40%, transparent);
+}
+.workspace-doc-list::-webkit-scrollbar {
+    width: 6px;
+}
+.workspace-doc-list::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--bg-well, #F6F1E6) 40%, transparent);
+    border-radius: 999px;
+}
+.workspace-doc-list::-webkit-scrollbar-thumb {
+    background: var(--gold-500, #C9A24B);
+    border-radius: 999px;
+}
+.workspace-doc-list::-webkit-scrollbar-thumb:hover {
+    background: var(--gold-600, #A87E2F);
+}
 .ws-doc-item {
     display: flex;
     align-items: center;
@@ -490,6 +515,7 @@
     background: color-mix(in srgb, var(--bg-card) 92%, transparent);
     box-shadow: var(--shadow-xs);
     transition: all 0.25s var(--ease-spring);
+    flex-shrink: 0;
 }
 .ws-doc-item:hover {
     border-color: var(--border-color-glow);
@@ -905,6 +931,27 @@
     flex-direction: column;
     gap: 8px;
     margin-top: 8px;
+    max-height: 440px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold-500, #C9A24B) color-mix(in srgb, var(--bg-well, #F6F1E6) 40%, transparent);
+}
+.case-level-evidence::-webkit-scrollbar {
+    width: 6px;
+}
+.case-level-evidence::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--bg-well, #F6F1E6) 40%, transparent);
+    border-radius: 999px;
+}
+.case-level-evidence::-webkit-scrollbar-thumb {
+    background: var(--gold-500, #C9A24B);
+    border-radius: 999px;
+}
+.case-level-evidence::-webkit-scrollbar-thumb:hover {
+    background: var(--gold-600, #A87E2F);
 }
 .ev-empty {
     color: var(--text-secondary, #55503F);
@@ -1221,6 +1268,7 @@
     border-radius: 11px;
     box-shadow: var(--shadow-xs);
     transition: all 0.25s var(--ease-spring);
+    flex-shrink: 0;
 }
 .glance-tile:hover {
     border-color: var(--border-color-glow);

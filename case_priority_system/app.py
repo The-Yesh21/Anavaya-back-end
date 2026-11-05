@@ -14,8 +14,11 @@ import logging
 from datetime import datetime
 import pandas as pd
 import numpy as np
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+import requests
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, Response, JSONResponse
+from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
@@ -1587,6 +1590,143 @@ def get_case_dossier(case_id: str):
     )
 
 
+class CaseChatRequest(BaseModel):
+    message: str
+    history: Optional[List[Dict[str, str]]] = None
+
+
+@app.post("/api/cases/{case_identifier}/chat")
+async def chat_with_case_ai(case_identifier: str, payload: CaseChatRequest):
+    """Conversational assistant attached directly to the active case context.
+
+    Grounds its replies strictly in the case dossier (evidence exhibits,
+    witness statements, corroboration links, parameters, and whole-case verdict).
+    Powered by the local Ollama LLM (qwen2.5:3b).
+    """
+    if not payload.message or not payload.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    # 1. Resolve case context
+    case_title = case_identifier
+    priority = "Pending"
+    context_text = ""
+
+    # Check case registry first
+    case = None
+    if CaseManager.valid_case_id(case_identifier):
+        case = case_manager.get_case(case_identifier)
+
+    if case is not None:
+        case_title = case.title or case.case_id
+        priority = case.aggregate_priority or (case.case_level or {}).get("priority") or "Pending"
+        context_text = case_manager.export_markdown(case.case_id) or ""
+    else:
+        # Check Excel by Case_File or Case_ID
+        if os.path.exists(EXCEL_PATH):
+            try:
+                df = pd.read_excel(EXCEL_PATH)
+                match = df[df["Case_File"] == case_identifier]
+                if match.empty and "Case_ID" in df.columns:
+                    match = df[df["Case_ID"] == case_identifier]
+                if not match.empty:
+                    row = match.iloc[0]
+                    cid = str(row.get("Case_ID", "")).strip()
+                    if cid and CaseManager.valid_case_id(cid):
+                        c = case_manager.get_case(cid)
+                        if c is not None:
+                            case_title = c.title or c.case_id
+                            priority = c.aggregate_priority or (c.case_level or {}).get("priority") or str(row.get("Predicted_Priority", "Pending"))
+                            context_text = case_manager.export_markdown(c.case_id) or ""
+
+                    if not context_text:
+                        case_title = str(row.get("Case_File", case_identifier)).replace("[WHOLE CASE]", "").replace("_", " ").strip()
+                        priority = str(row.get("Predicted_Priority", "Pending"))
+                        context_text = f"""# Case: {case_title}
+- **Assigned Priority:** {priority}
+- **Category:** {row.get('Category', 'General')}
+- **Severity:** {row.get('Severity', 'N/A')}
+- **Vulnerability:** {row.get('Vulnerability', 'N/A')}
+- **Influence:** {row.get('Influence', 'N/A')}
+
+## Summary
+{row.get('Plain_Language_Summary', 'No summary available.')}
+
+## Parties
+{row.get('Main_Parties', 'Unknown')}
+
+## Constitutional Justification
+{row.get('Constitutional_Justification', 'N/A')}
+
+## Priority Rules
+{row.get('Priority_Rules_Applied', 'N/A')}
+"""
+            except Exception as e:
+                logger.warning(f"Error querying Excel for chat context: {e}")
+
+    if not context_text:
+        raise HTTPException(status_code=404, detail=f"Case '{case_identifier}' not found in registry or docket.")
+
+    # 2. Build system prompt and message history
+    system_prompt = (
+        "You are Anavaya's Judicial Case Intelligence Copilot. You are an expert legal assistant helping judges, counsel, and investigators understand this specific legal matter.\n\n"
+        f"--- ACTIVE CASE DOSSIER: {case_title} (Priority: {priority}) ---\n"
+        f"{context_text[:12000]}\n\n"
+        "--- INSTRUCTIONS ---\n"
+        "1. Ground all answers strictly in the factual record, evidence exhibits, timeline, and parties documented in the dossier above.\n"
+        "2. When discussing facts or testimony, cite the specific evidence document or exhibit where relevant (e.g. 'Exhibit P-1', 'Evidence_02 / CCTV Log').\n"
+        "3. Invariant: Case priority is assigned objectively by the CART Decision Tree triage model, not by the LLM.\n"
+        "4. If a requested detail is not found in the evidence dossier, state clearly: 'This detail is not recorded in the available exhibits.'\n"
+        "5. Be concise, direct, professional, and well-structured with markdown bullets."
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    if payload.history:
+        for item in payload.history[-6:]:
+            r = item.get("role")
+            c = item.get("content")
+            if r in ("user", "assistant") and c:
+                messages.append({"role": r, "content": str(c)})
+    messages.append({"role": "user", "content": payload.message.strip()})
+
+    # 3. Query Ollama
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+
+    try:
+        def _call_ollama():
+            resp = requests.post(
+                f"{ollama_url}/api/chat",
+                json={
+                    "model": model_name,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.2,
+                        "num_predict": 450,
+                    },
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+        data = await asyncio.to_thread(_call_ollama)
+        reply = data.get("message", {}).get("content", "").strip()
+        if not reply:
+            reply = "I analyzed the case dossier, but no response was generated. Please rephrase your query."
+    except Exception as e:
+        logger.error(f"Ollama case chat error: {e}")
+        reply = f"Could not reach Ollama at {ollama_url} ({str(e)}). Please ensure Ollama is running (`ollama serve`)."
+
+    return {
+        "reply": reply,
+        "case_id": case_identifier,
+        "case_title": case_title,
+        "priority": priority,
+        "model": model_name,
+    }
+
+
 # Mount static files (will serve index.html by default at root)
 os.makedirs(STATIC_DIR, exist_ok=True)
 
@@ -2282,6 +2422,34 @@ def post_face_summary(room_id: str, payload: dict):
     if fs is None:
         raise HTTPException(status_code=404, detail="Room not found.")
     return fs.to_dict()
+
+
+@app.post("/api/court/rooms/{room_id}/end")
+async def end_courtroom_session(room_id: str, payload: dict = None):
+    """Adjourn and conclude a courtroom session. Broadcasts session_ended and persists the final state."""
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+
+    ended_by = "The Presiding Judge"
+    if payload and isinstance(payload, dict):
+        ended_by = payload.get("ended_by", ended_by)
+
+    ended = courtroom_manager.end_room(room_id, ended_by)
+    if ended is not None:
+        sockets = getattr(courtroom_manager, "_room_sockets", {}).get(room_id, {})
+        await _broadcast(sockets, {
+            "type": "session_ended",
+            "room": ended.public_state(),
+        })
+        for ws in list(sockets.values()):
+            try:
+                await ws.close()
+            except Exception:
+                pass
+    return {"status": "ended", "room": ended.public_state() if ended else room.public_state()}
 
 
 @app.post("/api/court/rooms/{room_id}/refresh-context")
@@ -2990,6 +3158,15 @@ def read_index():
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return {"message": "Anavaya Dashboard backend is running. Setup the front-end files in static/ directory."}
+
+
+@app.get("/landing")
+@app.get("/landing/")
+def read_landing(request: Request):
+    """Fallback route for landing page when accessed directly without nginx proxy."""
+    # When behind the nginx reverse proxy, nginx serves :8084 directly.
+    # If hit on the standalone FastAPI server, redirect to Vite landing or index.
+    return RedirectResponse(url="/", status_code=302)
 
 # Branded 404. StaticFiles answers an unknown path with a bare "Not Found",
 # which is what a mistyped tunnel URL used to show. Serve static/404.html to

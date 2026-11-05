@@ -1227,6 +1227,12 @@ async function openCaseWorkspace(caseId) {
         if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
         const btn = $("workspace-analyze-btn");
         if (btn.dataset.action === "view") {
+            const wholeRow = UI.getCasesData().find((r) =>
+                r.Case_ID === currentWorkspaceCaseId &&
+                String(r.Document_Type || "").toLowerCase() === "whole case");
+            if (wholeRow) {
+                UI.selectCaseFn(wholeRow);
+            }
             const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
             if (analysisTabBtn) analysisTabBtn.click();
             const panel = document.getElementById("analysis-whole-case");

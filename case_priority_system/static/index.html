@@ -34,6 +34,7 @@
     <script src="tailwind-init.js"></script>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="case-workflow.css">
+    <link rel="stylesheet" href="case-chat.css">
     <!-- D3.js for Decision Tree Rendering -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!-- Lucide Icons for Premium UI -->
@@ -308,6 +309,7 @@
                                 <p id="workspace-rationale" class="workspace-rationale"></p>
                                 <div class="workspace-actions">
                                     <button class="lobby-create-btn" id="workspace-analyze-btn" style="width:auto;"><i data-lucide="sparkles"></i> Analyze All Documents</button>
+                                    <button class="lobby-create-btn" id="workspace-chat-btn" style="width:auto; background: linear-gradient(135deg, #24211D, #181614); border: 1px solid rgba(201,162,75,0.6);"><i data-lucide="bot"></i> Ask Case AI</button>
                                     <button class="lobby-delete-btn" id="workspace-delete-btn" style="width:auto;"><i data-lucide="trash-2"></i> Delete Case</button>
                                 </div>
                             </div>
@@ -406,6 +408,9 @@
                                         <a id="case-level-report-btn" class="lobby-create-btn case-level-report-btn" href="#" download>
                                             <i data-lucide="file-down"></i> Whole-Case PDF Report
                                         </a>
+                                        <button id="case-level-chat-btn" class="lobby-create-btn" style="background: linear-gradient(135deg, #24211D, #181614); border: 1px solid rgba(201,162,75,0.6);">
+                                            <i data-lucide="bot"></i> Ask Case AI
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -532,8 +537,14 @@
                         </div>
                         <div id="path-trace-wrap" class="path-trace-wrap" style="display: none;">
                             <div class="path-trace-header">
-                                <span class="path-trace-label"><i data-lucide="route"></i> Decision Path</span>
-                                <button class="path-trace-toggle" id="path-trace-toggle"><i data-lucide="chevron-down" class="collapse-chevron"></i></button>
+                                <div class="path-trace-header-left" style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="path-trace-label"><i data-lucide="route"></i> Decision Path</span>
+                                    <span class="path-trace-scope" id="path-trace-scope"></span>
+                                </div>
+                                <div class="path-trace-header-right" style="display: flex; align-items: center; gap: 8px;">
+                                    <span id="path-trace-switch-wrap"></span>
+                                    <button class="path-trace-toggle" id="path-trace-toggle"><i data-lucide="chevron-down" class="collapse-chevron"></i></button>
+                                </div>
                             </div>
                             <div class="path-breadcrumb" id="path-breadcrumb"></div>
                             <div class="timeline-steps" id="decision-path-steps"></div>
@@ -804,8 +815,80 @@
             </div>
         </div>
     </div>
+
+    <!-- Case AI Floating Copilot Launcher -->
+    <button id="case-chat-float-btn" class="case-chat-float-btn" type="button" aria-label="Open Case AI Copilot" title="Ask Case AI">
+        <span class="float-icon-wrap">
+            <i data-lucide="bot"></i>
+            <span class="float-pulse-dot"></span>
+        </span>
+        <span class="chat-float-label">Case AI</span>
+        <span class="chat-float-badge">qwen2.5</span>
+    </button>
+
+    <!-- Case AI Chat Drawer -->
+    <aside id="case-chat-drawer" class="case-chat-drawer" aria-hidden="true" role="dialog" aria-labelledby="chat-header-title">
+        <div class="chat-drawer-header">
+            <div class="chat-header-main">
+                <div class="chat-avatar-badge">
+                    <i data-lucide="bot"></i>
+                </div>
+                <div class="chat-header-meta">
+                    <div class="chat-header-title-row">
+                        <span id="chat-header-title" class="chat-header-title">Case Intelligence Assistant</span>
+                        <span class="chat-model-pill">qwen2.5:3b</span>
+                    </div>
+                    <div class="chat-context-row">
+                        <span id="chat-context-case-name" class="chat-context-pill">Loading case...</span>
+                        <span id="chat-context-priority" class="chat-context-priority" style="display:none;">High</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-header-actions">
+                <button id="chat-btn-clear" class="chat-control-btn" type="button" title="Clear chat history" aria-label="Clear chat">
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+                <button id="chat-btn-minimize" class="chat-control-btn" type="button" title="Minimize drawer" aria-label="Minimize">
+                    <i data-lucide="chevron-down"></i>
+                </button>
+                <button id="chat-btn-close" class="chat-control-btn" type="button" title="Close drawer" aria-label="Close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Suggestion Chips -->
+        <div class="chat-quick-chips" id="chat-quick-chips" role="toolbar" aria-label="Suggested Case Queries">
+            <button type="button" class="chat-chip" data-query="Can you summarize this case and the core facts?">📋 Summarize</button>
+            <button type="button" class="chat-chip" data-query="Who are all the key parties, victims, witnesses, and suspects?">👥 Key Parties</button>
+            <button type="button" class="chat-chip" data-query="Break down the evidence documents and what each proves.">🔍 Evidence Breakdown</button>
+            <button type="button" class="chat-chip" data-query="Explain why this case was assigned its current priority by the Decision Tree.">⚖️ Why Priority?</button>
+            <button type="button" class="chat-chip" data-query="What is the chronological timeline of events in this case?">🕒 Timeline</button>
+        </div>
+
+        <!-- Scrollable Messages Container -->
+        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
+            <!-- Dynamically populated by case-chat.js -->
+        </div>
+
+        <!-- Input Area Form -->
+        <form class="chat-input-area" id="chat-input-form">
+            <div class="chat-input-wrapper">
+                <textarea id="chat-input-text" rows="1" placeholder="Ask about this case (exhibits, timeline, facts)..." aria-label="Case question"></textarea>
+                <button type="submit" id="chat-send-btn" class="chat-send-btn" aria-label="Send query" title="Send (Enter)">
+                    <i data-lucide="send"></i>
+                </button>
+            </div>
+            <div class="chat-input-hints">
+                <span><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> line break</span>
+                <span class="privacy-note"><i data-lucide="shield-check"></i> Grounded on Case Exhibits</span>
+            </div>
+        </form>
+    </aside>
+
     <script src="invite.js"></script>
     <script src="app.js"></script>
     <script src="case-workflow.js"></script>
+    <script src="case-chat.js"></script>
 </body>
 </html>
