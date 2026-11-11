@@ -92,7 +92,7 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>ANV-2026-0025_whole_case</h2>
-  <p>This case file brings together 7 documents (FIR, 6 × Other) and is assessed as a single matter of Constitutional/Writ with no injury indicated, involving vulnerable parties. The evidence on record consists of “Evidence_01_Incident_Report_and_Timeline.pdf” (FIR; Constitutional/Writ; assessed Medium priority); “Evidence_02_CCTV_Review_Log.pdf” (Other; Constitutional/Writ; assessed Medium priority); “Evidence_03_Shop_Audio_Transcript_SIMULATED.pdf” (Other; General Civil; assessed Medium priority); “Evidence_04_Witness_Statements_SIMULATED.pdf” (Other; Constitutional/Writ; assessed Medium priority); “Evidence_05_Traffic_Camera_Note.pdf” (Other; Constitutional/Writ; assessed Medium priority); “Evidence_06_Interview_Records_SIMULATED.pdf” (Other; Excise/Tax; assessed Medium priority); “Evidence_08_Evidence_Register_and_Corroboration.pdf” (Other; Constitutional/Writ; assessed Medium priority). Cross-comparison finds 4 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “Evidence_01_Incident_Report_and_Timeline.pdf” and “Evidence_06_Interview_Records_SIMULATED.pdf” share parties. “Evidence_03_Shop_Audio_Transcript_SIMULATED.pdf”, “Evidence_04_Witness_Statements_SIMULATED.pdf”, “Evidence_08_Evidence_Register_and_Corroboration.pdf” currently stand alone — no other document shares a date, place or party with them, so further supporting evidence would strengthen the case.</p>
+  <p>This case file brings together 8 documents (FIR, 7 × Other) and is assessed as a single matter of Constitutional/Writ with major injury indicated, involving vulnerable parties. The evidence on record consists of “Evidence_01_Incident_Report_and_Timeline.pdf” (FIR; Constitutional/Writ; assessed Medium priority); “Evidence_02_CCTV_Review_Log.pdf” (Other; Constitutional/Writ; assessed Medium priority); “Evidence_03_Shop_Audio_Transcript_SIMULATED.pdf” (Other; General Civil; assessed Medium priority); “Evidence_04_Witness_Statements_SIMULATED.pdf” (Other; Constitutional/Writ; assessed Medium priority); “Evidence_05_Traffic_Camera_Note.pdf” (Other; Constitutional/Writ; assessed Medium priority); “Evidence_06_Interview_Records_SIMULATED.pdf” (Other; Excise/Tax; assessed Medium priority); “Evidence_08_Evidence_Register_and_Corroboration.pdf” (Other; Constitutional/Writ; assessed Medium priority); “State_3930_transcript.pdf” (Other; Property/Land; Major severity; assessed High priority). Cross-comparison finds 7 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “Evidence_01_Incident_Report_and_Timeline.pdf” and “Evidence_06_Interview_Records_SIMULATED.pdf” share parties. “Evidence_03_Shop_Audio_Transcript_SIMULATED.pdf”, “Evidence_04_Witness_Statements_SIMULATED.pdf”, “Evidence_08_Evidence_Register_and_Corroboration.pdf” currently stand alone — no other document shares a date, place or party with them, so further supporting evidence would strengthen the case.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
@@ -108,10 +108,12 @@
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Arial', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#64748B', 'lineColor': '#64748B'}} }%%
 flowchart TD
   N0["Step 1: Severity<br/>Severity is one of: Fatal, Major<br/>Case: Major<br/>Answer: Yes"]:::decision
-  N1["Step 2: Shri<br/>Shri score <= 0.0720<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
+  N1["Step 2: Possession<br/>Possession score <= 0.0744<br/>Case: 0.0000<br/>Answer: Yes"]:::decision
   N0 --> N1
-  N2["Final Priority: High<br/>898 training samples reached this leaf"]:::leaf
+  N2["Step 3: Broad case type<br/>Broad case type is one of: Financial, Non-Violent, Property<br/>Case: Violent<br/>Answer: No"]:::decision
   N1 --> N2
+  N3["Final Priority: High<br/>1 training samples reached this leaf"]:::leaf
+  N2 --> N3
   classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#0F172A;
   classDef leaf fill:#FEE2E2,stroke:#DC2626,stroke-width:3px,color:#7F1D1D;
 ```
@@ -130,24 +132,32 @@ flowchart TD
 <div class="step-card">
   <div class="step-index">2</div>
   <div class="step-body">
-    <div class="step-title">Step 2: Shri</div>
-    <div class="step-condition">Shri score <= 0.0720</div>
+    <div class="step-title">Step 2: Possession</div>
+    <div class="step-condition">Possession score <= 0.0744</div>
     <div class="step-meta">Case value: <strong>0.0000</strong> | Result: <strong>Yes</strong></div>
   </div>
 </div>
 <div class="step-card">
   <div class="step-index">3</div>
   <div class="step-body">
+    <div class="step-title">Step 3: Broad case type</div>
+    <div class="step-condition">Broad case type is one of: Financial, Non-Violent, Property</div>
+    <div class="step-meta">Case value: <strong>Violent</strong> | Result: <strong>No</strong></div>
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-index">4</div>
+  <div class="step-body">
     <div class="step-title">Final Priority: High</div>
     <div class="step-condition">The case reached this Decision Tree leaf.</div>
-    <div class="step-meta">Case value: <strong>898 training samples reached this leaf</strong> | Result: <strong>High</strong></div>
+    <div class="step-meta">Case value: <strong>1 training samples reached this leaf</strong> | Result: <strong>High</strong></div>
   </div>
 </div>
 </div>
 
 ## Decision Trace
 
-Node 0: Severity is one of: Fatal, Major; case value = Major; result = Yes -> Node 1: Shri score <= 0.0720; case value = 0.0000; result = Yes -> Leaf node 2 => Predicted Priority = High
+Node 0: Severity is one of: Fatal, Major; case value = Major; result = Yes -> Node 1: Possession score <= 0.0744; case value = 0.0000; result = Yes -> Node 2: Broad case type is one of: Financial, Non-Violent, Property; case value = Violent; result = No -> Leaf node 4 => Predicted Priority = High
 
 ## Raw Graph
 
