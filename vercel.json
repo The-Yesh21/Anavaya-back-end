@@ -1,25 +1,25 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".output/public",
-  "cleanUrls": true,
-  "framework": null,
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "tanstack-start"
+    },
+    "front": {
+      "root": "front",
+      "framework": "tanstack-start-lovable"
+    },
+    "landing": {
+      "root": "landing",
+      "framework": "tanstack-start-lovable"
+    }
+  },
   "rewrites": [
     {
-      "source": "/dashboard",
-      "destination": "/dashboard/index.html"
-    },
-    {
-      "source": "/dashboard/",
-      "destination": "/dashboard/index.html"
-    },
-    {
-      "source": "/courtroom",
-      "destination": "/dashboard/courtroom.html"
-    },
-    {
-      "source": "/court/:roomId*",
-      "destination": "/dashboard/courtroom.html"
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
     }
   ]
 }
