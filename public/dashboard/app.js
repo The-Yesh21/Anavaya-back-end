@@ -1,0 +1,2015 @@
+// Anavaya Dashboard UI Logic
+document.addEventListener("DOMContentLoaded", () => {
+    let casesData = [];
+    let globalTreeData = null;
+    let selectedCase = null;
+    let d3Zoom = null;
+    let svgContainer = null;
+    let activePathNodes = [];
+    // node_id → why-this-split effect for the active case ('raised' | 'lowered'
+    // | 'neutral'): what THIS split contributed to the case's priority — the
+    // verdict the tree gives with this one signal swapped to the other branch.
+    let activePathEffects = {};
+    let activePathInfo = null;
+    let courtroomsLoaded = false;
+    let lanIp = null;
+
+    // Trigger Ollama pre-warm on page load
+    function warmupOllama() {
+        fetch("/api/ollama/warmup", { method: "POST" })
+            .then(r => r.json())
+            .then(data => console.log("Ollama warmup:", data))
+            .catch(err => console.warn("Ollama warmup failed:", err));
+    }
+    warmupOllama();
+
+    // Fetch network info for LAN invite links
+    async function fetchNetworkInfo() {
+        try {
+            const res = await fetch("/api/network-info");
+            if (res.ok) {
+                const data = await res.json();
+                lanIp = data.lan_ip;
+                console.log("Network info loaded:", data);
+            }
+        } catch (e) {
+            console.warn("Could not fetch network info:", e);
+        }
+    }
+    fetchNetworkInfo();
+
+    // Lightweight debounce utility
+    function debounce(fn, waitMs = 150) {
+        let timer = null;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), waitMs);
+        };
+    }
+
+    // Bridge so the separately-loaded case-workflow module (wizard, case
+    // workspace) can interact with the dashboard state without
+    // being inside this closure.
+    let currentCaseId = null;
+    window.AnavayaUI = {
+        getSelectedCase: () => selectedCase,
+        getCasesData: () => casesData,
+        setCurrentCaseId: (id) => { currentCaseId = id || null; },
+        getCurrentCaseId: () => currentCaseId,
+        refreshCases: () => fetchCases(),
+        refreshStats: () => { updateStats(casesData); populateFilters(casesData); renderCasesList(casesData); },
+        selectCaseFn: (c) => selectCase(c),
+        escHtml: escHtml,
+        debounce: debounce,
+        renderCases: (cases) => renderCasesList(cases),
+    };
+
+    // Elements
+    const casesListContainer = document.getElementById("cases-list-container");
+    const searchInput = document.getElementById("search-input");
+    const filterPriority = document.getElementById("filter-priority");
+    const filterCategory = document.getElementById("filter-category");
+
+    const noCaseSelectedEl = document.getElementById("no-case-selected");
+    const caseDetailsContentEl = document.getElementById("case-details-content");
+
+    // Stats elements
+    const statTotalVal = document.getElementById("stat-total-val");
+    const statHighVal = document.getElementById("stat-high-val");
+    const statMediumVal = document.getElementById("stat-medium-val");
+    const statLowVal = document.getElementById("stat-low-val");
+
+    // Tabs logic
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabContents = document.querySelectorAll(".tab-content");
+
+    function activateTab(btn) {
+        tabButtons.forEach(b => {
+            b.classList.remove("active");
+            b.setAttribute("aria-selected", "false");
+        });
+        tabContents.forEach(c => c.classList.remove("active"));
+
+        btn.classList.add("active");
+        btn.setAttribute("aria-selected", "true");
+        const tabId = btn.getAttribute("data-tab");
+        document.getElementById(tabId).classList.add("active");
+
+            if (tabId === "tree-tab") {
+                // Fetch the tree lazily on first activation, then draw it
+                if (globalTreeData) {
+                    drawDecisionTree(globalTreeData);
+                } else {
+                    fetchTree()
+                        .then(() => { if (globalTreeData) drawDecisionTree(globalTreeData); })
+                        .catch(() => {});
+                }
+            }
+
+            // Refresh courtroom cases and rooms when the Courtroom tab is activated
+            if (tabId === "courtroom-tab") {
+                if (typeof populateRoomCaseSelect === "function") {
+                    populateRoomCaseSelect();
+                }
+                if (typeof fetchCourtrooms === "function") {
+                    fetchCourtrooms();
+                }
+            }
+    }
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => activateTab(btn));
+        // Tablist arrow-key navigation (roving tabindex)
+        btn.addEventListener("keydown", (e) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+            e.preventDefault();
+            const idx = Array.from(tabButtons).indexOf(btn);
+            let next = idx;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % tabButtons.length;
+            else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + tabButtons.length) % tabButtons.length;
+            else if (e.key === "Home") next = 0;
+            else if (e.key === "End") next = tabButtons.length - 1;
+            activateTab(tabButtons[next]);
+            tabButtons[next].focus();
+        });
+    });
+
+    // Tolerant parser for backend Python-style list-of-dict reprs, e.g.
+    //   "[{'article': 'Article 21', 'title': 'Right to Life', 'primary': True}, ...]"
+    function parseListRepr(str) {
+        if (!str || typeof str !== "string" || !str.trim().startsWith("[")) return [];
+        const results = [];
+        const dictRe = /\{[^{}]*\}/g;
+        // Values may be single-quoted ('x'), double-quoted ("x") — Python's
+        // repr switches to double quotes when a string contains an apostrophe.
+        const fieldRe = /'([^']+)'\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|True|False|\d+)/g;
+        let m;
+        while ((m = dictRe.exec(str)) !== null) {
+            const obj = {};
+            const fr = new RegExp(fieldRe.source, "g");
+            let f;
+            while ((f = fr.exec(m[0])) !== null) {
+                const key = f[1];
+                const val = f[2];
+                if (val === "True" || val === "False") obj[key] = val === "True";
+                else if (/^\d+$/.test(val)) obj[key] = parseInt(val, 10);
+                else if (val.startsWith('"')) obj[key] = val.slice(1, -1).replace(/\\"/g, '"');
+                else obj[key] = val.slice(1, -1).replace(/\\'/g, "'");
+            }
+            if (Object.keys(obj).length) results.push(obj);
+        }
+        return results;
+    }
+
+    // Escape user-derived strings before injecting into innerHTML (XSS guard)
+    function escHtml(str) {
+        return String(str == null ? "" : str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    // Fetch and Initialize App Data
+    async function init() {
+        try {
+            // The decision tree is fetched lazily on the first Tree-tab
+            // activation (see tab handler), so the initial page load only
+            // waits on /api/cases.
+            await fetchCases();
+        } catch (err) {
+            console.error("Initialization error:", err);
+        } finally {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            // Hide global page preloader
+            const preloader = document.getElementById("global-preloader");
+            if (preloader) {
+                preloader.style.opacity = "0";
+                preloader.style.visibility = "hidden";
+                setTimeout(() => {
+                    preloader.remove();
+                }, 500);
+            }
+        }
+    }
+
+    async function fetchCases() {
+        try {
+            const res = await fetch("/api/cases");
+            if (!res.ok) throw new Error("Failed to load cases");
+            casesData = await res.json();
+            
+            updateStats(casesData);
+            populateFilters(casesData);
+            renderCasesList(casesData);
+        } catch (err) {
+            casesListContainer.innerHTML = `<div class="loader" style="color: #B3402E">Error loading cases. Make sure the backend is running.</div>`;
+            throw err;
+        }
+    }
+
+    // Download the generated PDF report for the selected case
+    const downloadReportBtn = document.getElementById("download-report-btn");
+    if (downloadReportBtn) {
+        downloadReportBtn.addEventListener("click", (e) => {
+            if (!selectedCase) {
+                e.preventDefault();
+                return;
+            }
+            // Allow the browser to download; href is set on selection.
+            window.setTimeout(() => lucide.createIcons(), 0);
+        });
+    }
+
+    async function fetchTree() {
+        try {
+            const res = await fetch("/api/tree");
+            if (!res.ok) throw new Error("Failed to load decision tree");
+            globalTreeData = await res.json();
+            document.getElementById("tree-loading").style.display = "none";
+        } catch (err) {
+            document.getElementById("tree-loading").innerHTML = `<span style="color: #B3402E">Failed to load global decision tree structure.</span>`;
+            throw err;
+        }
+    }
+
+    // Stats calculations — counts, donut, category bars
+    const donutTotalVal = document.getElementById("donut-total-val");
+    const arcHigh = document.getElementById("arc-high");
+    const arcMedium = document.getElementById("arc-medium");
+    const arcLow = document.getElementById("arc-low");
+    const categoryBarsEl = document.getElementById("category-bars");
+    const docketNoteEl = document.getElementById("docket-note");
+    const mixStripEl = document.getElementById("mix-strip");
+    const mixKeyEl = document.getElementById("mix-key");
+
+    function updateStats(cases) {
+        // Stats count CASES, not raw Excel rows — the whole-case row represents
+        // the case; its evidence rows are per-document detail.
+        const casesOnly = groupBoardCases(cases);
+        const total = casesOnly.length;
+        const high = casesOnly.filter(c => c.Predicted_Priority === "High").length;
+        const medium = casesOnly.filter(c => c.Predicted_Priority === "Medium").length;
+        const low = casesOnly.filter(c => c.Predicted_Priority === "Low").length;
+
+        statTotalVal.textContent = total;
+        if (donutTotalVal) donutTotalVal.textContent = total;
+        statHighVal.textContent = high;
+        statMediumVal.textContent = medium;
+        statLowVal.textContent = low;
+
+        renderDonut(high, medium, low, total);
+        renderMixBand(high, medium, low, total);
+        renderCategoryBars(casesOnly);
+        if (docketNoteEl) {
+            // Cases without a priority verdict exist while a case is still being
+            // prepared, so say how many actually carry a ranking.
+            const ranked = high + medium + low;
+            const cases_ = `case${total === 1 ? "" : "s"}`;
+            docketNoteEl.textContent = total === 0
+                ? "No cases on record yet"
+                : ranked === total
+                    ? `${total} ${cases_} on record · all ranked`
+                    : `${total} ${cases_} on record · ${ranked} ranked`;
+        }
+    }
+
+    // The band strip inside "Total Handled": one proportional segment per
+    // priority, then the SHARE each band holds. The Priority Mix card reads the
+    // same counts as raw numbers, so the two cards never just echo each other.
+    function renderMixBand(high, medium, low, total) {
+        const counts = [high, medium, low];
+        const segs = ["mix-seg-high", "mix-seg-medium", "mix-seg-low"].map((id) => document.getElementById(id));
+        const names = ["High", "Medium", "Low"];
+        segs.forEach((seg, i) => {
+            if (!seg) return;
+            const pct = total > 0 ? (counts[i] / total) * 100 : 0;
+            seg.style.width = pct + "%";
+            seg.hidden = pct === 0;   // a zero-width segment would still draw its gap
+        });
+        if (mixStripEl) mixStripEl.classList.toggle("is-empty", total === 0);
+        if (mixKeyEl) {
+            mixKeyEl.innerHTML = names.map((name, i) => {
+                const pct = total > 0 ? Math.round((counts[i] / total) * 100) : 0;
+                return `<li class="mix-key-item" title="${name} priority — ${pct}% of cases on record">`
+                    + `<span class="legend-swatch swatch-${name.toLowerCase()}"></span>`
+                    + `${name} <strong>${pct}%</strong></li>`;
+            }).join("");
+        }
+    }
+
+    function renderDonut(high, medium, low, total) {
+        const arcs = [arcHigh, arcMedium, arcLow];
+        if (!arcs[0] || total === 0) return;
+        const C = 2 * Math.PI * 50;
+        const counts = [high, medium, low];
+        let offset = 0;
+        counts.forEach((n, i) => {
+            const frac = total > 0 ? n / total : 0;
+            arcs[i].style.strokeDasharray = `${frac * C} ${C}`;
+            arcs[i].style.strokeDashoffset = `${-offset * C}`;
+            // Round caps render dots on zero-length segments; use butt caps there.
+            arcs[i].style.strokeLinecap = frac === 0 ? "butt" : "round";
+            offset += frac;
+        });
+    }
+
+    function renderCategoryBars(cases) {
+        if (!categoryBarsEl) return;
+        const counts = {};
+        cases.forEach(c => {
+            const cat = c.Category || "General Civil";
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        if (sorted.length === 0) {
+            categoryBarsEl.innerHTML = `<div class="loader">No cases yet.</div>`;
+            return;
+        }
+        const max = sorted[0][1];
+        categoryBarsEl.innerHTML = sorted.map(([cat, n], i) => `
+            <div class="cat-bar-row" title="${escHtml(cat)} — ${n} case${n === 1 ? "" : "s"}">
+                <span class="cat-bar-rank">${i + 1}</span>
+                <span class="cat-bar-name">${escHtml(cat)}</span>
+                <div class="cat-bar-track"><div class="cat-bar-fill" data-w="${Math.max(4, Math.round((n / max) * 100))}" style="width:0%"></div></div>
+                <span class="cat-bar-count">${n}</span>
+            </div>
+        `).join("");
+        // Animate bar widths after paint
+        requestAnimationFrame(() => {
+            categoryBarsEl.querySelectorAll(".cat-bar-fill").forEach(f => {
+                f.style.width = f.getAttribute("data-w") + "%";
+            });
+        });
+    }
+
+    // Dropdown filters population
+    function populateFilters(cases) {
+        const categories = [...new Set(cases.map(c => c.Category).filter(Boolean))];
+        filterCategory.innerHTML = `<option value="all">All Categories</option>`;
+        categories.forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.textContent = cat;
+            filterCategory.appendChild(opt);
+        });
+    }
+
+    // Group raw Excel rows into ONE board entry per case. A registry case with a
+    // whole-case verdict collapses all its evidence rows into that verdict row, so
+    // the board shows the case's combined priority (Decision Tree over ALL
+    // evidence) instead of one card per evidence. Per-evidence rows are attached
+    // as ``_evidence_rows`` (auditable detail — they never decide the case).
+    function groupBoardCases(rows) {
+        const groups = new Map();   // Case_ID -> rows
+        const singles = [];         // rows without a Case_ID (standalone PDF uploads)
+        rows.forEach(r => {
+            if (r && r.Case_ID) {
+                if (!groups.has(r.Case_ID)) groups.set(r.Case_ID, []);
+                groups.get(r.Case_ID).push(r);
+            } else {
+                singles.push(r);
+            }
+        });
+        const entries = [];
+        groups.forEach(groupRows => {
+            const whole = groupRows.find(r => String(r.Document_Type || "").toLowerCase() === "whole case");
+            if (whole) {
+                entries.push({ ...whole, _evidence_rows: groupRows.filter(r => r !== whole) });
+            } else {
+                entries.push(groupRows[0]);
+            }
+        });
+        entries.push(...singles);
+        return entries;
+    }
+
+    // Render Cases Sidebar
+    function renderCasesList(cases) {
+        const query = searchInput.value.toLowerCase().trim();
+        const priorityVal = filterPriority.value;
+        const categoryVal = filterCategory.value;
+
+        // Filter grouped CASES (not raw rows): the query also matches any
+        // evidence row's text, while priority/category match the case's own
+        // (whole-case) verdict.
+        const filtered = groupBoardCases(cases).filter(c => {
+            const evRows = c._evidence_rows || [];
+            const matchesQuery = query === "" || [
+                c.Case_File, c.Main_Parties, c.Plain_Language_Summary,
+                ...evRows.map(d => `${d.Case_File || ""} ${d.Main_Parties || ""} ${d.Plain_Language_Summary || ""}`),
+            ].some(h => h && String(h).toLowerCase().includes(query));
+
+            const matchesPriority = priorityVal === "all" || c.Predicted_Priority === priorityVal;
+            const matchesCategory = categoryVal === "all" || c.Category === categoryVal;
+
+            return matchesQuery && matchesPriority && matchesCategory;
+        });
+
+        casesListContainer.innerHTML = "";
+        if (filtered.length === 0) {
+            casesListContainer.innerHTML = `<div class="empty-cases">
+                <i data-lucide="scale" style="width:28px;height:28px;color:#C9A24B;"></i>
+                <p>No cases yet. Upload a case PDF above to get an instant priority and report.</p>
+            </div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        filtered.forEach(c => {
+            const evidenceRows = c._evidence_rows || [];
+            const cleanTitle = (c.Case_File || "").replace(/_/g, " ").replace(/\[WHOLE CASE\]\s*/i, "").replace(/\.[Pp][Dd][Ff]$/, "");
+            const item = document.createElement("div");
+            item.className = `case-item ${selectedCase && selectedCase.Case_File === c.Case_File ? "active" : ""}`;
+            item.setAttribute("data-case-file", c.Case_File || "");
+            item.setAttribute("tabindex", "0");
+            item.setAttribute("role", "button");
+            item.setAttribute("aria-label", `Select case ${cleanTitle}`);
+            // Per-evidence chips: the badge above is the case's combined verdict;
+            // these show each evidence's own (evidence-level) priority only.
+            const evidenceChips = evidenceRows.length
+                ? evidenceRows.map(d =>
+                    `<span class="badge-priority ${String(d.Predicted_Priority || "medium").toLowerCase()} case-evidence-chip" title="${escHtml(String(d.Case_File || "").replace(/\.[Pp][Dd][Ff]$/, ""))}">${escHtml(d.Predicted_Priority)}</span>`
+                ).join("")
+                : "";
+            item.innerHTML = `
+                <div class="case-item-title">${escHtml(cleanTitle) || "Unknown Case"}</div>
+                <div class="case-item-desc">${escHtml(c.Main_Parties) || "Unknown Parties"}</div>
+                <div class="case-item-details-expanded">
+                    <div class="case-item-meta">
+                        <span class="badge-priority ${String(c.Predicted_Priority || "medium").toLowerCase()}">${escHtml(c.Predicted_Priority)}</span>
+                        <span class="case-item-category">${escHtml(c.Category) || "General Civil"}</span>
+                    </div>
+                    ${evidenceChips ? `
+                    <div class="case-evidence-strip-wrap">
+                        <span class="case-evidence-strip-label"><i data-lucide="layers"></i> ${evidenceRows.length} evidence</span>
+                        <span class="case-evidence-strip">${evidenceChips}</span>
+                    </div>` : ""}
+                </div>
+                <div class="case-item-hover-actions">
+                    <button class="case-action-btn open-btn" title="Open this case"><i data-lucide="file-text"></i> Open</button>
+                    <button class="case-action-btn remove-btn" title="Remove this case and all its evidence"><i data-lucide="trash-2"></i> Remove</button>
+                </div>
+            `;
+            // Hover overlay action handlers
+            const openBtn = item.querySelector(".open-btn");
+            const removeBtn = item.querySelector(".remove-btn");
+            openBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                selectCase(c);
+                closeSidebar();
+            });
+            removeBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                // Removing a case card removes ALL its rows (verdict + evidence).
+                const groupFiles = [c.Case_File, ...(c._evidence_rows || []).map(r => r.Case_File)].filter(Boolean);
+                if (!confirm(`Remove "${cleanTitle}" and all its evidence from the list?`)) return;
+                try {
+                    let failed = 0;
+                    for (const f of groupFiles) {
+                        const res = await fetch(`/api/cases/${encodeURIComponent(f)}`, { method: "DELETE" });
+                        if (!res.ok) failed++;
+                    }
+                    if (failed) {
+                        alert(`${failed} of ${groupFiles.length} row(s) could not be deleted.`);
+                        return;
+                    }
+                    const removed = new Set(groupFiles);
+                    casesData = casesData.filter(x => !removed.has(x.Case_File));
+                    if (selectedCase && removed.has(selectedCase.Case_File)) {
+                        selectedCase = null;
+                        showEmptyDetail();
+                    }
+                    renderCasesList(casesData);
+                    updateStats(casesData);
+                } catch (err) {
+                    alert("Delete failed: " + err.message);
+                }
+            });
+            item.addEventListener("click", () => { selectCase(c); closeSidebar(); });
+            item.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectCase(c);
+                    closeSidebar();
+                }
+            });
+            fragment.appendChild(item);
+        });
+        const targetContainer = casesListContainer.querySelector("tbody") || casesListContainer;
+        targetContainer.appendChild(fragment);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    const renderCases = renderCasesList;
+
+    // Search and Filter Listeners (debounced 150ms across search & filter changes)
+    const debouncedFilterCases = debounce(() => renderCasesList(casesData), 150);
+    searchInput.addEventListener("input", debouncedFilterCases);
+    filterPriority.addEventListener("change", debouncedFilterCases);
+    filterCategory.addEventListener("change", debouncedFilterCases);
+
+    // Clear All cases
+    const clearAllBtn = document.getElementById("clear-all-btn");
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener("click", async () => {
+            if (!casesData.length) return;
+            if (!confirm(`Remove all ${casesData.length} cases from the list?`)) return;
+            let failed = 0;
+            for (const c of [...casesData]) {
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}`, { method: "DELETE" });
+                    if (!res.ok) failed++;
+                } catch (_) { failed++; }
+            }
+            casesData = [];
+            selectedCase = null;
+            showEmptyDetail();
+            renderCasesList(casesData);
+            updateStats(casesData);
+            if (failed) alert(`${failed} case(s) could not be removed.`);
+        });
+    }
+
+    // Ctrl/Cmd+K focuses search
+    document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            searchInput.focus();
+            searchInput.select();
+        }
+    });
+
+    // Triage legend → click to filter the case list by priority
+    document.querySelectorAll(".triage-legend-item").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const p = btn.getAttribute("data-priority");
+            filterPriority.value = (filterPriority.value === p) ? "all" : p;
+            debouncedFilterCases();
+        });
+    });
+
+    // Arrow-key navigation through the case list
+    casesListContainer.addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+        e.preventDefault();
+        const items = [...casesListContainer.querySelectorAll(".case-item")];
+        if (items.length === 0) return;
+        const idx = items.indexOf(document.activeElement);
+        const next = e.key === "ArrowDown" ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
+        if (idx === -1) items[0].focus();
+        else if (items[next]) items[next].focus();
+    });
+
+    // Mobile sidebar drawer
+    const sidebarEl = document.getElementById("cases-sidebar");
+    const sidebarToggleBtn = document.getElementById("sidebar-toggle-btn");
+    const sidebarCloseBtn = document.getElementById("sidebar-close-btn");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+
+    function openSidebar() {
+        if (sidebarEl) sidebarEl.classList.add("open");
+        if (sidebarBackdrop) sidebarBackdrop.classList.add("show");
+    }
+    function closeSidebar() {
+        if (sidebarEl) sidebarEl.classList.remove("open");
+        if (sidebarBackdrop) sidebarBackdrop.classList.remove("show");
+    }
+    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener("click", openSidebar);
+    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener("click", closeSidebar);
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
+
+    // Drag & drop upload
+    const uploadZone = document.getElementById("upload-zone");
+    if (uploadZone) {
+        ["dragenter", "dragover"].forEach(evt => uploadZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            uploadZone.classList.add("drag-over");
+        }));
+        ["dragleave", "drop"].forEach(evt => uploadZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove("drag-over");
+        }));
+        uploadZone.addEventListener("drop", (e) => {
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file && fileInput) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+                fileInput.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    // Collapsible analysis sections
+    document.querySelectorAll(".collapsible-toggle").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const section = btn.closest(".collapsible");
+            const isOpen = section.classList.toggle("open");
+            btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        });
+    });
+
+    // =================================================================
+    // Judicial Intelligence Pipeline Stepper Controller
+    // =================================================================
+    /**
+ * AnavayaPipelineLoader State Machine
+ * Coordinates 5 asynchronous computational stages with progressive HUD updates.
+ */
+    const AnavayaPipelineLoader = {
+        timerId: null,
+        stepTimerId: null,
+        startTime: 0,
+        currentStep: 1,
+
+        stages: [
+            {
+                step: 1,
+                pct: 20,
+                title: "Ingesting Case Document...",
+                desc: "Parsing document structure, verifying digital text layers, and preparing input buffers.",
+                micro: "[1/5] Ingesting document stream & validating forensic text encoding..."
+            },
+            {
+                step: 2,
+                pct: 45,
+                title: "Extracting Legal Facts & Parties...",
+                desc: "Parsing petitioner/respondent entities, offense category, criminal severity, and vulnerability flags.",
+                micro: "[2/5] High-speed entity extraction: Severity, Vulnerability & Case Category..."
+            },
+            {
+                step: 3,
+                pct: 70,
+                title: "Evaluating ML Decision Tree Classifier...",
+                desc: "Vectorizing legal dimensions into feature array and traversing the CART Decision Tree.",
+                micro: "[3/5] Traversed CART decision tree branch nodes: High / Medium / Low..."
+            },
+            {
+                step: 4,
+                pct: 88,
+                title: "Auditing Constitutional Articles & Rights...",
+                desc: "Auditing Article 21 (Personal Liberty & Speedy Trial), Article 14 (Equality), and Supreme Court doctrines.",
+                micro: "[4/5] Executing rule-based constitutional doctrine & State duty audit..."
+            },
+            {
+                step: 5,
+                pct: 98,
+                title: "Synthesizing Docket Verdict & Report...",
+                desc: "Generating explainable decision path trace, judicial rationale, and certified case dossier PDF.",
+                micro: "[5/5] Synthesizing decision path graph and rendering case dossier..."
+            }
+        ],
+
+        show(customTitle, customDesc) {
+            const overlay = document.getElementById("upload-loading-overlay");
+            if (!overlay) return;
+            overlay.style.display = "flex";
+            this.startTime = performance.now();
+            this.currentStep = 1;
+            this.renderStep(1, customTitle, customDesc);
+
+            if (this.timerId) clearInterval(this.timerId);
+            const timerEl = document.getElementById("pipeline-timer");
+            if (timerEl) timerEl.textContent = "0.0s";
+            this.timerId = setInterval(() => {
+                if (timerEl) {
+                    const elapsed = ((performance.now() - this.startTime) / 1000).toFixed(1);
+                    timerEl.textContent = `${elapsed}s`;
+                }
+            }, 100);
+
+            if (this.stepTimerId) clearTimeout(this.stepTimerId);
+            const advance = (nextStep, delay) => {
+                this.stepTimerId = setTimeout(() => {
+                    if (this.currentStep < nextStep) {
+                        this.renderStep(nextStep);
+                    }
+                    if (nextStep === 2) advance(3, 1100);
+                    else if (nextStep === 3) advance(4, 950);
+                    else if (nextStep === 4) advance(5, 950);
+                }, delay);
+            };
+            advance(2, 850);
+        },
+
+        renderStep(stepNum, customTitle, customDesc) {
+            this.currentStep = stepNum;
+            const stage = this.stages[stepNum - 1] || this.stages[0];
+
+            const titleEl = document.getElementById("overlay-status-title");
+            const descEl = document.getElementById("overlay-status-desc");
+            const pillEl = document.getElementById("pipeline-stage-pill");
+            const pctEl = document.getElementById("pipeline-pct-label");
+            const fillEl = document.getElementById("pipeline-progress-fill");
+            const microEl = document.getElementById("pipeline-micro-text");
+
+            if (titleEl) titleEl.textContent = (customTitle && stepNum === 1) ? customTitle : stage.title;
+            if (descEl) descEl.textContent = (customDesc && stepNum === 1) ? customDesc : stage.desc;
+            if (pillEl) pillEl.textContent = `Stage ${stage.step} of 5`;
+            if (pctEl) pctEl.textContent = `${stage.pct}%`;
+            if (fillEl) fillEl.style.width = `${stage.pct}%`;
+            if (microEl) microEl.textContent = stage.micro;
+
+            const steps = document.querySelectorAll(".pipeline-step");
+            steps.forEach((el) => {
+                const s = parseInt(el.getAttribute("data-step"), 10);
+                el.classList.remove("active", "completed", "pending");
+                if (s < stepNum) {
+                    el.classList.add("completed");
+                } else if (s === stepNum) {
+                    el.classList.add("active");
+                } else {
+                    el.classList.add("pending");
+                }
+            });
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        },
+
+        async complete() {
+            if (this.stepTimerId) clearTimeout(this.stepTimerId);
+            this.renderStep(5);
+            const pillEl = document.getElementById("pipeline-stage-pill");
+            const pctEl = document.getElementById("pipeline-pct-label");
+            const fillEl = document.getElementById("pipeline-progress-fill");
+            const titleEl = document.getElementById("overlay-status-title");
+            const descEl = document.getElementById("overlay-status-desc");
+            const microEl = document.getElementById("pipeline-micro-text");
+
+            if (pillEl) pillEl.textContent = "Verified";
+            if (pctEl) pctEl.textContent = "100%";
+            if (fillEl) fillEl.style.width = "100%";
+            if (titleEl) titleEl.textContent = "Docket Classification Complete!";
+            if (descEl) descEl.textContent = "Priority determined and constitutional dossier compiled successfully.";
+            if (microEl) microEl.textContent = "[100%] Priority classified & case dossier successfully compiled.";
+
+            const steps = document.querySelectorAll(".pipeline-step");
+            steps.forEach((el) => {
+                el.classList.remove("active", "pending");
+                el.classList.add("completed");
+            });
+            if (typeof lucide !== "undefined") lucide.createIcons();
+
+            await new Promise((r) => setTimeout(r, 450));
+            this.hide();
+        },
+
+        hide() {
+            if (this.timerId) clearInterval(this.timerId);
+            if (this.stepTimerId) clearTimeout(this.stepTimerId);
+            const overlay = document.getElementById("upload-loading-overlay");
+            if (overlay) {
+                overlay.style.display = "none";
+            }
+        }
+    };
+    window.AnavayaPipelineLoader = AnavayaPipelineLoader;
+
+    // File upload handler
+    const fileInput = document.getElementById("pdf-file-input");
+
+    fileInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+        const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        if (!allowedExts.includes(fileExt)) {
+            alert("Please upload a PDF or image file (PDF, JPG, PNG, WEBP).\n\nImages will be OCR-processed to extract text.");
+            fileInput.value = "";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        // Show multi-stage judicial pipeline loader
+        AnavayaPipelineLoader.show();
+
+        try {
+            const response = await fetch("/api/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || "Upload and analysis failed");
+            }
+
+            const newCase = await response.json();
+            await AnavayaPipelineLoader.complete();
+            
+            // Append or update in local memory
+            const existingIdx = casesData.findIndex(c => c.Case_File === newCase.Case_File);
+            if (existingIdx > -1) {
+                casesData[existingIdx] = newCase;
+            } else {
+                casesData.push(newCase);
+            }
+
+            // Update filters dropdown, totals, and list
+            updateStats(casesData);
+            populateFilters(casesData);
+            renderCasesList(casesData);
+            
+            // Automatically select and display the newly analyzed case
+            await selectCase(newCase);
+            
+            // Switch to the first tab (details) to view the analysis results immediately
+            const firstTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+            if (firstTabBtn) {
+                firstTabBtn.click();
+            }
+
+        } catch (err) {
+            AnavayaPipelineLoader.hide();
+            console.error("Analysis failed:", err);
+            alert(`Error: ${err.message}`);
+        } finally {
+            AnavayaPipelineLoader.hide();
+            fileInput.value = ""; // clear input
+        }
+    });
+
+    function showEmptyDetail() {
+        caseDetailsContentEl.style.display = "none";
+        activePathInfo = null;
+        activePathNodes = [];
+        activePathEffects = {};
+        const panel = document.getElementById("tree-node-panel");
+        if (panel) {
+            panel.innerHTML = `
+                <div class="node-panel-empty">
+                    <i data-lucide="mouse-pointer-click"></i>
+                    <p>Click a node to inspect its decision rule in plain English.</p>
+                </div>
+            `;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+        // Keep the "No Case Selected" placeholder hidden while the Analysis tab
+        // is showing the whole-case verdict for the case open in the workspace.
+        const wholeCase = document.getElementById("analysis-whole-case");
+        const wholeCaseVisible = wholeCase && wholeCase.style.display !== "none";
+        noCaseSelectedEl.style.display = wholeCaseVisible ? "none" : "flex";
+    }
+
+    // Case Selection
+    async function selectCase(c) {
+        const detailsTabBtn = document.querySelector('.tab-btn[data-tab="details-tab"]');
+        if (detailsTabBtn && !detailsTabBtn.classList.contains('active')) {
+            activateTab(detailsTabBtn);
+        }
+        selectedCase = c;
+        // The Excel row now carries Case_ID for documents belonging to a case
+        // registry entity — used by the case workspace flows.
+        if (c && c.Case_ID) {
+            window.AnavayaUI.setCurrentCaseId(c.Case_ID);
+        }
+        
+        // Highlight active sidebar item
+        document.querySelectorAll(".case-item").forEach(item => {
+            if (item.getAttribute("data-case-file") === c.Case_File) {
+                item.classList.add("active");
+            } else {
+                item.classList.remove("active");
+            }
+        });
+
+        // Hide empty state and show details — except when the selected row
+        // is the case's own [WHOLE CASE] row while the Whole-Case Analysis
+        // block is on screen: that panel would just repeat the same verdict,
+        // parties and PDF report a second time. Individual documents still
+        // get their evidence-level detail view.
+        noCaseSelectedEl.style.display = "none";
+        const wholeCasePanel = document.getElementById("analysis-whole-case");
+        const wholeCaseShown = wholeCasePanel && wholeCasePanel.style.display !== "none";
+        const isWholeCaseRow = /\[WHOLE CASE\]/i.test(c.Case_File || "");
+        caseDetailsContentEl.style.display = (isWholeCaseRow && wholeCaseShown) ? "none" : "flex";
+
+        // Set Details Values
+        document.getElementById("case-title-name").textContent = (c.Case_File || "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+        document.getElementById("case-parties").innerHTML = `<strong>Parties:</strong> ${escHtml(c.Main_Parties) || "Unknown"}`;
+
+        // For a whole-case row, also show each evidence's own priority as chips —
+        // auditable detail only; the case verdict badge above is the decision.
+        const evidenceChipsEl = document.getElementById("case-evidence-chips");
+        if (evidenceChipsEl) {
+            const evRows = c._evidence_rows || [];
+            if (evRows.length) {
+                evidenceChipsEl.style.display = "flex";
+                evidenceChipsEl.innerHTML = evRows.map(d =>
+                    `<span class="badge-priority ${String(d.Predicted_Priority || "medium").toLowerCase()} case-evidence-chip" title="${escHtml(String(d.Case_File || "").replace(/\.[Pp][Dd][Ff]$/, ""))}"><i data-lucide="file-text"></i>${escHtml(String(d.Case_File || "").replace(/\.[Pp][Dd][Ff]$/, ""))}</span>`
+                ).join("");
+            } else {
+                evidenceChipsEl.style.display = "none";
+                evidenceChipsEl.innerHTML = "";
+            }
+        }
+        document.getElementById("case-summary").textContent = c.Plain_Language_Summary || "Summary unavailable.";
+        
+        // Enable PDF report download link
+        const reportBtn = document.getElementById("download-report-btn");
+        if (reportBtn) {
+            const encoded = encodeURIComponent(c.Case_File);
+            reportBtn.href = `/api/cases/${encoded}/report.pdf`;
+            reportBtn.style.display = "inline-flex";
+        }
+        
+        // Enhanced Constitutional Analysis
+        // 1. Constitutional Rights Engaged
+        const rightsContainer = document.getElementById("case-constitutional-rights");
+        if (c.Constitutional_Rights_Engaged && Array.isArray(c.Constitutional_Rights_Engaged) && c.Constitutional_Rights_Engaged.length > 0) {
+            let rightsHtml = '<div class="rights-cards">';
+            c.Constitutional_Rights_Engaged.forEach(right => {
+                const primaryClass = right.primary ? 'primary' : 'secondary';
+                const tagText = right.primary ? 'PRIMARY' : 'SECONDARY';
+                const whyText = right.why_applies ? `<p class="rights-why">${escHtml(right.why_applies)}</p>` : '';
+                // Render landmark precedent citations inside the card
+                let precedentsHtml = '';
+                const precedents = right.precedents || [];
+                if (precedents.length > 0) {
+                    precedentsHtml = '<div class="rights-precedents">';
+                    precedentsHtml += '<div class="precedents-label"><i data-lucide="landmark"></i> Landmark Precedents</div>';
+                    precedents.forEach(p => {
+                        precedentsHtml += `
+                            <div class="precedent-item">
+                                <span class="precedent-case">${escHtml(p.case_name)}</span>
+                                <span class="precedent-meta">${escHtml(p.court)}, ${escHtml(String(p.year))}</span>
+                                <p class="precedent-relevance">${escHtml(p.relevance)}</p>
+                            </div>
+                        `;
+                    });
+                    precedentsHtml += '</div>';
+                }
+                rightsHtml += `
+                    <div class="rights-card ${primaryClass}">
+                        <div class="rights-article-tag">${tagText}</div>
+                        <strong class="rights-article">${escHtml(right.article)}</strong>
+                        <span class="rights-title">${escHtml(right.title)}</span>
+                        ${whyText}
+                        ${precedentsHtml}
+                    </div>
+                `;
+            });
+            rightsHtml += '</div>';
+            rightsContainer.innerHTML = rightsHtml;
+            // Re-render lucide icons for the landmark icons
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else if (typeof c.Constitutional_Rights_Engaged === 'string' && c.Constitutional_Rights_Engaged) {
+            // Handle legacy string format (may embed a Python list-of-dict repr)
+            const parsedRights = parseListRepr(c.Constitutional_Rights_Engaged);
+            if (parsedRights.length) {
+                let rightsHtml = '<div class="rights-cards">';
+                parsedRights.forEach(right => {
+                    const primaryClass = right.primary ? 'primary' : 'secondary';
+                    const tagText = right.primary ? 'PRIMARY' : 'SECONDARY';
+                    const whyText = right.why_applies ? `<p class="rights-why">${escHtml(right.why_applies)}</p>` : '';
+                    rightsHtml += `
+                        <div class="rights-card ${primaryClass}">
+                            <div class="rights-article-tag">${tagText}</div>
+                            <strong class="rights-article">${escHtml(right.article)}</strong>
+                            <span class="rights-title">${escHtml(right.title)}</span>
+                            ${whyText}
+                        </div>
+                    `;
+                });
+                rightsHtml += '</div>';
+                rightsContainer.innerHTML = rightsHtml;
+            } else {
+                rightsContainer.innerHTML = `<p class="rights-text">${escHtml(c.Constitutional_Rights_Engaged)}</p>`;
+            }
+        } else {
+            rightsContainer.innerHTML = `<p class="rights-text">Article 14 — Equality Before Law (General application). Specific constitutional rights analysis not available for this case.</p>`;
+        }
+
+        // 2. State Duty Analysis
+        const stateDutyEl = document.getElementById("case-state-duty");
+        if (c.State_Duty_Analysis) {
+            stateDutyEl.innerHTML = formatConstitutionalText(c.State_Duty_Analysis);
+        } else {
+            stateDutyEl.innerHTML = '<p>The State has a general duty under Article 14 to ensure equality before law and under Article 21 to protect life and personal liberty. Specific duty analysis not available for this case.</p>';
+        }
+
+        // 3. Rights Balancing Analysis
+        const balancingEl = document.getElementById("case-balancing");
+        if (c.Rights_Balancing_Analysis) {
+            balancingEl.innerHTML = formatConstitutionalText(c.Rights_Balancing_Analysis);
+        } else {
+            balancingEl.innerHTML = '<p>Balancing analysis not available for this case.</p>';
+        }
+
+        // 4. Applicable Doctrines
+        const doctrinesContainer = document.getElementById("case-doctrines");
+        if (c.Applicable_Doctrines && Array.isArray(c.Applicable_Doctrines) && c.Applicable_Doctrines.length > 0) {
+            let doctrinesHtml = '<div class="doctrines-grid">';
+            c.Applicable_Doctrines.forEach(doc => {
+                doctrinesHtml += `
+                    <div class="doctrine-card">
+                        <strong class="doctrine-name">${escHtml(doc.name)}</strong>
+                        <p class="doctrine-desc">${escHtml(doc.description)}</p>
+                        <p class="doctrine-app"><strong>Application:</strong> ${escHtml(doc.application)}</p>
+                    </div>
+                `;
+            });
+            doctrinesHtml += '</div>';
+            doctrinesContainer.innerHTML = doctrinesHtml;
+        } else if (typeof c.Applicable_Doctrines === 'string' && c.Applicable_Doctrines) {
+            const parsedDoctrines = parseListRepr(c.Applicable_Doctrines);
+            if (parsedDoctrines.length) {
+                let doctrinesHtml = '<div class="doctrines-grid">';
+                parsedDoctrines.forEach(doc => {
+                    doctrinesHtml += `
+                        <div class="doctrine-card">
+                            <strong class="doctrine-name">${escHtml(doc.name)}</strong>
+                            <p class="doctrine-desc">${escHtml(doc.description)}</p>
+                            <p class="doctrine-app"><strong>Application:</strong> ${escHtml(doc.application)}</p>
+                        </div>
+                    `;
+                });
+                doctrinesHtml += '</div>';
+                doctrinesContainer.innerHTML = doctrinesHtml;
+            } else {
+                doctrinesContainer.innerHTML = `<p class="doctrines-text">${escHtml(c.Applicable_Doctrines)}</p>`;
+            }
+        } else {
+            doctrinesContainer.innerHTML = '<p class="doctrines-text">General principles of constitutional interpretation apply. Specific doctrines not identified for this case.</p>';
+        }
+
+        // 5. Full Constitutional Opinion (State's Perspective)
+        const opinionEl = document.getElementById("case-justification");
+        if (c.Constitutional_Justification) {
+            opinionEl.innerHTML = formatConstitutionalText(c.Constitutional_Justification);
+        } else {
+            opinionEl.innerHTML = '<p>Constitutional justification not available.</p>';
+        }
+
+        // 6. Priority Rules Applied
+        const rulesEl = document.getElementById("case-priority-reason");
+        if (c.Priority_Rules_Applied) {
+            rulesEl.innerHTML = formatConstitutionalText(c.Priority_Rules_Applied);
+        } else {
+            rulesEl.innerHTML = '<p>Priority rules not available.</p>';
+        }
+
+        // Urgency badge based on severity
+        const urgencyBadge = document.getElementById("case-urgency-badge");
+        if (c.Severity === "Fatal") {
+            urgencyBadge.className = "urgency-pill highest";
+            urgencyBadge.textContent = "Urgent — Highest";
+        } else if (c.Severity === "Major") {
+            urgencyBadge.className = "urgency-pill high";
+            urgencyBadge.textContent = "Urgent — High";
+        } else if (c.Severity === "Minor") {
+            urgencyBadge.className = "urgency-pill moderate";
+            urgencyBadge.textContent = "Urgent — Moderate";
+        } else {
+            urgencyBadge.className = "urgency-pill standard";
+            urgencyBadge.textContent = "Urgency — Standard";
+        }
+        
+        // Badge styles
+        const badgePriority = document.getElementById("case-priority-badge");
+        badgePriority.className = `priority-pill ${c.Predicted_Priority.toLowerCase()}`;
+        badgePriority.textContent = `${c.Predicted_Priority} Priority`;
+
+        document.getElementById("case-category-badge").textContent = c.Category || "General Civil";
+
+        // Parameters
+        document.getElementById("param-model-cat").textContent = c.Broad_Model_Category || "N/A";
+        document.getElementById("param-severity").textContent = c.Severity || "N/A";
+        document.getElementById("param-vulnerability").textContent = c.Vulnerability || "N/A";
+        document.getElementById("param-influence").textContent = c.Influence || "N/A";
+
+        // Fetch Path Details from back-end
+        const stepsContainer = document.getElementById("decision-path-steps");
+        stepsContainer.innerHTML = `<div class="loader">Tracing decision path...</div>`;
+
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}/decision-path`);
+            if (!res.ok) throw new Error("Path fetch failed");
+            const pathInfo = await res.json();
+            
+            activePathInfo = pathInfo;
+            activePathNodes = pathInfo.path_node_ids || [];
+            activePathEffects = {};
+            (pathInfo.steps || []).forEach((s) => { if (s && s.node_id != null) activePathEffects[s.node_id] = s; });
+            renderPathTimeline(pathInfo.steps);
+            renderBreadcrumb(pathInfo.steps);
+            const traceWrap = document.getElementById("path-trace-wrap");
+            if (traceWrap) traceWrap.style.display = "block";
+
+            // Clearly identify whether we are tracing Whole-Case or an individual document
+            const isWholeCase = /\[WHOLE CASE\]/i.test(c.Case_File || "");
+            const cleanDocName = (c.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+            const scopeEl = document.getElementById("path-trace-scope");
+            const switchWrap = document.getElementById("path-trace-switch-wrap");
+            if (scopeEl) {
+                if (isWholeCase) {
+                    scopeEl.innerHTML = `<span class="path-scope-badge whole"><i data-lucide="scale"></i> Whole-Case Combined Path</span>`;
+                } else {
+                    scopeEl.innerHTML = `<span class="path-scope-badge doc"><i data-lucide="file-text"></i> Single Document: <em>${escHtml(cleanDocName)}</em></span>`;
+                }
+            }
+            if (switchWrap) {
+                if (!isWholeCase && c.Case_ID) {
+                    const wholeRow = casesData.find(r => r.Case_ID === c.Case_ID && String(r.Document_Type || "").toLowerCase() === "whole case");
+                    if (wholeRow) {
+                        switchWrap.innerHTML = `<button class="path-scope-switch-btn" id="switch-to-whole-case-btn" title="View the whole case's Decision Tree path"><i data-lucide="layers"></i> View Whole-Case Path (${escHtml(wholeRow.Predicted_Priority)})</button>`;
+                        const btn = document.getElementById("switch-to-whole-case-btn");
+                        if (btn) btn.addEventListener("click", () => selectCase(wholeRow));
+                    } else {
+                        switchWrap.innerHTML = "";
+                    }
+                } else {
+                    switchWrap.innerHTML = "";
+                }
+            }
+
+            // If we are currently on the tree tab, update tree highlighting immediately
+            const activeTabBtn = document.querySelector(".tab-btn.active");
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute("data-tab") : null;
+            if (activeTab === "tree-tab" && globalTreeData) {
+                drawDecisionTree(globalTreeData);
+            } else {
+                treeRenderPending = true;
+            }
+        } catch (err) {
+            stepsContainer.innerHTML = `<div class="loader" style="color: #B3402E">Error loading path trace steps.</div>`;
+            console.error(err);
+        }
+    }
+
+    // Textual breadcrumb of the active case's path (readable in one line)
+    function renderBreadcrumb(steps) {
+        const bc = document.getElementById("path-breadcrumb");
+        if (!bc) return;
+        if (!steps || steps.length === 0) { bc.innerHTML = ""; return; }
+        const parts = steps.map((step) => {
+            if (step.type === "leaf") {
+                const cls = String(step.result || "medium").toLowerCase();
+                return `<span class="breadcrumb-step leaf-step ${cls}">${escHtml(step.result)} Priority</span>`;
+            }
+            return `<span class="breadcrumb-step">${escHtml(step.title)}</span>`;
+        });
+        bc.innerHTML = parts.map((p, i) => i > 0 ? `<span class="breadcrumb-sep">→</span>${p}` : p).join("");
+    }
+
+    function buildDistributionBar(classCounts, totalSamples) {
+        if (!classCounts || totalSamples === 0) {
+            return `<div class="distribution-labels"><span class="distribution-label-pill">No sample data</span></div>`;
+        }
+        const high = classCounts["High"] || 0;
+        const med = classCounts["Medium"] || 0;
+        const low = classCounts["Low"] || 0;
+        const highPct = Math.round((high / totalSamples) * 100);
+        const medPct = Math.round((med / totalSamples) * 100);
+        const lowPct = Math.round((low / totalSamples) * 100);
+
+        return `
+            <div class="node-distribution-wrap">
+                <div class="distribution-bar" title="High: ${highPct}% · Medium: ${medPct}% · Low: ${lowPct}%">
+                    ${highPct > 0 ? `<div class="bar-segment high" style="width: ${highPct}%"></div>` : ''}
+                    ${medPct > 0 ? `<div class="bar-segment medium" style="width: ${medPct}%"></div>` : ''}
+                    ${lowPct > 0 ? `<div class="bar-segment low" style="width: ${lowPct}%"></div>` : ''}
+                </div>
+                <div class="distribution-labels">
+                    <span class="distribution-label-pill"><span class="label-dot high"></span> High: ${high} (${highPct}%)</span>
+                    <span class="distribution-label-pill"><span class="label-dot medium"></span> Med: ${med} (${medPct}%)</span>
+                    <span class="distribution-label-pill"><span class="label-dot low"></span> Low: ${low} (${lowPct}%)</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function findNodeById(node, id) {
+        if (!node) return null;
+        if (node.id === id) return node;
+        if (node.children && node.children.length > 0) {
+            for (const child of node.children) {
+                const found = findNodeById(child, id);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    // Side panel: explain one node in plain English, with decisive features & constitutional priority drivers
+    function showNodePanel(d) {
+        const panel = document.getElementById("tree-node-panel");
+        if (!panel) return;
+        const isLeaf = d.type === "leaf";
+
+        if (isLeaf) {
+            const prio = d.predicted_class || "Medium";
+            const prioLower = prio.toLowerCase();
+            const prioIcon = prio === "High" ? "alert-triangle" : (prio === "Medium" ? "clock" : "check-circle-2");
+
+            let html = `
+                <div class="node-panel-header">
+                    <div class="node-panel-title">Node ${d.id} — Final Verdict</div>
+                    <div class="node-panel-type-badge is-leaf">
+                        <i data-lucide="award"></i> Terminal Leaf Node
+                    </div>
+                </div>
+
+                <div class="node-verdict-banner ${prioLower}">
+                    <div class="verdict-banner-label">Predicted Priority</div>
+                    <div class="verdict-banner-val">
+                        <i data-lucide="${prioIcon}"></i> ${escHtml(prio)} Priority
+                    </div>
+                    <div class="verdict-banner-sub">
+                        CART Decision Tree Terminal Classification (${d.samples} sample${d.samples === 1 ? '' : 's'})
+                    </div>
+                </div>
+            `;
+
+            if (selectedCase) {
+                const caseName = (selectedCase.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "Whole case: ").replace(/_/g, " ").replace(/\.[Pp][Dd][Ff]$/, "");
+                const sev = selectedCase.Severity || "Standard";
+                const vuln = selectedCase.Vulnerability || "Standard";
+                const cat = selectedCase.Category || selectedCase.Broad_Model_Category || "General Civil";
+
+                let hasArt21 = false;
+                if (Array.isArray(selectedCase.Constitutional_Rights_Engaged)) {
+                    for (const r of selectedCase.Constitutional_Rights_Engaged) {
+                        const art = (typeof r === 'object' && r !== null) ? (r.article || r.title || '') : String(r);
+                        if (/21/.test(art)) hasArt21 = true;
+                    }
+                } else if (typeof selectedCase.Constitutional_Rights_Engaged === 'string') {
+                    hasArt21 = /article\s*21/i.test(selectedCase.Constitutional_Rights_Engaged);
+                }
+                if (!hasArt21) {
+                    hasArt21 = /article\s*21/i.test(selectedCase.Constitutional_Justification || "") ||
+                               /article\s*21/i.test(selectedCase.Priority_Rules_Applied || "");
+                }
+
+                const isThisCaseLeaf = (activePathInfo && activePathInfo.leaf_id === d.id) ||
+                                       (activePathNodes.length > 0 && activePathNodes[activePathNodes.length - 1] === d.id) ||
+                                       ((selectedCase.Predicted_Priority || "").toLowerCase() === prioLower);
+
+                let narrativeText = "";
+                if (isThisCaseLeaf) {
+                    if (prio === "High") {
+                        narrativeText = `The Decision Tree classified <strong>${escHtml(caseName)}</strong> as <strong>High Priority</strong> because critical severity (<em>${escHtml(sev)}</em>) and elevated victim vulnerability (<em>${escHtml(vuln)}</em>) were triggered simultaneously in a ${escHtml(cat)} matter. Under Indian constitutional jurisprudence and judicial triage guidelines, matters involving acute peril to human life and vulnerable persons bypass the standard queue to avert irreversible harm.`;
+                    } else if (prio === "Medium") {
+                        narrativeText = `The Decision Tree placed <strong>${escHtml(caseName)}</strong> in <strong>Medium Priority</strong>. While the case presents substantial legal stakes (<em>${escHtml(sev)}</em>), the absence of fatal physical peril or extreme vulnerability routes it to the expedited regular track rather than the emergency docket.`;
+                    } else {
+                        narrativeText = `The Decision Tree assigned <strong>Low Priority</strong> to <strong>${escHtml(caseName)}</strong>. The matter is assessed as routine (<em>${escHtml(sev)}</em> severity, <em>${escHtml(vuln)}</em> vulnerability) without immediate threat to life or liberty, appropriately listed on the standard trial docket.`;
+                    }
+                } else {
+                    narrativeText = `This leaf assigns <strong>${escHtml(prio)} Priority</strong>. The active case (<em>${escHtml(caseName)}</em>) routed to <strong>${escHtml(selectedCase.Predicted_Priority || "High")} Priority</strong> (Node ${activePathInfo ? activePathInfo.leaf_id : '4'}) based on its specific feature profile.`;
+                }
+
+                let sevDesc = "Routine or no acute physical peril recorded.";
+                let sevBadgeCls = "standard";
+                if (sev === "Fatal") {
+                    sevDesc = "Fatal trauma or imminent threat to life — unconditional emergency docket listing under Supreme Court case-flow directives.";
+                    sevBadgeCls = "urgent";
+                } else if (sev === "Major") {
+                    sevDesc = "Acute severe harm, life endangerment, or severe physical/mental injury directly compromising bodily integrity.";
+                    sevBadgeCls = "urgent";
+                } else if (sev === "Minor") {
+                    sevDesc = "Non-life-threatening injury or moderate harm; warranting expedited regular listing.";
+                    sevBadgeCls = "elevated";
+                }
+
+                let vulnDesc = "Standard adult litigants with equal legal representation.";
+                let vulnBadgeCls = "standard";
+                if (vuln === "High") {
+                    vulnDesc = "Endangered or defenseless victim (minor child, elderly, or incapacitated party) protected under the doctrine of Parens Patriae.";
+                    vulnBadgeCls = "urgent";
+                } else if (vuln === "Medium") {
+                    vulnDesc = "Elevated vulnerability requiring heightened judicial vigilance against prejudicial delay.";
+                    vulnBadgeCls = "elevated";
+                }
+
+                let catDesc = "Handled under standard procedural track.";
+                let catBadgeCls = "standard";
+                if (/violent|criminal|kidnap|homicide|assault/i.test(cat)) {
+                    catDesc = "Cognizable criminal offence against the human body/liberty; statutorily prioritized over pecuniary disputes.";
+                    catBadgeCls = "urgent";
+                } else if (/cyber|financial|fraud/i.test(cat)) {
+                    catDesc = "Significant financial or cyber offence impacting institutional integrity or multiple victims.";
+                    catBadgeCls = "elevated";
+                }
+
+                html += `
+                    <div class="node-why-card ${prioLower}">
+                        <div class="why-card-header">
+                            <i data-lucide="zap"></i>
+                            <span>Why It Reached ${escHtml(prio)} Priority</span>
+                        </div>
+                        <div class="why-card-case-context">
+                            Active case: <strong>${escHtml(caseName)}</strong>
+                        </div>
+                        <div class="why-card-narrative">
+                            ${narrativeText}
+                        </div>
+
+                        <div class="drivers-title">
+                            <i data-lucide="sliders-horizontal"></i> Decisive Case Features (Priority Drivers)
+                        </div>
+
+                        <div class="driver-chip-list">
+                            <div class="driver-chip-item ${sevBadgeCls === 'urgent' ? 'highlight' : ''}">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="alert-octagon"></i> Severity</span>
+                                    <span class="driver-chip-val ${sevBadgeCls}">${escHtml(sev)}</span>
+                                </div>
+                                <div class="driver-chip-desc">${sevDesc}</div>
+                            </div>
+
+                            <div class="driver-chip-item ${vulnBadgeCls === 'urgent' ? 'highlight' : ''}">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="shield-alert"></i> Vulnerability</span>
+                                    <span class="driver-chip-val ${vulnBadgeCls}">${escHtml(vuln)}</span>
+                                </div>
+                                <div class="driver-chip-desc">${vulnDesc}</div>
+                            </div>
+
+                            <div class="driver-chip-item ${catBadgeCls === 'urgent' ? 'highlight' : ''}">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="scale"></i> Case Category</span>
+                                    <span class="driver-chip-val ${catBadgeCls}">${escHtml(cat)}</span>
+                                </div>
+                                <div class="driver-chip-desc">${catDesc}</div>
+                            </div>
+
+                            ${hasArt21 ? `
+                            <div class="driver-chip-item highlight">
+                                <div class="driver-chip-header">
+                                    <span class="driver-chip-name"><i data-lucide="bookmark"></i> Constitutional Rule</span>
+                                    <span class="driver-chip-val urgent">Article 21</span>
+                                </div>
+                                <div class="driver-chip-desc">Right to Life & Personal Liberty: Non-negotiable affirmative duty to list urgently without calendar delay.</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                `;
+
+                if (activePathInfo && activePathInfo.steps && activePathInfo.steps.length > 0) {
+                    html += `
+                        <div class="node-panel-row">
+                            <strong style="margin-bottom: 6px;"><i data-lucide="route" style="width:12px;height:12px;display:inline;vertical-align:middle;"></i> Decision Path Traversed</strong>
+                            <div class="node-path-trail">
+                                ${activePathInfo.steps.map((st) => {
+                                    const isThisNode = st.node_id === d.id;
+                                    if (st.type === "leaf") {
+                                        return `
+                                            <div class="trail-step-item ${isThisNode ? 'current' : ''}">
+                                                <span class="trail-step-badge ${st.result.toLowerCase()}">${escHtml(st.result)}</span>
+                                                <span><strong>Node ${st.node_id}:</strong> Final Verdict (${escHtml(st.result)} Priority)</span>
+                                            </div>
+                                        `;
+                                    }
+                                    const badgeCls = st.result === 'Yes' ? 'yes' : 'no';
+                                    const effectBadge = st.effect === 'raised' ? `<span class="trail-step-badge raised">Raised</span>` : '';
+                                    return `
+                                        <div class="trail-step-item ${isThisNode ? 'current' : ''}">
+                                            <span class="trail-step-badge ${badgeCls}">${st.result === 'Yes' ? '✓ Match' : '✗ No'}</span>
+                                            <span><strong>Node ${st.node_id}:</strong> ${escHtml(st.title)} (${escHtml(st.case_value)}) ${effectBadge}</span>
+                                        </div>
+                                    `;
+                                }).join("")}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                let criteriaText = "";
+                if (prio === "High") {
+                    criteriaText = "Cases land at this leaf when Severity is Fatal or Major and broad case classification satisfies high-urgency thresholds. Reserved for emergency expedited docketing.";
+                } else if (prio === "Medium") {
+                    criteriaText = "Cases land at this leaf when disputes involve moderate harm, property/financial claims, or non-fatal injury, routing to the standard expedited calendar.";
+                } else {
+                    criteriaText = "Cases land at this leaf when matters are routine civil, commercial, or non-urgent procedural applications.";
+                }
+
+                html += `
+                    <div class="node-why-card ${prioLower}">
+                        <div class="why-card-header">
+                            <i data-lucide="info"></i>
+                            <span>Classification Criteria</span>
+                        </div>
+                        <div class="why-card-narrative">
+                            ${criteriaText}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted); font-style: italic;">
+                            Select a case in the sidebar to inspect its specific feature drivers and decision route.
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="node-panel-row">
+                    <strong>Samples at Leaf</strong>
+                    <span>${d.samples} training case${d.samples === 1 ? '' : 's'} reached this leaf</span>
+                </div>
+                <div class="node-panel-row">
+                    <strong>Class Distribution & Purity</strong>
+                    ${buildDistributionBar(d.class_counts, d.samples)}
+                </div>
+            `;
+
+            panel.innerHTML = html;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+
+        // Decision Split Node
+        let html = `
+            <div class="node-panel-header">
+                <div class="node-panel-title">Node ${d.id} — Decision Split</div>
+                <div class="node-panel-type-badge is-split">
+                    <i data-lucide="git-branch"></i> Decision Split
+                </div>
+            </div>
+            <div class="node-panel-row">
+                <strong>Split Rule</strong>
+                <div>${escHtml(d.name)}</div>
+            </div>
+            <div class="node-panel-row">
+                <strong>Feature Evaluated</strong>
+                <div>${escHtml(d.feature_clean || d.feature || "—")}</div>
+            </div>
+            <div class="node-panel-row">
+                <strong>Samples at Node</strong>
+                <div>${d.samples} case${d.samples === 1 ? '' : 's'} evaluated here</div>
+            </div>
+        `;
+
+        const step = activePathEffects[d.id];
+        if (step && step.effect && step.effect !== "outcome") {
+            const meta = {
+                raised: { label: "Raised Priority", cls: "raised" },
+                lowered: { label: "Lowered Priority", cls: "lowered" },
+                neutral: { label: "Neutral Effect", cls: "neutral" },
+            }[step.effect] || { label: step.effect, cls: "neutral" };
+
+            html += `
+                <div class="node-why-card" style="border-left: 3px solid var(--gold-600); margin-top: 8px;">
+                    <div class="why-card-header">
+                        <i data-lucide="activity"></i>
+                        <span>Selected Case Evaluation</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
+                        <div>Feature value: <strong>${escHtml(step.case_value || "—")}</strong></div>
+                        <div>Condition met: <span class="trail-step-badge ${step.result === 'Yes' ? 'yes' : 'no'}">${step.result === 'Yes' ? '✓ Yes (Left Branch)' : '✗ No (Right Branch)'}</span></div>
+                        <div>Effect on priority: <span class="step-effect ${step.effect || 'neutral'}">${escHtml(meta.label)}</span></div>
+                        ${step.branch_priorities && step.branch_priorities.left !== undefined ? `
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                Left branch ➔ <strong>${escHtml(step.branch_priorities.left)}</strong> · Right branch ➔ <strong>${escHtml(step.branch_priorities.right)}</strong>
+                            </div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="node-panel-row">
+                <strong>Class Distribution</strong>
+                ${buildDistributionBar(d.class_counts, d.samples)}
+            </div>
+        `;
+
+        panel.innerHTML = html;
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // Tree control bar (zoom / fit / path-only)
+    const zoomInBtn = document.getElementById("tree-zoom-in");
+    const zoomOutBtn = document.getElementById("tree-zoom-out");
+    const fitBtn = document.getElementById("tree-fit");
+    const pathOnlyBtn = document.getElementById("tree-path-only");
+    const treeCanvasEl = document.getElementById("tree-canvas-container");
+    const pathTraceToggle = document.getElementById("path-trace-toggle");
+
+    function treeZoomBy(factor) {
+        const svgEl = document.getElementById("tree-svg");
+        if (svgEl && d3Zoom) d3.select(svgEl).transition().duration(250).call(d3Zoom.scaleBy, factor);
+    }
+    if (zoomInBtn) zoomInBtn.addEventListener("click", () => treeZoomBy(1.3));
+    if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => treeZoomBy(0.75));
+    if (fitBtn) fitBtn.addEventListener("click", () => {
+        const svgEl = document.getElementById("tree-svg");
+        if (svgEl && d3Zoom) d3.select(svgEl).transition().duration(300).call(d3Zoom.transform, d3.zoomIdentity.translate(20, 20).scale(0.85));
+    });
+    if (pathOnlyBtn) pathOnlyBtn.addEventListener("click", () => {
+        if (!treeCanvasEl) return;
+        if (!activePathNodes.length) return; // nothing to isolate without a selected case
+        const isPathOnly = treeCanvasEl.classList.toggle("path-only");
+        pathOnlyBtn.classList.toggle("active", isPathOnly);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    });
+    if (pathTraceToggle) pathTraceToggle.addEventListener("click", () => {
+        const wrap = document.getElementById("path-trace-wrap");
+        if (wrap) wrap.classList.toggle("collapsed");
+    });
+
+    function renderPathTimeline(steps) {
+        const stepsContainer = document.getElementById("decision-path-steps");
+        stepsContainer.innerHTML = "";
+
+        steps.forEach((step, idx) => {
+            const stepEl = document.createElement("div");
+            
+            let classType = "match";
+            let resultLabel = `<span class="step-match-label yes">Match: Yes</span>`;
+            if (step.type === "leaf") {
+                classType = `leaf leaf-${step.result.toLowerCase()}`;
+                resultLabel = `<span class="step-match-label priority">${step.result} Priority</span>`;
+            } else if (step.result === "No") {
+                classType = "no-match";
+                resultLabel = `<span class="step-match-label no">Match: No</span>`;
+            }
+
+            // Why-this-split chip + the other branch's counterfactual verdict.
+            const effectMeta = {
+                raised: { label: "raised priority", cls: "raised" },
+                lowered: { label: "lowered priority", cls: "lowered" },
+                neutral: { label: "no effect here", cls: "neutral" },
+            }[step.effect] || null;
+            const effectChip = effectMeta
+                ? `<span class="step-effect ${effectMeta.cls}">${effectMeta.label}</span>` : "";
+            const branchNote = (step.branch_priorities && step.branch_priorities.left !== undefined)
+                ? `<div class="step-branch">Other branch → ${escHtml(step.branch_priorities.left)} / ${escHtml(step.branch_priorities.right)} (left / right)</div>` : "";
+
+            stepEl.className = `step-item ${classType}`;
+            stepEl.innerHTML = `
+                <div class="step-info">
+                    <div class="step-title">Node ${step.node_id}: ${escHtml(step.title)} ${effectChip}</div>
+                    <div class="step-cond">${escHtml(step.condition)}</div>
+                    ${branchNote}
+                </div>
+                <div class="step-outcome">
+                    <div class="step-val">Actual: ${escHtml(step.case_value)}</div>
+                    ${resultLabel}
+                </div>
+            `;
+            stepsContainer.appendChild(stepEl);
+        });
+    }
+
+    let treeRenderPending = false;
+    let cachedTreeHierarchy = null;
+    let cachedLayoutWidth = 0;
+    let cachedLayoutHeight = 0;
+    let cachedLayoutCaseFile = null;
+    let cachedLayoutActiveNodesKey = null;
+
+    function isTreePanelVisible() {
+        const treeTab = document.getElementById("tree-tab");
+        const canvasContainer = document.querySelector(".tree-canvas-container");
+        if (!treeTab || !canvasContainer) return false;
+        const isTabActive = treeTab.classList.contains("active") || treeTab.offsetParent !== null;
+        return isTabActive && canvasContainer.clientWidth > 0 && canvasContainer.clientHeight > 0;
+    }
+
+    // D3.js Decision Tree Graph Visualizer
+    function drawDecisionTree(data) {
+        if (!data) return;
+        const svgElement = document.getElementById("tree-svg");
+        const canvasContainer = document.querySelector(".tree-canvas-container");
+        if (!svgElement || !canvasContainer) return;
+
+        // Lazy-render: do not run tree simulation/layout when the decision tree panel or modal is hidden
+        if (!isTreePanelVisible()) {
+            treeRenderPending = true;
+            return;
+        }
+
+        const width = canvasContainer.clientWidth;
+        const height = canvasContainer.clientHeight;
+        const currentCaseFile = selectedCase ? (selectedCase.Case_File || "") : "";
+        const currentNodesKey = (activePathNodes || []).join(",");
+
+        // Cache tree layout when rendered for the active case: skip re-rendering if active case & dimensions have not changed
+        if (cachedLayoutCaseFile === currentCaseFile &&
+            cachedLayoutActiveNodesKey === currentNodesKey &&
+            cachedLayoutWidth === width &&
+            cachedLayoutHeight === height &&
+            svgElement.childNodes.length > 0) {
+            treeRenderPending = false;
+            return;
+        }
+
+        treeRenderPending = false;
+        d3.select(svgElement).selectAll("*").remove();
+
+        const svg = d3.select(svgElement)
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("width", "100%")
+            .attr("height", "100%");
+
+        const mainGroup = svg.append("g").attr("class", "tree-main-group");
+
+        // Tooltip setup
+        const tooltip = d3.select("#tree-tooltip");
+
+        // Pan/Zoom setup
+        d3Zoom = d3.zoom()
+            .scaleExtent([0.15, 3])
+            .on("zoom", (event) => {
+                mainGroup.attr("transform", event.transform);
+            });
+        
+        svg.call(d3Zoom);
+
+        // Banner setup for active case (name + its Decision Tree verdict)
+        const banner = document.getElementById("tree-legend-case-active");
+        const bannerCaseName = document.getElementById("active-path-case-name");
+        const bannerPriority = document.getElementById("active-path-case-priority");
+        if (selectedCase) {
+            banner.style.display = "block";
+            bannerCaseName.textContent = (selectedCase.Case_File || "").replace(/\[WHOLE CASE\]\s*/i, "Whole case: ").replace(/_/g, " ");
+            const prio = selectedCase.Predicted_Priority;
+            if (bannerPriority) {
+                if (prio) {
+                    // The case's actual verdict, coloured like every other badge.
+                    bannerPriority.style.display = "inline-flex";
+                    bannerPriority.className = `banner-priority-badge priority-pill ${String(prio).toLowerCase()}`;
+                    bannerPriority.textContent = `${prio} Priority`;
+                } else {
+                    bannerPriority.style.display = "none";
+                }
+            }
+        } else {
+            banner.style.display = "none";
+        }
+
+        // Setup hierarchy tree with layout caching
+        let root;
+        if (cachedTreeHierarchy && cachedLayoutWidth === width && cachedLayoutHeight === height && cachedTreeHierarchy.data === data) {
+            root = cachedTreeHierarchy;
+        } else {
+            const treemap = d3.tree().size([height - 80, width - 260]);
+            root = d3.hierarchy(data, d => d.children);
+            root.x0 = height / 2;
+            root.y0 = 40;
+            treemap(root);
+            root.descendants().forEach(d => {
+                d.y = d.y + 40;
+            });
+            cachedTreeHierarchy = root;
+            cachedLayoutWidth = width;
+            cachedLayoutHeight = height;
+        }
+
+        cachedLayoutCaseFile = currentCaseFile;
+        cachedLayoutActiveNodesKey = currentNodesKey;
+
+        // Add Links
+        const link = mainGroup.selectAll("path.tree-link")
+            .data(root.links())
+            .enter().append("path")
+            .attr("class", d => {
+                const isActive = activePathNodes.includes(d.source.data.id) && activePathNodes.includes(d.target.data.id);
+                const hasPath = activePathNodes.length > 0;
+                return `tree-link ${isActive ? 'path-active' : ''} ${hasPath && !isActive ? 'dimmed' : ''}`;
+            })
+            .attr("d", d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x)
+            );
+
+        // Add Nodes Group
+        const node = mainGroup.selectAll("g.tree-node")
+            .data(root.descendants())
+            .enter().append("g")
+            .attr("class", d => {
+                const isActive = activePathNodes.includes(d.data.id);
+                const hasPath = activePathNodes.length > 0;
+                const isLeaf = d.data.type === "leaf";
+                return `tree-node ${isLeaf ? 'leaf' : 'decision'} ${isActive ? 'path-active' : ''} ${hasPath && !isActive ? 'dimmed' : ''}`;
+            })
+            .attr("transform", d => `translate(${d.y},${d.x})`)
+            .on("mouseover", (event, d) => {
+                tooltip.transition().duration(180).style("opacity", 1);
+                
+                let tooltipContent = `<div class="tooltip-title">Node ${d.data.id}: ${d.data.type === 'leaf' ? 'Leaf' : 'Decision Split'}</div>`;
+                if (d.data.type === "leaf") {
+                    tooltipContent += `
+                        <div class="tooltip-row"><strong>Prediction:</strong> <span style="color: ${getPriorityColor(d.data.predicted_class)}">${d.data.predicted_class}</span></div>
+                        <div class="tooltip-row"><strong>Samples:</strong> ${d.data.samples}</div>
+                    `;
+                } else {
+                    tooltipContent += `
+                        <div class="tooltip-row"><strong>Split Rule:</strong> ${d.data.name}</div>
+                        <div class="tooltip-row"><strong>Feature:</strong> ${d.data.feature_clean}</div>
+                        <div class="tooltip-row"><strong>Samples:</strong> ${d.data.samples}</div>
+                    `;
+                }
+
+                // Append class counts distribution
+                tooltipContent += `<div class="tooltip-row" style="margin-top:6px; font-size:10px; border-top: 1px solid rgba(80, 60, 20, 0.15); padding-top:4px;"><strong>Distribution:</strong></div>`;
+                Object.entries(d.data.class_counts).forEach(([cls, count]) => {
+                    tooltipContent += `<div class="tooltip-row" style="font-size:10px;">• ${cls}: ${count}</div>`;
+                });
+
+                tooltip.html(tooltipContent);
+            })
+            .on("mousemove", (event) => {
+                const containerRect = canvasContainer.getBoundingClientRect();
+                tooltip
+                    .style("left", (event.clientX - containerRect.left + 15) + "px")
+                    .style("top", (event.clientY - containerRect.top - 20) + "px");
+            })
+            .on("mouseout", () => {
+                tooltip.transition().duration(200).style("opacity", 0);
+            })
+            .on("click", (event, d) => showNodePanel(d.data));
+
+        // Node Visual representation
+        node.append("circle")
+            .attr("r", d => d.data.type === "leaf" ? 8 : 6)
+            .style("stroke", d => {
+                if (d.data.type === "leaf") {
+                    return getPriorityColor(d.data.predicted_class);
+                }
+                return "#C9A24B"; // Decision node border (gold)
+            })
+            .style("fill", d => {
+                const isActive = activePathNodes.includes(d.data.id);
+                if (isActive) {
+                    if (d.data.type === "leaf") {
+                        return getPriorityColor(d.data.predicted_class);
+                    }
+                    return "#C9A24B"; // Active decision node fill (gold)
+                }
+                return "#FFFFFF"; // Background card color (white)
+            })
+            .style("color", d => {
+                if (d.data.type === "leaf") {
+                    return getPriorityColor(d.data.predicted_class);
+                }
+                return "#8A6A1F"; // Text-safe gold
+            });
+
+        // Invisible hit area so nodes are easy to click
+        node.append("circle")
+            .attr("r", 15)
+            .attr("class", "tree-hit-circle")
+            .style("fill", "transparent")
+            .style("stroke", "none");
+
+        // Add text labels
+        node.append("text")
+            .attr("dy", ".31em")
+            .attr("x", d => d.children ? -12 : 12)
+            .attr("text-anchor", d => d.children ? "end" : "start")
+            .text(d => d.data.name.length > 30 ? d.data.name.substring(0, 28) + "..." : d.data.name)
+            .style("text-shadow", "0 0 4px #FBF8F1");
+
+        // Fit tree inside view
+        const initialTransform = d3.zoomIdentity.translate(20, 20).scale(0.85);
+        svg.call(d3Zoom.transform, initialTransform);
+
+        // Auto-populate node inspector panel with the active case's leaf verdict
+        if (activePathNodes && activePathNodes.length > 0) {
+            const leafId = activePathNodes[activePathNodes.length - 1];
+            const leafNode = findNodeById(data, leafId);
+            if (leafNode) {
+                showNodePanel(leafNode);
+            }
+        }
+    }
+
+    function getPriorityColor(priority) {
+        if (priority === "High") return "#B3402E";
+        if (priority === "Medium") return "#C25606";
+        if (priority === "Low") return "#4E7A66";
+        return "#8B8471";
+    }
+
+    // Helper: Format constitutional analysis text — handles markdown-like formatting
+    function formatConstitutionalText(text) {
+        if (!text) return '';
+        
+        // Convert markdown bold to HTML bold
+        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Convert markdown headings to HTML headings
+        formatted = formatted.replace(/^### (.*?)$/gm, '<h4 class="constitutional-h4">$1</h4>');
+        formatted = formatted.replace(/^## (.*?)$/gm, '<h3 class="constitutional-h3">$1</h3>');
+        
+        // Convert markdown bullet points to HTML list items
+        formatted = formatted.replace(/^- (.*?)$/gm, '<li>$1</li>');
+        
+        // Wrap consecutive list items
+        formatted = formatted.replace(/(<li>.*?<\/li>\n?)+/g, '<ul class="constitutional-ul">$&</ul>');
+        
+        // Convert double newlines to paragraph breaks
+        formatted = formatted.replace(/\n\n/g, '</p><p class="constitutional-p">');
+        
+        // Convert single newlines to line breaks
+        formatted = formatted.replace(/\n/g, '<br>');
+        
+        // Wrap in paragraph if not already wrapped
+        if (!formatted.startsWith('<')) {
+            formatted = '<p class="constitutional-p">' + formatted + '</p>';
+        }
+        
+        // Fix any nested <p> tags
+        formatted = formatted.replace(/<p class="constitutional-p">\s*<p class="constitutional-p">/g, '<p class="constitutional-p">');
+        formatted = formatted.replace(/<\/p>\s*<\/p>/g, '</p>');
+        
+        return formatted;
+    }
+
+    // ================================================================
+    // LIVE COURTROOM LOBBY
+    // ================================================================
+    const lobbyCreateForm = document.getElementById("create-room-form");
+    const lobbyCreateBtn = document.querySelector(".lobby-create-btn");
+    const lobbySuccess = document.getElementById("lobby-create-success");
+    const successText = document.getElementById("success-text");
+    const openRoomBtn = document.getElementById("open-room-btn");
+    const copyRoomInviteBtn = document.getElementById("copy-room-invite-btn");
+    const refreshRoomsBtn = document.getElementById("refresh-rooms-btn");
+    const roomsListContainer = document.getElementById("rooms-list-container");
+    const newRoomTitle = document.getElementById("new-room-title");
+    const newRoomHost = document.getElementById("new-room-host");
+    const newRoomCase = document.getElementById("new-room-case");
+
+    let lastCreatedRoomId = null;
+
+    // Case files for the courtroom's "link a case" select — a linked trial
+    // starts with the case context (parties, evidence, links) on screen and
+    // its session report checks statements against the collected evidence.
+    async function populateRoomCaseSelect() {
+        if (!newRoomCase) return;
+        try {
+            const res = await fetch("/api/case-registry");
+            if (!res.ok) return;
+            const cases = await res.json();
+            newRoomCase.innerHTML = '<option value="">No linked case — free-form trial</option>';
+            for (const c of cases) {
+                const opt = document.createElement("option");
+                opt.value = c.case_id;
+                opt.textContent = `${c.case_id} — ${c.title} (${c.document_count} doc${c.document_count === 1 ? "" : "s"})`;
+                newRoomCase.appendChild(opt);
+            }
+        } catch (e) {
+            console.warn("Case registry unavailable for courtroom lobby:", e);
+        }
+    }
+    populateRoomCaseSelect();
+
+    function escapeHtml(s) {
+        return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    async function fetchCourtrooms() {
+        try {
+            const res = await fetch("/api/court/rooms");
+            if (!res.ok) throw new Error(res.statusText);
+            const rooms = await res.json();
+            renderCourtrooms(rooms);
+            courtroomsLoaded = true;
+        } catch (e) {
+            roomsListContainer.innerHTML = `<div class="loader" style="color:var(--color-high);">Failed to load trial sessions.</div>`;
+        }
+    }
+
+    function renderCourtrooms(rooms) {
+        if (!rooms || rooms.length === 0) {
+            roomsListContainer.innerHTML = `<div class="empty-state" style="padding:30px 0;">
+                <div class="empty-icon"><i data-lucide="gavel"></i></div>
+                <h3>No Trials Yet</h3>
+                <p>Create a courtroom session above to begin a live trial with counsel.</p>
+            </div>`;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+        roomsListContainer.innerHTML = rooms.map(r => {
+            const isActive = r.active;
+            const statusClass = r.phase === "Concluded" ? "priority-low" : "priority-high";
+            const phaseLabel = r.phase || "Opening";
+            const inviteUrl = `${window.location.origin}/court/${r.room_id}`;
+            return `
+            <div class="courtroom-card ${isActive ? "" : "inactive"}">
+                <div class="cc-header">
+                    <span class="cc-title">${escapeHtml(r.case_title)}</span>
+                    <span class="priority-pill ${statusClass}">${phaseLabel}</span>
+                </div>
+                <div class="cc-meta">
+                    <span><i data-lucide="users"></i> ${r.participant_count} participant${r.participant_count !== 1 ? "s" : ""}</span>
+                    <span><i data-lucide="scroll-text"></i> ${r.transcript_entries} entries</span>
+                    <span><i data-lucide="clock"></i> ${new Date(r.created_at).toLocaleDateString()}</span>
+                    ${r.case_id ? `<span class="cc-linked-case" title="Linked case file — the trial runs with this case's evidence context"><i data-lucide="folder-open"></i> ${escapeHtml(r.case_id)}</span>` : ""}
+                </div>
+                <div class="cc-actions">
+                    <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
+                    <button class="cc-copy" data-invite-room="${r.room_id}"><i data-lucide="link"></i> Invite Link</button>
+                    <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
+                    <button class="cc-delete" data-delete-room="${r.room_id}" title="Delete this trial session and its recordings" aria-label="Delete room ${r.room_id}"><i data-lucide="trash-2"></i> Delete</button>
+                </div>
+            </div>`;
+        }).join("");
+        if (typeof lucide !== "undefined") lucide.createIcons();
+        // Wire up the LAN-aware invite-link copy buttons (see invite.js).
+        roomsListContainer.querySelectorAll("[data-invite-room]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const url = await buildInviteUrl(btn.dataset.inviteRoom);
+                try {
+                    await navigator.clipboard.writeText(url);
+                } catch (e) {
+                    console.warn("Clipboard write failed:", e);
+                }
+                btn.innerHTML = '<i data-lucide="check"></i> Copied';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            });
+        });
+        // Delete buttons: remove an abandoned/ended trial session permanently.
+        roomsListContainer.querySelectorAll("[data-delete-room]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const roomId = btn.dataset.deleteRoom;
+                const ok = window.confirm(
+                    `Delete trial room ${roomId} and its audio recordings? This cannot be undone.`
+                );
+                if (!ok) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Deleting…';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+                try {
+                    const res = await fetch(`/api/court/rooms/${roomId}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({ detail: res.statusText }));
+                        throw new Error(err.detail || "Failed to delete room.");
+                    }
+                    fetchCourtrooms();
+                } catch (e) {
+                    alert("Could not delete room: " + e.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="trash-2"></i> Delete';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }
+            });
+        });
+    }
+
+    lobbyCreateForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        lobbyCreateBtn.disabled = true;
+        lobbyCreateBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Creating…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+
+        try {
+            const res = await fetch("/api/court/rooms", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    case_title: newRoomTitle.value.trim(),
+                    created_by: newRoomHost.value.trim(),
+                    case_id: newRoomCase ? newRoomCase.value : "",
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: res.statusText }));
+                throw new Error(err.detail || "Failed to create room.");
+            }
+            const room = await res.json();
+            lastCreatedRoomId = room.room_id;
+            successText.textContent = `Room ${room.room_id} created — "${room.case_title}"`;
+            lobbyCreateForm.style.display = "none";
+            lobbySuccess.style.display = "block";
+            openRoomBtn.onclick = () => window.open(`/court/${room.room_id}`, "_blank");
+            copyRoomInviteBtn.onclick = async () => {
+                const url = await buildInviteUrl(room.room_id);
+                try {
+                    await navigator.clipboard.writeText(url);
+                } catch (e) {
+                    console.warn("Clipboard write failed:", e);
+                }
+                copyRoomInviteBtn.innerHTML = '<i data-lucide="check"></i> Copied';
+            };
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            // Refresh the room list.
+            fetchCourtrooms();
+        } catch (e) {
+            alert("Could not create room: " + e.message);
+        } finally {
+            lobbyCreateBtn.disabled = false;
+            lobbyCreateBtn.innerHTML = '<i data-lucide="gavel"></i> Create Courtroom';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    window.populateRoomCaseSelect = populateRoomCaseSelect;
+
+    refreshRoomsBtn.addEventListener("click", () => {
+        roomsListContainer.innerHTML = '<div class="loader">Refreshing…</div>';
+        populateRoomCaseSelect();
+        fetchCourtrooms();
+    });
+
+    // Run Initialization
+    init();
+});

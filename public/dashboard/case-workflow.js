@@ -1,0 +1,1364 @@
+// =====================================================================
+// ANAVAYA CASE WORKFLOW MODULE
+// Create New Case wizard · Cases registry · case workspace
+//
+// Loaded after app.js. Communicates with the dashboard through the
+// window.AnavayaUI bridge defined inside app.js's main closure.
+// =====================================================================
+document.addEventListener("DOMContentLoaded", () => {
+    const UI = window.AnavayaUI;
+    if (!UI) {
+        console.error("AnavayaUI bridge not found — case workflow disabled.");
+        return;
+    }
+    // Reuse the dashboard's escaper when available (fallback included).
+    const esc = (s) => {
+        if (UI && typeof UI.escHtml === "function") return UI.escHtml(s);
+        return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    };
+
+    // Lightweight debounce utility for workflow inputs
+    const debounce = (UI && typeof UI.debounce === "function")
+        ? UI.debounce
+        : (fn, waitMs = 150) => {
+            let timer = null;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), waitMs);
+            };
+        };
+
+    const $ = (id) => document.getElementById(id);
+    const DOC_TYPES = ["FIR", "Police Report", "Medical", "Statement", "Other"];
+
+    // ---- priority helpers -------------------------------------------
+    const prioClass = (p) => String(p || "medium").toLowerCase();
+    function prioBadge(p) {
+        return `<span class="badge-priority ${prioClass(p)}">${esc(p || "Not analysed")}</span>`;
+    }
+
+    // =================================================================
+    // 1. CASES REGISTRY (sidebar section)
+    // =================================================================
+    const registryList = $("cases-registry-list");
+    let registryCases = [];
+    let expandedCaseId = null;
+
+    async function fetchRegistry() {
+        try {
+            const res = await fetch("/api/case-registry");
+            if (!res.ok) throw new Error("registry fetch failed");
+            registryCases = await res.json();
+            renderRegistry();
+        } catch (err) {
+            if (registryList) registryList.innerHTML =
+                `<div class="loader" style="color:#B3402E">Cases unavailable — start the backend.</div>`;
+        }
+    }
+
+    function renderRegistry() {
+        if (!registryList) return;
+        if (!registryCases.length) {
+            registryList.innerHTML = `<div class="registry-empty">No cases yet — click “Create New Case” above.</div>`;
+            return;
+        }
+        registryList.innerHTML = registryCases.map((c) => {
+            const open = expandedCaseId === c.case_id;
+            const docs = (c.documents || []).map((d) => `
+                <li class="registry-doc" data-case="${esc(c.case_id)}" data-doc="${esc(d.doc_id)}"
+                    data-filename="${esc(d.filename)}" title="Select this document">
+                    <i data-lucide="file-text"></i>
+                    <span>${esc(d.filename)}</span>
+                    ${d.priority ? prioBadge(d.priority) : ""}
+                </li>`).join("");
+            return `
+            <div class="registry-case ${open ? "open" : ""}" data-case-id="${esc(c.case_id)}">
+                <div class="registry-case-head">
+                    <div class="registry-case-title">
+                        <strong>${esc(c.title || c.case_id)}</strong>
+                        <span class="registry-case-id">${esc(c.case_id)}</span>
+                    </div>
+                    <div class="registry-case-meta">
+                        ${prioBadge(c.aggregate_priority)}
+                        <span class="registry-doc-count">${(c.documents || []).length} docs</span>
+                        <i data-lucide="chevron-down" class="registry-chevron"></i>
+                    </div>
+                    <button class="registry-case-delete" data-case-id="${esc(c.case_id)}" title="Delete this case and all its evidence"><i data-lucide="trash-2"></i></button>
+                </div>
+                <ul class="registry-docs">${docs || `<li class="registry-doc-empty">No documents yet</li>`}</ul>
+            </div>`;
+        }).join("");
+        if (typeof lucide !== "undefined") lucide.createIcons();
+
+        // Delete button on each registry card.
+        registryList.querySelectorAll(".registry-case-delete").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const caseId = btn.getAttribute("data-case-id");
+                if (!confirm(`Permanently delete case ${caseId} and all its evidence? This cannot be undone.`)) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+                try {
+                    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || "Delete failed");
+                    }
+                    fetchRegistry();
+                    try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+                    // If this case was the currently open one, close the workspace.
+                    if (currentWorkspaceCaseId === caseId) {
+                        $("case-workspace").style.display = "none";
+                        $("case-workspace-empty").style.display = "block";
+                        setAnalysisWholeCaseVisible(false);
+                        currentWorkspaceCaseId = null;
+                        UI.setCurrentCaseId("");
+                    }
+                } catch (err) {
+                    alert("Failed to delete case: " + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="trash-2"></i>';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }
+            });
+        });
+
+        // Head click → expand + open the case workspace. The Analysis tab leads
+        // with the CASE-level verdict (the whole-case analysis), so we do NOT
+        // auto-select a single document — the officer must never mistake one
+        // piece of evidence for the case decision. Clicking a document (the doc
+        // list below, or a sidebar row) still opens its evidence-level analysis.
+        registryList.querySelectorAll(".registry-case-head").forEach((head) => {
+            head.addEventListener("click", async (e) => {
+                const card = head.closest(".registry-case");
+                const caseId = card.getAttribute("data-case-id");
+                expandedCaseId = expandedCaseId === caseId ? null : caseId;
+                UI.setCurrentCaseId(caseId);
+                renderRegistry();
+                await openCaseWorkspace(caseId);
+                let hasAnalysis = false;
+                try {
+                    const caseRes = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
+                    if (caseRes.ok) {
+                        const caseData = await caseRes.json();
+                        hasAnalysis = (caseData.documents || []).some((d) => d.priority);
+                    }
+                } catch (_) { /* non-fatal */ }
+                // Evidence analysed → open the case verdict. Nothing analysed yet
+                // → stay on the Case tab so the officer can upload + run it.
+                // Selecting the case's WHOLE-CASE Excel row is what feeds the
+                // Decision Tree tab: without it `selectedCase` stays null and
+                // the tree draws no active path / shows no case priority.
+                if (hasAnalysis) {
+                    const row = UI.getCasesData().find((r) =>
+                        r.Case_ID === caseId &&
+                        String(r.Document_Type || "").toLowerCase() === "whole case");
+                    if (row) UI.selectCaseFn(row);
+                }
+                const tabBtn = document.querySelector(
+                    `.tab-btn[data-tab='${hasAnalysis ? "details-tab" : "case-tab"}']`);
+                if (tabBtn) tabBtn.click();
+            });
+        });
+        // Doc click → select the matching Excel row if present
+        registryList.querySelectorAll(".registry-doc").forEach((li) => {
+            li.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const filename = li.getAttribute("data-filename");
+                const row = UI.getCasesData().find((r) => r.Case_File === filename);
+                if (row) {
+                    UI.selectCaseFn(row);
+                } else {
+                    UI.setCurrentCaseId(li.getAttribute("data-case"));
+                    alert("This document has not been analysed yet — open the case and run “Analyze the evidence” from the Case tab.");
+                }
+                // Keep the Case workspace on the same case.
+                const docCaseId = li.getAttribute("data-case");
+                if (docCaseId) openCaseWorkspace(docCaseId);
+                // Clicking a document takes the officer straight to the case's
+                // Analysis tab: whole-case verdict on top, then evidence
+                // weights and the Decision Tree path underneath.
+                const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+                if (analysisTabBtn) analysisTabBtn.click();
+            });
+        });
+    }
+
+    const refreshCasesBtn = $("refresh-cases-btn");
+    if (refreshCasesBtn) refreshCasesBtn.addEventListener("click", () => fetchRegistry());
+
+    // =================================================================
+    // 2. CREATE NEW CASE (single step: name OR FIR OR auto-assigned ID)
+    //    + CASE WORKSPACE (open the case, upload evidence any time)
+    // =================================================================
+    const modal = $("case-wizard-modal");
+    const createBtn = $("create-case-btn");
+    let currentWorkspaceCaseId = null;
+    // "About this case" gist for the case open in the workspace — rendered
+    // as the lead .cl-case-desc block of #case-level-narrative; captured
+    // from the whole-case analysis payload.
+    let currentCaseGist = "";
+
+    function openWizard() {
+        $("wizard-title").value = "";
+        $("wizard-fir-input").value = "";
+        modal.style.display = "flex";
+        setTimeout(() => $("wizard-title").focus(), 60);
+    }
+    function closeWizard() { modal.style.display = "none"; }
+
+    if (createBtn) createBtn.addEventListener("click", openWizard);
+    const wsNewCaseBtn = $("workspace-new-case-btn");
+    if (wsNewCaseBtn) wsNewCaseBtn.addEventListener("click", openWizard);
+    $("wizard-close-btn").addEventListener("click", closeWizard);
+    modal.addEventListener("click", (e) => { if (e.target === modal) closeWizard(); });
+    $("wizard-title").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); $("wizard-create-btn").click(); }
+    });
+
+    // Create the case, then open its workspace immediately.
+    $("wizard-create-btn").addEventListener("click", async () => {
+        const btn = $("wizard-create-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Creating…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+        try {
+            const title = $("wizard-title").value.trim();
+            const firInput = $("wizard-fir-input");
+            const firFile = firInput.files && firInput.files[0];
+
+            const fd = new FormData();
+            if (title) fd.append("case_title", title);
+            if (firFile) fd.append("fir_file", firFile);
+
+            if (firFile && window.AnavayaPipelineLoader) {
+                window.AnavayaPipelineLoader.show("Ingesting Case FIR...", "Parsing First Information Report, extracting legal entities, and predicting case priority.");
+            }
+            const res = await fetch("/api/cases", { method: "POST", body: fd });
+            if (!res.ok) {
+                if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Case creation failed");
+            }
+            const caseData = await res.json();
+            if (firFile && window.AnavayaPipelineLoader) {
+                await window.AnavayaPipelineLoader.complete();
+            }
+
+            closeWizard();
+            // Open the case site: switch to the Case tab and render it.
+            const caseTabBtn = document.querySelector(".tab-btn[data-tab='case-tab']");
+            if (caseTabBtn) caseTabBtn.click();
+            await openCaseWorkspace(caseData.case_id);
+            // Refresh the sidebar registry + Excel-backed list.
+            try { await UI.refreshCases(); } catch (e) { /* non-fatal */ }
+            fetchRegistry();
+            // Show the CASE-level verdict if the FIR was analysed during creation.
+            // (No single-document auto-select — the case decision comes from the
+            // whole-case analysis over all evidence.)
+            try {
+                const cr = await fetch(`/api/cases/${encodeURIComponent(caseData.case_id)}`);
+                if (cr.ok) {
+                    const cd = await cr.json();
+                    if ((cd.documents || []).some((d) => d.priority)) {
+                        const detailsTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+                        if (detailsTabBtn) detailsTabBtn.click();
+                    }
+                }
+            } catch (_) { /* non-fatal */ }
+        } catch (err) {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+            alert("Error: " + err.message);
+        } finally {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="folder-plus"></i> Create &amp; Open Case';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    // ---- Case workspace ---------------------------------------------
+
+    async function fetchCaseDetail(caseId) {
+        const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Failed to load case");
+        }
+        return res.json();
+    }
+
+    /**
+ * Loads a case workspace into active state, binding document lists, sessions, and case-level verdicts.
+ * @param {string} caseId - System case identifier (ANV-YYYY-NNNN).
+ */
+async function openCaseWorkspace(caseId) {
+        currentWorkspaceCaseId = caseId;
+        UI.setCurrentCaseId(caseId);
+        $("case-workspace-empty").style.display = "none";
+        $("case-workspace").style.display = "block";
+        try {
+            const c = await fetchCaseDetail(caseId);
+            // Stale-response guard: ignore a slower fetch for a case the
+            // officer has already navigated away from.
+            if (currentWorkspaceCaseId !== caseId) return;
+            renderCaseWorkspace(c);
+        } catch (err) {
+            if (currentWorkspaceCaseId !== caseId) return;
+            const docListEl = $("workspace-doc-list");
+            if (docListEl) {
+                docListEl.innerHTML = `<div class="loader" style="color:#B3402E">${esc(err.message)}</div>`;
+            }
+        }
+    }
+
+    // State-aware workspace action button: analyse when there is new or
+    // missing work, otherwise jump to the results. Deterministic — read
+    // straight off the case payload (per-document priority/analysis + the
+    // persisted whole-case verdict).
+    //   • no documents / un-analysed docs  → “Analyze …”
+    //   • every document analysed + verdict → “View the analysis”
+    let lastWorkspaceCase = null;
+    // A document counts as analysed only when it carries a verdict AND real
+    // extracted features — fresh uploads have `analysis: {}`, which is
+    // truthy in JavaScript and would otherwise hide the pending state.
+    const docAnalysed = (d) => !!(d && d.priority && d.analysis && Object.keys(d.analysis).length);
+    function setWorkspaceAction(c) {
+        lastWorkspaceCase = c;
+        const btn = $("workspace-analyze-btn");
+        if (!btn) return;
+        const docs = (c && c.documents) || [];
+        const pending = docs.filter((d) => !docAnalysed(d)).length;
+        const verdictReady = !!(c && c.case_level && c.case_level.priority);
+        let action = "analyze";
+        let label = '<i data-lucide="sparkles"></i> Analyze All Documents';
+        if (docs.length && pending > 0) {
+            label = '<i data-lucide="sparkles"></i> Analyze the evidence';
+        } else if (docs.length && !pending && verdictReady) {
+            action = "view";
+            label = '<i data-lucide="file-search"></i> View the analysis';
+        }
+        btn.dataset.action = action;
+        btn.innerHTML = label;
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    function renderCaseWorkspace(c) {
+        $("workspace-title").textContent = c.title || c.case_id;
+        $("workspace-case-id").textContent = c.case_id;
+        $("workspace-source").textContent = c.source === "FIR_UPLOADED" ? "FIR attached" : "Auto-created";
+        const prioEl = $("workspace-priority-badge");
+        const prio = c.aggregate_priority;
+        prioEl.className = `priority-pill ${prioClass(prio)}`;
+        prioEl.textContent = prio ? `${prio} Priority` : "Not Analysed";
+        const docs = c.documents || [];
+        // Status line follows the analysis state (same rules as the action
+        // button below): new evidence first, then the stored rationale.
+        const pendingDocs = docs.filter((d) => !docAnalysed(d)).length;
+        const verdictReady = !!(c.case_level && c.case_level.priority);
+        if (pendingDocs > 0) {
+            $("workspace-rationale").textContent = verdictReady
+                ? `${pendingDocs} new document${pendingDocs === 1 ? "" : "s"} on record — run “Analyze the evidence” to update the verdict.`
+                : `${pendingDocs} document${pendingDocs === 1 ? "" : "s"} awaiting analysis — run “Analyze the evidence” to compute the case priority.`;
+        } else if (c.aggregate_rationale) {
+            $("workspace-rationale").textContent = c.aggregate_rationale;
+        } else if (!docs.length) {
+            $("workspace-rationale").textContent = "No documents yet — upload evidence to get a priority assessment.";
+        } else if (verdictReady) {
+            $("workspace-rationale").textContent = "All evidence analysed — use “View the analysis” to review the whole-case verdict.";
+        } else {
+            $("workspace-rationale").textContent = "All documents analysed — run “Analyze All Documents” to compute the whole-case verdict.";
+        }
+        setWorkspaceAction(c);
+        $("workspace-doc-count").textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
+        renderDocuments(docs, c.case_id);
+        renderCaseLevelPanel(c);
+    }
+
+    // Batch DOM rendering for workspace documents with DocumentFragment
+    function renderDocuments(docs, caseId) {
+        const docListEl = $("workspace-doc-list");
+        if (!docListEl) return;
+        if (!docs || !docs.length) {
+            docListEl.innerHTML = `<div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>`;
+            return;
+        }
+        docListEl.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        docs.forEach((d) => {
+            const item = document.createElement("div");
+            item.className = `ws-doc-item ${d.priority ? "" : "pending"}`;
+            item.setAttribute("data-doc-id", d.doc_id || "");
+            item.innerHTML = `
+                <div class="ws-doc-main">
+                    <i data-lucide="file-text"></i>
+                    <div class="ws-doc-info">
+                        <strong>${esc(d.filename)}</strong>
+                        <span class="ws-doc-meta">${esc(d.doc_type)} · ${esc((d.uploaded_at || "").replace("T", " ").slice(0, 16))}</span>
+                    </div>
+                </div>
+                <div class="ws-doc-side">
+                    ${d.priority ? prioBadge(d.priority) : `<span class="ws-doc-pending">Analysis pending</span>`}
+                    <a class="ws-doc-download" href="/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(d.doc_id)}/download" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
+                    <button class="ws-doc-delete" data-doc-id="${esc(d.doc_id)}" data-filename="${esc(d.filename)}" title="Delete ${esc(d.filename)}"><i data-lucide="trash-2"></i></button>
+                </div>`;
+
+            const delBtn = item.querySelector(".ws-doc-delete");
+            if (delBtn) {
+                delBtn.addEventListener("click", async () => {
+                    const did = delBtn.getAttribute("data-doc-id");
+                    const fname = delBtn.getAttribute("data-filename");
+                    if (!confirm(`Remove "${fname}" from this case? The case priority will be recalculated.`)) return;
+                    delBtn.disabled = true;
+                    delBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                    try {
+                        const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(did)}`, { method: "DELETE" });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || "Delete failed");
+                        }
+                        await openCaseWorkspace(caseId);
+                        fetchRegistry();
+                    } catch (err) {
+                        alert("Failed to delete document: " + err.message);
+                        delBtn.disabled = false;
+                        delBtn.innerHTML = '<i data-lucide="trash-2"></i>';
+                        if (typeof lucide !== "undefined") lucide.createIcons();
+                    }
+                });
+            }
+            fragment.appendChild(item);
+        });
+        docListEl.appendChild(fragment);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // Batch DOM rendering for courtroom sessions with DocumentFragment
+    function renderSessions(sessions, containerId = "rooms-list-container") {
+        const container = $(containerId);
+        if (!container) return;
+        if (!sessions || !sessions.length) {
+            container.innerHTML = `<div class="empty-state" style="padding:30px 0;">
+                <div class="empty-icon"><i data-lucide="gavel"></i></div>
+                <h3>No Trials Yet</h3>
+                <p>Create a courtroom session above to begin a live trial with counsel.</p>
+            </div>`;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+        container.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        sessions.forEach((r) => {
+            const isActive = r.active;
+            const statusClass = r.phase === "Concluded" ? "priority-low" : "priority-high";
+            const phaseLabel = r.phase || "Opening";
+            const inviteUrl = `${window.location.origin}/court/${r.room_id}`;
+            const card = document.createElement("div");
+            card.className = `courtroom-card ${isActive ? "" : "inactive"}`;
+            card.innerHTML = `
+                <div class="cc-header">
+                    <span class="cc-title">${esc(r.case_title)}</span>
+                    <span class="priority-pill ${statusClass}">${phaseLabel}</span>
+                </div>
+                <div class="cc-meta">
+                    <span><i data-lucide="users"></i> ${r.participant_count} participant${r.participant_count !== 1 ? "s" : ""}</span>
+                    <span><i data-lucide="scroll-text"></i> ${r.transcript_entries} entries</span>
+                    <span><i data-lucide="clock"></i> ${new Date(r.created_at).toLocaleDateString()}</span>
+                    ${r.case_id ? `<span class="cc-linked-case" title="Linked case file — the trial runs with this case's evidence context"><i data-lucide="folder-open"></i> ${esc(r.case_id)}</span>` : ""}
+                </div>
+                <div class="cc-actions">
+                    <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
+                    <button class="cc-copy" data-invite-room="${r.room_id}"><i data-lucide="link"></i> Invite Link</button>
+                    <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
+                    <button class="cc-delete" data-delete-room="${r.room_id}" title="Delete this trial session and its recordings" aria-label="Delete room ${r.room_id}"><i data-lucide="trash-2"></i> Delete</button>
+                </div>`;
+            fragment.appendChild(card);
+        });
+        container.appendChild(fragment);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // Show/hide the whole-case analysis block that lives in the Analysis tab.
+    // It is driven by the case open in the workspace (not the sidebar
+    // selection), and while it is on screen the "No Case Selected" placeholder
+    // would only be redundant — so keep that placeholder out of the way.
+    function setAnalysisWholeCaseVisible(visible) {
+        const el = $("analysis-whole-case");
+        if (!el) return;
+        el.style.display = visible ? "block" : "none";
+        const noCase = $("no-case-selected");
+        const details = $("case-details-content");
+        if (noCase) {
+            const detailsVisible = details && details.style.display !== "none";
+            noCase.style.display = (visible || detailsVisible) ? "none" : "flex";
+        }
+    }
+
+    // ---- Whole-Case Analysis panel ---------------------------------
+    // One verdict over ALL evidence: features merged deterministically,
+    // Decision Tree run once on the merged set (see whole_case_analysis.py).
+    // Rendered into the Analysis tab (see setAnalysisWholeCaseVisible above).
+    async function renderCaseLevelPanel(c) {
+        const emptyEl = $("case-level-empty");
+        const bodyEl = $("case-level-body");
+        const countEl = $("analysis-case-level-count");
+        if (!emptyEl || !bodyEl) return;
+        setAnalysisWholeCaseVisible(true);
+        const analysed = (c.documents || []).filter((d) => d.priority).length;
+        const total = (c.documents || []).length;
+        countEl.textContent = analysed === total && total > 0 ? `${analysed}/${total} docs analysed` : (total ? `${analysed}/${total} docs analysed` : "");
+        if (!analysed) {
+            emptyEl.style.display = "block";
+            bodyEl.style.display = "none";
+            return;
+        }
+        emptyEl.style.display = "none";
+        bodyEl.style.display = "block";
+        let cl = null;
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(c.case_id)}/case-analysis`);
+            if (!res.ok) throw new Error("failed");
+            const data = await res.json();
+            if (data.has_analysis) cl = data;
+        } catch (_) { /* panel stays with what the case payload carries */ }
+        // Fallback: the case detail payload itself carries case_level.
+        if (!cl && c.case_level && c.case_level.priority) {
+            cl = {
+                priority: c.case_level.priority,
+                case_gist: c.case_level.case_gist || "",
+                priority_justification: c.case_level.priority_justification || "",
+                rationale: c.case_level.rationale || "",
+                features: c.case_level.features || {},
+                merge_info: c.case_level.merge_info || {},
+                corroboration: c.case_level.corroboration || {},
+                corroboration_text: c.case_level.corroboration_text || "",
+                report_pdf: c.case_level.report_pdf || "",
+                constitutional: c.case_level.constitutional || {},
+            };
+        }
+        if (!cl) {
+            emptyEl.style.display = "block";
+            bodyEl.style.display = "none";
+            return;
+        }
+        const prioEl = $("case-level-priority-badge");
+        prioEl.className = `priority-pill ${prioClass(cl.priority)}`;
+        prioEl.textContent = cl.priority ? `${cl.priority} Priority` : "Priority unavailable";
+        // Why this priority: deterministic justification tying the merged
+        // signal values (and their driving documents) to the tree's verdict.
+        const justEl = $("case-level-justification");
+        if (justEl) justEl.textContent = cl.priority_justification || cl.rationale || "";
+        // "What is this case about" — distilled from the documents' own
+        // summaries (allegations, amount in dispute, parties). Deterministic.
+        currentCaseGist = cl.case_gist || "";
+        // Lead with the plain-language description of the case (what it is,
+        // who alleges what, amount in dispute); the audit-style merge
+        // narrative is demoted to a secondary paragraph below it. The
+        // reader's first question is "what is this case", not "how were
+        // the features merged".
+        const narrativeEl = $("case-level-narrative");
+        const auditNarrative = (cl.features && cl.features.plain_summary) || cl.rationale || "";
+        if (currentCaseGist && auditNarrative && currentCaseGist !== auditNarrative) {
+            narrativeEl.innerHTML =
+                `<span class="cl-case-desc">${esc(currentCaseGist)}</span>` +
+                `<span class="cl-merge-audit">${esc(auditNarrative)}</span>`;
+        } else {
+            narrativeEl.textContent = currentCaseGist || auditNarrative;
+        }
+
+        // Corroboration map.
+        const corrEl = $("case-level-corroboration");
+        let corrHtml = "";
+        const pairs = (cl.corroboration && cl.corroboration.pairs) || [];
+        const standalone = (cl.corroboration && cl.corroboration.standalone) || [];
+        pairs.forEach((p) => {
+            corrHtml += `<li><strong>${esc(p.a)}</strong> ↔ <strong>${esc(p.b)}</strong> — shared ${esc(p.shared.join(", "))}` +
+                (p.shared_dates && p.shared_dates.length ? ` (dates: ${esc(p.shared_dates.join(", "))})` : "") +
+                (p.shared_places && p.shared_places.length ? ` (places: ${esc(p.shared_places.join(", "))})` : "") +
+                (p.shared_parties && p.shared_parties.length ? ` (parties: ${esc(p.shared_parties.join(", "))})` : "") +
+                `</li>`;
+        });
+        standalone.forEach((s) => {
+            corrHtml += `<li class="standalone"><strong>${esc(s.filename)}</strong> stands alone — no shared date, place or party with any other document.</li>`;
+        });
+        corrEl.innerHTML = corrHtml || "<li>Not enough analysed documents to cross-compare yet.</li>";
+
+        // Merge provenance.
+        const mergeEl = $("case-level-merge");
+        const mi = cl.merge_info || {};
+        const mergeRows = ["case_category", "crime_type", "severity", "vulnerability", "influence"]
+            .map((k) => mi[k]).filter(Boolean)
+            .map((info) => `<li><strong>${esc(info.value)}</strong> — ${esc(info.rule)}; driven by ${esc((info.sources || []).join(", ")) || "—"}</li>`)
+            .join("");
+        mergeEl.innerHTML = mergeRows || "<li>Provenance unavailable.</li>";
+
+        // Case-level constitutional opinion.
+        const con = cl.constitutional || {};
+        $("case-level-opinion").textContent = con.state_perspective_opinion || "Not available yet.";
+
+        // Articles that apply + doctrines (structured rule-based grounding).
+        renderCaseArticles(con);
+
+        // Historical precedents on systemic delay & human/economic toll.
+        renderDelayPrecedents(cl.delay_precedents || [], cl.priority);
+
+        // Pictorial case summary (gauge + tiles + avatars + evidence map) —
+        // rendered straight from `cl`, so it shows even if the insights
+        // call below fails.
+        renderCaseGlance(cl);
+
+        // PDF report link.
+        const reportBtn = $("case-level-report-btn");
+        reportBtn.href = `/api/cases/${encodeURIComponent(c.case_id)}/case-report.pdf`;
+        reportBtn.style.display = "inline-flex";
+
+        // Evidence & weight + decision-path trace come from the one-call
+        // insights endpoint (deterministic: merge provenance + tree trace).
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(c.case_id)}/case-insights`, { cache: "no-store" });
+            if (res.ok) {
+                const data = await res.json();
+                if (currentWorkspaceCaseId !== c.case_id) return; // stale response guard
+                renderEvidenceWeights(data.evidence || []);
+                renderCasePathTrace(data.path || null, cl.priority);
+                if (data.delay_precedents && data.delay_precedents.length) {
+                    renderDelayPrecedents(data.delay_precedents, cl.priority);
+                }
+            }
+        } catch (_) { /* sections keep their placeholder text */ }
+
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // "Case at a glance" — pictorial summary so the reader gets the case
+    // without reading paragraphs: a priority gauge, semantic fact tiles,
+    // party avatars and the evidence-corroboration map. Deterministic:
+    // merged features + merge provenance + corroboration map only, no LLM.
+    // Replaces the old text "The case — what it is about" section.
+    function renderCaseGlance(cl) {
+        const wrap = $("case-level-glance");
+        if (!wrap || !cl) return;
+        const f = cl.features || {};
+        const mi = cl.merge_info || {};
+        const corr = cl.corroboration || {};
+        const pairs = corr.pairs || [];
+        const standalone = (corr.standalone || []).map((s) => s.filename).filter(Boolean);
+
+        const lvl = (v) => {
+            const s = String(v || "").trim().toLowerCase();
+            if (["fatal", "major", "high"].includes(s)) return "high";
+            if (["medium", "med", "minor"].includes(s)) return "med";
+            if (["low", "no injury", "none"].includes(s)) return "low";
+            return null;
+        };
+        const tile = (icon, label, value, level) => `
+            <div class="glance-tile">
+                <i data-lucide="${icon}"></i>
+                <span class="gt-text">
+                    <span class="gt-label">${esc(label)}</span>
+                    <span class="gt-value" title="${esc(String(value || "—"))}">${esc(String(value || "—"))}</span>
+                </span>
+                ${level ? `<span class="gt-dot lvl-${level}" title="${esc(level)} level"></span>` : ""}
+            </div>`;
+
+        // ---- Priority gauge: semicircle track, needle at Low/Medium/High ----
+        const prio = String(cl.priority || "").toLowerCase();
+        const active = ["low", "medium", "high"].includes(prio) ? prio : null;
+        const needleAt = { low: [18.4, 36], medium: [60, 12], high: [101.6, 36] }[active];
+        const seg = (cls, d, on) => `<path class="gseg ${cls}${on ? " on" : ""}" d="${d}"/>`;
+        const gauge = `
+            <svg viewBox="0 0 120 68" role="img" aria-label="${esc(cl.priority || "Priority")} priority gauge">
+                ${seg("gseg-low", "M12 60 A48 48 0 0 1 36 18.43", active === "low")}
+                ${seg("gseg-med", "M36 18.43 A48 48 0 0 1 84 18.43", active === "medium")}
+                ${seg("gseg-high", "M84 18.43 A48 48 0 0 1 108 60", active === "high")}
+                ${needleAt ? `<circle class="gneedle n-${active}" cx="${needleAt[0]}" cy="${needleAt[1]}" r="6"/>` : ""}
+            </svg>
+            <div class="glance-gauge-label">${cl.priority ? `${esc(cl.priority)} Priority` : "—"}</div>
+            <div class="glance-gauge-sub">whole-case verdict</div>`;
+
+        // ---- Fact tiles: the merged signals the Decision Tree saw ----
+        const docCount = mi.document_count || (cl.per_document || []).length;
+        const tiles = [
+            tile("briefcase", "Category", f.case_category, null),
+            tile("shield", "Case type", f.crime_type, null),
+            tile("triangle-alert", "Severity", f.severity, lvl(f.severity)),
+            tile("heart-handshake", "Vulnerability", f.vulnerability, lvl(f.vulnerability)),
+            tile("scale", "Influence", f.influence, lvl(f.influence)),
+            tile("file-text", "Evidence", docCount ? `${docCount} documents` : "", null),
+        ].join("");
+
+        // ---- Party avatars (initials + name, first 6 then a +N chip) ----
+        const partyList = String(f.main_parties || "").split(",")
+            .map((p) => p.trim()).filter(Boolean);
+        const shown = partyList.slice(0, 6);
+        const extra = partyList.length - shown.length;
+        const avatars = shown.map((p) => {
+            const initials = p.replace(/[^\p{L}\s]/gu, "").split(/\s+/)
+                .filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+            return `<span class="glance-party" title="${esc(p)}">
+                <span class="gp-avatar">${esc(initials || "?")}</span>
+                <span class="gp-name">${esc(p)}</span>
+            </span>`;
+        }).join("") + (extra > 0 ? `<span class="gp-more">+${extra} more</span>` : "");
+
+        // ---- Evidence-corroboration map: document nodes + shared-link lines ----
+        let docs = (cl.per_document || []).map((d) => d.filename).filter(Boolean);
+        if (!docs.length) {
+            const seen = new Set();
+            pairs.forEach((p) => { seen.add(p.a); seen.add(p.b); });
+            standalone.forEach((n) => seen.add(n));
+            docs = [...seen];
+        }
+        let mapHtml = "";
+        if (docs.length) {
+            const cols = Math.min(3, docs.length);
+            const rows = Math.ceil(docs.length / cols);
+            const NW = 148, NH = 26, GX = 14, GY = 22, PAD = 6;
+            const pos = {};
+            docs.forEach((name, i) => {
+                pos[name] = {
+                    x: PAD + (i % cols) * (NW + GX),
+                    y: PAD + Math.floor(i / cols) * (NH + GY),
+                };
+            });
+            const vbW = PAD * 2 + cols * NW + (cols - 1) * GX;
+            const vbH = PAD * 2 + rows * NH + (rows - 1) * GY;
+            const short = (n) => {
+                const stem = String(n).replace(/\.[a-z0-9]+$/i, "").replace(/_/g, " ");
+                return stem.length > 24 ? stem.slice(0, 23) + "…" : stem;
+            };
+            const lines = pairs.filter((p) => pos[p.a] && pos[p.b]).map((p) => {
+                const A = pos[p.a], B = pos[p.b];
+                const what = p.shared && p.shared.length ? `shared ${p.shared.join(", ")}` : "shared evidence";
+                return `<line class="gmap-link" x1="${A.x + NW / 2}" y1="${A.y + NH / 2}" x2="${B.x + NW / 2}" y2="${B.y + NH / 2}"><title>${esc(what)}</title></line>`;
+            }).join("");
+            const nodes = docs.map((name) => {
+                const p = pos[name];
+                const solo = standalone.includes(name);
+                const tip = name + (solo ? " — stands alone: no shared date, place or party" : "");
+                return `<g class="gmap-node${solo ? " solo" : ""}">
+                    <rect x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="7"/>
+                    <text x="${p.x + NW / 2}" y="${p.y + NH / 2 + 3.2}" text-anchor="middle">${esc((solo ? "⚠ " : "") + short(name))}</text>
+                    <title>${esc(tip)}</title>
+                </g>`;
+            }).join("");
+            mapHtml = `
+                <div class="glance-map">
+                    <div class="glance-map-head"><i data-lucide="link"></i>
+                        Evidence map — ${pairs.length} corroborating link${pairs.length === 1 ? "" : "s"} across ${docs.length} documents${standalone.length ? `, ${standalone.length} stands alone (⚠)` : ""}
+                    </div>
+                    <svg viewBox="0 0 ${vbW} ${vbH}" role="img" aria-label="Evidence corroboration map">${lines}${nodes}</svg>
+                </div>`;
+        }
+
+        wrap.innerHTML = `
+            <div class="glance-row">
+                <div class="glance-gauge">${gauge}</div>
+                <div class="glance-tiles">${tiles}</div>
+            </div>
+            ${avatars ? `<div class="glance-parties"><span class="gp-label">Parties on record</span>${avatars}</div>` : ""}
+            ${mapHtml}`;
+    }
+
+    // "Articles that apply": every engaged constitutional article with WHY it
+    // applies (rule-based, from the constitutional analysis), primary first,
+    // plus the doctrines the analysis invokes. Never LLM-generated.
+    function renderCaseArticles(con) {
+        const wrap = $("case-level-articles");
+        if (!wrap) return;
+        const rights = (con && con.constitutional_rights_engaged) || [];
+        const doctrines = (con && con.applicable_doctrines) || [];
+        if (!rights.length && !doctrines.length) {
+            wrap.innerHTML = `<div class="ev-empty">Constitutional analysis appears here once the case is analysed.</div>`;
+            return;
+        }
+        const rightsHtml = rights.map((r) => `
+            <div class="ev-article ${r.primary ? "primary" : "secondary"}">
+                <div class="ev-article-head">
+                    <span class="ev-article-num">${esc(r.article || "")}</span>
+                    <span class="ev-article-title">${esc(r.title || "")}</span>
+                    ${r.primary ? `<span class="ev-article-tag">primary</span>` : `<span class="ev-article-tag sec">secondary</span>`}
+                </div>
+                ${r.why_applies ? `<div class="ev-article-why">${esc(r.why_applies)}</div>` : ""}
+                ${Array.isArray(r.principles) && r.principles.length
+                    ? `<div class="ev-article-principles">${r.principles.map((p) => `<span>${esc(p)}</span>`).join("")}</div>` : ""}
+            </div>`).join("");
+        const doctrinesHtml = doctrines.length ? `
+            <div class="ev-doctrines">
+                <div class="ev-doctrines-title">Doctrines the court would apply</div>
+                ${doctrines.map((d) => `
+                    <div class="ev-doctrine"><strong>${esc(d.name || "")}</strong>${d.application ? ` — ${esc(d.application)}` : ""}</div>`).join("")}
+            </div>` : "";
+        wrap.innerHTML = rightsHtml + doctrinesHtml;
+    }
+
+    let currentCasePrecedents = [];
+    let allHistoricalPrecedentsCache = null;
+
+    async function loadAllHistoricalPrecedents() {
+        if (allHistoricalPrecedentsCache && allHistoricalPrecedentsCache.length) {
+            return allHistoricalPrecedentsCache;
+        }
+        try {
+            const res = await fetch("/api/delay-precedents");
+            if (res.ok) {
+                const data = await res.json();
+                allHistoricalPrecedentsCache = data.precedents || [];
+                return allHistoricalPrecedentsCache;
+            }
+        } catch (_) { }
+        return [];
+    }
+
+    // Historical precedents on systemic delay & human/economic toll:
+    // Landmark cases where delay/ignorance destroyed lives, liberty, or fortunes.
+    function renderDelayPrecedents(items, priority) {
+        const wrap = $("case-level-delay-precedents");
+        if (!wrap) return;
+        currentCasePrecedents = Array.isArray(items) ? items : [];
+
+        if (!currentCasePrecedents.length) {
+            wrap.innerHTML = `
+                <div class="clickable-precedent-placeholder" id="pdm-placeholder-trigger" title="Click to view landmark cases and why Anavaya exists">
+                    <i data-lucide="info"></i>
+                    <span>Historical precedents appear here once the case is analysed. <strong>Click to explore landmark delay cases, their human toll &amp; the intact reason for Anavaya &rarr;</strong></span>
+                </div>
+            `;
+            const trigger = $("pdm-placeholder-trigger");
+            if (trigger) {
+                trigger.addEventListener("click", () => openPrecedentModal(null, priority));
+            }
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+
+        const prioCls = String(priority || "medium").toLowerCase();
+        const cards = currentCasePrecedents.map((p) => `
+            <div class="delay-precedent-card ${prioCls}" data-prec-id="${esc(p.id || "")}" role="button" tabindex="0" title="Click to view full precedent background">
+                <div class="dp-header">
+                    <div class="dp-title-row">
+                        <span class="dp-case-name">${esc(p.case_title || "")}</span>
+                        <span class="dp-citation">${esc(p.citation || "")}</span>
+                    </div>
+                    <div class="dp-court-meta">
+                        <span><i data-lucide="building-2"></i> ${esc(p.court || "")} (${esc(String(p.year || ""))})</span>
+                        <span class="dp-delay-pill"><i data-lucide="clock-alert"></i> ${esc(p.delay_period || "")}</span>
+                    </div>
+                </div>
+                <div class="dp-summary-items">
+                    <div class="dp-summary-row">
+                        <div class="dp-summary-label"><i data-lucide="scale"></i> What Was the Case</div>
+                        <div class="dp-summary-text"><strong>${esc(p.cost_category || p.case_title || "")}</strong> &mdash; Landmark precedent governing ${esc(Array.isArray(p.applicable_categories) ? p.applicable_categories.join(", ") : p.applicable_categories || "legal controversy")}.</div>
+                    </div>
+                    <div class="dp-summary-row">
+                        <div class="dp-summary-label"><i data-lucide="clock"></i> What Happened</div>
+                        <div class="dp-summary-text">${esc(p.factual_delay || "")}</div>
+                    </div>
+                    <div class="dp-summary-row">
+                        <div class="dp-summary-label"><i data-lucide="alert-triangle"></i> What Were the Effects</div>
+                        <div class="dp-summary-text toll">${esc(p.human_or_economic_toll || "")}</div>
+                    </div>
+                </div>
+            </div>
+        `).join("");
+        wrap.innerHTML = cards;
+
+        wrap.querySelectorAll(".delay-precedent-card").forEach((card) => {
+            const pid = card.getAttribute("data-prec-id");
+            card.addEventListener("click", () => openPrecedentModal(pid, priority));
+            card.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openPrecedentModal(pid, priority);
+                }
+            });
+        });
+
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    async function openPrecedentModal(selectedId, priority) {
+        const modal = $("precedent-modal");
+        if (!modal) return;
+
+        let list = currentCasePrecedents;
+        if (!list || !list.length) {
+            list = await loadAllHistoricalPrecedents();
+        }
+        if (!list || !list.length) {
+            alert("No historical precedents available.");
+            return;
+        }
+
+        let active = list.find((p) => p.id === selectedId) || list[0];
+
+        function renderModalActivePrecedent(p) {
+            if (!p) return;
+            const prio = p.priority_level || priority || "Medium";
+            const prioCls = String(prio).toLowerCase();
+
+            $("pdm-case-name").textContent = p.case_title || "Historical Precedent";
+            $("pdm-citation").textContent = p.citation || "Citation unavailable";
+            $("pdm-court").innerHTML = `<i data-lucide="building-2"></i> ${esc(p.court || "")} (${esc(String(p.year || ""))})`;
+            $("pdm-delay").innerHTML = `<i data-lucide="clock-alert"></i> ${esc(p.delay_period || "")}`;
+
+            const tierEl = $("pdm-tier");
+            tierEl.textContent = `${prio} Priority Mandate`;
+            tierEl.className = `pdm-pill pdm-tier-pill ${prioCls}`;
+
+            const cats = Array.isArray(p.applicable_categories) ? p.applicable_categories.join(", ") : (p.applicable_categories || "General Legal");
+            $("pdm-case-overview").innerHTML = `
+                <p><strong>${esc(p.case_title || "")}</strong> (${esc(p.citation || "")}) is a landmark benchmark from the <strong>${esc(p.court || "")}</strong> (${esc(String(p.year || ""))}). It directly governs legal controversies in <strong>${esc(cats)}</strong>.</p>
+                <p style="margin-top: 6px;">The central issue addressed was the devastating consequence of <strong>${esc(p.cost_category || "")}</strong> caused when judicial triage was delayed or entirely absent.</p>
+            `;
+
+            $("pdm-factual-delay").innerHTML = `
+                <p>${esc(p.factual_delay || "")}</p>
+                <p style="margin-top: 6px; font-size: 11.5px; color: var(--text-muted);"><strong>The Institutional Flaw:</strong> Cases sat in flat, unranked queues where judicial officers had no visibility into urgency until human liberty or enterprise value was already annihilated.</p>
+            `;
+
+            $("pdm-toll").innerHTML = `
+                <p>${esc(p.human_or_economic_toll || "")}</p>
+            `;
+
+            $("pdm-ruling").innerHTML = `
+                <p>&ldquo;${esc(p.judicial_ruling || "")}&rdquo;</p>
+            `;
+
+            const missionText = p.anavaya_project_reason || p.priority_mandate || (
+                "Anavaya exists so that cases of this nature are never buried in unstructured dockets. " +
+                "By executing automated, deterministic Decision Tree triage on intake, Anavaya flags critical " +
+                "liberty deprivations and catastrophic economic harms on Day 1, ensuring justice before irreversible tragedy strikes."
+            );
+            $("pdm-mission-text").innerHTML = `
+                <p>${esc(missionText)}</p>
+                <div style="margin-top: 8px; font-size: 11.5px; opacity: 0.9; border-top: 1px dashed rgba(201, 162, 75, 0.4); padding-top: 6px;">
+                    <strong>The Anavaya Invariant:</strong> The LLM extracts facts only; the deterministic Decision Tree assigns priority so that every citizen receives objective, incorruptible urgency triage.
+                </div>
+            `;
+
+            // Render navigation tabs if multiple precedents are present
+            const bar = $("pdm-cases-bar");
+            if (bar) {
+                if (list.length > 1) {
+                    bar.style.display = "flex";
+                    bar.innerHTML = list.map((item) => `
+                        <button type="button" class="pdm-case-tab ${item.id === p.id ? 'active' : ''}" data-id="${esc(item.id)}">
+                            ${esc(item.case_title.split("v.")[0].trim() || item.case_title)}
+                        </button>
+                    `).join("");
+                    bar.querySelectorAll(".pdm-case-tab").forEach((btn) => {
+                        btn.addEventListener("click", () => {
+                            const found = list.find((it) => it.id === btn.getAttribute("data-id"));
+                            if (found) renderModalActivePrecedent(found);
+                        });
+                    });
+                } else {
+                    bar.style.display = "none";
+                }
+            }
+
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+
+        renderModalActivePrecedent(active);
+        modal.style.display = "flex";
+    }
+
+    function closePrecedentModal() {
+        const modal = $("precedent-modal");
+        if (modal) modal.style.display = "none";
+    }
+
+    // Modal close listeners
+    const pdmCloseBtn = $("pdm-close-btn");
+    if (pdmCloseBtn) pdmCloseBtn.addEventListener("click", closePrecedentModal);
+
+    const pdmDoneBtn = $("pdm-done-btn");
+    if (pdmDoneBtn) pdmDoneBtn.addEventListener("click", closePrecedentModal);
+
+    const pdmModalEl = $("precedent-modal");
+    if (pdmModalEl) {
+        pdmModalEl.addEventListener("click", (e) => {
+            if (e.target === pdmModalEl) closePrecedentModal();
+        });
+    }
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            const modal = $("precedent-modal");
+            if (modal && modal.style.display !== "none") {
+                closePrecedentModal();
+            }
+        }
+    });
+
+    // Per-evidence strength cards: what each document contributes to the
+    // merged verdict (weight 0-100, the merge signals it drives, its own
+    // priority, and which documents corroborate it).
+    function renderEvidenceWeights(items) {
+        const wrap = $("case-level-evidence");
+        if (!wrap) return;
+        if (!items.length) {
+            wrap.innerHTML = `<div class="ev-empty">No evidence uploaded yet.</div>`;
+            return;
+        }
+        const signalLabels = {
+            case_category: "Category", crime_type: "Case type", severity: "Severity",
+            vulnerability: "Vulnerability", influence: "Influence",
+        };
+        wrap.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        items.forEach((it) => {
+            const hasWeight = it.weight !== null && it.weight !== undefined;
+            const weightPct = hasWeight ? Math.max(4, it.weight) : 0;
+            const weightCls = !hasWeight ? "none" : it.weight >= 70 ? "high" : it.weight >= 40 ? "mid" : "low";
+            const drives = (it.drives || []).map((k) => signalLabels[k] || k);
+            const signals = Object.entries(it.signals || {})
+                .filter(([, v]) => v)
+                .map(([k, v]) => `<span class="ev-signal"><em>${esc(signalLabels[k] || k)}:</em> ${esc(String(v))}</span>`)
+                .join("");
+            const status = it.analysis_error
+                ? `<span class="ev-error" title="${esc(it.analysis_error)}">error</span>`
+                : it.priority
+                    ? prioBadge(it.priority)
+                    : `<span class="ev-pending">not analysed</span>`;
+            const card = document.createElement("div");
+            card.className = `ev-card ${hasWeight ? "" : "ev-unanalysed"}`;
+            card.innerHTML = `
+                <div class="ev-card-top">
+                    <i data-lucide="${it.doc_type && it.doc_type.toLowerCase().includes("image") ? "image" : "file-text"}"></i>
+                    <span class="ev-name" title="${esc(it.filename)}">${esc(it.filename)}</span>
+                    <span class="ev-type">${esc(it.doc_type || "")}</span>
+                    ${status}
+                </div>
+                ${it.summary ? `<div class="ev-says">${esc(it.summary)}</div>` : ""}
+                <div class="ev-weight-row">
+                    <div class="ev-bar" role="meter" aria-valuenow="${hasWeight ? it.weight : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Evidence weight of ${esc(it.filename)}">
+                        <div class="ev-bar-fill ${weightCls}" style="width:${weightPct}%"></div>
+                    </div>
+                    <span class="ev-weight-num ${weightCls}">${hasWeight ? it.weight : "—"}</span>
+                </div>
+                ${signals ? `<div class="ev-signals">${signals}</div>` : ""}
+                ${drives.length ? `<div class="ev-drives">Sets the case's <strong>${esc(drives.join(", "))}</strong></div>` : ""}
+                ${(it.connects || []).length ? `<div class="ev-connects"><em>Connects to:</em>${(it.connects || []).map((cnn) => `<span class="ev-link"><strong>${esc(cnn.with)}</strong>${(cnn.shared || []).length ? ` — shared ${esc(cnn.shared.join(", "))}` : ""}${(cnn.dates && cnn.dates.length) ? ` · ${esc(cnn.dates.join(", "))}` : ""}${(cnn.parties && cnn.parties.length) ? ` · ${esc(cnn.parties.join(", "))}` : ""}</span>`).join("")}</div>` : ""}
+            `;
+            fragment.appendChild(card);
+        });
+        wrap.appendChild(fragment);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // The Decision Tree's actual path for this case, annotated with WHY each
+    // step raised or lowered the priority (counterfactual branch compare —
+    // the tree is asked what the other branch would have decided).
+    function renderCasePathTrace(path, casePriority) {
+        const wrap = $("case-level-path");
+        if (!wrap) return;
+        if (!path || !Array.isArray(path.steps) || !path.steps.length) {
+            wrap.innerHTML = `<div class="ev-empty">Decision path unavailable for this case.</div>`;
+            return;
+        }
+        const effectMeta = {
+            raised: { label: "raised priority", cls: "raised" },
+            lowered: { label: "lowered priority", cls: "lowered" },
+            neutral: { label: "no effect here", cls: "neutral" },
+            outcome: { label: "outcome", cls: "outcome" },
+        };
+        const stepsHtml = path.steps.map((s, idx) => {
+            const eff = effectMeta[s.effect] || effectMeta.neutral;
+            const branch = s.branch_priorities
+                ? `<div class="ev-branch">Had the case answered the other way → <strong>${esc(s.branch_priorities.left === undefined ? "" : (s.direction === "left" ? s.branch_priorities.right : s.branch_priorities.left))} Priority</strong></div>`
+                : "";
+            return `
+                <div class="ev-step ev-step-${eff.cls}">
+                    <div class="ev-step-rail"><span class="ev-step-num">${idx + 1}</span></div>
+                    <div class="ev-step-body">
+                        <div class="ev-step-head">
+                            <strong>${esc(s.title || "")}</strong>
+                            <span class="ev-effect ${eff.cls}">${eff.label}</span>
+                        </div>
+                        <div class="ev-step-cond">${esc(s.condition || "")} — <em>this case: ${esc(String(s.case_value ?? ""))}</em></div>
+                        ${branch}
+                    </div>
+                </div>`;
+        }).join("");
+        const lowered = path.steps.filter((s) => s.effect === "lowered")
+            .map((s) => `“${s.title || s.condition}”`);
+        const raised = path.steps.filter((s) => s.effect === "raised")
+            .map((s) => `“${s.title || s.condition}”`);
+        let summary = "";
+        if (casePriority) {
+            const bits = [];
+            if (raised.length) bits.push(`Pulled the priority UP: ${raised.join(", ")}.`);
+            if (lowered.length) bits.push(`Kept it from being higher: ${lowered.join(", ")}.`);
+            if (bits.length) summary = `<div class="ev-path-summary"><i data-lucide="info"></i> ${bits.join(" ")}</div>`;
+        }
+        wrap.innerHTML = summary + stepsHtml;
+    }
+
+    // ---- Evidence upload (from inside the case workspace) -----------
+    const wsDrop = $("workspace-doc-drop");
+    const wsInput = $("workspace-doc-input");
+    let wsPending = [];
+
+    wsDrop.addEventListener("click", () => wsInput.click());
+    ["dragenter", "dragover"].forEach((evt) => wsDrop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        wsDrop.classList.add("drag-over");
+    }));
+    ["dragleave", "drop"].forEach((evt) => wsDrop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        wsDrop.classList.remove("drag-over");
+    }));
+    wsDrop.addEventListener("drop", (e) => {
+        Array.from((e.dataTransfer && e.dataTransfer.files) || []).forEach(addWsFile);
+    });
+    wsInput.addEventListener("change", () => {
+        Array.from(wsInput.files || []).forEach(addWsFile);
+        wsInput.value = "";
+    });
+
+    function addWsFile(file) {
+        const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+        const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        if (!allowedExts.includes(fileExt)) {
+            alert(`Only PDF and image files are supported (${file.name}).\n\nImages will be OCR-processed to extract text.`);
+            return;
+        }
+        wsPending.push({ file, type: $("workspace-doc-type").value });
+        renderWsPending();
+    }
+
+    function renderWsPending() {
+        const list = $("workspace-pending-list");
+        const uploadBtn = $("workspace-upload-btn");
+        list.innerHTML = wsPending.map((pd, i) => `
+            <li class="wizard-doc-item">
+                <i data-lucide="file-text"></i>
+                <span class="wizard-doc-name">${esc(pd.file.name)}</span>
+                <select class="wizard-doc-type" data-i="${i}">
+                    ${DOC_TYPES.map((t) => `<option value="${t}" ${t === pd.type ? "selected" : ""}>${t}</option>`).join("")}
+                </select>
+                <button class="wizard-doc-remove" data-i="${i}" aria-label="Remove"><i data-lucide="x"></i></button>
+            </li>`).join("");
+        list.querySelectorAll(".wizard-doc-type").forEach((sel) =>
+            sel.addEventListener("change", () => { wsPending[Number(sel.getAttribute("data-i"))].type = sel.value; }));
+        list.querySelectorAll(".wizard-doc-remove").forEach((b) =>
+            b.addEventListener("click", () => { wsPending.splice(Number(b.getAttribute("data-i")), 1); renderWsPending(); }));
+        uploadBtn.disabled = wsPending.length === 0;
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    $("workspace-upload-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        const btn = $("workspace-upload-btn");
+        btn.disabled = true;
+        const status = $("workspace-upload-status");
+        try {
+            for (const pd of wsPending) {
+                status.innerHTML = `<div class="loader">Uploading ${esc(pd.file.name)}…</div>`;
+                const fd = new FormData();
+                fd.append("file", pd.file);
+                fd.append("doc_type", pd.type);
+                const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}/documents`, {
+                    method: "POST", body: fd,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `Upload of ${pd.file.name} failed`);
+                }
+            }
+            wsPending = [];
+            renderWsPending();
+            status.innerHTML = "";
+            // Refresh the workspace + registry so the new evidence shows up.
+            await openCaseWorkspace(currentWorkspaceCaseId);
+            fetchRegistry();
+        } catch (err) {
+            status.innerHTML = `<div class="loader" style="color:#B3402E">${esc(err.message)}</div>`;
+        } finally {
+            // Re-enable only when files are still queued (empty batch = done).
+            btn.disabled = wsPending.length > 0;
+            btn.innerHTML = '<i data-lucide="upload"></i> Upload Evidence';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    // Delete the open case (registry + evidence + Excel rows).
+    // Only the aggregate view is shown; the real removal is server-side.
+    $("workspace-delete-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        if (!confirm(`Permanently delete case ${currentWorkspaceCaseId} and all its evidence? This cannot be undone.`)) return;
+        const btn = $("workspace-delete-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Deleting…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+        try {
+            const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}`, { method: "DELETE" });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Delete failed");
+            }
+            // Return to the dashboard; the case workspace will be empty.
+            $("case-workspace").style.display = "none";
+            $("case-workspace-empty").style.display = "block";
+            setAnalysisWholeCaseVisible(false);
+            currentWorkspaceCaseId = null;
+            UI.setCurrentCaseId("");
+            fetchRegistry();
+            try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+        } catch (err) {
+            alert("Failed to delete case: " + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="trash-2"></i> Delete Case';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    // Analyze every document of the open case, then refresh the workspace.
+    // When everything is already analysed (button state "view") it opens
+    // the Analysis tab instead of re-running the pipeline.
+    $("workspace-analyze-btn").addEventListener("click", async () => {
+        if (!currentWorkspaceCaseId) { alert("Open a case first."); return; }
+        const btn = $("workspace-analyze-btn");
+        if (btn.dataset.action === "view") {
+            const wholeRow = UI.getCasesData().find((r) =>
+                r.Case_ID === currentWorkspaceCaseId &&
+                String(r.Document_Type || "").toLowerCase() === "whole case");
+            if (wholeRow) {
+                UI.selectCaseFn(wholeRow);
+            }
+            const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
+            if (analysisTabBtn) analysisTabBtn.click();
+            const panel = document.getElementById("analysis-whole-case");
+            if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Analyzing…';
+        if (typeof lucide !== "undefined") lucide.createIcons();
+        try {
+            if (window.AnavayaPipelineLoader) {
+                window.AnavayaPipelineLoader.show("Synthesizing Evidence...", "Analyzing case documents, corroborating evidence facts, and computing whole-case priority.");
+            }
+            const res = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}/analyze`, { method: "POST" });
+            if (!res.ok) {
+                if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Analysis failed");
+            }
+            const data = await res.json();
+            if (window.AnavayaPipelineLoader) {
+                await window.AnavayaPipelineLoader.complete();
+            }
+            await openCaseWorkspace(currentWorkspaceCaseId);
+            // Refresh the Excel-backed case list so getCasesData() has the
+            // latest analysis results before we try to find the matching row.
+            try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
+            fetchRegistry();
+            // Show per-document analysis errors (e.g. unreadable images).
+            if (data.analysis_errors && data.analysis_errors.length) {
+                const msg = data.analysis_errors.join("\n");
+                alert("Some documents could not be analyzed:\n\n" + msg);
+            }
+            // Auto-navigate to the Analysis tab so the officer sees results.
+            try {
+                const caseRes = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}`);
+                if (caseRes.ok) {
+                    const caseData = await caseRes.json();
+                    for (const d of (caseData.documents || [])) {
+                        const row = UI.getCasesData().find((r) => r.Case_File === d.filename);
+                        if (row) { UI.selectCaseFn(row); break; }
+                    }
+                }
+            } catch (_) { /* non-fatal */ }
+        } catch (err) {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+            alert("Analysis failed: " + err.message);
+        } finally {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+            btn.disabled = false;
+            // Re-render from the latest state (the try block refreshed
+            // lastWorkspaceCase) so the label is never stale.
+            setWorkspaceAction(lastWorkspaceCase);
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+    });
+
+    // =================================================================
+    // 5. OLLAMA / GPU STATUS BADGE (header)
+    // =================================================================
+    async function loadGpuBadge() {
+        const badge = $("gpu-badge");
+        const textEl = $("gpu-badge-text");
+        if (!badge || !textEl) return;
+        try {
+            // Check Ollama daemon status first
+            const ollamaRes = await fetch("/api/ollama/status");
+            if (!ollamaRes.ok) throw new Error("status fetch failed");
+            const ollamaSt = await ollamaRes.json();
+            if (!ollamaSt.daemon_running) {
+                textEl.textContent = `Ollama: starting…`;
+                badge.classList.remove("gpu-on");
+                badge.hidden = false;
+                // Retry in 5s
+                setTimeout(loadGpuBadge, 5000);
+                return;
+            }
+            // GPU status
+            const gpuRes = await fetch("/api/gpu-status");
+            if (!gpuRes.ok) throw new Error("gpu status failed");
+            const st = await gpuRes.json();
+            const parts = [];
+            if (st.gpu) {
+                const gpuShort = String(st.gpu)
+                    .replace(/^NVIDIA GeForce /, "")
+                    .replace(/^NVIDIA /, "");
+                parts.push(gpuShort);
+            }
+            parts.push(st.model || "LLM");
+            parts.push(st.llm_mode === "enabled" ? "GPU inference" : "rule-based");
+            textEl.textContent = parts.join(' · ');
+            badge.classList.toggle("gpu-on", st.llm_mode === "enabled");
+            badge.hidden = false;
+        } catch (e) {
+            badge.hidden = true;
+        }
+    }
+
+    // Expose helpers on UI bridge
+    if (UI) {
+        UI.renderDocuments = renderDocuments;
+        UI.renderSessions = renderSessions;
+    }
+
+    // =================================================================
+    // 6. WORKFLOW TAB SEARCH & FILTER DEBOUNCING (150ms)
+    // =================================================================
+    function setupWorkflowTabDebouncing() {
+        const inputs = document.querySelectorAll(
+            ".tab-content input, .tab-content select, #cases-sidebar input, #cases-sidebar select"
+        );
+        inputs.forEach((input) => {
+            if (input.type === "file" || input.type === "submit" || input.type === "button") return;
+            if (input.dataset.debounced) return;
+            input.dataset.debounced = "true";
+            const eventType = (input.tagName === "SELECT") ? "change" : "input";
+            input.addEventListener(eventType, debounce((e) => {
+                input.dispatchEvent(new CustomEvent("workflow-debounced-input", { bubbles: true, detail: { value: input.value } }));
+            }, 150));
+        });
+    }
+
+    // =================================================================
+    // INIT
+    // =================================================================
+    fetchRegistry();
+    loadGpuBadge();
+    setupWorkflowTabDebouncing();
+});

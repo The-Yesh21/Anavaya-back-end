@@ -57,6 +57,7 @@ desktop.ini
 # ---------- Node / build output ----------
 node_modules/
 .output/
+scratch/
 
 # ---------- Env / secrets ----------
 .env

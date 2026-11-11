@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anavaya — Judicial Case Priority Dashboard</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon.ico" sizes="32x32">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <!-- Theme boot — runs synchronously before any stylesheet is applied, so the
+         page paints in the right theme with no flash. Saved choice wins; otherwise
+         follow the OS. Kept tiny and dependency-free (documentElement + localStorage). -->
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('anavaya-theme');
+                var theme = (saved === 'dark' || saved === 'light')
+                    ? saved
+                    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.style.colorScheme = theme;
+            } catch (e) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
+    <!-- Organic Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <!-- Tailwind (Play CDN) — complementary utility layer, Preflight OFF, `tw-` prefixed,
+         theme mirrors tokens.css. See tailwind-init.js. CDN must load before the init. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind-init.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="case-workflow.css">
+    <link rel="stylesheet" href="case-chat.css">
+    <link rel="stylesheet" href="node-status.css">
+    <script src="node-status.js"></script>
+    <!-- D3.js for Decision Tree Rendering -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Lucide Icons for Premium UI -->
+    <!-- NOTE: MediaPipe (face_mesh + camera_utils, ~2.5 MB) is lazy-loaded by
+         app.js only when the Lie Detector tab's camera is started, so the
+         dashboard doesn't pay its parse/memory cost on every page load. -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- Skip link for keyboard users -->
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <!-- Global Page Preloader -->
+    <div id="global-preloader" class="preloader-overlay">
+        <div class="preloader-card">
+            <div class="spinner">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h3>Anavaya Triage Dashboard</h3>
+            <p>Initializing Judicial Priority Engine & loading legal cases...</p>
+        </div>
+    </div>
+
+    <!-- Background organic blobs for wabi-sabi atmosphere -->
+    <div class="organic-blob color-1"></div>
+    <div class="organic-blob color-2"></div>
+    <div class="organic-blob color-3"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle case list" title="Toggle case list">
+                <i data-lucide="panel-left"></i>
+            </button>
+            <a href="/landing/" class="header-logo" title="Back to Landing Page">
+                <div class="logo-icon">
+                    <!-- The Anavaya mark (same scales-of-justice as the favicon),
+                         inlined so it inherits the header's gold/accent colors. -->
+                    <svg viewBox="0 0 64 64" role="img" aria-label="Anavaya" style="width:70%;height:70%;display:block;">
+                        <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M32 17v30"/>
+                            <path d="M14 23h36"/>
+                            <path d="M22 47h20"/>
+                            <path d="M14 23v5" stroke-width="2"/>
+                            <path d="M50 23v5" stroke-width="2"/>
+                        </g>
+                        <circle cx="32" cy="16" r="3.6" fill="currentColor"/>
+                        <path d="M14 28 L6 39 H22 Z" fill="currentColor" opacity="0.85"/>
+                        <path d="M50 28 L42 39 H58 Z" fill="currentColor" opacity="0.85"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>Anavaya</h1>
+                    <span>Judicial Case priority prediction engine</span>
+                </div>
+            </a>
+            <div class="header-actions">
+                <a href="/landing/" class="landing-back-btn" id="landing-back-btn" title="Back to Landing Page">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Landing Page</span>
+                </a>
+                <!-- System health reads as ONE cluster: the GPU chip and the
+                     online pill used to stack on separate lines (and pushed the
+                     theme toggle onto a third), which made the bar look broken. -->
+                <span class="system-cluster">
+                    <span class="gpu-badge" id="gpu-badge" hidden title="Inference backend status">
+                        <i data-lucide="cpu"></i>
+                        <span id="gpu-badge-text"></span>
+                    </span>
+                    <span class="status-indicator online">System Active</span>
+                </span>
+                <span class="kbd-hint"><kbd>Ctrl</kbd><kbd>K</kbd> search</span>
+                <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Docket overview — the triage band. One labelled section holding three
+             cards: the register size, the priority mix (also the quick filter) and
+             the category spread. Every card shares the same head + body shape, so
+             the three read as one instrument instead of three unrelated tiles. -->
+        <section class="docket" aria-labelledby="docket-title">
+            <div class="docket-head">
+                <div class="docket-heading">
+                    <span class="docket-kicker">Docket overview</span>
+                    <h2 id="docket-title">Triage at a glance</h2>
+                </div>
+                <p class="docket-note" id="docket-note">Reading the register…</p>
+            </div>
+
+            <div class="stats-container">
+                <!-- Register size + how it splits across the three bands -->
+                <article class="stat-card total">
+                    <div class="card-head">
+                        <span class="card-icon"><i data-lucide="scale"></i></span>
+                        <div class="card-head-text">
+                            <h3 class="card-title">Total Handled</h3>
+                            <p class="card-caption">Every case on record</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="stat-value-row">
+                            <strong id="stat-total-val">0</strong>
+                            <span class="stat-unit">cases</span>
+                        </div>
+                        <div class="mix-strip" id="mix-strip" aria-hidden="true">
+                            <span class="mix-seg seg-high" id="mix-seg-high"></span>
+                            <span class="mix-seg seg-medium" id="mix-seg-medium"></span>
+                            <span class="mix-seg seg-low" id="mix-seg-low"></span>
+                        </div>
+                        <ul class="mix-key" id="mix-key" aria-label="Share of cases by priority"></ul>
+                    </div>
+                    <p class="card-foot"><i data-lucide="git-branch"></i> Ranked by the Decision Tree</p>
+                </article>
+
+                <!-- Priority mix — the donut doubles as the case-list filter -->
+                <article class="stat-card triage-donut-card">
+                    <div class="card-head">
+                        <span class="card-icon"><i data-lucide="chart-pie"></i></span>
+                        <div class="card-head-text">
+                            <h3 class="card-title">Priority Mix</h3>
+                            <p class="card-caption">Select a band to filter the register</p>
+                        </div>
+                    </div>
+                    <div class="donut-body">
+                        <div class="donut-wrap">
+                            <svg class="donut-chart" id="priority-donut-svg" viewBox="0 0 120 120" role="img" aria-label="Priority distribution of every case on record">
+                                <circle class="donut-track" cx="60" cy="60" r="50"></circle>
+                                <circle class="donut-arc arc-high" id="arc-high" cx="60" cy="60" r="50"></circle>
+                                <circle class="donut-arc arc-medium" id="arc-medium" cx="60" cy="60" r="50"></circle>
+                                <circle class="donut-arc arc-low" id="arc-low" cx="60" cy="60" r="50"></circle>
+                            </svg>
+                            <div class="donut-center">
+                                <strong id="donut-total-val">0</strong>
+                                <span>cases</span>
+                            </div>
+                        </div>
+                        <div class="triage-legend">
+                            <button class="triage-legend-item" data-priority="High" title="Filter the case list by High priority">
+                                <span class="legend-swatch swatch-high"></span>
+                                <span class="legend-name">High</span>
+                                <strong class="legend-count" id="stat-high-val">0</strong>
+                            </button>
+                            <button class="triage-legend-item" data-priority="Medium" title="Filter the case list by Medium priority">
+                                <span class="legend-swatch swatch-medium"></span>
+                                <span class="legend-name">Medium</span>
+                                <strong class="legend-count" id="stat-medium-val">0</strong>
+                            </button>
+                            <button class="triage-legend-item" data-priority="Low" title="Filter the case list by Low priority">
+                                <span class="legend-swatch swatch-low"></span>
+                                <span class="legend-name">Low</span>
+                                <strong class="legend-count" id="stat-low-val">0</strong>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Category spread — ranked, so the busiest area reads first -->
+                <article class="stat-card category-card">
+                    <div class="card-head">
+                        <span class="card-icon"><i data-lucide="layers"></i></span>
+                        <div class="card-head-text">
+                            <h3 class="card-title">By Category</h3>
+                            <p class="card-caption">Top six legal categories on file</p>
+                        </div>
+                    </div>
+                    <div id="category-bars" class="category-bars">
+                        <div class="loader">Computing…</div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Main Body Grid -->
+        <main class="dashboard-grid" id="main-content">
+            <!-- Sidebar: Case Selector -->
+            <section class="cases-sidebar" id="cases-sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title-row">
+                        <h2>Case Documents</h2>
+                        <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close case list"><i data-lucide="x"></i></button>
+                    </div>
+                    <div class="search-box">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Search parties or files...">
+                    </div>
+                    <div class="filter-row">
+                        <select id="filter-priority">
+                            <option value="all">All Priorities</option>
+                            <option value="High">High Only</option>
+                            <option value="Medium">Medium Only</option>
+                            <option value="Low">Low Only</option>
+                        </select>
+                        <select id="filter-category">
+                            <option value="all">All Categories</option>
+                        </select>
+                        <button class="clear-all-btn" id="clear-all-btn" title="Remove all cases"><i data-lucide="trash"></i> Clear All</button>
+                    </div>
+                    <!-- Cases Registry (Create New Case workflow) -->
+                    <div class="sidebar-cases-block">
+                        <div class="sidebar-cases-header">
+                            <h3><i data-lucide="folder-kanban"></i> Cases</h3>
+                            <button class="icon-btn" id="refresh-cases-btn" title="Refresh cases" aria-label="Refresh cases"><i data-lucide="refresh-cw"></i></button>
+                        </div>
+                        <div id="cases-registry-list" class="cases-registry-list">
+                            <div class="loader">Loading cases…</div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Case Document Section (drag & drop zone) -->
+                    <div class="upload-section" id="upload-zone">
+                        <button class="create-case-btn" id="create-case-btn">
+                            <i data-lucide="folder-plus"></i> Create New Case
+                        </button>
+                        <label for="pdf-file-input" class="upload-btn">
+                            <i data-lucide="upload"></i> Upload Case Document
+                        </label>
+                        <input type="file" id="pdf-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display: none;">
+                        <p class="upload-hint">Create a case to attach multiple documents (FIR, reports…), then run lie-detection fact-checking against them.</p>
+                    </div>
+                </div>
+                <div class="cases-list" id="cases-list-container">
+                    <div class="cases-skeleton" id="cases-skeleton" aria-hidden="true">
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                        <div class="skeleton-row"></div>
+                    </div>
+                </div>
+            </section>
+            <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+            <!-- Main Panel: Case Details & Tree Visualizer -->
+            <section class="details-panel">
+                <!-- Navigation Tabs -->
+                <div class="tab-header" role="tablist" aria-label="Dashboard sections">
+                    <button class="tab-btn active" data-tab="case-tab" role="tab" id="tab-case" aria-controls="case-tab" aria-selected="true"><i data-lucide="folder-kanban"></i> Case</button>
+                    <button class="tab-btn" data-tab="details-tab" role="tab" id="tab-details" aria-controls="details-tab" aria-selected="false"><i data-lucide="file-text"></i> Analysis</button>
+                    <button class="tab-btn" data-tab="tree-tab" role="tab" id="tab-tree" aria-controls="tree-tab" aria-selected="false"><i data-lucide="git-branch"></i> Decision Tree</button>
+                    <button class="tab-btn" data-tab="courtroom-tab" role="tab" id="tab-courtroom" aria-controls="courtroom-tab" aria-selected="false"><i data-lucide="gavel"></i> Courtroom</button>
+                </div>
+
+                <div class="tab-content-container">
+                    <!-- Tab 0: Case Workspace (create → open → upload evidence anytime) -->
+                    <div class="tab-content active" id="case-tab" role="tabpanel" aria-labelledby="tab-case">
+                        <div id="case-workspace-empty" class="empty-state">
+                            <div class="empty-icon"><i data-lucide="folder-kanban"></i></div>
+                            <h3>No Case Open</h3>
+                            <p>Create a new case — a name or an FIR report is all you need — or pick one from the Cases list on the left to open its workspace.</p>
+                            <button class="create-case-btn" id="workspace-new-case-btn" style="width:auto; padding:10px 24px; margin:14px auto 0;">
+                                <i data-lucide="folder-plus"></i> Create New Case
+                            </button>
+                        </div>
+                        <div id="case-workspace" class="case-workspace" style="display:none;">
+                            <div class="case-workspace-hero">
+                                <div class="badge-row">
+                                    <span id="workspace-priority-badge" class="priority-pill">Not Analysed</span>
+                                    <span id="workspace-case-id" class="workspace-case-id"></span>
+                                    <span id="workspace-source" class="workspace-source"></span>
+                                </div>
+                                <h2 id="workspace-title">Case</h2>
+                                <p id="workspace-rationale" class="workspace-rationale"></p>
+                                <div class="workspace-actions">
+                                    <button class="lobby-create-btn" id="workspace-analyze-btn" style="width:auto;"><i data-lucide="sparkles"></i> Analyze All Documents</button>
+                                    <button class="lobby-create-btn" id="workspace-chat-btn" style="width:auto; background: linear-gradient(135deg, #24211D, #181614); border: 1px solid rgba(201,162,75,0.6);"><i data-lucide="bot"></i> Ask Case AI</button>
+                                    <button class="lobby-delete-btn" id="workspace-delete-btn" style="width:auto;"><i data-lucide="trash-2"></i> Delete Case</button>
+                                </div>
+                            </div>
+                            <div class="workspace-columns">
+                                <div class="workspace-card card">
+                                    <div class="panel-header">
+                                        <h2><i data-lucide="folder-open"></i> Documents &amp; Evidence</h2>
+                                        <span id="workspace-doc-count" class="roster-count">0 docs</span>
+                                    </div>
+                                    <div id="workspace-doc-list" class="workspace-doc-list">
+                                        <div class="transcript-empty">No documents yet — use the Upload Evidence panel.</div>
+                                    </div>
+                                </div>
+                                <div class="workspace-card card">
+                                    <div class="panel-header">
+                                        <h2><i data-lucide="cloud-upload"></i> Upload Evidence</h2>
+                                    </div>
+                                    <div class="wizard-dropzone" id="workspace-doc-drop">
+                                        <!-- Evidence going up — animated brand art for the drop target. -->
+                                        <img class="dz-gif" src="assets/evidence-upload.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                        <p>Drop PDF or image files here or click to browse</p>
+                                    </div>
+                                    <input type="file" id="workspace-doc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple style="display:none;">
+                                    <label class="lobby-field">
+                                        <span>Document type</span>
+                                        <select id="workspace-doc-type">
+                                            <option value="FIR">FIR</option>
+                                            <option value="Police Report">Police Report</option>
+                                            <option value="Medical">Medical</option>
+                                            <option value="Statement">Statement</option>
+                                            <option value="Other" selected>Other</option>
+                                        </select>
+                                    </label>
+                                    <ul id="workspace-pending-list" class="wizard-doc-list"></ul>
+                                    <button class="lobby-create-btn" id="workspace-upload-btn" style="width:100%;" disabled><i data-lucide="upload"></i> Upload Evidence</button>
+                                    <div id="workspace-upload-status" class="wizard-progress" aria-live="polite"></div>
+                                    <p class="wizard-hint">Add evidence to this case any time — it stays here until you run the analysis from the Case tab to compute the case priority.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 1: Analysis -->
+                    <div class="tab-content" id="details-tab" role="tabpanel" aria-labelledby="tab-details">
+                        <!-- Whole-Case Analysis for the case open in the workspace (moved here from the Case tab) -->
+                        <div id="analysis-whole-case" class="analysis-whole-case" style="display:none;">
+                            <div class="workspace-card card">
+                                <div class="panel-header">
+                                    <h2><i data-lucide="scale"></i> Whole-Case Analysis</h2>
+                                    <span id="analysis-case-level-count" class="roster-count"></span>
+                                </div>
+                                <div id="case-level-empty" class="transcript-empty" style="display:none;">
+                                    Run the analysis — every document's facts are merged and the Decision Tree runs once on the combined evidence to give one whole-case verdict.
+                                </div>
+                                <div id="case-level-body" style="display:none;">
+                                    <div class="case-level-head">
+                                        <span id="case-level-priority-badge" class="priority-pill">—</span>
+                                        <span class="case-level-label">whole-case verdict · tree on merged evidence</span>
+                                    </div>
+                                    <p id="case-level-justification" class="case-level-justification"></p>
+                                    <p id="case-level-narrative" class="case-level-narrative"></p>
+                                    <!-- Pictorial case summary: gauge + fact tiles + party
+                                         avatars + evidence-corroboration map (renders into
+                                         #case-level-glance; replaces the old text "The case —
+                                         what it is about" section and the chips row). -->
+                                    <div id="case-level-glance" class="case-level-glance"></div>
+                                    <details class="case-level-section" open>
+                                        <summary><i data-lucide="layers"></i> Evidence &amp; weight — what each document says and contributes</summary>
+                                        <div id="case-level-evidence" class="case-level-evidence"></div>
+                                    </details>
+                                    <details class="case-level-section" open>
+                                        <summary><i data-lucide="git-branch"></i> Why this priority — the Decision Tree's path</summary>
+                                        <div id="case-level-path" class="case-level-path"></div>
+                                    </details>
+                                    <details class="case-level-section" open>
+                                        <summary><i data-lucide="landmark"></i> Articles that apply &amp; doctrines</summary>
+                                        <div id="case-level-articles" class="case-level-articles"><div class="ev-empty">Constitutional analysis appears here once the case is analysed.</div></div>
+                                    </details>
+                                    <details class="case-level-section" open>
+                                        <summary><i data-lucide="history"></i> Reason for Priority — Historical Precedents &amp; Effects of Delay</summary>
+                                        <div id="case-level-delay-precedents" class="case-level-delay-precedents"><div class="ev-empty">Historical precedents appear here once the case is analysed.</div></div>
+                                    </details>
+                                    <details class="case-level-section" open>
+                                        <summary><i data-lucide="link-2"></i> Corroboration map</summary>
+                                        <ul id="case-level-corroboration" class="case-level-corroboration"></ul>
+                                    </details>
+                                    <details class="case-level-section">
+                                        <summary><i data-lucide="git-merge"></i> How features were merged</summary>
+                                        <ul id="case-level-merge" class="case-level-merge"></ul>
+                                    </details>
+                                    <details class="case-level-section">
+                                        <summary><i data-lucide="scale-3d"></i> Case-level constitutional opinion</summary>
+                                        <p id="case-level-opinion" class="case-level-opinion"></p>
+                                    </details>
+                                    <div class="case-level-actions">
+                                        <a id="case-level-report-btn" class="lobby-create-btn case-level-report-btn" href="#" download>
+                                            <i data-lucide="file-down"></i> Whole-Case PDF Report
+                                        </a>
+                                        <button id="case-level-chat-btn" class="lobby-create-btn" style="background: linear-gradient(135deg, #24211D, #181614); border: 1px solid rgba(201,162,75,0.6);">
+                                            <i data-lucide="bot"></i> Ask Case AI
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="no-case-selected" class="empty-state">
+                            <!-- Counsel conferring — animated brand art (replaces the
+                                 stock folder glyph; the text still carries the meaning). -->
+                            <img class="empty-art" src="assets/talking.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                            <h3>No Case Selected</h3>
+                            <p>Choose a legal case document from the sidebar to inspect its triage results, constitutional reasons, and predicted priority.</p>
+                        </div>
+                        <div id="case-details-content" class="case-detail-layout" style="display: none;">
+                            <div class="case-detail-hero">
+                                <div class="detail-scope"><i data-lucide="file-search"></i> Evidence-level analysis — this one document only. The case's decision is the Whole-Case Analysis above.</div>
+                                <div class="badge-row">
+                                    <span id="case-priority-badge" class="priority-pill">Low Priority</span>
+                                    <span id="case-category-badge" class="category-pill">Excise/Tax</span>
+                                    <span id="case-urgency-badge" class="urgency-pill">Standard</span>
+                                </div>
+                                <h2 id="case-title-name">Case File Name</h2>
+                                <p id="case-parties" class="parties-list"><strong>Parties:</strong> unknown</p>
+                                <!-- Whole-case rows only: per-evidence priorities as chips (evidence-level detail, not the case decision) -->
+                                <div id="case-evidence-chips" class="case-evidence-strip" style="display:none;"></div>
+                                <div class="report-actions">
+                                    <a id="download-report-btn" class="report-download-btn" href="#" download style="display: none;">
+                                        <i data-lucide="file-down"></i> Download PDF Report
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="case-detail-columns">
+                                <!-- LEFT: Facts -->
+                                <div class="case-detail-left">
+                                    <div class="detail-section">
+                                        <h3>Plain Language Summary</h3>
+                                        <p id="case-summary" class="summary-text">No summary available.</p>
+                                    </div>
+
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="sliders" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Parameters</h3>
+                                        <div class="param-chips">
+                                            <span class="param-chip"><span>Model Category</span><strong id="param-model-cat">N/A</strong></span>
+                                            <span class="param-chip"><span>Severity</span><strong id="param-severity">N/A</strong></span>
+                                            <span class="param-chip"><span>Vulnerability</span><strong id="param-vulnerability">N/A</strong></span>
+                                            <span class="param-chip"><span>Influence</span><strong id="param-influence">N/A</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RIGHT: Constitutional analysis -->
+                                <div class="case-detail-right">
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="shield" style="width:16px;height:16px;vertical-align:middle;"></i> Constitutional Rights Engaged</h3>
+                                        <div id="case-constitutional-rights" class="constitutional-rights-grid">
+                                            Loading rights analysis...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> State's Duty Under the Constitution</h3>
+                                        <div id="case-state-duty" class="justification-box">
+                                            Loading state duty analysis...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section collapsible">
+                                        <button class="collapsible-toggle" aria-expanded="false" aria-controls="case-balancing">
+                                            <span><i data-lucide="scale" style="width:16px;height:16px;vertical-align:middle;"></i> Rights Balancing & Proportionality Analysis</span>
+                                            <i data-lucide="chevron-down" class="collapse-chevron"></i>
+                                        </button>
+                                        <div class="collapsible-body balancing-box" id="case-balancing">
+                                            Loading balancing analysis...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="book-open" style="width:16px;height:16px;vertical-align:middle;"></i> Applicable Constitutional Doctrines</h3>
+                                        <div id="case-doctrines" class="doctrines-list">
+                                            Loading doctrines...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section collapsible">
+                                        <button class="collapsible-toggle" aria-expanded="false" aria-controls="case-justification">
+                                            <span><i data-lucide="file-text" style="width:16px;height:16px;vertical-align:middle;"></i> State's Perspective — Full Constitutional Opinion</span>
+                                            <i data-lucide="chevron-down" class="collapse-chevron"></i>
+                                        </button>
+                                        <div class="collapsible-body opinion-box" id="case-justification">
+                                            Justification loading...
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-section collapsible">
+                                        <button class="collapsible-toggle" aria-expanded="false" aria-controls="case-priority-reason">
+                                            <span><i data-lucide="clipboard-list" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Rules Applied</span>
+                                            <i data-lucide="chevron-down" class="collapse-chevron"></i>
+                                        </button>
+                                        <div class="collapsible-body rules-box" id="case-priority-reason">
+                                            Reason loading...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Decision Tree Visualizer -->
+                    <div class="tab-content" id="tree-tab" role="tabpanel" aria-labelledby="tab-tree">
+                        <div class="tree-controls">
+                            <span class="control-label"><i data-lucide="git-branch" style="display:inline-block; vertical-align:middle; width:18px; height:18px; margin-right:4px; stroke-width: 2.2px;"></i> Interactive Global Decision Tree</span>
+                            <div class="tree-actions">
+                                <button class="tree-action-btn" id="tree-zoom-in" title="Zoom in"><i data-lucide="zoom-in"></i></button>
+                                <button class="tree-action-btn" id="tree-zoom-out" title="Zoom out"><i data-lucide="zoom-out"></i></button>
+                                <button class="tree-action-btn" id="tree-fit" title="Fit to view"><i data-lucide="maximize"></i></button>
+                                <button class="tree-action-btn" id="tree-path-only" title="Show only the active case path"><i data-lucide="route"></i> Path only</button>
+                            </div>
+                        </div>
+                        <div class="legend">
+                            <span class="legend-item"><span class="color-dot decision"></span> Decision Node</span>
+                            <span class="legend-item"><span class="color-dot high"></span> High Priority Leaf</span>
+                            <span class="legend-item"><span class="color-dot medium"></span> Medium Priority Leaf</span>
+                            <span class="legend-item"><span class="color-dot low"></span> Low Priority Leaf</span>
+                            <span class="legend-item"><span class="color-dot path"></span> Active Traversed Path</span>
+                        </div>
+                        <div id="path-trace-wrap" class="path-trace-wrap" style="display: none;">
+                            <div class="path-trace-header">
+                                <div class="path-trace-header-left" style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="path-trace-label"><i data-lucide="route"></i> Decision Path</span>
+                                    <span class="path-trace-scope" id="path-trace-scope"></span>
+                                </div>
+                                <div class="path-trace-header-right" style="display: flex; align-items: center; gap: 8px;">
+                                    <span id="path-trace-switch-wrap"></span>
+                                    <button class="path-trace-toggle" id="path-trace-toggle"><i data-lucide="chevron-down" class="collapse-chevron"></i></button>
+                                </div>
+                            </div>
+                            <div class="path-breadcrumb" id="path-breadcrumb"></div>
+                            <div class="timeline-steps" id="decision-path-steps"></div>
+                        </div>
+                        <div class="tree-layout">
+                            <div class="tree-canvas-container" id="tree-canvas-container">
+                                <div id="tree-loading" class="loader">Loading global decision tree...</div>
+                                <div id="tree-legend-case-active" class="active-case-path-banner" style="display: none;">
+                                    Active path highlighted for: <strong id="active-path-case-name">None</strong>
+                                    <span id="active-path-case-priority" class="banner-priority-badge" style="display: none;"></span>
+                                </div>
+                                <svg id="tree-svg"></svg>
+                                <div class="tree-tooltip" id="tree-tooltip"></div>
+                            </div>
+                            <aside class="tree-node-panel" id="tree-node-panel">
+                                <div class="node-panel-empty">
+                                    <i data-lucide="mouse-pointer-click"></i>
+                                    <p>Click a node to inspect its decision rule in plain English.</p>
+                                </div>
+                            </aside>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Live Courtroom Lobby -->
+                    <div class="tab-content" id="courtroom-tab" role="tabpanel" aria-labelledby="tab-courtroom">
+                        <div class="courtroom-lobby-layout">
+                            <!-- Create Room -->
+                            <div class="lobby-create-card">
+                                <!-- The presiding judge — ambient brand clip (square, 1.5s
+                                     loop, muted + decorative: browsers allow autoplay). -->
+                                <video class="lobby-video" src="assets/judge.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video>
+                                <h3><i data-lucide="plus-circle"></i> Open a New Trial</h3>
+                                <p class="lobby-desc">Create a courtroom session. Share the invite link with the other counsel to join the live trial.</p>
+                                <!-- Counsel joining the bench — animated brand icon -->
+                                <img class="lobby-gif" src="assets/courtroom-join.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                <form id="create-room-form" class="lobby-form">
+                                    <label class="lobby-field">
+                                        <span>Case file (optional — links the trial to a case)</span>
+                                        <select id="new-room-case">
+                                            <option value="">No linked case — free-form trial</option>
+                                        </select>
+                                    </label>
+                                    <label class="lobby-field">
+                                        <span>Trial title</span>
+                                        <input type="text" id="new-room-title" placeholder="e.g. State vs. Accused — Theft Trial" maxlength="100" autocomplete="off">
+                                    </label>
+                                    <label class="lobby-field">
+                                        <span>Your name (as Host/Judge)</span>
+                                        <input type="text" id="new-room-host" placeholder="e.g. Justice Rao" required maxlength="60" autocomplete="off">
+                                    </label>
+                                    <button type="submit" class="lobby-create-btn"><i data-lucide="gavel"></i> Create Courtroom</button>
+                                    <p class="lobby-hint"><i data-lucide="info"></i> Link a case file and the courtroom starts with the evidence context on screen — every statement is then checked against the collected evidence in the Session Report.</p>
+                                </form>
+                                <div id="lobby-create-success" class="lobby-success" style="display:none;">
+                                    <p><i data-lucide="check-circle"></i> <span id="success-text">Room created!</span></p>
+                                    <button class="lobby-open-btn" id="open-room-btn"><i data-lucide="door-open"></i> Open Trial</button>
+                                    <button class="lobby-copy-btn" id="copy-room-invite-btn"><i data-lucide="link"></i> Copy Invite Link</button>
+                                </div>
+                            </div>
+
+                            <!-- Room List -->
+                            <div class="lobby-list-card">
+                                <h3><i data-lucide="layout-list"></i> Courtroom Sessions</h3>
+                                <button class="lobby-refresh-btn" id="refresh-rooms-btn" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+                                <!-- The courthouse — brand art above the session list. -->
+                                <img class="lobby-art" src="assets/courthouse.png" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                <!-- The four-seat bench — animated brand icon -->
+                                <img class="lobby-gif lobby-gif-grid" src="assets/courtroom-grid.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                <div id="rooms-list-container" class="rooms-list">
+                                    <div class="loader">Loading trial sessions…</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <!-- Create New Case Wizard Modal -->
+    <div id="case-wizard-modal" class="wizard-modal" style="display: none;">
+        <div class="wizard-card">
+            <div class="wizard-header">
+                <h2><i data-lucide="folder-plus"></i> Create New Case</h2>
+                <button class="wizard-close" id="wizard-close-btn" aria-label="Close"><i data-lucide="x"></i></button>
+            </div>
+            <div class="wizard-steps">
+                <p class="wizard-hint">All you need is a name or an FIR report — or nothing at all, and a case ID will be auto-assigned. Evidence can be added later, from inside the case.</p>
+                <label class="lobby-field">
+                    <span>Case name (optional)</span>
+                    <input type="text" id="wizard-title" placeholder="e.g. State vs. X — Theft Trial" maxlength="120" autocomplete="off">
+                </label>
+                <label class="lobby-field">
+                    <span>FIR report (optional — the case is named after it when no name is given)</span>
+                    <input type="file" id="wizard-fir-input" accept=".pdf,.jpg,.jpeg,.png,.webp">
+                </label>
+                <button class="lobby-create-btn" id="wizard-create-btn"><i data-lucide="folder-plus"></i> Create &amp; Open Case</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Precedent Deep-Dive & Mission Modal -->
+    <div id="precedent-modal" class="wizard-modal precedent-dialog-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="pdm-case-name">
+        <div class="wizard-card precedent-modal-card">
+            <div class="wizard-header">
+                <h2><i data-lucide="scale"></i> <span id="pdm-case-name">Historical Precedent</span></h2>
+                <button class="wizard-close" id="pdm-close-btn" aria-label="Close modal"><i data-lucide="x"></i></button>
+            </div>
+            <!-- Quick Precedent Selector Tabs -->
+            <div id="pdm-cases-bar" class="pdm-cases-bar" style="display: none;"></div>
+            <div class="pdm-meta-strip">
+                <span id="pdm-citation" class="pdm-pill pdm-citation-pill"></span>
+                <span id="pdm-court" class="pdm-pill pdm-court-pill"></span>
+                <span id="pdm-delay" class="pdm-pill pdm-delay-pill"></span>
+                <span id="pdm-tier" class="pdm-pill pdm-tier-pill"></span>
+            </div>
+            <div class="pdm-content-body">
+                <!-- Section 1: What was this case -->
+                <div class="pdm-section">
+                    <div class="pdm-section-head"><i data-lucide="book-open"></i> What Was This Case?</div>
+                    <div id="pdm-case-overview" class="pdm-section-text"></div>
+                </div>
+                <!-- Section 2: Failure of the Existing System -->
+                <div class="pdm-section failure-section">
+                    <div class="pdm-section-head"><i data-lucide="clock-alert"></i> The Flaw &amp; Ignorance in the Existing System (Procedural Delay)</div>
+                    <div id="pdm-factual-delay" class="pdm-section-text"></div>
+                </div>
+                <!-- Section 3: The Devastating Human or Economic Toll -->
+                <div class="pdm-section toll-section">
+                    <div class="pdm-section-head"><i data-lucide="alert-triangle"></i> The Catastrophic Toll (Lives &amp; Fortunes Lost)</div>
+                    <div id="pdm-toll" class="pdm-section-text toll-text"></div>
+                </div>
+                <!-- Section 4: Supreme Court Ruling & Constitutional Doctrine -->
+                <div class="pdm-section ruling-section">
+                    <div class="pdm-section-head"><i data-lucide="gavel"></i> Supreme Court Constitutional Ruling</div>
+                    <div id="pdm-ruling" class="pdm-section-text ruling-text"></div>
+                </div>
+                <!-- Section 5: The Intact Reason For Our Project (Anavaya's Core Mission) -->
+                <div class="pdm-mission-banner">
+                    <div class="pdm-mission-header">
+                        <i data-lucide="shield-check"></i>
+                        <strong>The Intact Reason for Anavaya: Why Our Project Exists</strong>
+                    </div>
+                    <div id="pdm-mission-text" class="pdm-mission-body"></div>
+                </div>
+            </div>
+            <div class="pdm-footer">
+                <button type="button" class="lobby-create-btn pdm-done-btn" id="pdm-done-btn">Close Precedent Details</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Judicial Processing Pipeline Multi-Stage Overlay -->
+    <div id="upload-loading-overlay" class="loading-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="overlay-status-title">
+        <div class="loading-pipeline-card">
+            <!-- Ambient Accent Glow -->
+            <div class="pipeline-ambient-glow" aria-hidden="true"></div>
+
+            <!-- Top HUD Bar: Branded Badge + Realtime Elapsed Clock -->
+            <div class="pipeline-header">
+                <div class="pipeline-badge">
+                    <span class="pipeline-badge-pulse" aria-hidden="true"></span>
+                    <span class="pipeline-badge-text">JUDICIAL INFERENCE PIPELINE</span>
+                </div>
+                <div class="pipeline-timer-wrap">
+                    <i data-lucide="clock" class="pipeline-timer-icon" aria-hidden="true"></i>
+                    <span class="pipeline-timer" id="pipeline-timer" title="Elapsed inference time">0.0s</span>
+                </div>
+            </div>
+
+            <!-- Central Animated Law Codex Visualizer -->
+            <div class="pipeline-viz-wrap">
+                <div class="book" aria-hidden="true">
+                    <div class="book__pg-shadow"></div>
+                    <div class="book__pg"></div>
+                    <div class="book__pg book__pg--2"></div>
+                    <div class="book__pg book__pg--3"></div>
+                    <div class="book__pg book__pg--4"></div>
+                    <div class="book__pg book__pg--5"></div>
+                </div>
+            </div>
+
+            <!-- Status Headline & Explanatory Subtitle -->
+            <div class="pipeline-titles">
+                <h3 id="overlay-status-title" class="pipeline-title">Ingesting Case Document...</h3>
+                <p id="overlay-status-desc" class="pipeline-desc">Reading PDF contents, verifying digital text layers, and preparing feature vectors.</p>
+            </div>
+
+            <!-- Global Progress Bar with Stage Pill and % Indicator -->
+            <div class="pipeline-progress-container">
+                <div class="pipeline-progress-meta">
+                    <span class="pipeline-stage-pill" id="pipeline-stage-pill">Stage 1 of 5</span>
+                    <span class="pipeline-pct-label" id="pipeline-pct-label">20%</span>
+                </div>
+                <div class="pipeline-progress-bar-track">
+                    <div class="pipeline-progress-bar-fill" id="pipeline-progress-fill" style="width: 20%;">
+                        <div class="pipeline-progress-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5-Stage Visual Workflow Stepper -->
+            <div class="pipeline-stepper" id="pipeline-stepper">
+                <div class="pipeline-step active" data-step="1">
+                    <div class="step-indicator">
+                        <span class="step-num">1</span>
+                        <i data-lucide="file-text" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Ingestion</div>
+                        <div class="step-sub">OCR & Text</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="2">
+                    <div class="step-indicator">
+                        <span class="step-num">2</span>
+                        <i data-lucide="cpu" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Extraction</div>
+                        <div class="step-sub">Facts & Entities</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="3">
+                    <div class="step-indicator">
+                        <span class="step-num">3</span>
+                        <i data-lucide="git-branch" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Tree Model</div>
+                        <div class="step-sub">ML Inference</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="4">
+                    <div class="step-indicator">
+                        <span class="step-num">4</span>
+                        <i data-lucide="scale" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Constitutional</div>
+                        <div class="step-sub">Articles Audit</div>
+                    </div>
+                </div>
+
+                <div class="pipeline-step pending" data-step="5">
+                    <div class="step-indicator">
+                        <span class="step-num">5</span>
+                        <i data-lucide="file-check-2" class="step-icon"></i>
+                        <i data-lucide="check" class="step-check"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-name">Synthesis</div>
+                        <div class="step-sub">Docket Dossier</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Machine Status Micro-Ticker -->
+            <div class="pipeline-micro-log" id="pipeline-micro-log">
+                <span class="micro-dot" aria-hidden="true"></span>
+                <span class="micro-text" id="pipeline-micro-text">[1/5] Ingesting PDF text and parsing forensic docket parameters...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Case AI Floating Copilot Launcher -->
+    <button id="case-chat-float-btn" class="case-chat-float-btn" type="button" aria-label="Open Case AI Copilot" title="Ask Case AI">
+        <span class="float-icon-wrap">
+            <i data-lucide="bot"></i>
+            <span class="float-pulse-dot"></span>
+        </span>
+        <span class="chat-float-label">Case AI</span>
+        <span class="chat-float-badge">qwen2.5</span>
+    </button>
+
+    <!-- Case AI Chat Drawer -->
+    <aside id="case-chat-drawer" class="case-chat-drawer" aria-hidden="true" role="dialog" aria-labelledby="chat-header-title">
+        <div class="chat-drawer-header">
+            <div class="chat-header-main">
+                <div class="chat-avatar-badge">
+                    <i data-lucide="bot"></i>
+                </div>
+                <div class="chat-header-meta">
+                    <div class="chat-header-title-row">
+                        <span id="chat-header-title" class="chat-header-title">Case Intelligence Assistant</span>
+                        <span class="chat-model-pill">qwen2.5:3b</span>
+                    </div>
+                    <div class="chat-context-row">
+                        <span id="chat-context-case-name" class="chat-context-pill">Loading case...</span>
+                        <span id="chat-context-priority" class="chat-context-priority" style="display:none;">High</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-header-actions">
+                <button id="chat-btn-clear" class="chat-control-btn" type="button" title="Clear chat history" aria-label="Clear chat">
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+                <button id="chat-btn-minimize" class="chat-control-btn" type="button" title="Minimize drawer" aria-label="Minimize">
+                    <i data-lucide="chevron-down"></i>
+                </button>
+                <button id="chat-btn-close" class="chat-control-btn" type="button" title="Close drawer" aria-label="Close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Suggestion Chips -->
+        <div class="chat-quick-chips" id="chat-quick-chips" role="toolbar" aria-label="Suggested Case Queries">
+            <button type="button" class="chat-chip" data-query="Can you summarize this case and the core facts?">📋 Summarize</button>
+            <button type="button" class="chat-chip" data-query="Who are all the key parties, victims, witnesses, and suspects?">👥 Key Parties</button>
+            <button type="button" class="chat-chip" data-query="Break down the evidence documents and what each proves.">🔍 Evidence Breakdown</button>
+            <button type="button" class="chat-chip" data-query="Explain why this case was assigned its current priority by the Decision Tree.">⚖️ Why Priority?</button>
+            <button type="button" class="chat-chip" data-query="What is the chronological timeline of events in this case?">🕒 Timeline</button>
+        </div>
+
+        <!-- Scrollable Messages Container -->
+        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
+            <!-- Dynamically populated by case-chat.js -->
+        </div>
+
+        <!-- Input Area Form -->
+        <form class="chat-input-area" id="chat-input-form">
+            <div class="chat-input-wrapper">
+                <textarea id="chat-input-text" rows="1" placeholder="Ask about this case (exhibits, timeline, facts)..." aria-label="Case question"></textarea>
+                <button type="submit" id="chat-send-btn" class="chat-send-btn" aria-label="Send query" title="Send (Enter)">
+                    <i data-lucide="send"></i>
+                </button>
+            </div>
+            <div class="chat-input-hints">
+                <span><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> line break</span>
+                <span class="privacy-note"><i data-lucide="shield-check"></i> Grounded on Case Exhibits</span>
+            </div>
+        </form>
+    </aside>
+
+    <script src="invite.js"></script>
+    <script src="app.js"></script>
+    <script src="case-workflow.js"></script>
+    <script src="case-chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+[
+  {
+    "case_id": "ANV-2026-0025",
+    "title": "Missing case",
+    "created_at": "2026-10-13T11:21:08",
+    "created_by": "Officer",
+    "source": "FIR_UPLOADED",
+    "aggregate_priority": "High",
+    "case_level_priority": "High",
+    "document_count": 8,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_8abdb908",
+        "filename": "Evidence_01_Incident_Report_and_Timeline.pdf",
+        "doc_type": "FIR",
+        "uploaded_at": "2026-10-13T11:21:08",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_01_Incident_Report_and_Timeline_decision_report.md"
+      },
+      {
+        "doc_id": "d_7b9015a6",
+        "filename": "Evidence_02_CCTV_Review_Log.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-10-13T11:22:03",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_02_CCTV_Review_Log_decision_report.md"
+      },
+      {
+        "doc_id": "d_bb56155d",
+        "filename": "Evidence_03_Shop_Audio_Transcript_SIMULATED.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-10-13T11:22:03",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_03_Shop_Audio_Transcript_SIMULATED_decision_report.md"
+      },
+      {
+        "doc_id": "d_983da38f",
+        "filename": "Evidence_04_Witness_Statements_SIMULATED.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-10-13T11:22:03",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_04_Witness_Statements_SIMULATED_decision_report.md"
+      },
+      {
+        "doc_id": "d_70ced851",
+        "filename": "Evidence_05_Traffic_Camera_Note.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-10-13T11:22:03",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_05_Traffic_Camera_Note_decision_report.md"
+      },
+      {
+        "doc_id": "d_ba3051ec",
+        "filename": "Evidence_06_Interview_Records_SIMULATED.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-10-13T11:22:03",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_06_Interview_Records_SIMULATED_decision_report.md"
+      },
+      {
+        "doc_id": "d_99e4f197",
+        "filename": "Evidence_08_Evidence_Register_and_Corroboration.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-10-13T11:22:03",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Evidence_08_Evidence_Register_and_Corroboration_decision_report.md"
+      },
+      {
+        "doc_id": "d_778f81d8",
+        "filename": "State_3930_transcript.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-04T21:26:00",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\State_3930_transcript_decision_report.md"
+      }
+    ]
+  },
+  {
+    "case_id": "ANV-2026-0019",
+    "title": "Evidence Booklet \u2014 State vs Kaveri Auto Traders",
+    "created_at": "2026-09-04T14:00:00",
+    "created_by": "Officer",
+    "source": "AUTO_ID",
+    "aggregate_priority": "Medium",
+    "case_level_priority": "Medium",
+    "document_count": 6,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_recovered_03_Exhibit_P2_Bank_Trans",
+        "filename": "03_Exhibit_P2_Bank_Transfers.png",
+        "doc_type": "Other",
+        "uploaded_at": "2026-09-12T00:40:55",
+        "priority": "Low",
+        "decision_report": "case_priority_system\\decision_graphs\\03_Exhibit_P2_Bank_Transfers_decision_report.md"
+      },
+      {
+        "doc_id": "d_recovered_04_Exhibit_P3_Disputed_I",
+        "filename": "04_Exhibit_P3_Disputed_Invoices.png",
+        "doc_type": "Other",
+        "uploaded_at": "2026-09-12T00:40:55",
+        "priority": "Low",
+        "decision_report": "case_priority_system\\decision_graphs\\04_Exhibit_P3_Disputed_Invoices_decision_report.md"
+      },
+      {
+        "doc_id": "d_recovered_05_Exhibit_P4_Bank_State",
+        "filename": "05_Exhibit_P4_Bank_Statement.png",
+        "doc_type": "Other",
+        "uploaded_at": "2026-09-12T00:40:55",
+        "priority": "Low",
+        "decision_report": "case_priority_system\\decision_graphs\\05_Exhibit_P4_Bank_Statement_decision_report.md"
+      },
+      {
+        "doc_id": "d_recovered_06_Exhibit_P5_GST_Certif",
+        "filename": "06_Exhibit_P5_GST_Certificate.png",
+        "doc_type": "Other",
+        "uploaded_at": "2026-09-12T00:40:55",
+        "priority": "Medium",
+        "decision_report": "case_priority_system\\decision_graphs\\06_Exhibit_P5_GST_Certificate_decision_report.md"
+      },
+      {
+        "doc_id": "d_recovered_07_Exhibit_P6_Forensic_R",
+        "filename": "07_Exhibit_P6_Forensic_Report.png",
+        "doc_type": "Other",
+        "uploaded_at": "2026-09-12T00:40:55",
+        "priority": "Low",
+        "decision_report": "case_priority_system\\decision_graphs\\07_Exhibit_P6_Forensic_Report_decision_report.md"
+      },
+      {
+        "doc_id": "d_recovered_09_Evidence_Booklet",
+        "filename": "09_Evidence_Booklet.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-09-12T00:40:55",
+        "priority": "Medium",
+        "decision_report": "case_priority_system\\decision_graphs\\09_Evidence_Booklet_decision_report.md"
+      }
+    ]
+  }
+]

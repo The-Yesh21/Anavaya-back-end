@@ -1,0 +1,259 @@
+/* ============================================================================
+   Anavaya — Hardware Node Status & Administrator Activation Dialog
+   ============================================================================ */
+
+.node-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.node-modal-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.node-modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    background: var(--surface, #FFFFFF);
+    color: var(--text, #1E293B);
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 16px;
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(201, 162, 39, 0.2);
+    overflow: hidden;
+    transform: scale(0.95) translateY(8px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .node-modal-card {
+    background: #18191B;
+    color: #F8FAFC;
+    border-color: rgba(201, 162, 39, 0.3);
+    box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(201, 162, 39, 0.25);
+}
+
+.node-modal-backdrop.active .node-modal-card {
+    transform: scale(1) translateY(0);
+}
+
+.node-modal-header {
+    background: linear-gradient(135deg, rgba(27, 42, 74, 0.95), rgba(15, 23, 42, 0.98));
+    color: #FFFFFF;
+    padding: 24px 24px 20px 24px;
+    border-bottom: 2px solid #C9A227;
+    position: relative;
+}
+
+.node-modal-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: #CBD5E1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.node-modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+}
+
+.node-kicker {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #C9A227;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.node-kicker-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #F59E0B;
+    box-shadow: 0 0 8px #F59E0B;
+    animation: nodePulse 2s infinite ease-in-out;
+}
+
+@keyframes nodePulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 12px #F59E0B; }
+}
+
+.node-modal-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 8px 0 4px 0;
+    color: #FFFFFF;
+}
+
+.node-feature-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(201, 162, 39, 0.18);
+    color: #FDE68A;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    margin-top: 4px;
+}
+
+.node-modal-body {
+    padding: 22px 24px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: inherit;
+}
+
+.node-explanation-box {
+    background: rgba(248, 250, 252, 0.7);
+    border: 1px solid var(--border, #E2E8F0);
+    border-left: 4px solid #C9A227;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    font-size: 12.5px;
+    color: var(--text-muted, #475569);
+}
+
+[data-theme="dark"] .node-explanation-box {
+    background: rgba(30, 41, 59, 0.5);
+    color: #CBD5E1;
+}
+
+.node-action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.node-btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #C9A227, #A6821C);
+    color: #0F172A;
+    font-weight: 700;
+    font-size: 13.5px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px -2px rgba(201, 162, 39, 0.4);
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.node-btn-primary:hover {
+    background: linear-gradient(135deg, #D4AF37, #B58F22);
+    box-shadow: 0 6px 18px -2px rgba(201, 162, 39, 0.6);
+    transform: translateY(-1px);
+}
+
+.node-admin-accordion {
+    border: 1px dashed var(--border, #CBD5E1);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 6px;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] .node-admin-accordion {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.node-admin-summary {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #64748B);
+    cursor: pointer;
+    user-select: none;
+}
+
+.node-tunnel-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.node-tunnel-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #CBD5E1);
+    background: var(--surface, #FFFFFF);
+    color: inherit;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+[data-theme="dark"] .node-tunnel-input {
+    background: #0F172A;
+    border-color: #334155;
+}
+
+.node-tunnel-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #1B2A4A;
+    color: #FFFFFF;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.node-tunnel-btn:hover {
+    background: #2A3F6D;
+}
+
+.node-modal-footer {
+    padding: 12px 24px 16px 24px;
+    border-top: 1px solid var(--border, #E2E8F0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--text-muted, #64748B);
+}
+
+.node-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+}

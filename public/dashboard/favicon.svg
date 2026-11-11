@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Anavaya">
+  <title>Anavaya</title>
+  <rect width="64" height="64" rx="14" fill="#141414"/>
+  <g fill="none" stroke="#C9A22B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- scales of justice: beam, post, base -->
+    <path d="M32 17v30"/>
+    <path d="M14 23h36"/>
+    <path d="M22 47h20"/>
+    <!-- pan hangers -->
+    <path d="M14 23v5" stroke-width="2"/>
+    <path d="M50 23v5" stroke-width="2"/>
+  </g>
+  <circle cx="32" cy="16" r="3.6" fill="#C9A22B"/>
+  <!-- pans -->
+  <path d="M14 28 6 39h16z" fill="#C9A22B" fill-opacity="0.85"/>
+  <path d="M50 28 42 39h16z" fill="#C9A22B" fill-opacity="0.85"/>
+</svg>
