@@ -1,3 +1,5 @@
+process.env.DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS = "1";
+
 const fs = require('fs');
 const path = require('path');
 
