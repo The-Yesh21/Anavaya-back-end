@@ -4,5 +4,5 @@
 // remote visitors reach the dashboard too, e.g.:
 //   VITE_APP_URL=https://xxxx.lhr.life npm run dev
 export const APP_URL =
-  import.meta.env["VITE_APP_URL"] ?? "https://127.0.0.1:8000";
+  import.meta.env["VITE_APP_URL"] ?? "/dashboard/";
 export const GITHUB_URL = "https://github.com/The-Yesh21/Anavaya-back-end";

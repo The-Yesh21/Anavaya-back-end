@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Anavaya — Live Courtroom</title>
+    <!-- Theme boot — runs synchronously before any stylesheet is applied, so the
+         page paints in the right theme with no flash. Saved choice wins; otherwise
+         follow the OS. Kept tiny and dependency-free (documentElement + localStorage). -->
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('anavaya-theme');
+                var theme = (saved === 'dark' || saved === 'light')
+                    ? saved
+                    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.style.colorScheme = theme;
+            } catch (e) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <!-- Tailwind (Play CDN) — complementary utility layer, Preflight OFF, `tw-` prefixed,
+         theme mirrors tokens.css. Absolute paths: this page is served at /court/{room_id}. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/tailwind-init.js"></script>
+    <link rel="stylesheet" href="/courtroom.css">
+    <link rel="stylesheet" href="/node-status.css">
+    <script src="/node-status.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Vendored lottie-web (local file, so the pre-entry countdown still plays
+         when the demo machine has no internet — same reason the icons are local). -->
+    <script src="/vendor/lottie.min.js"></script>
+    <!-- MediaPipe Tasks-Vision bundle for Chakshu AI Facial Analysis (preloaded so analysis is instantly ready) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.js" defer></script>
+</head>
+<body>
+    <!-- Background organic blobs (matches the dashboard atmosphere) -->
+    <div class="organic-blob color-1"></div>
+    <div class="organic-blob color-2"></div>
+    <div class="organic-blob color-3"></div>
+
+    <!-- ───────── JOIN OVERLAY (shown until the participant picks a role) ───────── -->
+    <div id="join-overlay" class="join-overlay" role="dialog" aria-modal="true" aria-labelledby="join-case-title">
+        <div class="join-card">
+            <a href="/" class="back-link" id="join-back-link"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
+            <div class="join-emblem"><i data-lucide="scale"></i></div>
+            <h1 id="join-case-title">Loading trial…</h1>
+            <p id="join-subtitle" class="join-subtitle">Enter the courtroom</p>
+            <!-- Pre-entry "taking your seat" countdown — played while the join
+                 handshake completes, then the courtroom is revealed. -->
+            <div id="join-countdown" class="join-countdown" hidden aria-hidden="true"></div>
+            <p id="join-media-warning" class="join-media-warning" style="display:none;">
+                <i data-lucide="mic-off"></i>
+                <span>Microphone &amp; video need a secure connection (https or localhost). This page is open over plain http on a network address, so <strong>Hold to Talk</strong> cannot access your mic here. Open <code>https://localhost:8000/court/<span id="join-media-room"></span></code> on the host machine to use audio.</span>
+            </p>
+
+            <form id="join-form" class="join-form">
+                <label class="field">
+                    <span>Your name</span>
+                    <input type="text" id="join-name" placeholder="e.g. Adv. Priya Rao" required maxlength="60" autocomplete="off">
+                </label>
+                <label class="field">
+                    <span>Select your role</span>
+                    <div class="role-picker" id="role-picker">
+                        <!-- role buttons injected by JS based on availability -->
+                    </div>
+                </label>
+                <button type="submit" class="enter-btn" id="enter-btn" disabled>
+                    <i data-lucide="door-open"></i> Enter the Courtroom
+                </button>
+                <p id="join-error" class="join-error" style="display:none;"></p>
+            </form>
+            <div id="session-ended-panel" class="session-ended-panel" style="display:none;">
+                <p class="session-ended-note" id="session-ended-note">The court stands adjourned. The official record of this trial is preserved below.</p>
+                <div class="session-ended-actions">
+                    <a class="ghost-btn pdf-btn" id="ended-pdf-link" href="#"><i data-lucide="file-text"></i> Download Official Transcript (PDF)</a>
+                    <a class="ghost-btn" id="ended-md-link" href="#"><i data-lucide="download"></i> Export Markdown (.md)</a>
+                    <a class="ghost-btn report-btn" id="ended-report-link" href="#"><i data-lucide="scan-search"></i> Session Analysis Report</a>
+                    <a class="ghost-btn exit-btn" id="ended-exit-btn" href="/landing/" style="background:var(--color-primary); color:#ffffff; border-color:var(--color-primary); font-weight:600;"><i data-lucide="log-out"></i> Exit Courtroom</a>
+                </div>
+            </div>
+            <p class="join-note">
+                <i data-lucide="info"></i>
+                Live audio and video connect you to the other counsel. Others hear you
+                <strong>only while you hold the Space bar</strong> — or the “Hold to Talk”
+                button — (or keep the mic
+                toggle in your tile on). While holding, your words are transcribed,
+                grammar-corrected by the local LLM, and added to the official transcript — with
+                the audio recording attached.
+            </p>
+        </div>
+    </div>
+
+    <!-- ───────── COURTROOM (shown after joining) ───────── -->
+    <div id="courtroom-root" class="courtroom-root" style="display:none;">
+        <!-- Header bar -->
+        <header class="court-header">
+            <div class="court-title-block">
+                <div class="court-emblem"><i data-lucide="scale"></i></div>
+                <div>
+                    <h1 id="court-case-title">Trial</h1>
+                    <span class="court-meta"><span class="live-dot" aria-hidden="true"></span> Room <strong id="court-room-id">—</strong> · <span id="court-phase-badge" class="phase-pill">Opening</span></span>
+                </div>
+            </div>
+            <div class="court-header-actions">
+                <a class="ghost-btn report-btn" id="session-report-btn" href="/api/court/rooms/PLACEHOLDER/session-report.pdf" title="Download the session analysis report (deception check + face aggregate)" style="display:none;">
+                    <i data-lucide="scan-search"></i><span class="btn-label">Session Report</span>
+                </a>
+                <button class="ghost-btn end-session-btn" id="end-session-btn" title="End the trial session for everyone" aria-label="End session" style="display:none;">
+                    <i data-lucide="power"></i><span class="btn-label">End Session</span>
+                </button>
+                <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
+                    <i data-lucide="moon"></i>
+                </button>
+                <button class="ghost-btn" id="copy-invite-btn" title="Copy invite link" aria-label="Copy invite link">
+                    <i data-lucide="link"></i><span class="btn-label">Invite</span>
+                </button>
+                <a class="ghost-btn" href="/" title="Back to dashboard">
+                    <i data-lucide="layout-dashboard"></i><span class="btn-label">Dashboard</span>
+                </a>
+            </div>
+        </header>
+
+        <main class="court-body">
+            <!-- ─────────── MAIN VIDEO GRID (Google Meet full-viewport) ─────────── -->
+            <div class="court-main">
+                <!-- Video Stage Centerpiece -->
+                <section class="court-stage" aria-label="Participant video gallery">
+                    <!-- Media-path notice -->
+                    <div id="media-notice" class="media-notice" role="status" aria-live="polite" hidden>
+                        <i data-lucide="wifi-off"></i>
+                        <span id="media-notice-text"></span>
+                        <button type="button" id="media-retry-btn" class="media-retry-btn">Retry</button>
+                    </div>
+                    <!-- Google Meet Auto-Layout Video Grid -->
+                    <div id="video-stage" class="video-stage" data-count="0">
+                        <div class="stage-empty">
+                            <i data-lucide="users"></i>
+                            <span>Waiting for the court to assemble…</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Floating Quick Actions Bar (floats directly above bottom bar) -->
+                <div id="quick-actions-bar" class="quick-actions-bar">
+                    <span class="you-are">You are <strong id="you-are-role">—</strong></span>
+                    <div class="quick-actions" id="quick-actions">
+                        <!-- action buttons injected by JS per role -->
+                    </div>
+                </div>
+
+                <!-- Floating Google Meet Bottom Control Bar -->
+                <div id="court-control-bar" class="court-control-bar" role="toolbar" aria-label="Meeting controls">
+                    <!-- Left group: Mic button (46px), Camera button (46px), Push-to-Talk bar -->
+                    <div class="control-group-left">
+                        <button type="button" id="control-mic-btn" class="control-circle-btn" title="Toggle Microphone (or click tile mic)" aria-label="Toggle Microphone">
+                            <i data-lucide="mic"></i>
+                        </button>
+                        <button type="button" id="control-cam-btn" class="control-circle-btn" title="Toggle Camera (or click tile camera)" aria-label="Toggle Camera">
+                            <i data-lucide="video"></i>
+                        </button>
+                        <button type="button" id="push-to-talk-btn" class="push-to-talk-btn control-ptt-pill" title="Hold the SPACE bar (or this button) to talk — the room hears you while you hold, and your words are recorded into the transcript">
+                            <i data-lucide="mic"></i>
+                            <span class="ptt-text">Hold Space to Speak</span>
+                        </button>
+                    </div>
+
+                    <!-- Center group: Statement input pill with Send button -->
+                    <div class="control-group-center">
+                        <form id="statement-form" class="statement-form control-statement-form">
+                            <input type="text" id="statement-input" placeholder="State your argument for the record…" maxlength="500" autocomplete="off">
+                            <button type="submit" class="speak-btn control-send-btn" title="Speak / Submit Statement" aria-label="Submit Statement">
+                                <i data-lucide="send"></i>
+                            </button>
+                        </form>
+                        <p id="dictate-status" class="dictate-status" hidden></p>
+                        <p id="asr-status" class="asr-status" hidden></p>
+                    </div>
+
+                    <!-- Right group (Drawer Toggles): Roster, Transcript, Case Dossier, Facial Analysis, Leave Call -->
+                    <div class="control-group-right">
+                        <button type="button" id="toggle-drawer-roster" class="control-circle-btn" title="Court Roster / Participants" aria-label="Court Roster">
+                            <i data-lucide="users"></i>
+                            <span id="roster-badge" class="control-badge">0</span>
+                        </button>
+                        <button type="button" id="toggle-drawer-transcript" class="control-circle-btn" title="Live Transcript" aria-label="Live Transcript">
+                            <i data-lucide="scroll-text"></i>
+                            <span id="transcript-badge" class="control-badge">0</span>
+                        </button>
+                        <button type="button" id="toggle-drawer-case" class="control-circle-btn" title="Case Dossier & Evidence" aria-label="Case Context">
+                            <i data-lucide="folder-open"></i>
+                        </button>
+                        <button type="button" id="toggle-drawer-face" class="control-circle-btn" title="Witness Face & Expression Analysis (Judge only)" aria-label="Face Analysis" style="display:none;">
+                            <i data-lucide="scan-face"></i>
+                            <span id="face-live-badge" class="control-badge live-badge" style="display:none;">LIVE</span>
+                        </button>
+                        <button type="button" id="leave-call-btn" class="control-leave-btn" title="Leave or Adjourn Session" aria-label="Leave Call">
+                            <i data-lucide="phone-off"></i>
+                            <span id="leave-btn-label">Leave</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─────────── COLLAPSIBLE RIGHT-SIDE DRAWER ─────────── -->
+            <aside id="court-side-drawer" class="court-side-drawer drawer-closed" aria-label="Court Information Drawer">
+                <div class="drawer-header">
+                    <div class="drawer-title-group">
+                        <i id="drawer-icon" data-lucide="scroll-text"></i>
+                        <h2 id="drawer-title">Live Transcript</h2>
+                    </div>
+                    <div class="drawer-header-actions">
+                        <button type="button" id="close-drawer-btn" class="drawer-close-btn" title="Close Drawer" aria-label="Close Drawer">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Drawer navigation tabs -->
+                <div class="drawer-tabs-nav" role="tablist">
+                    <button type="button" class="drawer-tab-btn active" data-tab="transcript" role="tab">
+                        <i data-lucide="scroll-text"></i> Transcript
+                    </button>
+                    <button type="button" class="drawer-tab-btn" data-tab="roster" role="tab">
+                        <i data-lucide="users"></i> Roster (<span id="roster-online">0</span>)
+                    </button>
+                    <button type="button" class="drawer-tab-btn" data-tab="case" id="drawer-tab-nav-case" role="tab">
+                        <i data-lucide="folder-open"></i> Case Context
+                    </button>
+                    <button type="button" class="drawer-tab-btn" data-tab="face" id="drawer-tab-nav-face" role="tab" style="display:none;">
+                        <i data-lucide="scan-face"></i> Chakshu AI
+                    </button>
+                </div>
+
+                <div class="drawer-content" id="drawer-content">
+                    <!-- TAB 1: Live Transcript Panel -->
+                    <section class="drawer-section active-drawer-panel collapsible-panel" id="transcript-panel">
+                        <div class="panel-header">
+                            <button class="rail-toggle" id="transcript-toggle" type="button" aria-expanded="true" aria-controls="transcript-body">
+                                <i data-lucide="scroll-text"></i>
+                                <span class="rail-title">Live Transcript</span>
+                                <span class="rail-sub" id="transcript-count"></span>
+                                <i data-lucide="chevron-down" class="rail-chevron"></i>
+                            </button>
+                            <div class="transcript-actions">
+                                <button class="link-btn transcript-power" id="transcript-power-btn" type="button" aria-pressed="true" title="Turn the live transcript on or off for the whole room (Judge only)" style="display:none;">
+                                    <i data-lucide="toggle-right"></i><span class="btn-label">Transcript On</span>
+                                </button>
+                                <button class="link-btn" id="download-transcript-btn" title="Download transcript as Markdown">
+                                    <i data-lucide="download"></i><span class="btn-label">Export</span>
+                                </button>
+                                <button class="link-btn pdf-btn" id="download-transcript-pdf-btn" title="Download full court transcript as PDF">
+                                    <i data-lucide="file-text"></i><span class="btn-label">Download PDF</span>
+                                </button>
+                                <button class="link-btn report-btn" id="download-report-btn" title="Download the session analysis report — deception check + face aggregate">
+                                    <i data-lucide="scan-search"></i><span class="btn-label">Session Report</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel-collapse" id="transcript-body">
+                            <div id="transcript-off-note" class="transcript-off-note" style="display:none;">
+                                <i data-lucide="eye-off"></i>
+                                <span>The live transcript is turned off by the presiding judge.</span>
+                            </div>
+                            <div id="transcript-feed" class="transcript-feed" aria-live="polite" aria-relevant="additions">
+                                <div class="transcript-empty">
+                                    <img class="transcript-empty-art" src="/assets/talking.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                    <span>The court is in session. Statements will appear here.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 2: Roster Panel -->
+                    <section class="drawer-section collapsible-panel" id="roster-panel">
+                        <div class="rail-head">
+                            <button class="rail-toggle" id="roster-toggle" type="button" aria-expanded="true" aria-controls="roster-body">
+                                <i data-lucide="users"></i>
+                                <span class="rail-title">Participants</span>
+                                <i data-lucide="chevron-down" class="rail-chevron"></i>
+                            </button>
+                        </div>
+                        <div class="panel-collapse" id="roster-body">
+                            <div id="roster-list" class="roster-list">
+                                <!-- participant rows injected here -->
+                            </div>
+                            <p class="rail-hint"><i data-lucide="info"></i> Your mic stays closed until you hold <strong>Space</strong> (or the Hold to Talk button) or switch the tile mic on.</p>
+                        </div>
+                    </section>
+
+                    <!-- TAB 3: Case Context Panel -->
+                    <section class="drawer-section collapsible-panel" id="case-context">
+                        <div class="rail-head">
+                            <button class="rail-toggle" id="context-toggle" type="button" aria-expanded="true" aria-controls="context-body">
+                                <i data-lucide="folder-open"></i>
+                                <span class="rail-title">Case Context</span>
+                                <span class="rail-sub" id="context-head-sub"></span>
+                                <i data-lucide="chevron-down" class="rail-chevron"></i>
+                            </button>
+                            <div class="rail-actions" style="display:flex; gap:4px; align-items:center;">
+                                <button type="button" class="cc-refresh" id="context-switch-btn" title="Link or switch registered case file" aria-label="Link or switch case file">
+                                    <i data-lucide="link"></i>
+                                </button>
+                                <button type="button" class="cc-refresh" id="context-refresh-btn" title="Re-read the case file (new evidence?)" aria-label="Refresh case context" style="display:none;">
+                                    <i data-lucide="refresh-cw"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel-collapse" id="context-body">
+                            <!-- Unlinked state or quick-switch picker -->
+                            <div id="cc-unlinked" class="cc-unlinked-box" style="display:none; padding:10px 12px; background:var(--bg-app); border:1px dashed var(--border-color); border-radius:8px; margin-bottom:8px;">
+                                <p style="margin:0 0 6px 0; font-size:11px; color:var(--text-secondary);"><i data-lucide="folder-plus" style="width:12px; height:12px; vertical-align:middle;"></i> Link a registered case file to this session:</p>
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <select id="cc-link-select" style="flex:1; font-size:11px; padding:4px 6px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);"></select>
+                                    <button type="button" id="cc-link-btn" class="btn btn-sm btn-primary" style="padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer;">Link</button>
+                                </div>
+                            </div>
+                            <div id="cc-linked-details">
+                                <p class="cc-title"><strong id="cc-case-title">—</strong> <span id="cc-case-id" class="cc-id"></span></p>
+                                <p class="cc-line" id="cc-parties"></p>
+                                <div id="cc-evidence" class="cc-evidence"></div>
+                                <p class="cc-line" id="cc-links"></p>
+                                <p class="cc-note"><i data-lucide="info"></i> The court reads every statement against this evidence — anything asserted without support here is flagged in the Session Report.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 4: Phase Controls (Judge only) -->
+                    <section id="phase-controls" class="drawer-section collapsible-panel" style="display:none;">
+                        <div class="rail-head">
+                            <button class="rail-toggle" id="phase-toggle" type="button" aria-expanded="true" aria-controls="phase-body">
+                                <i data-lucide="git-branch"></i>
+                                <span class="rail-title">Trial Phase</span>
+                                <span class="rail-sub" id="phase-head-sub"></span>
+                                <i data-lucide="chevron-down" class="rail-chevron"></i>
+                            </button>
+                        </div>
+                        <div class="panel-collapse" id="phase-body">
+                            <div class="phase-buttons" id="phase-buttons">
+                                <!-- phase buttons injected by JS -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 5: Witness Face & Expression Analysis (Judge only) -->
+                    <section id="face-analysis" class="drawer-section face-analysis collapsible-panel" style="display:none;">
+                        <div class="rail-head">
+                            <button class="rail-toggle" id="face-toggle" type="button" aria-expanded="true" aria-controls="face-body">
+                                <i data-lucide="scan-face"></i>
+                                <span class="rail-title">Face &amp; Expression</span>
+                                <i data-lucide="chevron-down" class="rail-chevron"></i>
+                            </button>
+                            <span id="face-state" class="face-state">Off</span>
+                        </div>
+                        <div class="panel-collapse face-body" id="face-body">
+                            <label class="face-source-field" title="Which camera feed to analyze">
+                                <span>Analyze</span>
+                                <select id="face-source">
+                                    <option value="self">My camera</option>
+                                </select>
+                            </label>
+                            <p id="face-source-status" class="face-source-status" hidden></p>
+                            <div class="face-video-wrap mirror">
+                                <video id="face-video" autoplay playsinline muted></video>
+                                <canvas id="face-overlay"></canvas>
+                                <div id="face-placeholder" class="face-placeholder">
+                                    <i data-lucide="user-round"></i>
+                                    <span>Feed off</span>
+                                </div>
+                            </div>
+                            <div class="face-metrics">
+                                <div class="fm"><span class="fm-label">Emotion</span><strong id="fm-expression">—</strong></div>
+                                <div class="fm"><span class="fm-label">Stress / Tension</span><strong id="fm-stress-val">0% (Calm)</strong></div>
+                                <div class="fm"><span class="fm-label">Lips</span><strong id="fm-lips">—</strong></div>
+                                <div class="fm"><span class="fm-label">Brows</span><strong id="fm-brows">—</strong></div>
+                                <div class="fm"><span class="fm-label">Blinks</span><strong id="fm-blinks">0</strong></div>
+                                <div class="fm"><span class="fm-label">Gaze</span><strong id="fm-gaze">—</strong></div>
+                                <div class="fm"><span class="fm-label">Speaking</span><strong id="fm-speaking">—</strong></div>
+                                <div class="fm"><span class="fm-label">Confidence</span><strong id="fm-confidence">—</strong></div>
+                            </div>
+                            <!-- Real-Time Human Emotion Spectrum -->
+                            <div class="face-emotion-spectrum" id="face-emotion-spectrum">
+                                <div class="fes-header">
+                                    <span class="fes-title"><i data-lucide="sparkles"></i> Emotion Spectrum</span>
+                                    <span class="fes-primary" id="fes-primary-badge">Neutral · 95%</span>
+                                </div>
+                                <div class="fes-bars" id="fes-bars">
+                                    <div class="fes-bar-row" data-emotion="neutral">
+                                        <span class="fes-bar-label">Neutral</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 95%;"></div></div>
+                                        <span class="fes-bar-pct">95%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="joy">
+                                        <span class="fes-bar-label">Joy</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="stress">
+                                        <span class="fes-bar-label">Stress</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="anger">
+                                        <span class="fes-bar-label">Anger</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="fear">
+                                        <span class="fes-bar-label">Fear</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="sadness">
+                                        <span class="fes-bar-label">Sadness</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="surprise">
+                                        <span class="fes-bar-label">Surprise</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="disgust">
+                                        <span class="fes-bar-label">Disgust</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                    <div class="fes-bar-row" data-emotion="skepticism">
+                                        <span class="fes-bar-label">Skepticism</span>
+                                        <div class="fes-bar-track"><div class="fes-bar-fill" style="width: 0%;"></div></div>
+                                        <span class="fes-bar-pct">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="face-gauge">
+                                <div class="face-gauge-track"><div id="face-gauge-fill" class="face-gauge-fill"></div></div>
+                                <div class="face-gauge-readout"><strong id="face-score">0%</strong><span>Tension Index</span></div>
+                            </div>
+                            <div id="face-cues" class="face-cues"></div>
+                            <div class="face-actions">
+                                <button type="button" id="face-camera-btn" class="face-btn"><i data-lucide="video"></i> Enable Camera</button>
+                                <button type="button" id="face-start-btn" class="face-btn primary" disabled><i data-lucide="play"></i> Start Analysis</button>
+                                <button type="button" id="face-stop-btn" class="face-btn danger" disabled><i data-lucide="square"></i> Stop</button>
+                            </div>
+                            <p class="face-note"><i data-lucide="info"></i> Analyzes the selected feed via MediaPipe — your camera or a remote participant's video. Gaze is tracked per eye: a held look to the subject's <strong>own left</strong> is flagged as a construction/deception cue, to their right as recall. Cues count only while the subject is <strong>speaking</strong> (by voice, or by visible mouth movement when the mic is closed) and only when they <strong>persist</strong>; the whole session is aggregated into one summary for the record. Behavioural cues are indicators, not findings.</p>
+                        </div>
+                    </section>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Hidden container holds remote <audio> elements (one per peer) -->
+        <div id="remote-audio-host" class="remote-audio-host" aria-hidden="true"></div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast" style="display:none;"></div>
+    </div>
+
+    <script src="/invite.js"></script>
+    <script src="/courtroom.js"></script>
+    <!-- Google Meet Suite Controller: Syncs drawer, bottom bar, and stage tile enhancements -->
+    <script>
+    (() => {
+        "use strict";
+        const drawer = document.getElementById("court-side-drawer");
+        const drawerTitle = document.getElementById("drawer-title");
+        const drawerIcon = document.getElementById("drawer-icon");
+        const drawerTabBtns = document.querySelectorAll(".drawer-tab-btn");
+        const closeDrawerBtn = document.getElementById("close-drawer-btn");
+
+        const btnRoster = document.getElementById("toggle-drawer-roster");
+        const btnTranscript = document.getElementById("toggle-drawer-transcript");
+        const btnCase = document.getElementById("toggle-drawer-case");
+        const btnFace = document.getElementById("toggle-drawer-face");
+        const btnLeave = document.getElementById("leave-call-btn");
+        const btnControlMic = document.getElementById("control-mic-btn");
+        const btnControlCam = document.getElementById("control-cam-btn");
+        const rosterBadge = document.getElementById("roster-badge");
+        const transcriptBadge = document.getElementById("transcript-badge");
+
+        let currentTab = "transcript";
+
+        const TAB_INFO = {
+            transcript: { title: "Live Transcript", icon: "scroll-text", panelId: "transcript-panel" },
+            roster: { title: "Court Roster", icon: "users", panelId: "roster-panel" },
+            case: { title: "Case Context & Evidence", icon: "folder-open", panelId: "case-context" },
+            face: { title: "Face & Expression Analysis", icon: "scan-face", panelId: "face-analysis" },
+        };
+
+        function openDrawer(tabName) {
+            if (!TAB_INFO[tabName]) return;
+            currentTab = tabName;
+            if (drawer) drawer.classList.remove("drawer-closed");
+
+            if (drawerTitle) drawerTitle.textContent = TAB_INFO[tabName].title;
+            if (drawerIcon) drawerIcon.setAttribute("data-lucide", TAB_INFO[tabName].icon);
+
+            drawerTabBtns.forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.tab === tabName);
+            });
+
+            [btnRoster, btnTranscript, btnCase, btnFace].forEach(b => {
+                if (b) b.classList.remove("active-trigger");
+            });
+            if (tabName === "roster" && btnRoster) btnRoster.classList.add("active-trigger");
+            if (tabName === "transcript" && btnTranscript) btnTranscript.classList.add("active-trigger");
+            if (tabName === "case" && btnCase) btnCase.classList.add("active-trigger");
+            if (tabName === "face" && btnFace) btnFace.classList.add("active-trigger");
+
+            const panels = document.querySelectorAll(".drawer-section");
+            panels.forEach(p => {
+                if (p.id === TAB_INFO[tabName].panelId) {
+                    p.classList.add("active-drawer-panel");
+                    p.classList.remove("collapsed");
+                    const tog = p.querySelector(".rail-toggle");
+                    if (tog) tog.setAttribute("aria-expanded", "true");
+                    const body = p.querySelector(".panel-collapse");
+                    if (body && "inert" in body) body.inert = false;
+                } else {
+                    p.classList.remove("active-drawer-panel");
+                }
+            });
+
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+
+        function closeDrawer() {
+            if (drawer) drawer.classList.add("drawer-closed");
+            [btnRoster, btnTranscript, btnCase, btnFace].forEach(b => {
+                if (b) b.classList.remove("active-trigger");
+            });
+        }
+
+        function toggleDrawer(tabName) {
+            if (!drawer) return;
+            if (drawer.classList.contains("drawer-closed")) {
+                openDrawer(tabName);
+            } else if (currentTab === tabName) {
+                closeDrawer();
+            } else {
+                openDrawer(tabName);
+            }
+        }
+
+        window.__openDrawer = openDrawer;
+        window.__closeDrawer = closeDrawer;
+        window.__toggleDrawer = toggleDrawer;
+
+        if (closeDrawerBtn) closeDrawerBtn.addEventListener("click", closeDrawer);
+        if (btnTranscript) btnTranscript.addEventListener("click", () => toggleDrawer("transcript"));
+        if (btnRoster) btnRoster.addEventListener("click", () => toggleDrawer("roster"));
+        if (btnCase) btnCase.addEventListener("click", () => toggleDrawer("case"));
+        if (btnFace) btnFace.addEventListener("click", () => toggleDrawer("face"));
+
+        drawerTabBtns.forEach(btn => {
+            btn.addEventListener("click", () => openDrawer(btn.dataset.tab));
+        });
+
+        // Bottom bar mic / video proxies
+        if (btnControlMic) {
+            btnControlMic.addEventListener("click", () => {
+                const myMic = document.querySelector(".participant-tile.is-me .tile-mic-btn");
+                if (myMic) myMic.click();
+            });
+        }
+        if (btnControlCam) {
+            btnControlCam.addEventListener("click", () => {
+                const myCam = document.querySelector(".participant-tile.is-me .tile-video-btn");
+                if (myCam) myCam.click();
+            });
+        }
+
+        // Leave / Adjourn
+        if (btnLeave) {
+            btnLeave.addEventListener("click", () => {
+                if (typeof window.__handleLeaveCall === "function") {
+                    window.__handleLeaveCall();
+                } else {
+                    const endSessionBtn = document.getElementById("end-session-btn");
+                    if (endSessionBtn && endSessionBtn.style.display !== "none") {
+                        endSessionBtn.click();
+                    } else if (confirm("Leave the courtroom session?")) {
+                        window.location.href = "/landing/";
+                    }
+                }
+            });
+        }
+
+    })();
+    </script>
+</body>
+</html>

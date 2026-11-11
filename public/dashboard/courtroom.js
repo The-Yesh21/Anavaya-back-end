@@ -1,0 +1,5278 @@
+/* ============================================================
+   Anavaya — Live Courtroom client
+   - WebSocket signaling at /ws/court/{room_id}
+   - WebRTC full-mesh audio (newcomer initiates offers)
+   - Live transcript + structured courtroom actions
+   ============================================================ */
+
+(() => {
+    "use strict";
+
+    // ---- resolve room id from the URL -----------------------------------
+    const pathParts = window.location.pathname.split("/");
+    const ROOM_ID = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+
+    // ---- role metadata (mirrors the backend) ----------------------------
+    const ROLES = [
+        { id: "Judge",        label: "Judge",             tag: "Presides, rules (one only)" },
+        { id: "Defence",      label: "Defence Counsel",   tag: "Defends accused · more than one allowed" },
+        { id: "Prosecution",  label: "Prosecution",       tag: "Argues the case · more than one allowed" },
+        { id: "Witness",      label: "Witness",           tag: "Gives testimony · more than one allowed" },
+    ];
+    const ROLE_ACCENT = {
+        Judge: "#A87E2F",
+        Defence: "#C25606",
+        Prosecution: "#B3402E",
+        Witness: "#8B5C9E",
+        system: "#8B8471",
+    };
+
+    // role-specific quick actions shown in the action bar
+    const QUICK_ACTIONS = {
+        Judge: [
+            { label: "Sustain",        text: "Objection sustained.",            cls: "ruling" },
+            { label: "Overrule",       text: "Objection overruled.",            cls: "ruling" },
+            { label: "Warn witness",   text: "The witness is directed to answer the question.", cls: "ruling" },
+        ],
+        Defence: [
+            { label: "Case Context & Evidence", text: "", cls: "action-context-btn", isContextTrigger: true, icon: "folder-open" },
+            { label: "Object",         text: "Objection — ",                    cls: "objection" },
+            { label: "Examine witness",text: "Witness, please state for the record: ", cls: "" },
+            { label: "No further questions", text: "No further questions, Your Honour.", cls: "" },
+        ],
+        Prosecution: [
+            { label: "Object",         text: "Objection — ",                    cls: "objection" },
+            { label: "Examine witness",text: "Witness, please state for the record: ", cls: "" },
+            { label: "No further questions", text: "No further questions, Your Honour.", cls: "" },
+        ],
+        Witness: [
+            { label: "I don't recall", text: "I do not recall.",                cls: "" },
+            { label: "Affirm",         text: "Yes, that is correct.",           cls: "" },
+        ],
+    };
+
+    // ---- state ----------------------------------------------------------
+    const state = {
+        me: null,                  // { participant_id, name, role, display_role }
+        participants: [],          // roster from server
+        selectedRole: null,
+        ws: null,
+        // The live mic starts CLOSED: participants are heard only while they
+        // hold the Hold to Talk button (or explicitly open the mic with the
+        // roster toggle). Previously the mic track stayed enabled from join,
+        // so the whole room heard every participant continuously.
+        micEnabled: false,
+        videoEnabled: true,
+        // Judge-controlled room-wide live-transcript visibility (default on).
+        transcriptEnabled: true,
+        iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
+        localStream: null,         // local audio + video, shared with every peer + the self-view
+        localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
+        peers: new Map(),          // participant_id -> { pc, audio, videoTrack, status, … }
+        pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
+    };
+
+    // Persistent <video> element per participant (roster tiles rebuild, streams don't).
+    const videoEls = new Map();    // participant_id -> <video>
+
+    // Per-peer live volume, keyed by participant_id. Survives roster rebuilds
+    // and re-offer / reconnect cycles — a slider stays where you left it.
+    const peerVolumes = new Map();  // participant_id -> { gain: GainNode, level: number }
+
+    // Smallest sensible lift for a newly-joined participant whose mic level is
+    // unknown. Quieter-than-usual courtroom mics are common; a small boost makes
+    // them audible without making a loud participant painful.
+    const DEFAULT_PEER_GAIN = 1.4;  // ~ +3 dB; each tile's slider can raise it further.
+
+    // ---- element refs ---------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+    const els = {
+        joinOverlay: $("join-overlay"),
+        joinCaseTitle: $("join-case-title"),
+        joinSubtitle: $("join-subtitle"),
+        joinCountdown: $("join-countdown"),
+        rolePicker: $("role-picker"),
+        joinForm: $("join-form"),
+        joinName: $("join-name"),
+        enterBtn: $("enter-btn"),
+        joinError: $("join-error"),
+        root: $("courtroom-root"),
+        caseTitle: $("court-case-title"),
+        roomId: $("court-room-id"),
+        phaseBadge: $("court-phase-badge"),
+        rosterList: $("roster-list"),
+        rosterOnline: $("roster-online"),
+        videoStage: $("video-stage"),
+        mediaNotice: $("media-notice"),
+        mediaNoticeText: $("media-notice-text"),
+        mediaRetryBtn: $("media-retry-btn"),
+        transcriptCount: $("transcript-count"),
+        contextHeadSub: $("context-head-sub"),
+        phaseHeadSub: $("phase-head-sub"),
+        phaseControls: $("phase-controls"),
+        phaseButtons: $("phase-buttons"),
+        youAreRole: $("you-are-role"),
+        quickActions: $("quick-actions"),
+        statementForm: $("statement-form"),
+        statementInput: $("statement-input"),
+        transcriptFeed: $("transcript-feed"),
+        copyInviteBtn: $("copy-invite-btn"),
+        downloadTranscriptBtn: $("download-transcript-btn"),
+        pushToTalkBtn: $("push-to-talk-btn"),
+        dictateStatus: $("dictate-status"),
+        remoteAudioHost: $("remote-audio-host"),
+        asrStatus: $("asr-status"),
+        toast: $("toast"),
+        endSessionBtn: $("end-session-btn"),
+        sessionEndedPanel: $("session-ended-panel"),
+        endedMdLink: $("ended-md-link"),
+        endedPdfLink: $("ended-pdf-link"),
+        endedReportLink: $("ended-report-link"),
+        sessionReportBtn: $("session-report-btn"),
+        downloadReportBtn: $("download-report-btn"),
+        caseContext: $("case-context"),
+        contextRefreshBtn: $("context-refresh-btn"),
+        contextSwitchBtn: $("context-switch-btn"),
+        ccUnlinked: $("cc-unlinked"),
+        ccLinkSelect: $("cc-link-select"),
+        ccLinkBtn: $("cc-link-btn"),
+        ccLinkedDetails: $("cc-linked-details"),
+        transcriptPowerBtn: $("transcript-power-btn"),
+        transcriptOffNote: $("transcript-off-note"),
+        transcriptPanel: $("transcript-panel"),
+        joinError: $("join-error"),
+    };
+
+    // ====================================================================
+    // INIT
+    // ====================================================================
+    async function init() {
+        lucide.createIcons();
+        await loadRoomPreview();
+        await loadRtcConfig();
+        maybeShowMediaWarning();
+        renderRolePicker();
+        els.joinForm.addEventListener("submit", onJoin);
+        els.statementForm.addEventListener("submit", onStatement);
+        els.copyInviteBtn.addEventListener("click", copyInvite);
+        els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
+        const pdfBtn = document.getElementById("download-transcript-pdf-btn");
+        if (pdfBtn) pdfBtn.addEventListener("click", downloadTranscriptPdf);
+        if (els.downloadReportBtn) els.downloadReportBtn.addEventListener("click", () => {
+            window.location.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
+        });
+        if (els.contextRefreshBtn) els.contextRefreshBtn.addEventListener("click", refreshCaseContext);
+        if (els.contextSwitchBtn) els.contextSwitchBtn.addEventListener("click", toggleCasePicker);
+        if (els.ccLinkBtn) els.ccLinkBtn.addEventListener("click", linkSelectedCase);
+        initCollapsiblePanels();
+        if (els.pushToTalkBtn) initPushToTalk();
+        if (els.endSessionBtn) els.endSessionBtn.addEventListener("click", requestEndSession);
+        const leaveCallBtn = $("leave-call-btn");
+        if (leaveCallBtn) {
+            leaveCallBtn.addEventListener("click", () => {
+                if (typeof window.__handleLeaveCall === "function") {
+                    window.__handleLeaveCall();
+                } else {
+                    requestEndSession();
+                }
+            });
+        }
+        const ctrlMicBtn = $("control-mic-btn");
+        if (ctrlMicBtn) ctrlMicBtn.addEventListener("click", toggleMic);
+        const ctrlCamBtn = $("control-cam-btn");
+        if (ctrlCamBtn) ctrlCamBtn.addEventListener("click", toggleVideo);
+        if (els.mediaRetryBtn) els.mediaRetryBtn.addEventListener("click", () => restartMediaConnections());
+        els.joinName.focus();
+    }
+
+    // Fetch room metadata to show in the join card + disable taken roles.
+    async function loadRoomPreview() {
+        try {
+            const previewUrl = (window.AnavayaNode && typeof window.AnavayaNode.apiUrl === "function")
+                ? window.AnavayaNode.apiUrl(`/api/court/rooms/${ROOM_ID}`)
+                : `/api/court/rooms/${ROOM_ID}`;
+            const res = await fetch(previewUrl);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    els.joinCaseTitle.textContent = "Room not found";
+                    els.joinSubtitle.textContent = "This trial does not exist. Check your invite link.";
+                    els.enterBtn.disabled = true;
+                }
+                return;
+            }
+            const room = await res.json();
+            els.joinCaseTitle.textContent = room.case_title;
+            els.caseTitle.textContent = room.case_title;
+            els.roomId.textContent = room.room_id;
+            els.phaseBadge.textContent = room.phase;
+            state.participants = room.participants;
+            renderCaseContext(room.case_context);
+            setReportButtons(room.status);
+            // A room the Judge already adjourned cannot be joined again —
+            // show the ended card with the record download links instead.
+            if (room.status === "ended") {
+                showEndedJoinCard(room);
+            }
+            // Seed any existing transcript so a late joiner sees history.
+            renderTranscript(room.transcript);
+        } catch (e) {
+            console.error("Failed to load room preview:", e);
+            if (window.AnavayaNode && typeof window.AnavayaNode.showStandbyModal === "function") {
+                window.AnavayaNode.showStandbyModal("Live Virtual Courtroom (WebRTC Mesh & Whisper GPU)");
+            }
+        }
+    }
+
+    // ====================================================================
+    // CASE CONTEXT (linked case: parties, evidence, links)
+    // ====================================================================
+    async function populateCourtroomCaseSelect(selectedCaseId = "") {
+        const sel = document.getElementById("cc-link-select");
+        if (!sel) return;
+        try {
+            const res = await fetch("/api/case-registry");
+            if (!res.ok) return;
+            const cases = await res.json();
+            sel.innerHTML = '<option value="">Select registered case…</option>';
+            for (const c of cases) {
+                const opt = document.createElement("option");
+                opt.value = c.case_id;
+                opt.textContent = `${c.case_id} — ${c.title} (${c.document_count} doc${c.document_count === 1 ? "" : "s"})`;
+                if (selectedCaseId && c.case_id === selectedCaseId) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        } catch (e) {
+            console.warn("Could not fetch case registry for courtroom link select:", e);
+        }
+    }
+
+    async function linkSelectedCase() {
+        const sel = document.getElementById("cc-link-select");
+        const btn = document.getElementById("cc-link-btn");
+        if (!sel || !sel.value) {
+            toast("Please select a registered case from the dropdown.");
+            return;
+        }
+        const caseId = sel.value;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "Linking…";
+        }
+        try {
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/link-case`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ case_id: caseId }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: res.statusText }));
+                throw new Error(err.detail || "Failed to link case.");
+            }
+            const data = await res.json();
+            renderCaseContext(data.case_context);
+            if (els.caseTitle && data.case_title) {
+                els.caseTitle.textContent = data.case_title;
+            }
+            toast(`Linked to case ${caseId}.`);
+        } catch (e) {
+            toast("Error linking case: " + e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = "Link";
+            }
+        }
+    }
+
+    function toggleCasePicker() {
+        const unlinkedEl = document.getElementById("cc-unlinked");
+        if (!unlinkedEl) return;
+        const isHidden = unlinkedEl.style.display === "none";
+        unlinkedEl.style.display = isHidden ? "" : "none";
+        if (isHidden) {
+            populateCourtroomCaseSelect();
+        }
+    }
+
+    function renderCaseContext(ctx) {
+        if (!els.caseContext) return;
+        els.caseContext.style.display = "";
+        const unlinkedEl = document.getElementById("cc-unlinked");
+        const linkedDetails = document.getElementById("cc-linked-details");
+
+        if (!ctx || !ctx.case_id) {
+            if (unlinkedEl) unlinkedEl.style.display = "";
+            if (linkedDetails) linkedDetails.style.display = "none";
+            if (els.contextRefreshBtn) els.contextRefreshBtn.style.display = "none";
+            if (els.contextHeadSub) els.contextHeadSub.textContent = "No linked case";
+            populateCourtroomCaseSelect();
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            return;
+        }
+
+        if (unlinkedEl) unlinkedEl.style.display = "none";
+        if (linkedDetails) linkedDetails.style.display = "";
+
+        const titleEl = document.getElementById("cc-case-title");
+        const idEl = document.getElementById("cc-case-id");
+        const partiesEl = document.getElementById("cc-parties");
+        const evidenceEl = document.getElementById("cc-evidence");
+        const linksEl = document.getElementById("cc-links");
+        if (titleEl) titleEl.textContent = ctx.title || "Case";
+        if (idEl) idEl.textContent = ctx.case_id || "";
+        const prio = ctx.case_level_priority
+            ? ` · whole-case priority ${ctx.case_level_priority}`
+            : (ctx.aggregate_priority
+                ? ` · aggregate priority ${ctx.aggregate_priority}` : "");
+        if (partiesEl) {
+            const parties = ctx.parties && ctx.parties.length
+                ? ctx.parties.join(", ") : "No parties extracted yet";
+            partiesEl.innerHTML = `<strong>Parties:</strong> ${escapeHtml(parties)}${prio}`;
+        }
+        if (els.contextHeadSub) {
+            const evCount = (ctx.evidence || []).length;
+            els.contextHeadSub.textContent = evCount
+                ? `${ctx.case_id} · ${evCount} evidence`
+                : ctx.case_id;
+        }
+        if (evidenceEl) {
+            const evs = ctx.evidence || [];
+            evidenceEl.innerHTML = evs.length
+                ? evs.map((ev) => `
+                    <div class="cc-ev">
+                        <span class="cc-ev-name"><i data-lucide="file-text"></i> ${escapeHtml(ev.filename)}</span>
+                        <span class="cc-ev-type">${escapeHtml(ev.doc_type || "")}</span>
+                        <span class="cc-ev-prio ${escapeHtml((ev.priority || "none").toLowerCase())}">${escapeHtml(ev.priority || "not analysed")}</span>
+                        ${ev.summary ? `<p class="cc-ev-sum">${escapeHtml(ev.summary)}</p>` : ""}
+                    </div>`).join("")
+                : '<p class="cc-line">No evidence documents attached to this case yet.</p>';
+        }
+        if (linksEl) {
+            linksEl.innerHTML = ctx.evidence_links
+                ? `<strong>Evidence links:</strong> ${escapeHtml(ctx.evidence_links)}`
+                : "";
+        }
+        if (els.contextRefreshBtn) els.contextRefreshBtn.style.display = "";
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    async function refreshCaseContext() {
+        try {
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/refresh-context`, { method: "POST" });
+            if (!res.ok) throw new Error(res.statusText);
+            const ctx = await res.json();
+            renderCaseContext(ctx);
+            toast("Case context refreshed from the case file.");
+        } catch (e) {
+            toast("Could not refresh the case context.");
+        }
+    }
+
+    function setReportButtons(roomStatus) {
+        // The session analysis report is available as soon as the room exists;
+        // before joining it lives in the header (hidden until the court page).
+        if (els.sessionReportBtn) {
+            els.sessionReportBtn.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
+            els.sessionReportBtn.style.display = "";
+        }
+        if (els.downloadReportBtn) els.downloadReportBtn.style.display = "";
+        if (roomStatus === "ended" && els.sessionReportBtn) {
+            els.sessionReportBtn.style.display = "none"; // ended card has its own link
+        }
+    }
+
+    // ====================================================================
+    // JOIN
+    // ====================================================================
+    function renderRolePicker() {
+        const taken = new Set(state.participants.map((p) => p.role));
+        els.rolePicker.innerHTML = "";
+        for (const role of ROLES) {
+            // Only the Judge is exclusive. Counsel (Defence/Prosecution) and
+            // Witnesses may repeat — a second counsel on a side or another
+            // witness must always be able to join, so the join screen can never
+            // block a member because every role looks filled.
+            const isTaken = role.id === "Judge" && taken.has("Judge");
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "role-btn";
+            btn.dataset.role = role.id;
+            btn.disabled = isTaken;
+            btn.innerHTML = `
+                <span class="role-name">${role.label}</span>
+                <span class="role-tag">${role.tag}</span>
+                ${isTaken ? '<span class="role-taken">Already taken</span>' : ""}
+            `;
+            btn.addEventListener("click", () => selectRole(role.id, btn));
+            els.rolePicker.appendChild(btn);
+        }
+    }
+
+    function selectRole(roleId, btn) {
+        state.selectedRole = roleId;
+        els.rolePicker.querySelectorAll(".role-btn").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        validateJoin();
+    }
+
+    function validateJoin() {
+        const ok = els.joinName.value.trim().length > 0 && state.selectedRole;
+        els.enterBtn.disabled = !ok;
+    }
+    els.joinName.addEventListener("input", validateJoin);
+
+    async function onJoin(e) {
+        e.preventDefault();
+        hideJoinError();
+        const name = els.joinName.value.trim();
+        if (!name || !state.selectedRole) return;
+
+        els.enterBtn.disabled = true;
+        els.enterBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Connecting…';
+        lucide.createIcons();
+        startJoinCountdown();
+
+        await connectWebSocket(name, state.selectedRole);
+    }
+
+    // ====================================================================
+    // PRE-ENTRY COUNTDOWN
+    // ====================================================================
+    // The join card plays assets/courtroom-countdown.json (vendored lottie-web)
+    // while the WebSocket/WebRTC handshake completes, then the courtroom is
+    // revealed — the "taking your seat" moment before the trial opens. Purely
+    // cosmetic: if lottie or the JSON is unavailable the join proceeds as before.
+    const COUNTDOWN_MIN_MS = 1600;   // long enough for the animation to register
+    const COUNTDOWN_SPEED = 2.6;     // ~9.6s of animation at 60fps -> ~3.7s
+    let countdownStartedAt = 0;
+
+    function startJoinCountdown() {
+        const host = els.joinCountdown;
+        if (!host) return;
+        countdownStartedAt = Date.now();
+        host.hidden = false;
+        if (!host.__anim && window.lottie) {
+            try {
+                host.__anim = window.lottie.loadAnimation({
+                    container: host,
+                    renderer: "svg",
+                    loop: true,
+                    autoplay: true,
+                    path: "/assets/courtroom-countdown.json",
+                });
+                host.__anim.setSpeed(COUNTDOWN_SPEED);
+            } catch (err) {
+                // Decorative only — never block a join on the animation.
+                console.warn("Countdown animation unavailable:", err);
+            }
+        } else if (host.__anim) {
+            try { host.__anim.goToAndPlay(0, true); } catch (_) {}
+        }
+    }
+
+    function stopJoinCountdown() {
+        countdownStartedAt = 0;
+        const host = els.joinCountdown;
+        if (!host) return;
+        host.hidden = true;
+        if (host.__anim) { try { host.__anim.pause(); } catch (_) {} }
+    }
+
+    function countdownRemainingMs() {
+        if (!countdownStartedAt) return 0;
+        return Math.max(0, COUNTDOWN_MIN_MS - (Date.now() - countdownStartedAt));
+    }
+
+    // ====================================================================
+    // WEBSOCKET
+    // ====================================================================
+    async function connectWebSocket(name, role) {
+        const wsUrl = (window.AnavayaNode && typeof window.AnavayaNode.wsUrl === "function")
+            ? window.AnavayaNode.wsUrl(`/ws/court/${ROOM_ID}`)
+            : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/court/${ROOM_ID}`;
+        state.ws = new WebSocket(wsUrl);
+
+        state.ws.onopen = async () => {
+            state.ws.send(JSON.stringify({ type: "join", name, role }));
+            // Kick off the local mic so it's ready when we start making offers.
+            await ensureLocalStream();
+        };
+
+        state.ws.onmessage = async (event) => {
+            const msg = JSON.parse(event.data);
+            await handleMessage(msg);
+        };
+
+        state.ws.onclose = () => {
+            // If we never made it into the room, surface a friendly error.
+            if (!state.me) {
+                showJoinError("Could not reach the courtroom server. Hardware node may be in standby.");
+                if (window.AnavayaNode && typeof window.AnavayaNode.showStandbyModal === "function") {
+                    window.AnavayaNode.showStandbyModal("Live Virtual Courtroom (WebRTC Mesh & Whisper GPU)");
+                }
+                els.enterBtn.disabled = false;
+                els.enterBtn.innerHTML = '<i data-lucide="door-open"></i> Enter the Courtroom';
+                lucide.createIcons();
+            }
+        };
+
+        state.ws.onerror = (e) => console.error("WebSocket error:", e);
+    }
+
+    async function handleMessage(msg) {
+        switch (msg.type) {
+            case "room_state": {
+                // First message after a successful join.
+                state.me = msg.me;
+                state.participants = msg.room.participants;
+                enterCourtroom();
+                renderCourt();
+                renderTranscript(msg.room.transcript);
+                applyTranscriptState(msg.room.transcript_enabled !== false);
+                renderPhase(msg.room.phase);
+                renderQuickActions();
+                renderCaseContext(msg.room.case_context);
+                setReportButtons(msg.room.status);
+                // Offer to every existing participant (newcomer initiates).
+                for (const p of state.participants) {
+                    if (p.participant_id !== state.me.participant_id) {
+                        state.pendingOfferTargets.add(p.participant_id);
+                    }
+                }
+                drainPendingOffers();
+                toast(`Joined as ${state.me.display_role}`);
+                break;
+            }
+            case "participant_joined": {
+                state.participants.push(msg.participant);
+                renderCourt();
+                appendTranscript(msg.transcript_entry);
+                // The NEW participant initiates the offer; existing peers just
+                // wait for it. So here we do NOT initiate — we only prepare an
+                // RTCPeerConnection entry when the offer arrives.
+                break;
+            }
+            case "participant_left": {
+                state.participants = msg.room.participants;
+                closePeer(msg.participant_id);
+                renderCourt();
+                // The leave system-entry was already broadcast + persisted.
+                if (msg.room.transcript && msg.room.transcript.length) {
+                    renderTranscript(msg.room.transcript);
+                }
+                break;
+            }
+            case "sdp_offer": {
+                await onRemoteOffer(msg.from_participant_id, msg.data);
+                break;
+            }
+            case "sdp_answer": {
+                await onRemoteAnswer(msg.from_participant_id, msg.data);
+                break;
+            }
+            case "ice_candidate": {
+                await onRemoteIce(msg.from_participant_id, msg.data);
+                break;
+            }
+            case "transcript_entry": {
+                // replaces_entry_id is set when the server folded this segment into
+                // the speaker's previous statement: same entry, completed sentence.
+                appendTranscript(msg.entry, true, msg.replaces_entry_id || "");
+                break;
+            }
+            case "phase_changed": {
+                renderPhase(msg.phase);
+                appendTranscript(msg.transcript_entry);
+                break;
+            }
+            case "transcript_state": {
+                // The judge turned the live transcript on/off for the room.
+                applyTranscriptState(msg.enabled);
+                if (msg.transcript_entry) appendTranscript(msg.transcript_entry);
+                toast(msg.enabled ? "Live transcript turned on." : "Live transcript turned off.");
+                break;
+            }
+            case "case_context_updated": {
+                renderCaseContext(msg.case_context);
+                if (msg.case_title && els.caseTitle) {
+                    els.caseTitle.textContent = msg.case_title;
+                }
+                if (msg.transcript_entry) appendTranscript(msg.transcript_entry);
+                toast(`Courtroom linked to ${msg.case_id || 'case file'}.`);
+                break;
+            }
+            case "session_ended": {
+                // The Judge adjourned the trial — everyone is returned to the
+                // join card with the record preserved for download.
+                handleSessionEnded(msg.room);
+                break;
+            }
+            case "error": {
+                console.warn("Server error:", msg.detail);
+                // If the join was rejected (e.g. role taken), bounce back to overlay.
+                if (!state.me && (msg.detail.includes("already taken") || msg.detail.includes("has ended"))) {
+                    showJoinError(msg.detail + (msg.detail.includes("already taken") ? " Please pick another role." : ""));
+                    try { state.ws.close(); } catch (_) {}
+                    // Ended sessions stay closed; role-taken rooms re-enable on pick.
+                    els.enterBtn.disabled = msg.detail.includes("has ended");
+                    els.enterBtn.innerHTML = '<i data-lucide="door-open"></i> Enter the Courtroom';
+                    lucide.createIcons();
+                    // refresh role availability
+                    await loadRoomPreview();
+                    renderRolePicker();
+                } else {
+                    toast(msg.detail);
+                }
+                break;
+            }
+        }
+    }
+
+    // ====================================================================
+    // WEBRTC MESH
+    // ====================================================================
+    const RTC_CONFIG = {
+        turnConfigured: false,   // server advertises a relay (set by loadRtcConfig)
+        relaySeen: false,        // a relay candidate was actually gathered (see onicecandidate)
+        iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" },
+        ],
+    };
+
+    // Merge the STUN defaults with TURN relays from the server. Preferred
+    // source is /api/court/turn-credentials, which mints short-lived
+    // per-session credentials (Cloudflare Realtime TURN) server-side — the
+    // long-term secret never reaches the browser. When that is not configured
+    // we fall back to /api/court/rtc-config's static relays, and finally to
+    // STUN-only. TURN is what lets remote participants on other networks /
+    // mobile data actually connect: carriers and many ISPs use symmetric NAT
+    // (CGNAT), which STUN hole-punching cannot traverse — media then has to
+    // relay. Runs before any RTCPeerConnection is created, so every
+    // offer/answer carries the relays.
+    async function loadRtcConfig() {
+        // 1) Dynamic short-lived credentials (Cloudflare) — freshest source.
+        try {
+            const res = await fetch("/api/court/turn-credentials", { cache: "no-store" });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.enabled && Array.isArray(data.iceServers) && data.iceServers.length) {
+                    RTC_CONFIG.iceServers.push(...data.iceServers.filter((s) => s && typeof s === "object"));
+                    RTC_CONFIG.turnConfigured = true;
+                    return; // dynamic creds are sufficient on their own
+                }
+            }
+        } catch (_) {
+            // Fall through to the static config.
+        }
+        // 2) Static relays (env var / courtroom_turn.json) as fallback.
+        try {
+            const res = await fetch("/api/court/rtc-config", { cache: "no-store" });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!Array.isArray(data.iceServers)) return;
+            const seen = new Set(RTC_CONFIG.iceServers.map((s) => JSON.stringify(s)));
+            for (const s of data.iceServers) {
+                if (!s || typeof s !== "object") continue;
+                const key = JSON.stringify(s);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                RTC_CONFIG.iceServers.push(s);
+                // A relay is only useful if it can actually allocate; recording
+                // that the server configured one lets the media notice tell the
+                // user to retry instead of blaming their network.
+                if (key.includes("turn")) RTC_CONFIG.turnConfigured = true;
+            }
+        } catch (_) {
+            // Non-fatal: without a TURN relay the mesh still works for peers
+            // that can connect directly (same network / open NATs).
+        }
+    }
+
+    async function ensureLocalStream() {
+        if (state.localStream) return state.localStream;
+        // Collapse concurrent requests (join-time + a Hold to Talk press in the
+        // same moment) into ONE getUserMedia call. Without this, two pending
+        // requests race on the permission prompt and can each resume into a
+        // half-set-up state — e.g. a recording that starts with nobody holding.
+        if (state.localStreamPromise) return state.localStreamPromise;
+        state.localStreamPromise = acquireLocalStream();
+        try {
+            return await state.localStreamPromise;
+        } finally {
+            state.localStreamPromise = null;
+        }
+    }
+
+    async function acquireLocalStream() {
+        if (state.localStream) return state.localStream;
+        if (mediaUnavailableReason()) {
+            reportMicFailure(null, "Microphone unavailable on this connection.");
+            state.micEnabled = false;
+            showMicFallback();
+            return null;
+        }
+        try {
+            state.localStream = await navigator.mediaDevices.getUserMedia({
+                // Explicit device constraints: with `audio: true` some
+                // Chromium builds (Bluetooth/AGC quirks) start WITHOUT echo
+                // cancellation, so the first speaker's voice loops back to
+                // them as an echo. These are defaults for every browser that
+                // supports them and are ignored where unsupported.
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+                video: {
+                    width: { ideal: 640, max: 960 },
+                    height: { ideal: 360, max: 540 },
+                    frameRate: { ideal: 24, max: 30 }
+                },
+            });
+        } catch (e) {
+            console.warn("Camera+microphone access denied or unavailable. Falling back to audio-only.", e);
+            state.localStream = null;
+            try {
+                state.localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                });
+            } catch (e2) {
+                console.warn("Microphone access denied too. Audio will be disabled.", e2);
+                state.localStream = null;
+                state.micEnabled = false;
+                reportMicFailure(e2, "Microphone unavailable — you can still participate via text.");
+                showMicFallback();
+            }
+        }
+        attachSelfVideo();
+        // Enforce muted mic on entry — audio tracks are silenced immediately:
+        if (state.localStream) {
+            state.localStream.getAudioTracks().forEach((t) => {
+                try { t.enabled = false; } catch (_) {}
+            });
+        }
+        state.micEnabled = false;
+        applyMicGate();
+        if (state.me) {
+            renderCourt();
+            // Stream resolved after peers were already negotiated → send tracks now.
+            drainPendingOffers();
+            await assertMicOnPeers();
+        }
+        return state.localStream;
+    }
+
+    // ====================================================================
+    // MIC ROUTING — keeping the room able to HEAR us
+    // ====================================================================
+    // Hold to Talk does two independent things: it opens the local mic gate
+    // (the recorder gets audio → the transcript) and it must make sure our
+    // audio track is attached to every peer connection (the room hears us).
+    // The second half used to break silently, so a participant would speak,
+    // see their words transcribed, and be inaudible to some or all of the
+    // room. Three ways that happened:
+    //   1. the track upgrade ran while another offer/answer was in flight
+    //      (signalling glare — common when several people join together), and
+    //      it simply returned with no retry, so the offer never carried audio;
+    //   2. a re-negotiation carried a *different* track object than the one in
+    //      state.localStream (mic re-acquired / stream swapped), so the gate
+    //      opened a track nobody was sending;
+    //   3. Hold to Talk had to fetch a dedicated audio stream (join-time mic
+    //      prompt dismissed), which was recorded and transcribed but never
+    //      attached to any peer at all.
+    // syncTracksToPeer() now covers all three: it swaps a stale track in place
+    // (no renegotiation), adds missing tracks, and DEFERS instead of dropping
+    // when signalling is busy — flushPendingTrackSyncs() retries the moment the
+    // connection settles.
+    const trackSyncPending = new Set();   // pids whose mic still needs (re)sending
+
+    // The m-line that carries this kind on a peer connection, whether or not its
+    // sender currently holds a track. Found through the *receiver* (the
+    // receiver's track kind is the m-line's kind), so a sender emptied by
+    // replaceTrack(null) is still found and can be refilled in place — calling
+    // addTrack() there would create a SECOND m-line of that kind, which browsers
+    // reject with "the order of m-lines doesn't match".
+    function transceiverFor(pc, kind) {
+        try {
+            return pc.getTransceivers().find((t) => {
+                const received = t.receiver && t.receiver.track && t.receiver.track.kind;
+                const sent = t.sender && t.sender.track && t.sender.track.kind;
+                return received === kind || sent === kind;
+            }) || null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    // Is our mic actually part of the NEGOTIATED session with this peer? A
+    // sender that exists locally is not enough: addTrack() on a not-yet-
+    // negotiated transceiver, or an offer that glare rolled back, leaves a
+    // sender that is attached but never carried in the SDP — audio silently
+    // dropped while everything locally still looks fine.
+    //   sending     → in the SDP and we are allowed to send
+    //   negotiating → sender exists but its m-line isn't agreed yet
+    //   absent      → no audio sender at all
+    function micRouteState(pc) {
+        try {
+            const tx = transceiverFor(pc, "audio");
+            if (!tx || !tx.sender.track) return "absent";
+            if (tx.mid === null || !tx.currentDirection) return "negotiating";
+            return String(tx.currentDirection).includes("send") ? "sending" : "absent";
+        } catch (_) {
+            return "negotiating";
+        }
+    }
+
+    // ---- media-path health ---------------------------------------------
+    // A peer connection that never establishes (or drops) used to look like an
+    // ordinary blank tile: the participant's video simply stayed on the avatar
+    // with nothing to explain it. That is indistinguishable from a broken feed,
+    // and it is what a remote participant sees when the two browsers share no
+    // reachable path (different networks / CGNAT with no TURN relay available).
+    // Every peer now carries a status, surfaced on its tile + in a room-level
+    // notice, and a failed connection is retried with an ICE restart.
+    const MEDIA_MAX_ICE_RESTARTS = 3;
+    // A peer that gathers no usable candidates (the classic "the other network
+    // is unreachable and there is no working relay" case) does not fail on its
+    // own — Chrome just sits there. Past this long, say so on the tile/notice
+    // rather than showing a blank feed with no explanation.
+    const MEDIA_CONNECT_TIMEOUT_MS = 15000;
+
+    function peerStatusOf(entry) {
+        if (!entry || !entry.pc) return "closed";
+        const pc = entry.pc;
+        const ice = pc.iceConnectionState;
+        const conn = pc.connectionState;
+        if (conn === "closed" || ice === "closed") return "closed";
+        if (conn === "failed" || ice === "failed") return "failed";
+        if (conn === "connected" || conn === "completed"
+            || ice === "connected" || ice === "completed") return "connected";
+        // Still negotiating. "disconnected" is usually transient (ICE probing),
+        // so both it and a stalled "new" only become a failure on timeout.
+        if (entry.timedOut) return "failed";
+        return "connecting";
+    }
+
+    // Reflect one peer's status onto its stage tile. The tile is rebuilt by
+    // renderStage(), so this is called both on state changes and after a
+    // rebuild.
+    function applyPeerStatusUi(remotePid, tileEl = null) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const status = peerStatusOf(entry);
+        entry.status = status;
+        const tile = tileEl || document.querySelector(`.stage-tile[data-pid="${remotePid}"]`);
+        if (tile) {
+            const isRetrying = (entry.iceRestartAttempts || 0) > 0 || !!entry.restartTimer;
+            const isConnecting = status === "connecting";
+            tile.classList.toggle("conn-connecting", isConnecting || (status === "failed" && isRetrying));
+            tile.classList.toggle("conn-failed", status === "failed" && !isRetrying);
+            const chip = tile.querySelector(".stage-conn");
+            if (chip) {
+                if (status === "failed") {
+                    chip.textContent = isRetrying ? "Reconnecting…" : "Not connected";
+                } else if (status === "connecting") {
+                    chip.textContent = isRetrying ? "Reconnecting…" : "Connecting…";
+                } else {
+                    chip.textContent = "";
+                }
+            }
+        }
+        updateMediaNotice();
+    }
+
+    let mediaNoticeTimer = null;
+
+    // Room-level banner: names the participants we cannot reach and, when the
+    // server has no relay configured, says why — so "blank tile" stops being
+    // silent. Only shows the notice if a peer has been in failed state for at
+    // least 8 seconds. If retrying or connecting, shows friendly reconnecting status
+    // without alarming the user.
+    function updateMediaNotice() {
+        if (!els.mediaNotice) return 0;
+        const now = Date.now();
+        const failed = [];
+        const reconnecting = [];
+        let minWait = Infinity;
+
+        for (const [pid, entry] of state.peers) {
+            const status = peerStatusOf(entry);
+            if (status === "failed") {
+                if (!entry.failedSince) {
+                    entry.failedSince = now;
+                }
+                const elapsed = now - entry.failedSince;
+                const isRetrying = (entry.iceRestartAttempts || 0) > 0 || !!entry.restartTimer;
+                const p = state.participants.find((x) => x.participant_id === pid);
+                const name = (p && p.name) || "a participant";
+
+                if (elapsed >= 8000 && !isRetrying) {
+                    failed.push(name);
+                } else {
+                    reconnecting.push(name);
+                    if (elapsed < 8000) {
+                        minWait = Math.min(minWait, 8000 - elapsed);
+                    }
+                }
+            } else {
+                entry.failedSince = null;
+                if (status === "connecting") {
+                    const isRetrying = (entry.iceRestartAttempts || 0) > 0 || !!entry.restartTimer;
+                    if (isRetrying) {
+                        const p = state.participants.find((x) => x.participant_id === pid);
+                        reconnecting.push((p && p.name) || "a participant");
+                    }
+                }
+            }
+        }
+
+        if (mediaNoticeTimer) {
+            clearTimeout(mediaNoticeTimer);
+            mediaNoticeTimer = null;
+        }
+        if (minWait < Infinity) {
+            mediaNoticeTimer = setTimeout(() => {
+                mediaNoticeTimer = null;
+                updateMediaNotice();
+            }, Math.max(minWait, 100));
+        }
+
+        // Only show the notice if a peer has been in failed state for at least 8 seconds
+        if (failed.length) {
+            const names = failed.length <= 2
+                ? failed.join(", ")
+                : `${failed.slice(0, 2).join(", ")} +${failed.length - 2} more`;
+            let text = `No media connection with ${names} — their video and voice can't reach you.`;
+            if (RTC_CONFIG.relaySeen) {
+                text += " Retrying through the relay; you can also try again.";
+            } else if (RTC_CONFIG.turnConfigured) {
+                // A relay is configured but never produced a relay candidate, so the
+                // two sides share no reachable path and the relay isn't the way out.
+                text += " The configured TURN relay isn't answering, so a participant on another network or mobile data can't connect — retry, use the same network, or check the relay credentials.";
+            } else {
+                text += " This room has no TURN relay, so participants on a different network or mobile data can't connect — use the same network, or configure one in case_priority_system/courtroom_turn.json.";
+            }
+            els.mediaNoticeText.textContent = text;
+            if (els.mediaRetryBtn) els.mediaRetryBtn.style.display = "";
+            els.mediaNotice.hidden = false;
+            return failed.length;
+        }
+
+        // If retrying or connecting, show friendly reconnecting status without alarming the user
+        if (reconnecting.length) {
+            const names = reconnecting.length <= 2
+                ? reconnecting.join(", ")
+                : `${reconnecting.slice(0, 2).join(", ")} +${reconnecting.length - 2} more`;
+            els.mediaNoticeText.textContent = `Reconnecting with ${names}…`;
+            if (els.mediaRetryBtn) els.mediaRetryBtn.style.display = "none";
+            els.mediaNotice.hidden = false;
+            return 0;
+        }
+
+        els.mediaNotice.hidden = true;
+        return 0;
+    }
+
+    // Re-negotiate a peer's ICE: the usual cure for a path that went stale (the
+    // network changed, a NAT binding expired, a relay was added). Serialized
+    // through negotiateWith() like every other SDP change, so it can't race
+    // with a track sync or an offer/answer exchange.
+    function scheduleIceRestart(remotePid, delay = 0) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || state.iEnded) return;
+        const attempts = entry.iceRestartAttempts || 0;
+        if (attempts >= MEDIA_MAX_ICE_RESTARTS) return;
+        if (entry.restartTimer) return;                     // already queued
+        entry.iceRestartAttempts = attempts + 1;
+        entry.restartTimer = setTimeout(async () => {
+            entry.restartTimer = null;
+            if (state.peers.get(remotePid) !== entry) return;
+            if (peerStatusOf(entry) === "connected") return;   // recovered on its own
+            if (!state.localStream) return;                    // nothing to send yet
+            await negotiateWith(remotePid, { iceRestart: true });
+        }, delay);
+    }
+
+    // "Retry" in the media notice: forget the backoff and re-attempt every
+    // unreachable peer right now (the user usually fixes the network first).
+    function restartMediaConnections() {
+        let n = 0;
+        for (const [pid, entry] of state.peers) {
+            if (peerStatusOf(entry) === "failed") {
+                entry.iceRestartAttempts = 0;
+                entry.timedOut = false;   // give the retry a fresh window
+                entry.failedSince = Date.now();
+                if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+                scheduleIceRestart(pid);
+                n++;
+            }
+        }
+        if (n) toast(`Retrying the media connection for ${n} participant${n === 1 ? "" : "s"}…`);
+        updateMediaNotice();
+        return n;
+    }
+
+    // Make one peer connection send our current audio (+ video). Returns true
+    // once the mic carried by this connection is negotiated out (or an offer
+    // carrying it just went out), false when the attempt had to wait for an
+    // in-flight renegotiation.
+    async function syncTracksToPeer(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || !state.localStream) return false;
+        const pc = entry.pc;
+        if (pc.connectionState === "closed" || pc.connectionState === "failed") return false;
+
+        await attachLocalTracks(remotePid);
+        if (micRouteState(pc) === "sending") {
+            trackSyncPending.delete(remotePid);
+            entry.trackSyncAttempts = 0;
+            return true;
+        }
+        // Not audible yet: the SDP has to change (direction was receive-only, or
+        // the m-line was never negotiated). One serialized offer per peer.
+        const attempts = (entry.trackSyncAttempts || 0) + 1;
+        entry.trackSyncAttempts = attempts;
+        if (attempts > 6) {
+            console.error(`Could not route the microphone to ${remotePid} after ${attempts} attempts`);
+            trackSyncPending.delete(remotePid);
+            return false;
+        }
+        trackSyncPending.add(remotePid);
+        return await negotiateWith(remotePid);
+    }
+
+    // Attach our current local tracks to a connection's audio/video m-lines.
+    // replaceTrack() refills an existing sender without touching the SDP, so a
+    // re-acquired mic (or a swapped camera) becomes live immediately; creating a
+    // transceiver is only the fallback when the kind has no m-line at all.
+    // Returns true when the description must be renegotiated.
+    async function attachLocalTracks(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry || !state.localStream) return false;
+        const pc = entry.pc;
+        let needsSignaling = false;
+        for (const track of state.localStream.getTracks()) {
+            const tx = transceiverFor(pc, track.kind);
+            if (!tx) {
+                try {
+                    pc.addTransceiver(track, { direction: "sendrecv", streams: [state.localStream] });
+                    needsSignaling = true;
+                } catch (e) {
+                    console.warn(`Could not create a ${track.kind} m-line for ${remotePid}:`, e);
+                }
+                continue;
+            }
+            if (tx.sender.track !== track) {
+                try {
+                    await tx.sender.replaceTrack(track);
+                } catch (e) {
+                    console.warn(`Could not attach the ${track.kind} track for ${remotePid}:`, e);
+                }
+            }
+            if (!String(tx.direction || "").includes("send")) {
+                // Negotiated receive-only (typically the answerer's m-line when
+                // the connection was built before we had a mic): ask to send
+                // too, otherwise our audio is dropped by the far side.
+                tx.direction = "sendrecv";
+                needsSignaling = true;
+            }
+        }
+        applyMicGate();
+        return needsSignaling;
+    }
+
+    // Cap outgoing video bitrate to prevent CPU saturation and bandwidth spikes (Google Meet standard)
+    function applyBitrateLimits(pc) {
+        if (!pc || typeof pc.getSenders !== "function") return;
+        try {
+            const senders = pc.getSenders();
+            const sender = senders.find((s) => s.track && s.track.kind === "video");
+            if (sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
+                const params = sender.getParameters();
+                if (!params.encodings || !params.encodings.length) {
+                    params.encodings = [{}];
+                }
+                params.encodings[0].maxBitrate = 400000;
+                params.encodings[0].maxFramerate = 24;
+                sender.setParameters(params).catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    // The single funnel for "the SDP must change". Browsers reject a second
+    // offer that isn't preceded by its answer ("the order of m-lines doesn't
+    // match"), and two racing createOffer() calls used to leave a participant
+    // with no media at all — so every path serializes here.
+    async function negotiateWith(remotePid, opts = {}) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return false;
+        const pc = entry.pc;
+        // A failed connection is still negotiable — that is exactly what an ICE
+        // restart re-negotiates — so only a closed one is a hard stop here.
+        if (pc.connectionState === "closed") return false;
+        if (entry.negotiating || pc.signalingState !== "stable") {
+            // Busy — queue it; onsignalingstatechange flushes when we settle.
+            entry.negotiationQueued = true;
+            if (opts.iceRestart) entry.iceRestartQueued = true;
+            return false;
+        }
+        entry.negotiating = true;
+        try {
+            const offer = await pc.createOffer(opts.iceRestart ? { iceRestart: true } : undefined);
+            await pc.setLocalDescription(offer);
+            applyBitrateLimits(pc);
+            state.ws.send(JSON.stringify({
+                type: "sdp_offer",
+                target_participant_id: remotePid,
+                data: pc.localDescription,
+            }));
+            return true;
+        } catch (e) {
+            console.error(`Offer to ${remotePid} failed:`, e);
+            // A stale local description (a rolled-back offer) leaves the
+            // connection unusable until it is cleaned up.
+            try {
+                if (pc.signalingState === "have-local-offer") {
+                    await pc.setLocalDescription({ type: "rollback" });
+                }
+            } catch (_) {}
+            return false;
+        } finally {
+            entry.negotiating = false;
+        }
+    }
+
+    // Deterministic glare rule: both sides must agree on who yields, and a
+    // stable id comparison gives that with no server-side ordering. The
+    // "polite" peer rolls its own offer back and answers; the other one's offer
+    // wins. Without this, simultaneous offers wedged a connection permanently.
+    function isPoliteWith(remotePid) {
+        const me = state.me && state.me.participant_id;
+        return String(me) < String(remotePid);
+    }
+
+    // Retry every track sync whose connection has settled, and every offer a
+    // busy connection had to postpone.
+    function flushPendingTrackSyncs() {
+        if (!state.localStream) return;
+        for (const [pid, entry] of [...state.peers]) {
+            if (entry.pc.signalingState !== "stable") continue;   // still busy
+            if (entry.iceRestartQueued) {
+                entry.iceRestartQueued = false;
+                entry.negotiationQueued = false;
+                negotiateWith(pid, { iceRestart: true });
+                continue;
+            }
+            if (entry.negotiationQueued) {
+                entry.negotiationQueued = false;
+                trackSyncPending.add(pid);
+            }
+            if (trackSyncPending.has(pid)) syncTracksToPeer(pid);
+        }
+    }
+
+    // Flush shortly AFTER signalling settles: currentDirection (whether the
+    // mic is really part of the negotiated session) is only settled once the
+    // SDP exchange has finished, so checking synchronously would re-offer for
+    // a connection that was already fine.
+    let trackSyncFlushTimer = null;
+    function scheduleTrackSyncFlush(delay = 250) {
+        if (trackSyncFlushTimer) clearTimeout(trackSyncFlushTimer);
+        trackSyncFlushTimer = setTimeout(() => {
+            trackSyncFlushTimer = null;
+            flushPendingTrackSyncs();
+        }, delay);
+    }
+
+    // Re-assert our mic on every peer connection and report how many peers
+    // still can't hear us. Called on each Hold to Talk press, so the words
+    // being transcribed are also the words the room hears — and if they aren't
+    // yet, the speaker is told instead of silently talking to a deaf room.
+    async function assertMicOnPeers() {
+        if (!state.localStream || !state.localStream.getAudioTracks().length) return 0;
+        let unreachable = 0;
+        for (const pid of [...state.peers.keys()]) {
+            await syncTracksToPeer(pid);
+            const entry = state.peers.get(pid);
+            if (entry && micRouteState(entry.pc) !== "sending") unreachable++;
+        }
+        if (unreachable) {
+            const who = unreachable === 1 ? "1 participant" : `${unreachable} participants`;
+            setAsrStatus(`Connecting your mic to ${who} — they may not hear this statement.`);
+        }
+        return unreachable;
+    }
+
+    // Adopt a freshly acquired mic as the room's audio. Needed when Hold to Talk
+    // had to ask for a dedicated stream (the join-time prompt was dismissed or
+    // the shared stream lost its audio): recording alone would transcribe the
+    // statement while the room stayed deaf.
+    async function adoptMicStream(stream) {
+        const track = stream && stream.getAudioTracks()[0];
+        if (!track) return false;
+        if (!state.localStream) {
+            state.localStream = stream;
+        } else {
+            for (const old of state.localStream.getAudioTracks()) {
+                if (old === track) continue;
+                try { old.stop(); } catch (_) {}
+                try { state.localStream.removeTrack(old); } catch (_) {}
+            }
+            if (!state.localStream.getAudioTracks().includes(track)) {
+                state.localStream.addTrack(track);
+            }
+        }
+        applyMicGate();
+        // Peers already have an audio m-line, so this is usually just a
+        // replaceTrack swap — the mic comes back without a renegotiation.
+        await assertMicOnPeers();
+        return true;
+    }
+
+    // Pick the starting gain for a participant whose volume we haven't seen yet.
+    // If we already persisted a level for this pid (e.g. from a previous session
+    // render or a reconnect), use it; otherwise apply the small default lift.
+    function previousLevelFor(participantId) {
+        if (peerVolumes.has(participantId)) {
+            return peerVolumes.get(participantId).level;
+        }
+        return DEFAULT_PEER_GAIN;
+    }
+
+    function videoElFor(participantId) {
+        let v = videoEls.get(participantId);
+        if (!v) {
+            v = document.createElement("video");
+            v.autoplay = true;
+            v.playsInline = true;
+            v.muted = true;   // remote audio flows through the hidden <audio> element
+            videoEls.set(participantId, v);
+        }
+        return v;
+    }
+
+    function attachSelfVideo() {
+        if (!state.me) return;
+        const v = videoElFor(state.me.participant_id);
+        const stream = (state.localStream && state.localStream.getVideoTracks().length)
+            ? state.localStream
+            : null;
+        v.srcObject = stream;
+        if (stream) {
+            startVideoKeepalive(v, stream, () => videoHasSrc(v));
+        } else {
+            stopVideoKeepalive(v);
+        }
+    }
+
+    // Build the connection to one peer.
+    //
+    // `offerer` matters a great deal. A remote offer is only ever associated
+    // with transceivers that have NO sender track yet: creating our audio/video
+    // m-lines (with tracks) before applying the offer leaves our mic on an
+    // m-line the session never negotiates — the browser quietly builds its own
+    // recvonly m-lines instead, so the answering participant's voice is never
+    // sent, while their client keeps transcribing them locally. That is exactly
+    // the "I spoke, it was transcribed, nobody heard me" bug.
+    //   • offerer (we create the offer): create both m-lines up-front with our
+    //     tracks attached, in a fixed audio→video order, so every later
+    //     renegotiation keeps the same m-line order.
+    //   • answerer (we reply to an offer): create NO transceivers here. The
+    //     offer's m-lines become ours; attachLocalTracks() then gives them our
+    //     tracks before the answer goes out.
+    function createPeerConnection(remotePid, offerer) {
+        // Ensure STUN/TURN fallback includes Google STUN servers
+        const googleStuns = [
+            "stun:stun.l.google.com:19302",
+            "stun:stun1.l.google.com:19302",
+            "stun:stun2.l.google.com:19302",
+        ];
+        if (!RTC_CONFIG.iceServers) RTC_CONFIG.iceServers = [];
+        const existingUrls = new Set();
+        for (const s of RTC_CONFIG.iceServers) {
+            if (!s || !s.urls) continue;
+            if (typeof s.urls === "string") existingUrls.add(s.urls);
+            else if (Array.isArray(s.urls)) s.urls.forEach((u) => existingUrls.add(u));
+        }
+        for (const url of googleStuns) {
+            if (!existingUrls.has(url)) {
+                RTC_CONFIG.iceServers.push({ urls: url });
+            }
+        }
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+
+        if (offerer) {
+            const local = state.localStream;
+            const audioTrack = local ? local.getAudioTracks()[0] : null;
+            if (audioTrack) {
+                audioTrack.enabled = Boolean(state.micEnabled || ptt.recording);
+            }
+            const videoTrack = local ? local.getVideoTracks()[0] : null;
+            const senderInit = (track) => ({
+                direction: track ? "sendrecv" : "recvonly",
+                streams: track ? [local] : [],
+            });
+            pc.addTransceiver(audioTrack || "audio", senderInit(audioTrack));
+            pc.addTransceiver(videoTrack || "video", senderInit(videoTrack));
+            applyMicGate();
+        }
+
+        // Remote audio element for this peer.
+        const audio = document.createElement("audio");
+        audio.autoplay = true;
+        audio.playsInline = true;
+        els.remoteAudioHost.appendChild(audio);
+
+        // Per-peer live volume (WebRTC voice gain). Each peer gets its own
+        // AudioContext + GainNode so participants with quiet mics can be turned
+        // up independently without affecting the others.
+        let peerGain = null;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            ctx.resume().catch(() => {});
+            const gain = ctx.createGain();
+            const prev = peerVolumes.get(remotePid);
+            if (prev && prev.gainNode) {
+                // Restore the level this participant had before (e.g. after a
+                // re-offer / reconnect).
+                gain.gain.value = prev.level;
+            } else {
+                // New participant — small lift so quiet mics are usable out of
+                // the gate. Capped at 1.2x: the lift exists for distant mics,
+                // but a louder boost also amplifies the leak from a participant's
+                // own speakers into their mic (echo), so stay modest.
+                gain.gain.value = Math.min(previousLevelFor(remotePid), 1.2);
+            }
+            const src = ctx.createMediaElementSource(audio);
+            src.connect(gain);
+            gain.connect(ctx.destination);
+            peerGain = { ctx, gain, level: gain.gain.value, src };
+        } catch (e) {
+            // AudioContext may fail on some browsers/contexts — non-fatal, audio
+            // still plays through the element directly (no per-peer boost).
+            console.warn("Peer audio gain setup failed for", remotePid, "-", e);
+        }
+
+        const peer = {
+            pc, audio, videoTrack: null, gain: peerGain,
+            negotiating: false,      // an offer/answer of ours is in flight
+            negotiationQueued: false,
+            iceRestartQueued: false,
+            iceRestartAttempts: 0,
+            restartTimer: null,
+            connectTimer: setTimeout(() => onPeerConnectTimeout(remotePid), MEDIA_CONNECT_TIMEOUT_MS),
+            timedOut: false,
+            status: "connecting",
+            pendingIceCandidates: [],
+        };
+        peer.pendingIceCandidates = [];
+        state.peers.set(remotePid, peer);
+
+        pc.ontrack = (event) => {
+            if (event.track.kind === "video") {
+                // Route video to the persistent roster tile element (muted —
+                // audio plays through the hidden <audio> element above).
+                peer.videoTrack = event.track;
+                const v = videoElFor(remotePid);
+                const stream = new MediaStream([event.track]);
+                v.srcObject = stream;
+                v.play().catch(() => {});
+                // Keep this tile's video alive: if the tile goes black while the
+                // mesh still owns the track, re-play it. The tile is watched until
+                // the track is removed (closePeer) or a new track replaces it.
+                startVideoKeepalive(v, stream, () => {
+                    // Tile is still "live" if the peer is still here and still owns
+                    // this video track (or a newer one).
+                    const p = state.peers.get(remotePid);
+                    return p && (p.videoTrack === event.track || !!p.videoTrack);
+                });
+                refreshFaceSourceIfPending(remotePid);
+                return;
+            }
+            // A track that arrived via replaceTrack() carries no stream id, so
+            // event.streams is empty — assigning undefined here would leave the
+            // element playing nothing at all (silence) even though RTP flows.
+            audio.srcObject = (event.streams && event.streams[0])
+                ? event.streams[0]
+                : new MediaStream([event.track]);
+            audio.play().catch(() => {});
+            // Light active-speaker glow via WebRTC audio-level (analyser).
+            attachSpeakerDetection(audio, remotePid);
+        };
+
+        // Trickle ICE: send every candidate to the remote peer.
+        pc.onicecandidate = (event) => {
+            if (event.candidate && event.candidate.type === "relay") RTC_CONFIG.relaySeen = true;
+            if (event.candidate && state.ws && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(JSON.stringify({
+                    type: "ice_candidate",
+                    target_participant_id: remotePid,
+                    data: event.candidate.toJSON(),
+                }));
+            }
+        };
+
+        // Signalling settled → retry any track sync that had to wait for it
+        // (the glare case). This is what keeps the mic from being lost forever
+        // when two participants happen to renegotiate at the same moment.
+        pc.onsignalingstatechange = () => {
+            if (pc.signalingState === "stable") scheduleTrackSyncFlush();
+        };
+
+        pc.onconnectionstatechange = () => onPeerStateChange(remotePid);
+        // ICE state moves before the aggregate connection state and is where a
+        // dead path actually shows up (failed/disconnected).
+        pc.oniceconnectionstatechange = () => onPeerStateChange(remotePid);
+
+        // Our tracks ride on the transceivers above (offerer), or are attached
+        // to the offer's m-lines by attachLocalTracks() (answerer). If the
+        // mic/camera arrives late or is swapped, scheduleTrackSyncFlush()
+        // refills those senders with replaceTrack — never with a second m-line.
+        trackSyncPending.add(remotePid);
+        scheduleTrackSyncFlush();
+        return pc;
+    }
+
+    // No candidate path settled in time — surface it and try an ICE restart.
+    function onPeerConnectTimeout(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        entry.connectTimer = null;
+        if (peerStatusOf(entry) === "connected") return;
+        entry.timedOut = true;
+        applyPeerStatusUi(remotePid);
+        scheduleIceRestart(remotePid);
+    }
+
+    // One place for every connection-state transition: refresh the tile/banner,
+    // resume a pending track sync once we connect, and retry a dead path.
+    function onPeerStateChange(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const status = peerStatusOf(entry);
+        if (status === "connected") {
+            entry.iceRestartAttempts = 0;
+            entry.timedOut = false;
+            if (entry.connectTimer) { clearTimeout(entry.connectTimer); entry.connectTimer = null; }
+            if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+            if (trackSyncPending.has(remotePid)) scheduleTrackSyncFlush();
+        } else if (status === "failed") {
+            // Retry with a short backoff: a transient NAT/relay hiccup often
+            // recovers, and when it can't the notice tells the user why.
+            scheduleIceRestart(remotePid, 1200 + 1800 * (entry.iceRestartAttempts || 0));
+        }
+        applyPeerStatusUi(remotePid);
+    }
+
+    // Live audio-level "speaking" glow for a remote participant's roster tile.
+    // It taps the peer's EXISTING gain chain created in createPeerConnection:
+    // calling createMediaElementSource() on the same <audio> element a second
+    // time throws InvalidStateError, which is why this used to be a dangling
+    // reference and the glow never lit.
+    function attachSpeakerDetection(audio, remotePid) {
+        const peer = state.peers.get(remotePid);
+        if (!peer || !peer.gain || !peer.gain.ctx || !peer.gain.gain) return; // audio-only fallback: no chain
+        // ontrack can fire again on renegotiation — keep one analyser/loop per peer.
+        if (peer.speaker && peer.speaker.timer) return;
+        const { ctx, gain } = peer.gain;
+        let analyser;
+        try {
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 512;
+            gain.connect(analyser); // tap only — gain -> destination still plays the peer
+        } catch (e) {
+            console.warn("Speaker detection unavailable for", remotePid, "-", e);
+            return;
+        }
+        const buf = new Uint8Array(analyser.fftSize);
+        peer.speaker = { analyser, buf, timer: null };
+        const tick = () => {
+            if (state.peers.get(remotePid) !== peer || !peer.speaker) return;
+            analyser.getByteTimeDomainData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) {
+                const v = (buf[i] - 128) / 128;
+                sum += v * v;
+            }
+            const rms = Math.sqrt(sum / buf.length);
+            // Light the speaking glow on both of this participant's surfaces:
+            // their stage tile and their row in the rail roster.
+            const tiles = document.querySelectorAll(
+                `.participant-tile[data-pid="${remotePid}"], .stage-tile[data-pid="${remotePid}"]`
+            );
+            tiles.forEach((t) => t.classList.toggle("speaking", rms > 0.035));
+        };
+        peer.speaker.timer = setInterval(tick, 250);
+    }
+
+    // Newcomer-initiated: we offer to each pending target once our mic+camera
+    // stream is ready, so every offer actually carries audio + video tracks.
+    // ensureLocalStream() re-invokes this when the stream resolves late.
+    async function drainPendingOffers() {
+        // Deliberately not gated on state.localStream: a participant whose mic
+        // and camera were both denied must still connect so they can HEAR the
+        // room. Their m-lines start receive-only and attachLocalTracks() fills
+        // them in if a stream ever arrives.
+        if (!state.pendingOfferTargets.size) return;
+        const targets = [...state.pendingOfferTargets];
+        for (let i = 0; i < targets.length; i++) {
+            const pid = targets[i];
+            state.pendingOfferTargets.delete(pid);
+            if (i > 0) {
+                await new Promise((r) => setTimeout(r, 120));
+            }
+            await makeOffer(pid);
+        }
+    }
+
+    async function makeOffer(remotePid) {
+        if (!state.peers.has(remotePid)) {
+            // We create the offer, so our own m-lines (with our tracks) are
+            // built up-front — see createPeerConnection().
+            createPeerConnection(remotePid, /* offerer */ true);
+        }
+        await attachLocalTracks(remotePid);
+        await negotiateWith(remotePid);
+        const entry = state.peers.get(remotePid);
+        if (entry && entry.pc) {
+            applyBitrateLimits(entry.pc);
+        }
+    }
+
+    async function onRemoteOffer(remotePid, data) {
+        let entry = state.peers.get(remotePid);
+        if (!entry) {
+            // We answer this one, so the peer connection starts with no
+            // transceivers: the offer's m-lines become ours and we attach our
+            // tracks to them below, before the answer is created.
+            createPeerConnection(remotePid, /* offerer */ false);
+            entry = state.peers.get(remotePid);
+        }
+        const pc = entry.pc;
+        const collision = pc.signalingState !== "stable";
+        if (collision && !isPoliteWith(remotePid)) {
+            // Both sides offered at once. We are the impolite one: our offer
+            // stands and this one is ignored — the polite peer rolls its offer
+            // back and answers ours, so the two sides always converge.
+            console.warn(`Ignoring colliding offer from ${remotePid} (impolite peer)`);
+            entry.negotiationQueued = true;
+            scheduleTrackSyncFlush(400);
+            return;
+        }
+        entry.negotiating = true;
+        try {
+            if (collision) {
+                // Polite peer: withdraw our offer so theirs can be accepted.
+                try { await pc.setLocalDescription({ type: "rollback" }); } catch (_) {}
+            }
+            await pc.setRemoteDescription(new RTCSessionDescription(data));
+            if (entry.pendingIceCandidates && entry.pendingIceCandidates.length) {
+                for (const cand of entry.pendingIceCandidates) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(cand));
+                    } catch (e) {
+                        console.warn("Buffered candidate error:", e);
+                    }
+                }
+                entry.pendingIceCandidates = [];
+            }
+            // THE step that makes the answerer audible: give the m-lines the
+            // offer just created our own tracks, so the answer sends them.
+            const needsSignaling = await attachLocalTracks(remotePid);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            applyBitrateLimits(pc);
+            state.ws.send(JSON.stringify({
+                type: "sdp_answer",
+                target_participant_id: remotePid,
+                data: pc.localDescription,
+            }));
+            if (micRouteState(pc) === "sending") trackSyncPending.delete(remotePid);
+            if (needsSignaling) trackSyncPending.add(remotePid);
+        } catch (e) {
+            console.error(`Answer to ${remotePid} failed:`, e);
+            trackSyncPending.add(remotePid);
+        } finally {
+            entry.negotiating = false;
+            scheduleTrackSyncFlush(300);
+        }
+    }
+
+    async function onRemoteAnswer(remotePid, data) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        const pc = entry.pc;
+        try {
+            // An answer is only meaningful while we have an outstanding offer.
+            // Applying it in any other state threw (and the throw was swallowed),
+            // which is one of the ways a peer ended up with no audio: our offer
+            // was dropped as "failed" while the connection carried on silently.
+            if (pc.signalingState !== "have-local-offer") {
+                console.warn(`Ignoring answer from ${remotePid} in state ${pc.signalingState}`);
+                trackSyncPending.add(remotePid);
+                scheduleTrackSyncFlush(300);
+                return;
+            }
+            await pc.setRemoteDescription(new RTCSessionDescription(data));
+            if (entry.pendingIceCandidates && entry.pendingIceCandidates.length) {
+                for (const cand of entry.pendingIceCandidates) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(cand));
+                    } catch (e) {
+                        console.warn("Buffered candidate error:", e);
+                    }
+                }
+                entry.pendingIceCandidates = [];
+            }
+            // Confirm the mic made it into the negotiated session (and re-offer
+            // if not — e.g. our offer was rolled back by glare in the meantime).
+            if (micRouteState(pc) === "sending") trackSyncPending.delete(remotePid);
+            if (trackSyncPending.has(remotePid)) scheduleTrackSyncFlush(300);
+        } catch (e) {
+            console.error(`Apply answer from ${remotePid} failed:`, e);
+            // The offer we sent never completed — re-send it, or the mic stays
+            // stuck on this peer.
+            trackSyncPending.add(remotePid);
+            scheduleTrackSyncFlush(300);
+        }
+    }
+
+    async function onRemoteIce(remotePid, data) {
+        const entry = state.peers.get(remotePid);
+        if (entry && entry.pc) {
+            if (entry.pc.remoteDescription && entry.pc.remoteDescription.type) {
+                await entry.pc.addIceCandidate(new RTCIceCandidate(data)).catch((e) => console.warn("addIceCandidate error:", e));
+            } else {
+                if (!entry.pendingIceCandidates) entry.pendingIceCandidates = [];
+                entry.pendingIceCandidates.push(data);
+            }
+        }
+    }
+
+    function closePeer(remotePid) {
+        const entry = state.peers.get(remotePid);
+        if (!entry) return;
+        try { entry.pc.close(); } catch (_) {}
+        if (entry.speaker && entry.speaker.timer) clearInterval(entry.speaker.timer);
+        if (entry.audio && entry.audio.parentNode) entry.audio.parentNode.removeChild(entry.audio);
+        // The face analyzer may be tapping this peer's audio chain — drop the
+        // meter before the context goes away.
+        if (face.remoteMeter && face.remoteMeter.owner === remotePid) face.remoteMeter = null;
+        // Tear down this peer's gain node so we don't leak AudioContexts.
+        if (entry.gain) {
+            try {
+                if (entry.gain.src && typeof entry.gain.src.disconnect === "function") entry.gain.src.disconnect();
+                if (entry.gain.gain && typeof entry.gain.gain.disconnect === "function") entry.gain.gain.disconnect();
+                if (entry.gain.ctx && entry.gain.ctx.state !== "closed") entry.gain.ctx.close();
+            } catch (_) {}
+            peerVolumes.delete(remotePid);
+        }
+        if (entry.restartTimer) { clearTimeout(entry.restartTimer); entry.restartTimer = null; }
+        if (entry.connectTimer) { clearTimeout(entry.connectTimer); entry.connectTimer = null; }
+        const v = videoEls.get(remotePid);
+        if (v) {
+            stopVideoKeepalive(v);
+            v.srcObject = null;
+            if (v.parentNode) v.parentNode.removeChild(v);
+        }
+        videoEls.delete(remotePid);
+        state.peers.delete(remotePid);
+        updateMediaNotice();
+        // If the face analyzer was watching this participant, fall back to self.
+        if (face.source === remotePid) {
+            face.source = "self";
+            const sel = faceEl("face-source");
+            if (sel) sel.value = "self";
+            attachFaceSource();
+        }
+    }
+
+    // Keep the WebRTC audio track in sync with who should be audible:
+    //   - micEnabled (roster toggle)  -> always audible
+    //   - ptt.recording (hold)        -> audible while holding to talk
+    // Everything else (not holding, not toggled) is silent to the room.
+    function applyMicGate() {
+        const open = state.micEnabled || ptt.recording;
+        const gated = new Set();
+        const gate = (track) => {
+            if (!track || track.kind !== "audio" || gated.has(track)) return;
+            gated.add(track);
+            try { track.enabled = open; } catch (_) {}
+        };
+        if (state.localStream) state.localStream.getAudioTracks().forEach(gate);
+        // Also gate what the peer connections are actually sending. If a peer
+        // holds a different track object than state.localStream (mic swapped,
+        // stream re-acquired), gating only the local stream would leave that
+        // peer's audio open when it should be closed — or, worse, closed when
+        // the user is holding to talk.
+        for (const entry of state.peers.values()) {
+            try { entry.pc.getSenders().forEach((s) => gate(s.track)); } catch (_) {}
+        }
+        // Web Audio lifecycle: suspend audio processing when mic is muted, resume when open
+        if (face.meter && face.meter.ctx && face.meter.ctx.state !== "closed") {
+            if (!open && face.meter.ctx.state === "running") {
+                face.meter.ctx.suspend().catch(() => {});
+            } else if (open && face.meter.ctx.state === "suspended") {
+                face.meter.ctx.resume().catch(() => {});
+            }
+        }
+    }
+
+    function toggleMic() {
+        if (!state.localStream) return;
+        state.micEnabled = !state.micEnabled;
+        applyMicGate();
+        renderCourt();
+    }
+
+    function toggleVideo() {
+        if (!state.localStream) return;
+        state.videoEnabled = !state.videoEnabled;
+        for (const track of state.localStream.getVideoTracks()) {
+            track.enabled = state.videoEnabled;
+        }
+        renderCourt();
+    }
+
+    // ====================================================================
+    // RENDER
+    // ====================================================================
+    function enterCourtroom() {
+        // Give the pre-entry countdown its moment: it starts when Enter is
+        // pressed, and the handshake is usually faster than the minimum, so
+        // this wait is what actually makes the animation visible.
+        const wait = countdownRemainingMs();
+        if (wait > 0) {
+            setTimeout(enterCourtroomNow, wait);
+            return;
+        }
+        enterCourtroomNow();
+    }
+
+    function enterCourtroomNow() {
+        stopJoinCountdown();
+        els.joinOverlay.style.display = "none";
+        els.root.style.display = "flex";
+        els.youAreRole.textContent = state.me.display_role;
+        // Show phase controls + End Session only for the Judge.
+        const isJudge = state.me.role === "Judge";
+        els.phaseControls.style.display = isJudge ? "" : "none";
+        if (els.endSessionBtn) els.endSessionBtn.style.display = isJudge ? "inline-flex" : "none";
+        renderPhaseButtons();
+        // Face & Expression analysis is a Judge-only tool: the panel exists for
+        // no other role (the server also rejects their behavior logs).
+        if (isJudge) initFacePanel();
+        initTranscriptControl(isJudge);
+        syncMeetControls();
+        // Re-affirm every live video element after the courtroom root is shown,
+        // so feeds that went black while covered by another panel recover now.
+        reaffirmAllRoomVideos();
+        probeAsr();
+        // Don't auto-focus on touch devices — it pops the on-screen keyboard
+        // the moment you enter, hiding the transcript behind it.
+        if (!("ontouchstart" in window)) els.statementInput.focus();
+    }
+
+    // ---- live transcript visibility (Judge-controlled, room-wide) ------
+    // The judge can turn the live transcript off for everyone (and back on).
+    // The record is still written while off — this only hides the live view.
+    function initTranscriptControl(isJudge) {
+        const btn = els.transcriptPowerBtn;
+        if (!btn) return;
+        btn.style.display = isJudge ? "" : "none";
+        if (isJudge && !btn.dataset.wired) {
+            btn.dataset.wired = "1";
+            btn.addEventListener("click", () => {
+                setTranscriptEnabled(!state.transcriptEnabled);
+            });
+        }
+    }
+
+    function setTranscriptEnabled(enabled) {
+        if (!state.me || state.me.role !== "Judge") return;
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        state.ws.send(JSON.stringify({ type: "set_transcript", enabled: !!enabled }));
+    }
+
+    function applyTranscriptState(enabled) {
+        state.transcriptEnabled = enabled !== false;
+        const on = state.transcriptEnabled;
+        if (els.transcriptOffNote) els.transcriptOffNote.style.display = on ? "none" : "flex";
+        if (els.transcriptFeed) els.transcriptFeed.style.display = on ? "" : "none";
+        const btn = els.transcriptPowerBtn;
+        if (btn) {
+            btn.setAttribute("aria-pressed", on ? "true" : "false");
+            btn.classList.toggle("off", !on);
+            const label = btn.querySelector(".btn-label");
+            if (label) label.textContent = on ? "Transcript On" : "Transcript Off";
+            const icon = btn.querySelector("i");
+            if (icon) icon.setAttribute("data-lucide", on ? "toggle-right" : "toggle-left");
+        }
+        if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    // ---- collapsible panels (rail cards + the transcript dock) ---------
+    // Every panel folds down to its header and the choice is remembered per
+    // browser. Bodies are clipped, never display:none, so anything running
+    // inside (a live face analysis, a video element) keeps rendering while
+    // the panel is folded away.
+    const COLLAPSIBLE_PANELS = [
+        "roster-panel", "case-context", "phase-controls", "face-analysis", "transcript-panel",
+    ];
+
+    function initCollapsiblePanels() {
+        for (const id of COLLAPSIBLE_PANELS) {
+            const panel = document.getElementById(id);
+            const toggle = panel && panel.querySelector(".rail-toggle");
+            if (!panel || !toggle) continue;
+            const stored = readPanelPref(id);
+            setPanelCollapsed(panel, stored === null ? defaultPanelCollapsed(id) : stored === "collapsed", /*persist*/ false);
+            toggle.addEventListener("click", () => {
+                setPanelCollapsed(panel, !panel.classList.contains("collapsed"));
+            });
+        }
+    }
+
+    // Starting state before the user has ever touched a panel: the roster is the
+    // room's control surface, and the trial phase is what the Judge reaches for,
+    // so both start open. The case file and the analyzer are deliberately folded
+    // (the analyzer shows a dead feed until someone enables it, and the case file
+    // is read on demand) — on phones the whole rail starts folded.
+    function defaultPanelCollapsed(id) {
+        const narrow = window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
+        if (id === "case-context") return true;
+        if (id === "face-analysis") return false;
+        if (narrow && (id === "roster-panel" || id === "phase-controls")) return true;
+        return false;
+    }
+
+    function readPanelPref(id) {
+        try { return localStorage.getItem(`anavaya-court-panel-${id}`); } catch (_) { return null; }
+    }
+
+    function setPanelCollapsed(panel, collapsed, persist = true) {
+        panel.classList.toggle("collapsed", collapsed);
+        const toggle = panel.querySelector(".rail-toggle");
+        if (toggle) toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        // `inert` keeps a folded panel's controls out of the tab/AT order without
+        // hiding (and therefore throttling) the media inside it.
+        const body = panel.querySelector(".panel-collapse");
+        if (body && "inert" in body) body.inert = collapsed;
+        if (!persist) return;
+        try { localStorage.setItem(`anavaya-court-panel-${panel.id}`, collapsed ? "collapsed" : "open"); } catch (_) {}
+    }
+
+    // The room is video-first: the **stage** grid owns every participant's
+    // persistent <video> element (the mesh feeds them), while the rail's
+    // **roster** rows carry the mic / camera / volume controls. Two renderers,
+    // so rebuilding the controls never disturbs a running video element.
+    function renderCourt() {
+        renderStage();
+        renderRoster();
+        updateMediaNotice();
+        syncMeetControls();
+    }
+
+    function syncMeetControls() {
+        // 1. Sync roster online count
+        const rOnline = document.getElementById("roster-online");
+        const rosterBadge = document.getElementById("roster-badge");
+        if (rOnline && rosterBadge) rosterBadge.textContent = rOnline.textContent || "0";
+
+        // 2. Sync transcript count
+        const feed = document.getElementById("transcript-feed");
+        const transcriptBadge = document.getElementById("transcript-badge");
+        if (feed && transcriptBadge) {
+            const n = feed.querySelectorAll(".entry").length;
+            transcriptBadge.textContent = String(n);
+        }
+
+        // 3. Sync Judge Face button & drawer tab
+        const isJudge = Boolean(state.me && state.me.role === "Judge");
+        const myRole = (state.me && state.me.role) || "";
+        const myDisplay = (state.me && state.me.display_role) || "";
+        const isDefence = myRole === "Defence" || myRole === "Defense" || myDisplay.toLowerCase().includes("defence") || myDisplay.toLowerCase().includes("defense");
+        const isProsecution = myRole === "Prosecution" || myDisplay.toLowerCase().includes("prosecution");
+        const canViewCaseContext = isJudge || isDefence || isProsecution;
+
+        const btnFace = document.getElementById("toggle-drawer-face");
+        const drawerNavFace = document.getElementById("drawer-tab-nav-face");
+        const faceLiveBadge = document.getElementById("face-live-badge");
+        if (btnFace) btnFace.style.display = isJudge ? "inline-grid" : "none";
+        if (drawerNavFace) drawerNavFace.style.display = isJudge ? "inline-flex" : "none";
+        if (faceLiveBadge) faceLiveBadge.style.display = (isJudge && typeof face !== "undefined" && face && face.analyzing) ? "inline-block" : "none";
+
+        // Sync Case Context visibility (Judge, Defence, Prosecution)
+        const btnCase = document.getElementById("toggle-drawer-case");
+        const drawerNavCase = document.getElementById("drawer-tab-nav-case") || document.querySelector('.drawer-tab-btn[data-tab="case"]');
+        if (btnCase) btnCase.style.display = canViewCaseContext ? "inline-grid" : "none";
+        if (drawerNavCase) drawerNavCase.style.display = canViewCaseContext ? "inline-flex" : "none";
+
+        // Only Judge can link or switch case file
+        const contextSwitchBtn = document.getElementById("context-switch-btn");
+        if (contextSwitchBtn) contextSwitchBtn.style.display = isJudge ? "inline-flex" : "none";
+
+        // 4. Sync Leave / Adjourn label
+        const leaveLabel = document.getElementById("leave-btn-label");
+        if (leaveLabel) {
+            leaveLabel.textContent = isJudge ? "Adjourn" : "Leave";
+        }
+
+        // 5. Sync bottom bar mic state
+        const btnControlMic = document.getElementById("control-mic-btn");
+        if (btnControlMic) {
+            const isOff = !state.micEnabled;
+            btnControlMic.classList.toggle("off", isOff);
+            const icon = btnControlMic.querySelector("i, svg");
+            const targetIcon = isOff ? "mic-off" : "mic";
+            if (icon && icon.getAttribute("data-lucide") !== targetIcon) {
+                btnControlMic.innerHTML = `<i data-lucide="${targetIcon}"></i>`;
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+        }
+
+        // 6. Sync bottom bar cam state
+        const btnControlCam = document.getElementById("control-cam-btn");
+        if (btnControlCam) {
+            const isOff = !state.videoEnabled;
+            btnControlCam.classList.toggle("off", isOff);
+            const icon = btnControlCam.querySelector("i, svg");
+            const targetIcon = isOff ? "video-off" : "video";
+            if (icon && icon.getAttribute("data-lucide") !== targetIcon) {
+                btnControlCam.innerHTML = `<i data-lucide="${targetIcon}"></i>`;
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+        }
+    }
+
+    // "Me" first, then everyone else in join order.
+    function orderedParticipants() {
+        return [...state.participants].sort((a, b) => {
+            if (a.participant_id === state.me?.participant_id) return -1;
+            if (b.participant_id === state.me?.participant_id) return 1;
+            return 0;
+        });
+    }
+
+    function renderStage() {
+        if (!els.videoStage) return;
+        const ordered = orderedParticipants();
+        els.videoStage.innerHTML = "";
+        els.videoStage.dataset.count = String(ordered.length);
+        if (!ordered.length) {
+            els.videoStage.innerHTML = `
+                <div class="stage-empty">
+                    <i data-lucide="users"></i>
+                    <span>Waiting for the court to assemble…</span>
+                </div>`;
+            lucide.createIcons();
+            return;
+        }
+        for (const p of ordered) {
+            const isMe = p.participant_id === state.me?.participant_id;
+            const displayRole = isMe ? state.me.display_role : displayRoleFor(p);
+            const camOff = isMe && !state.videoEnabled;
+            const initials = (p.name || "?").trim().charAt(0).toUpperCase();
+            const role = p.role || "Witness";
+            const isMuted = isMe ? !state.micEnabled : false;
+            const isJudge = state.me && state.me.role === "Judge";
+            const isTargetOfAnalysis = isJudge && typeof face !== "undefined" && face && face.analyzing &&
+                ((isMe && face.source === "self") || (!isMe && face.source === p.participant_id));
+
+            const tile = document.createElement("div");
+            tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "") + (isTargetOfAnalysis ? " analyzing-face" : "");
+            tile.dataset.pid = p.participant_id;
+            tile.innerHTML = `
+                <div class="stage-overlay">
+                    <span class="stage-pill-avatar role-bg-${role}">${initials}</span>
+                    <span class="stage-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</span>
+                    <span class="stage-role role-${role}">${escapeHtml(camOff ? "Camera off" : displayRole)}</span>
+                </div>
+                <span class="stage-mic-indicator ${isMuted ? "muted" : "unmuted"}"><i data-lucide="${isMuted ? "mic-off" : "mic"}"></i></span>
+                <span class="stage-conn" data-conn=""></span>
+                <div class="stage-cam-off">
+                    <div class="cam-off-avatar role-border-${role}">${initials}</div>
+                    <span class="cam-off-pill">Camera off</span>
+                </div>
+                ${isJudge ? `
+                    <button type="button" class="stage-face-trigger ${isTargetOfAnalysis ? "active" : ""}" title="${isTargetOfAnalysis ? "Chakshu AI analyzing face (click to stop)" : `Analyze ${escapeHtml(p.name)}'s face & nervousness`}" data-pid="${p.participant_id}">
+                        <i data-lucide="scan-face"></i>
+                        <span>${isTargetOfAnalysis ? "Analyzing" : "Analyze Face"}</span>
+                    </button>
+                    <div class="stage-face-hud ${isTargetOfAnalysis ? "visible" : ""}" id="stage-face-hud-${p.participant_id}">
+                        <span class="face-hud-dot"></span>
+                        <strong class="face-hud-score">${isTargetOfAnalysis && face.gauge ? face.gauge + "%" : "0%"}</strong>
+                        <span class="face-hud-label">${isTargetOfAnalysis ? "Calm" : ""}</span>
+                    </div>
+                ` : ""}
+            `;
+            // The persistent, mesh-fed <video> fills the stage tile without any avatar overlay.
+            const v = videoElFor(p.participant_id);
+            tile.appendChild(v);
+            if (isMe) {
+                attachSelfVideo();
+            } else if (v.srcObject) {
+                // Re-attached after a stage rebuild — keep the feed rolling.
+                v.play().catch(() => {});
+            }
+            // For the Judge, clicking the stage tile or "Analyze Face" selects and starts facial analysis
+            if (isJudge) {
+                tile.style.cursor = "pointer";
+                tile.title = `Click to analyze ${escapeHtml(p.name)}'s facial expressions`;
+                const triggerBtn = tile.querySelector(".stage-face-trigger");
+                if (triggerBtn) {
+                    triggerBtn.addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        if (isTargetOfAnalysis) {
+                            stopFaceAnalysis(true);
+                            renderStage();
+                            syncMeetControls();
+                            toast(`Stopped facial analysis for ${escapeHtml(p.name)}.`);
+                        } else {
+                            await selectAndStartFaceAnalysis(p.participant_id, true);
+                        }
+                    });
+                }
+                tile.addEventListener("click", async (e) => {
+                    if (e.target.closest("button") || e.target.closest("input")) return;
+                    if (isTargetOfAnalysis) {
+                        if (typeof window.__openDrawer === "function") window.__openDrawer("face");
+                    } else {
+                        await selectAndStartFaceAnalysis(p.participant_id, true);
+                    }
+                });
+            }
+            els.videoStage.appendChild(tile);
+            // The status has to be applied once the tile is in the document
+            // (it is looked up by data-pid); a blank remote tile then says
+            // whether we are still connecting or cannot reach them at all.
+            if (!isMe) applyPeerStatusUi(p.participant_id, tile);
+        }
+        lucide.createIcons();
+    }
+
+    function renderRoster() {
+        els.rosterOnline.textContent = state.participants.length;
+        if (!els.rosterList) return;
+        els.rosterList.innerHTML = "";
+        for (const p of orderedParticipants()) {
+            const isMe = p.participant_id === state.me?.participant_id;
+            const displayRole = isMe ? state.me.display_role : displayRoleFor(p);
+            const initials = (p.name || "?").trim().charAt(0).toUpperCase();
+            const tile = document.createElement("div");
+            tile.className = "participant-tile" + (isMe ? " is-me" : "");
+            tile.dataset.pid = p.participant_id;
+            tile.innerHTML = `
+                <div class="avatar role-${p.role}" style="background:${ROLE_ACCENT[p.role] || ROLE_ACCENT.system}">${initials}</div>
+                <div class="tile-info">
+                    <div class="tile-name">${escapeHtml(p.name)}${isMe ? " (you)" : ""}</div>
+                    <div class="tile-role role-${p.role}">${escapeHtml(displayRole)}</div>
+                </div>
+                <div class="tile-controls">
+                    ${isMe ? `<button class="tile-mic-btn ${state.micEnabled ? "" : "off"}" title="${state.micEnabled ? "Mic on — always audible to the room (click to mute)" : "Mic off — others hear you only while you hold Hold to Talk (click for always-on mic)"}">
+                        <i data-lucide="${state.micEnabled ? "mic" : "mic-off"}"></i>
+                    </button>` : ""}
+                    ${isMe ? `<button class="tile-video-btn ${state.videoEnabled ? "" : "off"}" title="${state.videoEnabled ? "Hide my video" : "Show my video"}">
+                        <i data-lucide="${state.videoEnabled ? "video" : "video-off"}"></i>
+                    </button>` : ""}
+                    ${!isMe ? `<div class="tile-vol" title="Live voice volume for ${escapeHtml(p.name)}">
+                        <input type="range" min="0" max="3" step="0.05" value="${peerLevelFor(p.participant_id)}" aria-label="Volume for ${escapeHtml(p.name)}">
+                    </div>` : ""}
+                </div>
+            `;
+            if (isMe) {
+                tile.querySelector(".tile-mic-btn").addEventListener("click", toggleMic);
+                const vbtn = tile.querySelector(".tile-video-btn");
+                if (vbtn) vbtn.addEventListener("click", toggleVideo);
+                if (!state.micEnabled) tile.querySelector(".avatar").classList.add("muted");
+            } else {
+                // Bind the per-peer live-volume slider, if the peer's gain node
+                // was created successfully.
+                const volEl = tile.querySelector(".tile-vol input");
+                if (volEl) {
+                    const peer = state.peers.get(p.participant_id);
+                    if (peer && peer.gain) {
+                        volEl.addEventListener("input", () => {
+                            const v = parseFloat(volEl.value);
+                            peer.gain.gain.setValueAtTime(v, ctxTime(peer.gain.ctx));
+                            peerVolumes.set(p.participant_id, { gain: peer.gain, level: v });
+                        });
+                    } else {
+                        // No gain node (AudioContext unavailable) — hide the slider
+                        // since it can't do anything.
+                        volEl.remove();
+                    }
+                }
+            }
+            els.rosterList.appendChild(tile);
+        }
+        lucide.createIcons();
+        populateFaceSourceSelect();
+    }
+
+    // Current value we want this participant's live voice to play at.
+    // Reads the persisted level if we have one, otherwise the small default lift.
+    function peerLevelFor(participantId) {
+        const prev = peerVolumes.get(participantId);
+        if (prev && typeof prev.level === "number") return prev.level;
+        return DEFAULT_PEER_GAIN;
+    }
+
+    // Convenience for setValueAtTime / linearRamp calls.
+    function ctxTime(ctx) {
+        try { return ctx.currentTime; } catch (_) { return 0; }
+    }
+
+    // ---- video keepalive (face monitor + roster / self tiles) ----------
+    // A live camera feed can look "gone" for a few reasons that are all
+    // recoverable without making the user re-enable the camera:
+    //   - the <video> element was fed a srcObject but its playback stalled /
+    //     went black while the underlying track is still live;
+    //   - the mesh replaced a track (re-offer / renegotiation) and the tile's
+    //     srcObject wasn't refreshed;
+    //   - the tab or the face panel was covered by another panel for a while,
+    //     and the browser quieted the media element.
+    // A keepalive per <video> watches for these and re-attaches / re-plays.
+    const videoKeepalive = new Map();  // videoEl -> { timer, streamRef }
+
+    // Start or refresh a keepalive on a <video> that should show a live camera feed.
+    // `stream` is the MediaStream to attach (may be null to clear the element).
+    // `onLive` is an optional predicate: the keepalive only re-plays while it
+    // returns true (e.g. the stream still has video tracks / the mesh still owns
+    // a track for this participant).
+    function startVideoKeepalive(video, stream, onLive) {
+        if (!video) return;
+        const prev = videoKeepalive.get(video);
+        if (prev) {
+            // Update the stream we're watching without restarting the loop.
+            prev.streamRef = stream;
+            prev.onLive = onLive || null;
+            return;
+        }
+        const keep = { timer: null, streamRef: stream, onLive: onLive || null };
+        videoKeepalive.set(video, keep);
+
+        const check = () => {
+            const still = keep.streamRef && (!keep.onLive || keep.onLive());
+            if (!still) {
+                // Feed gone — clear the element and stop watching.
+                if (video.srcObject) {
+                    try { video.srcObject = null; } catch (_) {}
+                }
+                stopVideoKeepalive(video);
+                return;
+            }
+
+            // Only attempt play if paused and already attached to prevent play promise cancellation
+            if (video.srcObject && video.paused) {
+                try {
+                    video.play().catch(() => {});
+                } catch (_) {}
+            }
+
+            keep.timer = setTimeout(check, 1000);
+        };
+
+        keep.timer = setTimeout(check, 1000);
+    }
+
+    function stopVideoKeepalive(video) {
+        const keep = videoKeepalive.get(video);
+        if (!keep) return;
+        if (keep.timer) {
+            try { clearTimeout(keep.timer); } catch (_) {}
+            try { cancelAnimationFrame(keep.timer); } catch (_) {}
+        }
+        videoKeepalive.delete(video);
+    }
+
+    // Default "is this <video> feed still live?" predicate: it has a non-empty
+    // MediaStream (or a track) attached.
+    function videoHasSrc(video) {
+        if (!video || !video.srcObject) return false;
+        try {
+            const tracks = video.srcObject.getVideoTracks ? video.srcObject.getVideoTracks() : [];
+            return tracks.length > 0;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    // Re-affirm every live video element for this room (face monitor + roster /
+    // self tiles) so a feed that went black while covered by another panel recovers
+    // on the next frame instead of waiting for a source change.
+    function reaffirmAllRoomVideos() {
+        // Face monitor.
+        const faceVideo = faceEl("face-video");
+        if (faceVideo && faceVideo.srcObject && videoHasSrc(faceVideo)) {
+            affirmVideo(faceVideo, faceVideo.srcObject);
+        }
+        // Self + remote roster tiles.
+        for (const [pid, v] of videoEls) {
+            if (v && v.srcObject && videoHasSrc(v)) {
+                // Find the peer so we can use its current track stream if present.
+                const peer = state.peers.get(pid);
+                let stream = v.srcObject;
+                if (peer && peer.videoTrack) {
+                    try { stream = new MediaStream([peer.videoTrack]); } catch (_) {}
+                }
+                affirmVideo(v, stream);
+            }
+        }
+    }
+
+    // Force a <video> to show a live feed again, even if it currently has a
+    // srcObject but went black/paused (e.g. because its container was hidden
+    // for a while). Safe to call repeatedly.
+    function affirmVideo(video, stream) {
+        if (!video) return;
+        if (!stream) {
+            if (video.srcObject) {
+                try { video.srcObject = null; } catch (_) {}
+            }
+            return;
+        }
+        if (video.srcObject !== stream) {
+            try {
+                video.srcObject = stream;
+            } catch (_) {
+                return;
+            }
+        }
+        // Force a fresh playback request so a stalled/black monitor recovers.
+        // This is deliberately redone on each affirm — browsers can leave a
+        // video paused after its container was hidden for a while.
+        try {
+            video.play().catch(() => {});
+        } catch (_) {}
+    }
+
+    function displayRoleFor(p) {
+        if (p.role === "Witness") {
+            // Reconstruct witness number from roster position.
+            const witnessIndex = state.participants
+                .filter((x) => x.role === "Witness")
+                .indexOf(p) + 1;
+            return `Witness ${witnessIndex}`;
+        }
+        return ({ Judge: "Presiding Judge", Defence: "Defence Counsel", Prosecution: "Prosecution Counsel" })[p.role] || p.role;
+    }
+
+    function renderPhaseButtons() {
+        const phases = ["Opening", "Examination", "Cross-Examination", "Closing", "Concluded"];
+        els.phaseButtons.innerHTML = "";
+        for (const ph of phases) {
+            const btn = document.createElement("button");
+            btn.className = "phase-btn";
+            btn.textContent = ph;
+            btn.dataset.phase = ph;
+            btn.addEventListener("click", () => setPhase(ph));
+            els.phaseButtons.appendChild(btn);
+        }
+    }
+
+    function renderPhase(phase) {
+        els.phaseBadge.textContent = phase;
+        if (els.phaseHeadSub) els.phaseHeadSub.textContent = phase;
+        els.phaseButtons.querySelectorAll(".phase-btn").forEach((b) => {
+            b.classList.toggle("active", b.dataset.phase === phase);
+        });
+    }
+
+    function renderQuickActions() {
+        const actions = QUICK_ACTIONS[state.me.role] || [];
+        els.quickActions.innerHTML = "";
+        for (const a of actions) {
+            const btn = document.createElement("button");
+            btn.className = `quick-action ${a.cls}`;
+            btn.innerHTML = a.icon ? `<i data-lucide="${a.icon}"></i> <span>${a.label}</span>` : a.label;
+            btn.addEventListener("click", () => {
+                if (a.isContextTrigger) {
+                    if (typeof window.__openDrawer === "function") {
+                        window.__openDrawer("case");
+                    } else if (els.caseContext) {
+                        els.caseContext.scrollIntoView({ behavior: "smooth" });
+                    }
+                    toast("Case Context & Evidence opened for Defence review.");
+                    return;
+                }
+                // If the action needs a suffix (objection/examine), put focus in the box with the prefix.
+                if (a.text.endsWith("— ") || a.text.endsWith(": ")) {
+                    els.statementInput.value = a.text;
+                    els.statementInput.focus();
+                    // Move cursor to end.
+                    const len = els.statementInput.value.length;
+                    els.statementInput.setSelectionRange(len, len);
+                } else {
+                    sendAction(a.text);
+                }
+            });
+            els.quickActions.appendChild(btn);
+        }
+        if (typeof lucide !== "undefined") {
+            try { lucide.createIcons({ root: els.quickActions }); } catch (_) {}
+        }
+    }
+
+    // ====================================================================
+    // TRANSCRIPT
+    // ====================================================================
+    // Empty-transcript placeholder — same markup as courtroom.html, with the
+    // animated brand art ("talking") above the line.
+    const TRANSCRIPT_EMPTY_HTML =
+        '<div class="transcript-empty">'
+        + '<img class="transcript-empty-art" src="/assets/talking.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">'
+        + '<span>The court is in session. Statements will appear here.</span>'
+        + '</div>';
+
+    let scrollRafId = null;
+    function scrollToBottom() {
+        if (!els.transcriptFeed) return;
+        if (scrollRafId) return;
+        scrollRafId = requestAnimationFrame(() => {
+            scrollRafId = null;
+            if (els.transcriptFeed) {
+                els.transcriptFeed.scrollTop = els.transcriptFeed.scrollHeight;
+            }
+        });
+    }
+
+    function createTranscriptElement(entry, replacesEntryId = "") {
+        const replaced = replacesEntryId
+            ? els.transcriptFeed.querySelector(`[data-entry-id="${replacesEntryId}"]`)
+            : null;
+
+        const node = document.createElement("div");
+        node.className = `entry kind-${entry.kind}`;
+        if (entry.entry_id) node.dataset.entryId = entry.entry_id;
+        if (replaced) node.classList.add("entry-merged");
+
+        if (entry.kind === "phase") {
+            node.innerHTML = `<div class="entry-body"><div class="entry-text">${escapeHtml(entry.text)}</div></div>`;
+        } else if (entry.kind === "system") {
+            node.innerHTML = `
+                <div class="entry-body">
+                    <div class="entry-text">${escapeHtml(entry.text)}</div>
+                </div>`;
+        } else if (entry.kind === "behavior") {
+            // Automated face/expression observations (nervousness cues).
+            const initials = (entry.actor || "?").charAt(0).toUpperCase();
+            const color = ROLE_ACCENT[roleKeyFromDisplay(entry.role)] || ROLE_ACCENT.system;
+            const time = formatTime(entry.timestamp);
+            node.innerHTML = `
+                <div class="entry-avatar" style="background:${color}">${initials}</div>
+                <div class="entry-body">
+                    <div class="entry-meta">
+                        <span class="entry-role role-${roleKeyFromDisplay(entry.role)}">${escapeHtml(entry.role)}</span>
+                        <span class="entry-name">${escapeHtml(entry.actor)}</span>
+                        <span class="entry-time">${time}</span>
+                    </div>
+                    <div class="entry-text">⚠ ${escapeHtml(entry.text)}</div>
+                </div>`;
+        } else {
+            const initials = (entry.actor || "?").charAt(0).toUpperCase();
+            const color = ROLE_ACCENT[roleKeyFromDisplay(entry.role)] || ROLE_ACCENT.system;
+            const time = formatTime(entry.timestamp);
+            // Spoken statements carry their recorded clip(s). A statement the
+            // server assembled from several push-to-talk segments carries one
+            // clip per segment, so the whole sentence stays audible.
+            const clips = (entry.audio_files && entry.audio_files.length)
+                ? entry.audio_files
+                : (entry.audio_file ? [entry.audio_file] : []);
+            let audioHtml = "";
+            for (const clip of clips) {
+                const url = `/api/court/rooms/${ROOM_ID}/audio/${encodeURIComponent(clip)}`;
+                audioHtml += `
+                    <span class="entry-audio">
+                        <button type="button" class="audio-play" data-url="${url}" title="Play recording" aria-label="Play recording"><i data-lucide="play"></i></button>
+                        <a class="audio-download" href="${url}" download="${escapeHtml(clip)}" title="Download recording" aria-label="Download recording"><i data-lucide="download"></i></a>
+                    </span>`;
+            }
+            node.innerHTML = `
+                <div class="entry-avatar" style="background:${color}">${initials}</div>
+                <div class="entry-body">
+                    <div class="entry-meta">
+                        <span class="entry-role role-${roleKeyFromDisplay(entry.role)}">${escapeHtml(entry.role)}</span>
+                        <span class="entry-name">${escapeHtml(entry.actor)}</span>
+                        <span class="entry-time">${time}</span>
+                    </div>
+                    <div class="entry-text">${escapeHtml(entry.text)}</div>
+                    ${audioHtml}
+                </div>`;
+        }
+        return { node, replaced };
+    }
+
+    function renderTranscript(entries) {
+        els.transcriptFeed.innerHTML = "";
+        if (!entries || !entries.length) {
+            els.transcriptFeed.innerHTML = TRANSCRIPT_EMPTY_HTML;
+            updateTranscriptCount();
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        for (const e of entries) {
+            const { node } = createTranscriptElement(e);
+            fragment.appendChild(node);
+        }
+        els.transcriptFeed.appendChild(fragment);
+        lucide.createIcons();
+        updateTranscriptCount();
+        scrollToBottom();
+    }
+
+    // Entry tally shown next to "Live Transcript" so the folded dock still
+    // says how much record there is.
+    function updateTranscriptCount() {
+        if (!els.transcriptFeed) return;
+        const n = els.transcriptFeed.querySelectorAll(".entry").length;
+        if (els.transcriptCount) els.transcriptCount.textContent = n ? `${n} ${n === 1 ? "entry" : "entries"}` : "";
+        const transcriptBadge = document.getElementById("transcript-badge");
+        if (transcriptBadge) transcriptBadge.textContent = String(n);
+    }
+
+    function appendTranscript(entry, scroll = true, replacesEntryId = "") {
+        // Clear the empty placeholder if present.
+        const empty = els.transcriptFeed.querySelector(".transcript-empty");
+        if (empty) empty.remove();
+        // The count is refreshed at the end of every append below.
+
+        const { node, replaced } = createTranscriptElement(entry, replacesEntryId);
+
+        if (replaced && replaced.parentNode) replaced.replaceWith(node);
+        else els.transcriptFeed.appendChild(node);
+        lucide.createIcons();
+        updateTranscriptCount();
+        if (scroll) scrollToBottom();
+    }
+
+    // Map a display role (server ROLE_LABELS value) back to the internal
+    // role key used for avatar colors and CSS role accents. The server stores
+    // friendly labels like "Presiding Judge", so the naive first-word split
+    // produced "Presiding" and every Judge statement rendered with the gray
+    // system color instead of the Judge gold.
+    function roleKeyFromDisplay(displayRole) {
+        if (displayRole === "Presiding Judge") return "Judge";
+        // Counsel may be numbered now (Defence Counsel 1, 2 …) — match by prefix.
+        if (displayRole.startsWith("Defence Counsel")) return "Defence";
+        if (displayRole.startsWith("Prosecution Counsel")) return "Prosecution";
+        if (displayRole.startsWith("Witness")) return "Witness";
+        return displayRole.split(" ")[0];
+    }
+
+    function formatTime(iso) {
+        try {
+            return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        } catch { return ""; }
+    }
+
+    // ====================================================================
+    // SEND
+    // ====================================================================
+    function onStatement(e) {
+        e.preventDefault();
+        const text = els.statementInput.value.trim();
+        if (!text) return;
+        // Heuristic: lines starting with objection/leading/etc. are actions.
+        const isAction = /^(objection|sustained|overruled|the witness is directed)/i.test(text);
+        if (isAction) {
+            sendAction(text);
+        } else {
+            sendStatement(text);
+        }
+        els.statementInput.value = "";
+    }
+
+    function sendStatement(text) {
+        state.ws.send(JSON.stringify({ type: "statement", text }));
+    }
+    function sendAction(text) {
+        state.ws.send(JSON.stringify({ type: "action", text }));
+    }
+    function setPhase(phase) {
+        state.ws.send(JSON.stringify({ type: "set_phase", phase }));
+    }
+
+    // ====================================================================
+    // MIC / CAMERA AVAILABILITY
+    // ====================================================================
+    // getUserMedia only exists in a secure context (https or localhost).
+    // Invite links built by invite.js point at this machine's LAN IP over
+    // plain http, where the browser exposes NO mediaDevices API — previously
+    // this surfaced as a generic "Microphone unavailable" toast that gave the
+    // user no idea why Hold to Talk would not work. Detect it up front, warn
+    // on the join card, and give an actionable reason for each failure mode.
+    function mediaUnavailableReason() {
+        if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return "insecure_context";
+        }
+        return null;
+    }
+
+    function maybeShowMediaWarning() {
+        const warn = document.getElementById("join-media-warning");
+        if (!warn || mediaUnavailableReason() !== "insecure_context") return;
+        const room = warn.querySelector("#join-media-room");
+        if (room) room.textContent = ROOM_ID;
+        warn.style.display = "flex";
+        lucide.createIcons();
+    }
+
+    // Human-readable, actionable reason for a failed mic/camera request.
+    function micErrorInfo(e) {
+        if (mediaUnavailableReason() === "insecure_context") {
+            return {
+                title: "Microphone & camera need a secure connection.",
+                hint: "This page is open over plain http on a network address. Join at http://localhost:8000 on the host machine (or serve the app over https) to enable your mic.",
+            };
+        }
+        if (!e) return null;
+        const name = e.name || "";
+        if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+            return {
+                title: "Microphone permission was blocked.",
+                hint: "Click the lock or shield icon beside the address bar, allow Microphone (and Camera for video), then press Hold to Talk again.",
+            };
+        }
+        if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+            return { title: "No microphone was found.", hint: "Check that a microphone is connected and enabled on this device." };
+        }
+        if (name === "NotReadableError" || name === "TrackStartError") {
+            return { title: "Microphone is busy in another app.", hint: "Close other apps using the mic (video calls, meetings, recorders) and try again." };
+        }
+        if (name === "OverconstrainedError") {
+            return { title: "Microphone couldn't start with the requested settings.", hint: "Try again — your browser may have just restarted the mic." };
+        }
+        return null;
+    }
+
+    function reportMicFailure(e, fallbackText) {
+        const info = micErrorInfo(e);
+        const title = info ? info.title : fallbackText;
+        const hint = info ? info.hint : "";
+        toast((hint ? `${title} ${hint}` : title).trim());
+        if (els.pushToTalkBtn) els.pushToTalkBtn.title = hint ? `${title} ${hint}` : title;
+        setAsrStatus(title);
+    }
+
+    // ====================================================================
+    // ====================================================================
+    // PUSH-TO-TALK
+    // ====================================================================
+    // Press and hold the button to record; release to stop and submit.
+    // This eliminates overlapping speech — only the person holding the
+    // button can talk, keeping the trial transcript clean.
+    // Push-to-talk capture limits. A spoken statement is one entry in the
+    // record, so its cap is generous (a TYPED statement still respects the
+    // input's maxlength).
+    const PTT_TAIL_MS = 250;          // keep capturing briefly after release
+    const BROWSER_ASR_GRACE_MS = 400; // let the recogniser deliver its last result
+    const ASR_TEXT_MAX = 1200;        // cap for a spoken statement
+
+    const ptt = {
+        recorder: null,
+        chunks: [],
+        recording: false,
+        stream: null,
+        startedAt: 0,
+        minMs: 300,  // ignore sub-300ms blips
+        releasedDuringInit: false, // set true if user releases while we're still acquiring the mic
+        serverAsr: true,    // whisper available on the server (probed at join)
+        browserAsr: false,  // fall back to browser SpeechRecognition when whisper is missing
+        sr: null,           // active SpeechRecognition session while holding (browser mode)
+        srText: "",         // accumulated final transcript of the current hold
+        srInterim: "",      // last interim (unfinalised) transcript of the hold
+        asrSession: 0,      // token so a late onend cannot finalise a newer hold
+        keyHeld: false,     // space bar is currently held down (keyboard push-to-talk)
+    };
+
+    function initPushToTalk() {
+        const btn = els.pushToTalkBtn;
+        if (!btn) return;
+        // Mouse
+        btn.addEventListener("mousedown", pttStart);
+        btn.addEventListener("mouseup", pttStop);
+        btn.addEventListener("mouseleave", pttStop);
+        // Touch (mobile)
+        btn.addEventListener("touchstart", (e) => { e.preventDefault(); pttStart(); });
+        btn.addEventListener("touchend", (e) => { e.preventDefault(); pttStop(); });
+        btn.addEventListener("touchcancel", pttStop);
+        // Keyboard — hold the SPACE bar to talk (the primary trigger).
+        window.addEventListener("keydown", onPttKeyDown);
+        window.addEventListener("keyup", onPttKeyUp);
+        window.addEventListener("blur", onPttBlur);
+    }
+
+    // Space-bar push-to-talk. Space is left alone while the user is typing in a
+    // field (so it still types a space) and while the join/concluded card is up.
+    function isTypingTarget(el) {
+        if (!el) return false;
+        const tag = (el.tagName || "").toLowerCase();
+        return tag === "input" || tag === "textarea" || tag === "select" ||
+            el.isContentEditable === true;
+    }
+
+    function onPttKeyDown(e) {
+        if (e.code !== "Space" && e.key !== " ") return;
+        // Already holding via the keyboard — swallow auto-repeat and keep the
+        // page from scrolling.
+        if (ptt.keyHeld) { e.preventDefault(); return; }
+        if (isTypingTarget(e.target)) return;   // let the user type spaces
+        if (!state.me) return;                  // not joined yet
+        if (els.joinOverlay && els.joinOverlay.style.display !== "none") return; // join / concluded card
+        ptt.keyHeld = true;
+        e.preventDefault();
+        pttStart();
+    }
+
+    function onPttKeyUp(e) {
+        if (e.code !== "Space" && e.key !== " ") return;
+        if (!ptt.keyHeld) return;   // not started from a key press
+        ptt.keyHeld = false;
+        e.preventDefault();
+        pttStop();
+    }
+
+    // Alt-tabbing away while space is held never delivers the keyup — close the
+    // mic so we don't record indefinitely.
+    function onPttBlur() {
+        if (!ptt.keyHeld) return;
+        ptt.keyHeld = false;
+        pttStop();
+    }
+
+    async function pttStart() {
+        if (ptt.recording) return;
+        ptt.releasedDuringInit = false;
+        // Server whisper unavailable → browser SpeechRecognition hold mode.
+        if (!ptt.serverAsr && ptt.browserAsr) {
+            if (mediaUnavailableReason()) {
+                reportMicFailure(null, "Microphone unavailable on this connection.");
+                showMicFallback();
+                return;
+            }
+            pttStartBrowserAsr();
+            return;
+        }
+        // If we already have a stream, start synchronously (no race condition).
+        let stream = state.localStream;
+        if (!stream) {
+            // First time or after denial — acquire async. While the browser
+            // shows its permission prompt the button must still react, so flip
+            // it to a visible "waiting" state instead of appearing dead.
+            // If the user releases during the wait (typical: they let go of the
+            // mouse to click "Allow"), pttStop flags ptt.releasedDuringInit and
+            // we abort below — but first tell them the mic is now ready.
+            setPttLabel(true, "Waiting for microphone…");
+            try {
+                stream = await ensureLocalStream();
+            } finally {
+                if (!stream || ptt.releasedDuringInit) setPttLabel(false, "Hold to Talk");
+            }
+            if (!stream) {
+                // ensureLocalStream already reported the failure (toast + asr
+                // status) and enabled the typed-statement fallback.
+                ptt.releasedDuringInit = false;
+                return;
+            }
+            // The shared stream can carry no audio (e.g. the join-time prompt
+            // was dismissed), or carry an audio track that has since ended
+            // (mic unplugged, handed to another app). Hold to Talk needs a live
+            // mic, so ask for one — this re-triggers the browser's permission
+            // prompt when the earlier one was dismissed rather than blocked —
+            // and ADOPT it as the room's audio, or the room hears nothing while
+            // the statement is still transcribed locally.
+            const liveAudio = stream.getAudioTracks().filter((t) => t.readyState === "live");
+            if (!liveAudio.length) {
+                let dedicated = null;
+                try {
+                    dedicated = await navigator.mediaDevices.getUserMedia({
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                    });
+                } catch (e) {
+                    console.warn("Push-to-talk could not access the microphone:", e);
+                    setPttLabel(false, "Hold to Talk");
+                    reportMicFailure(e, "Microphone unavailable — you can still type your statement.");
+                    showMicFallback();
+                    return;
+                }
+                if (await adoptMicStream(dedicated)) {
+                    stream = state.localStream || dedicated;
+                }
+            }
+        }
+        // If the user released while we were waiting for the mic, abort — and
+        // say the mic is ready so they know to simply press again.
+        if (ptt.releasedDuringInit) {
+            ptt.releasedDuringInit = false;
+            setPttLabel(false, "Hold to Talk");
+            setAsrStatus("Microphone ready — press and hold again to speak.");
+            return;
+        }
+        // A previous hold may still be inside its tail-flush window: retire it
+        // (and mute its handler) so its onstop can never interfere with this one.
+        if (ptt.recorder && ptt.recorder.state !== "inactive") {
+            try { ptt.recorder.onstop = null; ptt.recorder.stop(); } catch (_) {}
+        }
+        ptt.stream = stream;
+        ptt.chunks = [];
+        // Record AUDIO ONLY: the shared local stream also carries video tracks
+        // (added for the WebRTC video mesh), which makes MediaRecorder reject
+        // the audio/webm mime type and later breaks the WAV decode in blobToWav.
+        const audioOnlyStream = new MediaStream(stream.getAudioTracks());
+        try {
+            ptt.recorder = new MediaRecorder(audioOnlyStream, { mimeType: "audio/webm" });
+        } catch (_) {
+            try { ptt.recorder = new MediaRecorder(audioOnlyStream); } catch (_) {
+                toast("Recording not supported in this browser.");
+                return;
+            }
+        }
+        ptt.recorder.ondataavailable = (e) => { if (e.data && e.data.size) ptt.chunks.push(e.data); };
+        ptt.recorder.onstop = pttOnStopped;
+        ptt.recorder.start(250);
+        ptt.recording = true;
+        ptt.startedAt = Date.now();
+        // Holding to talk opens the live mic to the room (see applyMicGate) AND
+        // re-asserts that mic on every peer connection, so the words being
+        // transcribed are also the words the room hears. A peer whose
+        // renegotiation was in flight reports back as deferred — its retry is
+        // queued, and we say so instead of pretending the room heard it.
+        applyMicGate();
+        const deferred = await assertMicOnPeers();
+        els.pushToTalkBtn.classList.add("active");
+        els.pushToTalkBtn.innerHTML = '<i data-lucide="mic-off"></i> Recording…';
+        lucide.createIcons();
+        setAsrStatus(deferred
+            ? "Recording — release to send. Reconnecting your mic to the room…"
+            : "Recording — release to send.");
+    }
+
+    function pttStop() {
+        if (ptt.sr) {
+            // Browser speech mode — release finalizes + submits (see onend).
+            try { ptt.sr.stop(); } catch (_) {}
+            return;
+        }
+        if (!ptt.recording || !ptt.recorder) {
+            // User released before recording actually started (async mic init).
+            // Flag it so pttStart aborts when it finally resolves.
+            ptt.releasedDuringInit = true;
+            return;
+        }
+        ptt.recording = false;
+        // Release = stop being heard immediately (don't wait for the async
+        // recorder stop to fire).
+        applyMicGate();
+        // Tail capture. Chrome's webm/opus encoder still holds the audio of the
+        // cluster it is writing, so stopping the instant the key comes up clipped
+        // the last syllable off the recording - the classic "it missed the end of
+        // my sentence", which is exactly how a statement ends up as a fragment.
+        // Ask for the buffered data, let the pause land, then stop. The room
+        // stopped hearing the mic a moment ago, so the extra frames only exist in
+        // the local recording.
+        const rec = ptt.recorder;
+        try { if (rec.state === "recording") rec.requestData(); } catch (_) {}
+        setTimeout(() => { try { rec.stop(); } catch (_) {} }, PTT_TAIL_MS);
+    }
+
+    async function pttOnStopped() {
+        const chunks = ptt.chunks;
+        ptt.chunks = [];
+        const elapsed = Date.now() - ptt.startedAt;
+        // Belt-and-braces: recorder stopped without pttStop (edge cases).
+        applyMicGate();
+        els.pushToTalkBtn.classList.remove("active");
+        els.pushToTalkBtn.innerHTML = '<i data-lucide="mic"></i> Hold to Talk';
+        lucide.createIcons();
+
+        if (!chunks.length || elapsed < ptt.minMs) {
+            setAsrStatus("");
+            return;
+        }
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        setAsrStatus("Transcribing…");
+        try {
+            const wav = await blobToWav(blob);
+            await pttUpload(wav);
+        } catch (e) {
+            console.warn("Push-to-talk transcription failed:", e);
+            toast("Transcription failed — try again.");
+        } finally {
+            setAsrStatus("");
+        }
+    }
+
+    async function pttUpload(wavBlob) {
+        const fd = new FormData();
+        fd.append("room_id", ROOM_ID);
+        fd.append("participant_id", state.me.participant_id);
+        // When the clip was SPOKEN, in epoch ms. The server measures "is this the
+        // same utterance?" against it: transcription takes 10-60 s, so the moment
+        // the server stores the entry says nothing about whether the speaker
+        // paused or simply spoke two halves of one sentence.
+        fd.append("recorded_at", String(ptt.startedAt || Date.now()));
+        fd.append("audio", wavBlob, `ptt_${Date.now()}.wav`);
+        const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
+        if (!res.ok) {
+            let msg = `Transcription failed (${res.status})`;
+            let asrUnavailable = false;
+            try {
+                const d = await res.json();
+                if (d && d.detail) {
+                    const det = d.detail;
+                    msg = typeof det === "object" ? (det.message || msg) : det;
+                    if (typeof det === "object" && det.code === "asr_unavailable") asrUnavailable = true;
+                }
+            } catch (_) {}
+            if (asrUnavailable) {
+                ptt.serverAsr = false;
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                ptt.browserAsr = !!SR && window.isSecureContext;
+                if (ptt.browserAsr) {
+                    msg = "Recordings can't be transcribed on this server — press and hold again and speak: your browser will add it to the transcript.";
+                } else {
+                    msg += " Type your statement below instead.";
+                }
+            }
+            toast(msg);
+        }
+        // Server broadcasts the entry to the room via WebSocket — nothing else needed.
+    }
+
+    // ---- mic-unavailable text fallback ----
+    function showMicFallback() {
+        els.statementInput.placeholder = "Type your statement for the record…";
+        els.statementInput.focus();
+    }
+
+    function setAsrStatus(text) {
+        if (!els.asrStatus) return;
+        if (text) {
+            els.asrStatus.textContent = text;
+            els.asrStatus.hidden = false;
+        } else {
+            els.asrStatus.textContent = "";
+            els.asrStatus.hidden = true;
+        }
+    }
+
+    // ====================================================================
+    // END SESSION + ASR AVAILABILITY
+    // ====================================================================
+    // The Presiding Judge can adjourn the trial for everyone. The server marks
+    // the room ended (phase Concluded, new joins refused) and closes every
+    // socket; each client lands back on the join card, now showing the
+    // official record's download links.
+    async function requestEndSession() {
+        const isJudge = state.me && state.me.role === "Judge";
+        if (!isJudge) {
+            toast("Only the Presiding Judge may adjourn the courtroom session.");
+            return;
+        }
+        const ok = window.confirm(
+            "Adjourn this trial session for everyone? The transcript and analysis reports will be preserved for download.\n\nYou (Presiding Judge) will be returned to the dashboard."
+        );
+        if (!ok) return;
+
+        state.iEnded = true;
+        if (els.endSessionBtn) els.endSessionBtn.disabled = true;
+        const leaveLabel = document.getElementById("leave-btn-label");
+        if (leaveLabel) leaveLabel.textContent = "Adjourning…";
+
+        let sentWs = false;
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            try {
+                state.ws.send(JSON.stringify({ type: "end_session" }));
+                sentWs = true;
+            } catch (err) {
+                console.warn("WebSocket send end_session failed:", err);
+            }
+        }
+
+        // Guaranteed REST fallback: always POST to /api/court/rooms/{room_id}/end
+        try {
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/end`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ended_by: state.me.name || "The Presiding Judge" }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                handleSessionEnded(data.room || { room_id: ROOM_ID, status: "ended" }, true);
+                return;
+            }
+        } catch (e) {
+            console.error("REST end courtroom failed:", e);
+        }
+
+        if (!sentWs) {
+            if (els.endSessionBtn) els.endSessionBtn.disabled = false;
+            if (leaveLabel) leaveLabel.textContent = "Adjourn";
+            toast("Could not adjourn courtroom session. Please try again.");
+        }
+    }
+
+    // Handles Leave / Adjourn call from the bottom control bar
+    window.__handleLeaveCall = function () {
+        const isJudge = state.me && state.me.role === "Judge";
+        if (isJudge) {
+            requestEndSession();
+        } else {
+            const ok = window.confirm(
+                "Leave this trial session? You will be taken to the transcript download and exit screen."
+            );
+            if (ok) {
+                handleSessionEnded({ room_id: ROOM_ID, status: "ended" }, false);
+            }
+        }
+    };
+
+    // The join card, dressed as a "session ended" screen.
+    function showEndedJoinCard(room, wasJudge = false) {
+        // The session is over — a pending pre-entry countdown must not linger.
+        stopJoinCountdown();
+        const title = (room && room.case_title) || "Trial";
+        els.joinCaseTitle.textContent = `${title} — concluded`;
+
+        const joinBackLink = document.getElementById("join-back-link");
+        const endedExitBtn = document.getElementById("ended-exit-btn");
+        const endedNote = document.getElementById("session-ended-note");
+
+        if (wasJudge) {
+            els.joinSubtitle.textContent =
+                "The trial session was adjourned. Returning Presiding Judge to the dashboard…";
+            if (joinBackLink) joinBackLink.style.display = "";
+            if (endedExitBtn) endedExitBtn.style.display = "none";
+            if (endedNote) endedNote.textContent = "The court stands adjourned. Preparing your dashboard return…";
+        } else {
+            els.joinSubtitle.textContent =
+                "The Presiding Judge adjourned this session. The official record is preserved below — download your copy and exit.";
+            if (joinBackLink) joinBackLink.style.display = "none";
+            if (endedExitBtn) endedExitBtn.style.display = "inline-flex";
+            if (endedNote) endedNote.textContent = "The court stands adjourned. Official court documents are available for download below.";
+        }
+
+        els.joinForm.style.display = "none";
+        const warn = document.getElementById("join-media-warning");
+        if (warn) warn.style.display = "none";
+        const md = els.endedMdLink, pdf = els.endedPdfLink, rep = els.endedReportLink;
+        if (md) md.href = `/api/court/rooms/${ROOM_ID}/transcript`;
+        if (pdf) pdf.href = `/api/court/rooms/${ROOM_ID}/transcript.pdf`;
+        if (rep) rep.href = `/api/court/rooms/${ROOM_ID}/session-report.pdf`;
+        if (endedExitBtn) {
+            endedExitBtn.onclick = (e) => {
+                if (window.opener && !window.opener.closed) {
+                    try {
+                        window.close();
+                        e.preventDefault();
+                        return;
+                    } catch (_) {}
+                }
+            };
+        }
+        if (els.sessionEndedPanel) els.sessionEndedPanel.style.display = "block";
+        if (md || pdf || rep || endedExitBtn) lucide.createIcons();
+    }
+
+    function handleSessionEnded(room, forcedJudgeState) {
+        const wasJudge = (typeof forcedJudgeState === "boolean")
+            ? forcedJudgeState
+            : Boolean((state.me && state.me.role === "Judge") || state.iEnded);
+
+        // Tear down the live session: peers, local media, analyzers.
+        for (const pid of [...state.peers.keys()]) closePeer(pid);
+        try { if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
+        state.localStream = null;
+        // Stop watching the self tile's video — the stream is gone now.
+        if (state.me) {
+            const selfV = videoElFor(state.me.participant_id);
+            stopVideoKeepalive(selfV);
+        }
+        try { stopAutoDictation(); } catch (_) {}
+        try { if (ptt.sr) ptt.sr.abort(); } catch (_) {}
+        ptt.sr = null;
+        // If face analysis is still running, log its session summary to the
+        // record before the teardown — the aggregate must survive the adjournment.
+        try { stopFaceAnalysis(); } catch (_) {}
+        disableFaceCamera();
+
+        // Back to the join card, now showing the ended state.
+        els.root.style.display = "none";
+        els.joinOverlay.style.display = "";
+        hideJoinError();
+        showEndedJoinCard(room, wasJudge);
+        state.me = null;
+        if (state.ws) {
+            try { state.ws.onclose = null; state.ws.close(); } catch (_) {}
+            state.ws = null;
+        }
+
+        if (wasJudge) {
+            toast("Session adjourned — returning to dashboard.");
+            scheduleReturnToDashboard();
+        } else {
+            toast("Court adjourned. Official transcript and report preserved below.");
+            // Non-judge remains on the download / exit card!
+        }
+    }
+
+    // Counts down on the ended card, then returns the Judge to the dashboard.
+    function scheduleReturnToDashboard() {
+        const base = els.joinSubtitle.textContent;
+        let n = 5;
+        els.joinSubtitle.textContent = `${base} Returning to the dashboard in ${n}s…`;
+        const timer = setInterval(() => {
+            n -= 1;
+            if (n <= 0) {
+                clearInterval(timer);
+                returnToDashboard();
+                return;
+            }
+            els.joinSubtitle.textContent = `${base} Returning to the dashboard in ${n}s…`;
+        }, 1000);
+    }
+
+    // Close this tab and hand focus back to the dashboard tab that opened the
+    // trial (script-opened tabs may self-close); otherwise just navigate there.
+    function returnToDashboard() {
+        try {
+            if (window.opener && !window.opener.closed) {
+                try { window.opener.focus(); } catch (_) {}
+                window.close();
+                return;
+            }
+        } catch (_) {}
+        window.location.href = "/";
+    }
+
+    // Ask the server whether whisper is installed. When it isn't, Hold to Talk
+    // switches to the browser's SpeechRecognition (Chrome) so spoken words
+    // still reach the official transcript — the record-then-upload path can't
+    // work without server ASR.
+    async function probeAsr() {
+        try {
+            const res = await fetch("/api/court/asr-status", { cache: "no-store" });
+            const data = res.ok ? await res.json() : null;
+            if (data && typeof data.available === "boolean") ptt.serverAsr = data.available;
+        } catch (_) {
+            ptt.serverAsr = true; // unknown — keep the recorded-clip path; a 503 will flip it
+        }
+        if (ptt.serverAsr) return;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        ptt.browserAsr = !!SR && window.isSecureContext;
+        if (ptt.browserAsr) {
+            toast("Server speech-to-text isn't installed — Hold to Talk will use your browser's speech recognition (Chrome).");
+            if (els.pushToTalkBtn) els.pushToTalkBtn.title = "Hold, speak, release — your browser transcribes it into the record";
+        } else {
+            setAsrStatus(window.isSecureContext
+                ? "Server speech-to-text isn't installed and this browser has none — Hold to Talk needs Chrome, or install it with: pip install openai-whisper"
+                : "");
+        }
+    }
+
+    // ---- Hold to Talk over browser SpeechRecognition -------------------
+    // While the button is held, Chrome listens (continuous); on release the
+    // accumulated words are grammar-corrected via Ollama and sent as this
+    // speaker's statement — no server whisper required.
+    function pttStartBrowserAsr() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            toast("Speech recognition isn't available in this browser — type your statement instead.");
+            showMicFallback();
+            return;
+        }
+        if (ptt.sr) return; // already listening
+        const rec = new SR();
+        ptt.sr = rec;
+        ptt.srText = "";
+        ptt.srInterim = "";
+        ptt.asrSession += 1;
+        rec.lang = "en-IN";
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.onresult = (ev) => {
+            let interim = "";
+            let finalSeen = false;
+            for (let i = ev.resultIndex; i < ev.results.length; i++) {
+                const seg = ev.results[i];
+                if (!seg || !seg[0]) continue;
+                const t = seg[0].transcript;
+                if (seg.isFinal) { ptt.srText = (ptt.srText + " " + t).trim(); finalSeen = true; }
+                else interim += t;
+            }
+            // Interim words are kept as well. Chrome regularly ends a hold without
+            // ever promoting the last phrase to a final result, and the old code
+            // then submitted NOTHING - the whole hold was lost.
+            if (interim) ptt.srInterim = interim;
+            else if (finalSeen) ptt.srInterim = "";
+            if (interim) setAsrStatus("Listening… " + interim);
+        };
+        rec.onerror = (ev) => {
+            const err = (ev && ev.error) || "";
+            if (err === "not-allowed" || err === "service-not-allowed") {
+                reportMicFailure(null, "Microphone permission was blocked — click the lock icon beside the address bar and allow Microphone.");
+            }
+            // 'no-speech' and others end quietly (release with silence = no-op).
+        };
+        rec.onend = () => {
+            if (ptt.sr === rec) ptt.sr = null;
+            // The last result of a hold often lands a beat AFTER onend; finalising
+            // immediately (the old behaviour) lost those words.
+            const session = ptt.asrSession;
+            setTimeout(() => pttFinishBrowserAsr(session), BROWSER_ASR_GRACE_MS);
+        };
+        ptt.recording = true;
+        ptt.startedAt = Date.now();
+        setPttLabel(true, "Listening…");
+        // The browser-ASR hold opens the live mic to the room too — and must
+        // re-assert it on every peer, exactly like the whisper hold, or the
+        // room hears nothing while the statement is still transcribed.
+        applyMicGate();
+        assertMicOnPeers();
+        try {
+            rec.start();
+        } catch (_) {
+            ptt.sr = null;
+            ptt.recording = false;
+            // Close the mic again: a hold that never started listening must not
+            // leave the room hearing an open mic.
+            applyMicGate();
+            setPttLabel(false, "Hold to Talk");
+            toast("Speech recognition could not start — type your statement instead.");
+            showMicFallback();
+        }
+    }
+
+    function pttFinishBrowserAsr(session) {
+        // A newer hold has already started (or this is a stray second call):
+        // never touch its state.
+        if (session !== undefined && session !== ptt.asrSession) return;
+        const wasRecording = ptt.recording;
+        ptt.recording = false;
+        applyMicGate();
+        setPttLabel(false, "Hold to Talk");
+        if (!wasRecording) return;
+        // Finals first, then whatever the recogniser left as interim.
+        const raw = (ptt.srText || ptt.srInterim || "").trim();
+        ptt.srText = "";
+        ptt.srInterim = "";
+        if (!raw) {
+            setAsrStatus("");
+            return;
+        }
+        setAsrStatus("Adding to transcript…");
+        (async () => {
+            let text = raw;
+            try {
+                const res = await fetch("/api/court/correct-transcript", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    // room_id carries the case context (this trial's names/terms),
+                    // so mishearings of them are restored instead of kept.
+                    body: JSON.stringify({ text: raw, room_id: ROOM_ID }),
+                });
+                if (res.ok) {
+                    const d = await res.json();
+                    if (d && typeof d.corrected === "string" && d.corrected.trim()) text = d.corrected.trim();
+                }
+            } catch (_) {}
+            if (text.trim()) sendStatement(text.slice(0, ASR_TEXT_MAX));
+            setAsrStatus("");
+        })();
+    }
+
+    function setPttLabel(active, text) {
+        if (!els.pushToTalkBtn) return;
+        els.pushToTalkBtn.classList.toggle("active", !!active);
+        els.pushToTalkBtn.innerHTML = active
+            ? `<i data-lucide="mic-off"></i> ${text}`
+            : '<i data-lucide="mic"></i> Hold to Talk';
+        lucide.createIcons();
+    }
+
+    // ====================================================================
+    // AUTO-TRANSCRIPTION (kept as fallback, disabled by default)
+    // ====================================================================
+    class AsrUnavailableError extends Error {}
+
+    // Voice-activity detection tuning (RMS of the mic's time-domain data).
+    const VAD_SPEECH_THRESHOLD = 0.02; // above this = speech energy
+    const VAD_START_FRAMES = 10;       // ~170ms of speech before starting a segment
+    const VAD_STOP_FRAMES = 55;        // ~920ms of silence before ending a segment
+    const MIN_SEGMENT_MS = 500;        // ignore sub-half-second blips
+    const MAX_SEGMENT_MS = 20000;      // hard cap — whisper handles ≤ ~30s
+
+    const autoT = {
+        enabled: false,      // user toggle (default off — push-to-talk is primary)
+        active: false,       // VAD pipeline running
+        usingFallback: false,// browser SpeechRecognition mode in use
+        ctx: null,           // AudioContext for the analyser
+        src: null,           // MediaStreamSource tap on the local mic
+        analyser: null,
+        timeData: null,
+        recorder: null,      // MediaRecorder for the current segment
+        recording: false,
+        chunks: [],
+        speechFrames: 0,
+        silenceFrames: 0,
+        segmentStartedAt: 0,
+        queue: Promise.resolve(), // serializes uploads (one at a time, in order)
+    };
+
+    function renderAutoToggle() {
+        // No-op — auto-transcribe button removed in favor of push-to-talk.
+    }
+
+    async function toggleAutoTranscribe() {
+        // Legacy no-op — push-to-talk is now the primary input.
+    }
+
+    async function startAutoTranscription() {
+        // Legacy no-op — push-to-talk is now the primary input.
+    }
+
+    function stopAutoTranscription() {
+        // Legacy no-op — push-to-talk is now the primary input.
+    }
+
+    // Convert a recorded WebM/Opus blob to a 16 kHz mono WAV (what whisper needs).
+    async function blobToWav(blob) {
+        const arrayBuf = await blob.arrayBuffer();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioBuf;
+        try {
+            audioBuf = await ctx.decodeAudioData(arrayBuf);
+        } finally {
+            try { if (ctx.state !== "closed") await ctx.close(); } catch (_) {}
+        }
+        const targetRate = 16000;
+        const outLen = Math.max(1, Math.ceil(audioBuf.duration * targetRate));
+        const offline = new OfflineAudioContext(1, outLen, targetRate);
+        const src = offline.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(offline.destination);
+        src.start(0);
+        const rendered = await offline.startRendering();
+        const raw = rendered.getChannelData(0);
+        // Whisper drops the last word of a clip that ends mid-word and can skip
+        // the beginning while its decoder settles. A little real silence on both
+        // sides removes both failure modes and costs nothing to transcribe.
+        const padHead = Math.round(targetRate * 0.10);
+        const padTail = Math.round(targetRate * 0.30);
+        const channel = new Float32Array(padHead + raw.length + padTail);
+        channel.set(raw, padHead);
+
+        const buffer = new ArrayBuffer(44 + channel.length * 2);
+        const view = new DataView(buffer);
+        const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+        writeStr(0, "RIFF");
+        view.setUint32(4, 36 + channel.length * 2, true);
+        writeStr(8, "WAVE");
+        writeStr(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);          // PCM
+        view.setUint16(22, 1, true);          // mono
+        view.setUint32(24, targetRate, true);
+        view.setUint32(28, targetRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, "data");
+        view.setUint32(40, channel.length * 2, true);
+        let offset = 44;
+        for (let i = 0; i < channel.length; i++) {
+            const s = Math.max(-1, Math.min(1, channel[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            offset += 2;
+        }
+        return new Blob([view], { type: "audio/wav" });
+    }
+
+    // ---- fallback: browser SpeechRecognition, auto-submitting each utterance ----
+    let autoDictating = false;
+    let recognition = null;
+    let finalSpeech = "";
+    let dictationInterim = "";   // un-finalised words, submitted if dictation stops
+    // Lazily create browser SpeechRecognition (if available).
+    try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = "en-IN";
+            recognition.onresult = (event) => {
+                let interim = "";
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalSpeech += transcript + " ";
+                        autoSubmitSpoken(finalSpeech.trim());
+                        finalSpeech = "";
+                    } else {
+                        interim += transcript;
+                    }
+                }
+                dictationInterim = interim;
+                if (interim) setAsrStatus("Listening… " + interim);
+            };
+            recognition.onerror = () => {};
+            recognition.onend = () => { if (autoDictating) try { recognition.start(); } catch (_) {} };
+        }
+    } catch (_) {}
+
+    function startAutoDictation() {
+        if (!recognition) {
+            setAsrStatus("Speech-to-text is not supported in this browser — use Chrome.");
+            return;
+        }
+        autoDictating = true;
+        finalSpeech = "";
+        dictationInterim = "";
+        try { recognition.start(); } catch (_) {}
+        setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
+    }
+
+    function stopAutoDictation() {
+        autoDictating = false;
+        try { if (recognition) recognition.stop(); } catch (_) {}
+        // Whatever was still interim when dictation stopped was thrown away by
+        // the old code - the last sentence of the session vanished. Submit it.
+        const leftover = dictationInterim.trim();
+        dictationInterim = "";
+        if (leftover) autoSubmitSpoken(leftover);
+    }
+
+    async function autoSubmitSpoken(raw) {
+        setAsrStatus("Correcting with Ollama LLM…");
+        let text = raw.trim();
+        try {
+            const res = await fetch("/api/court/correct-transcript", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: raw, room_id: ROOM_ID }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data.corrected === "string" && data.corrected.trim()) {
+                    text = data.corrected.trim();
+                }
+            }
+        } catch (e) {
+            console.warn("LLM correction failed, using raw transcript:", e);
+        }
+        text = text.slice(0, ASR_TEXT_MAX);
+        if (text.trim()) sendStatement(text);
+        if (autoDictating) setAsrStatus("Browser dictation active — your speech is added to the transcript automatically.");
+    }
+
+    // ---- audio playback of recorded clips in the transcript ----
+    const clipPlayer = new Audio();
+
+    // Shared playback gain for transcript clips. A quiet courtroom recording
+    // (or a distant mic) is often inaudible at unity; a small fixed lift makes
+    // the attached .wav clips listenable without touching each clip.
+    let clipGain = null;
+    const CLIP_GAIN = 1.4;  // ~ +3 dB, same default lift as the live peers
+
+    function ensureClipGain() {
+        if (clipGain) return clipGain;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            ctx.resume().catch(() => {});
+            const gain = ctx.createGain();
+            gain.gain.value = CLIP_GAIN;
+            const src = ctx.createMediaElementSource(clipPlayer);
+            src.connect(gain);
+            gain.connect(ctx.destination);
+            clipGain = { ctx, gain };
+        } catch (e) {
+            console.warn("Transcript clip playback gain unavailable -", e);
+        }
+        return clipGain;
+    }
+
+    let activeClipBtn = null;
+
+    function toggleClipPlay(btn) {
+        const url = btn.dataset.url;
+        if (activeClipBtn === btn && !clipPlayer.paused) {
+            clipPlayer.pause();
+            btn.innerHTML = '<i data-lucide="play"></i>';
+            lucide.createIcons();
+            activeClipBtn = null;
+            return;
+        }
+        // Make sure the playback gain node is set up on this user gesture
+        // (AudioContext may be suspended until a gesture).
+        ensureClipGain();
+        clipPlayer.src = url;
+        clipPlayer.play().catch(() => {});
+        if (activeClipBtn) activeClipBtn.innerHTML = '<i data-lucide="play"></i>';
+        btn.innerHTML = '<i data-lucide="pause"></i>';
+        lucide.createIcons();
+        activeClipBtn = btn;
+        clipPlayer.onended = () => {
+            btn.innerHTML = '<i data-lucide="play"></i>';
+            lucide.createIcons();
+            if (activeClipBtn === btn) activeClipBtn = null;
+        };
+    }
+
+    els.transcriptFeed.addEventListener("click", (e) => {
+        const btn = e.target.closest(".audio-play");
+        if (btn) toggleClipPlay(btn);
+    });
+
+    // ====================================================================
+    // FACE & EXPRESSION ANALYSIS (local camera → nervousness cues)
+    // ====================================================================
+    // MediaPipe FaceLandmarker (@mediapipe/tasks-vision, lazy-loaded). Detects
+    // lip movement / expression cues — lip pressing, lip trembling, frowning,
+    // furrowed/raised brows, rapid blinking, and DIRECTIONAL lateral gaze (a
+    // held look to the subject's own left = construction/deception cue, to
+    // their right = recall) — and logs them to the official transcript as
+    // kind='behavior' entries, so nervousness cues become part of the court
+    // record. Works on the local camera OR any remote participant's video feed
+    // (selected in the panel's source dropdown).
+    //
+    // The "speaking" gate cannot rely on the mic alone: this room starts with
+    // the mic CLOSED (applyMicGate — audible only while Hold to Talk is held),
+    // so a disabled track feeds the analyser silence. Visible mouth movement is
+    // therefore the second half of the gate, or the panel would never fire.
+    const FACE_LANDMARKS = {
+        leftEye: [33, 160, 158, 133, 153, 144],
+        rightEye: [362, 385, 387, 263, 373, 380],
+        leftIris: 468,
+        rightIris: 473,
+        lipLeftCorner: 61,
+        lipRightCorner: 291,
+        lipUpper: 13,      // inner upper lip
+        lipLower: 14,      // inner lower lip
+        lipMidUpper: 0,    // outer upper lip centre
+        lipMidLower: 17,   // outer lower lip centre
+        browInnerL: 21,
+        browInnerR: 22,
+        browOuterL: 107,
+        browOuterR: 336,
+        eyeTopL: 159,
+        eyeTopR: 386,
+        eyeOuterL: 33,
+        eyeOuterR: 263,
+        noseTip: 4,
+        upperLipBase: 164,
+        chinBottom: 152,
+    };
+
+    const CALIBRATION_FRAMES = 25;         // ~2 s of initial face calibration (instantaneous)
+    const CALIBRATION_TIMEOUT_MS = 5000;   // 5s max timeout to establish baseline
+    const CALIBRATION_MIN_FRAMES = 12;     // fewest samples to establish baseline (~1s)
+    const CUE_PERSIST_FRAMES = 5;          // ~400ms holding cue (natural conscious expression)
+    const CUE_LOG_INTERVAL_MS = 15000;
+    // Lateral gaze: how many baseline deviations (eye-widths) count as a real look-away.
+    const LATERAL_GAZE_SIGMA = 1.8;
+    const GAZE_MIN_STD = 0.03;
+    const SCORE_EMA_ALPHA = 0.12;          // responsive smoothing (~8 frames)
+    const SPEECH_GRACE_MS = 1000;
+    const CUE_LOG_MIN_CUES = 1;
+
+    // ---- articulation vs. emotion --------------------------------------
+    // Two things go wrong in a naive version of this analysis.
+    //   (1) Ordinary SPEECH moves the mouth, the brows and the head far more
+    //       than tension does, so a talking subject reads as a nervous one.
+    //   (2) A face calibrated in silence has almost no measured spread, so any
+    //       movement at all scores as a 3-sigma anomaly against it.
+    // Both are handled below: the lip signal is split into articulation
+    // (measured, not scored) and tremor (scored); every metric gets a noise
+    // floor; and while the subject is talking each z-score is taken against
+    // that person's own learned SPEAKING baseline instead of their silent one.
+    const LIP_WINDOW = 15;            // frames of lip aperture kept (~0.5 s at 30 fps)
+    const SPEAK_BASE_WARMUP = 20;     // speaking frames spent learning HOW they talk
+    const SPEAK_BASE_ALPHA = 0.02;    // micro-adaptation once the baseline is seeded
+    const SPEAK_BASE_BLEND = 0.35;    // weight a later bout's statistics carry
+    const BASE_ADAPT_Z = 1.4;         // only unremarkable frames drift into the baseline
+    const QUIET_DECAY_PER_SEC = 0.7;  // gauge decay toward calm while quiet
+    // Smallest spread we accept as a real signal, per metric (inter-ocular
+    // units). Without these, a motionless calibration makes landmark noise look
+    // like a large deviation the moment the subject starts moving.
+    const MIN_STD = {
+        ear: 0.010, lipOpen: 0.005, frown: 0.006,
+        browGap: 0.010, browRaise: 0.008, gazeX: 0.040, lipTremor: 0.0015,
+    };
+    const SPEAK_METRICS = ["ear", "lipOpen", "frown", "browGap", "browRaise", "gazeX", "lipTremor"];
+
+    const face = {
+        source: "self",          // "self" or a remote participant_id to analyze
+        stream: null,
+        ownStream: null,         // dedicated camera stream (only when the mesh lacks video)
+        ownsStream: false,       // true when we created ownStream ourselves (safe to stop)
+        landmarker: null,        // Vision.FaceLandmarker instance (lazy)
+        camera: null,            // { stop() } — frame-loop handle for the landmarker
+        _raf: null,
+        mediaPipePromise: null,
+        analyzing: false,
+        calibrated: false,
+        calibrationFrames: 0,
+        calibAcc: { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipTremor: [], lipAmp: [] },
+        baseline: {
+            earMean: 0.3, earStd: 0.02,
+            lipOpenMean: 0.05, lipOpenStd: 0.004,
+            lipWidthMean: 0.45, lipWidthStd: 0.02,
+            frownMean: 0.0, frownStd: 0.003,
+            browGapMean: 0.4, browGapStd: 0.02,
+            browRaiseMean: 0.15, browRaiseStd: 0.01,
+            gazeXMean: 0, gazeXStd: 0.03,
+            lipTremorMean: 0.001, lipTremorStd: 0.0005,
+            lipAmpMean: 0.002, lipAmpStd: 0.001,
+        },
+        stats: { blinks: 0, lastEarState: "open", startedAt: 0, peakScore: 0, cueEvents: 0, peakAtSpeaking: false, blinkTimes: [] },
+        history: { lipOpen: [] },
+        activeCues: new Set(),
+        cueStreak: {},
+        cueDurations: {},           // cue name -> seconds active this session
+        lastFrameAt: 0,
+        logCooldownUntil: 0,
+        gauge: 0,
+        emaScore: 0,
+        emaStarted: false,
+        lastScoreAt: 0,            // last frame the index was updated (for quiet decay)
+        speakBaseline: emptySpeakBaseline(),  // learned while the subject talks
+        speakingBaselineReady: false,
+        bout: null,                // current speaking bout's learning accumulator
+        prevSpeaking: false,
+        scoreOn: false,            // true only when the current frame may score
+        indexSum: 0,
+        indexFrames: 0,
+        speaking: false,            // currently speaking (voice OR visible mouth movement)
+        audioSpeaking: false,       // speech detected from the audio meter
+        visualTalking: false,       // speech inferred from visible mouth movement
+        lateralZ: 0,                // live horizontal gaze deviation (signed z)
+        calibHintShown: false,
+        noFaceFrames: 0,
+        speakingAcc: { frames: 0, samples: 0 },
+        lastSpeakingSeenAt: 0,
+        speechSeenAt: 0,            // first time speech was detected this session
+        meter: null,                // { ctx, analyser, buf, source } for self mic level
+        remoteMeter: null,          // { ctx, analyser, buf, stream } for remote feed level
+        sessionStartIso: "",
+        emotions: { neutral: 100, joy: 0, stress: 0, anger: 0, fear: 0, sadness: 0, surprise: 0, disgust: 0, skepticism: 0 },
+        dominantEmotion: { key: "neutral", label: "Neutral / Composed", emoji: "😐", score: 95, cls: "calm" },
+    };
+
+    const CUE_LABELS = {
+        rapid_blink: { label: "Rapid blinking", icon: "eye", sev: "strong" },
+        gaze_left: { label: "Gaze shifted left", icon: "arrow-left", sev: "strong" },
+        gaze_right: { label: "Gaze shifted right", icon: "arrow-right", sev: "mild" },
+        lip_press: { label: "Lip pressing", icon: "smile", sev: "strong" },
+        lip_tremor: { label: "Lip trembling", icon: "activity", sev: "strong" },
+        frown: { label: "Frowning", icon: "frown", sev: "mild" },
+        brow_furrow: { label: "Furrowed brows", icon: "chevrons-down", sev: "mild" },
+        brow_raise: { label: "Raised brows", icon: "chevrons-up", sev: "mild" },
+    };
+
+    function faceEl(id) { return document.getElementById(id); }
+
+    function resetFaceMetricsUI() {
+        const scoreEl = faceEl("face-score");
+        if (scoreEl) scoreEl.textContent = "0%";
+        const fill = faceEl("face-gauge-fill");
+        if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
+        const blinks = faceEl("fm-blinks");
+        if (blinks) blinks.textContent = "0";
+        const expr = faceEl("fm-expression");
+        if (expr) { expr.textContent = "—"; expr.className = ""; }
+        const stressVal = faceEl("fm-stress-val");
+        if (stressVal) { stressVal.textContent = "0% (Calm)"; stressVal.className = "calm"; }
+        const confEl = faceEl("fm-confidence");
+        if (confEl) { confEl.textContent = "—"; confEl.className = ""; }
+        const lips = faceEl("fm-lips");
+        if (lips) { lips.textContent = "—"; lips.className = ""; }
+        const brows = faceEl("fm-brows");
+        if (brows) { brows.textContent = "—"; brows.className = ""; }
+        const gazeEl = faceEl("fm-gaze");
+        if (gazeEl) { gazeEl.textContent = "—"; gazeEl.className = ""; }
+        const spkEl = faceEl("fm-speaking");
+        if (spkEl) { spkEl.textContent = "—"; spkEl.className = ""; }
+        const priBadge = document.getElementById("fes-primary-badge");
+        if (priBadge) priBadge.textContent = "Neutral · 95%";
+        const cues = faceEl("face-cues");
+        if (cues) cues.innerHTML = "";
+    }
+
+    function setFacePlaceholder(visible, text = "Feed off", icon = "user-round") {
+        const placeholder = faceEl("face-placeholder");
+        if (!placeholder) return;
+        if (visible) {
+            placeholder.style.display = "flex";
+            placeholder.innerHTML = `<i data-lucide="${icon}"></i><span>${escapeHtml(text)}</span>`;
+            lucide.createIcons();
+        } else {
+            placeholder.style.display = "none";
+        }
+    }
+
+    async function setupFaceForCurrentSource() {
+        const hasFeed = attachFaceSource();
+        const startBtn = faceEl("face-start-btn");
+        const camBtn = faceEl("face-camera-btn");
+        const statePill = faceEl("face-state");
+
+        if (hasFeed) {
+            if (statePill) {
+                statePill.textContent = "On";
+                statePill.classList.add("on");
+                statePill.classList.remove("live");
+            }
+            if (startBtn) startBtn.disabled = false;
+            if (camBtn) {
+                camBtn.innerHTML = '<i data-lucide="video-off"></i> Disable';
+                camBtn.onclick = disableFaceCamera;
+            }
+            await ensureFacePipeLibs().catch(() => {});
+            await initFaceMesh().catch(() => {});
+            lucide.createIcons();
+            toast(`Connected to ${subjectInfo().name}'s feed — start analysis to detect nervousness cues.`);
+        } else {
+            if (startBtn) startBtn.disabled = true;
+            if (statePill) {
+                statePill.textContent = "Waiting";
+                statePill.classList.remove("on", "live");
+            }
+            if (camBtn) {
+                camBtn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
+                camBtn.onclick = enableFaceCamera;
+            }
+            lucide.createIcons();
+        }
+    }
+
+    async function selectAndStartFaceAnalysis(targetPid, autoStart = true) {
+        if (!state.me || state.me.role !== "Judge") return;
+        const isMe = targetPid === state.me.participant_id || targetPid === "self";
+        const sourceVal = isMe ? "self" : targetPid;
+
+        face.source = sourceVal;
+        const sel = faceEl("face-source");
+        if (sel) sel.value = sourceVal;
+
+        // 1. Open drawer to Face tab
+        if (typeof window.__openDrawer === "function") {
+            window.__openDrawer("face");
+        }
+
+        // 2. Unfold panel
+        const panel = faceEl("face-analysis");
+        if (panel) setPanelCollapsed(panel, false);
+
+        // 3. Reset metrics & overlay
+        resetFaceMetricsUI();
+        const overlay = faceEl("face-overlay");
+        if (overlay) {
+            const ctx = overlay.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+
+        // 4. Connect feed
+        await setupFaceForCurrentSource();
+
+        // 5. Start analysis if requested
+        if (autoStart) {
+            const hasFeed = attachFaceSource();
+            if (hasFeed) {
+                startFaceAnalysis();
+                toast(`Chakshu AI: Live facial analysis active for ${subjectInfo().name}.`);
+            } else if (!isMe) {
+                face.autoStartPending = true;
+                toast(`Chakshu AI: Waiting for ${subjectInfo().name}'s video to start analysis.`);
+            }
+        }
+
+        renderStage();
+        syncMeetControls();
+    }
+
+    function initFacePanel() {
+        const panel = faceEl("face-analysis");
+        if (!panel) return;
+        // Judge-only tool — never reveal it to another role.
+        if (!state.me || state.me.role !== "Judge") {
+            panel.style.display = "none";
+            return;
+        }
+        panel.style.display = "flex";
+        panel.classList.remove("collapsed");
+        const toggle = panel.querySelector(".rail-toggle");
+        if (toggle) toggle.setAttribute("aria-expanded", "true");
+        const body = panel.querySelector(".panel-collapse");
+        if (body && "inert" in body) body.inert = false;
+        // If the panel was covered by another panel (e.g. the transcript/PDF)
+        // while the camera was supposed to keep running, re-affirm the monitor so
+        // it recovers rather than staying black until a source change.
+        reaffirmAllRoomVideos();
+        populateFaceSourceSelect();
+        // Background pre-warm MediaPipe landmarker so starting analysis is instantaneous
+        ensureFacePipeLibs().then(() => ensureFaceLandmarker()).catch((err) => {
+            console.warn("Background MediaPipe pre-warm:", err);
+        });
+        const camBtn = faceEl("face-camera-btn");
+        if (camBtn) camBtn.addEventListener("click", enableFaceCamera);
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.addEventListener("click", startFaceAnalysis);
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.addEventListener("click", () => stopFaceAnalysis(true));
+        const srcSel = faceEl("face-source");
+        if (srcSel) {
+            srcSel.addEventListener("change", async () => {
+                if (face.analyzing) stopFaceAnalysis(true);
+                face.source = srcSel.value;
+                resetFaceMetricsUI();
+                const overlay = faceEl("face-overlay");
+                if (overlay) {
+                    const ctx = overlay.getContext("2d");
+                    if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+                }
+                await setupFaceForCurrentSource();
+                renderStage();
+                syncMeetControls();
+            });
+        }
+        lucide.createIcons();
+    }
+
+    // ---- MediaPipe lazy-load (mirrors the dashboard Chakshu pattern) ----
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("Failed to load " + src));
+            document.head.appendChild(s);
+        });
+    }
+
+    // Loads the official, maintained @mediapipe/tasks-vision bundle (the legacy
+    // @mediapipe/face_mesh "solution" bundle is deprecated and throws when sent
+    // frames before its model finishes loading).
+    function ensureFacePipeLibs() {
+        if (typeof window.Vision !== "undefined" && window.Vision.FaceLandmarker) return Promise.resolve();
+        if (!face.mediaPipePromise) {
+            face.mediaPipePromise = loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.js");
+        }
+        return face.mediaPipePromise;
+    }
+
+    // Which feed the analyzer watches: repopulated from the roster. The
+    // selected feed is mirrored onto the panel's #face-video monitor element,
+    // so the landmarker always reads one element regardless of source.
+    function populateFaceSourceSelect() {
+        const sel = faceEl("face-source");
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '<option value="self">My camera</option>';
+        if (state.participants && state.me) {
+            for (const p of state.participants) {
+                if (p.participant_id === state.me.participant_id) continue;
+                const opt = document.createElement("option");
+                opt.value = p.participant_id;
+                opt.textContent = `${displayRoleFor(p)} — ${p.name}`;
+                sel.appendChild(opt);
+            }
+        }
+        if (prev && [...sel.options].some((o) => o.value === prev)) {
+            sel.value = prev;
+        } else {
+            sel.value = "self";
+            face.source = "self";
+        }
+    }
+
+    function attachFaceSource() {
+        const video = faceEl("face-video");
+        const wrap = document.querySelector(".face-video-wrap");
+        const status = faceEl("face-source-status");
+        if (!video) return false;
+        if (wrap) wrap.classList.toggle("mirror", face.source === "self");
+        if (status) status.hidden = true;
+
+        if (face.source === "self") {
+            // Reuse the shared mesh stream when it has a camera; otherwise fall
+            // back to the dedicated stream requested by enableFaceCamera().
+            const selfStream = (state.localStream && state.localStream.getVideoTracks().length)
+                ? state.localStream
+                : (face.ownStream || null);
+            const liveSelfTrack = selfStream && selfStream.getVideoTracks().find((t) => t.readyState === "live");
+            if (liveSelfTrack) {
+                affirmVideo(video, selfStream);
+                startVideoKeepalive(video, selfStream, () => videoHasSrc(video));
+                setFacePlaceholder(false);
+                if (status) status.hidden = true;
+                return true;
+            } else {
+                affirmVideo(video, null);
+                stopVideoKeepalive(video);
+                setFacePlaceholder(true, "Camera off", "video-off");
+                if (status) {
+                    status.textContent = "Your camera is off. Turn on camera or enable feed.";
+                    status.hidden = false;
+                }
+                return false;
+            }
+        }
+
+        // A remote participant's feed.
+        const peer = state.peers.get(face.source);
+        const stageEl = videoEls.get(face.source);
+        let track = (peer && peer.videoTrack && peer.videoTrack.readyState === "live" ? peer.videoTrack : null)
+            || (stageEl && stageEl.srcObject && stageEl.srcObject.getVideoTracks && stageEl.srcObject.getVideoTracks().find((t) => t.readyState === "live"))
+            || null;
+
+        // Fallback: inspect peer transceivers / receivers directly if track wasn't cached yet
+        if ((!track || track.readyState !== "live") && peer && peer.pc) {
+            try {
+                const rx = peer.pc.getReceivers().find((r) => r.track && r.track.kind === "video" && r.track.readyState === "live");
+                if (rx && rx.track) track = rx.track;
+            } catch (_) {}
+        }
+        if (track && peer && (!peer.videoTrack || peer.videoTrack.readyState !== "live")) {
+            peer.videoTrack = track;
+        }
+
+        if (track && track.readyState === "live") {
+            // Always create a dedicated MediaStream instance for #face-video so
+            // playback state and frame decoding never conflict with the stage tile.
+            const stream = new MediaStream([track]);
+            affirmVideo(video, stream);
+            startVideoKeepalive(video, stream, () => videoHasSrc(video));
+            setFacePlaceholder(false);
+            if (status) status.hidden = true;
+            return true;
+        } else {
+            // No track yet — clear monitor and show clear waiting placeholder
+            affirmVideo(video, null);
+            stopVideoKeepalive(video);
+            const subj = subjectInfo();
+            setFacePlaceholder(true, `Waiting for video from ${subj.name}…`, "video-off");
+            if (status) {
+                status.textContent = `Waiting for video from ${subj.name}…`;
+                status.hidden = false;
+            }
+            return false;
+        }
+    }
+
+    function refreshFaceSourceIfPending(pid) {
+        // The remote's video track just arrived — if the panel is monitoring
+        // them, switch the monitor feed over now.
+        if (face.source === pid) {
+            const attached = attachFaceSource();
+            if (attached && !face.analyzing) {
+                const startBtn = faceEl("face-start-btn");
+                if (startBtn) startBtn.disabled = false;
+                const statePill = faceEl("face-state");
+                if (statePill) { statePill.textContent = "On"; statePill.classList.add("on"); }
+                const camBtn = faceEl("face-camera-btn");
+                if (camBtn) {
+                    camBtn.innerHTML = '<i data-lucide="video-off"></i> Disable';
+                    camBtn.onclick = disableFaceCamera;
+                    lucide.createIcons();
+                }
+                if (face.autoStartPending) {
+                    face.autoStartPending = false;
+                    startFaceAnalysis();
+                    renderStage();
+                    syncMeetControls();
+                }
+            }
+        }
+    }
+
+    // ---- camera lifecycle -----------------------------------------------
+    async function enableFaceCamera() {
+        const btn = faceEl("face-camera-btn");
+        const statePill = faceEl("face-state");
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Connecting to feed…';
+            lucide.createIcons();
+            // Self: reuse the shared mesh camera when available; only ask the
+            // browser for a dedicated stream if the user joined audio-only.
+            // Remote: no permission needed — we mirror their video track.
+            if (face.source === "self") {
+                const hasLiveMeshTrack = state.localStream && state.localStream.getVideoTracks().some(t => t.readyState === "live");
+                if (!hasLiveMeshTrack && !face.ownStream) {
+                    try {
+                        face.ownStream = await navigator.mediaDevices.getUserMedia({
+                            video: { width: 640, height: 480, facingMode: "user" },
+                        });
+                        face.ownsStream = true;
+                    } catch (e) {
+                        console.warn("Dedicated camera request failed:", e);
+                    }
+                }
+            }
+            const attached = attachFaceSource();
+            await ensureFacePipeLibs();
+            await initFaceMesh();
+            if (statePill) { statePill.textContent = "On"; statePill.classList.add("on"); }
+            const startBtn = faceEl("face-start-btn");
+            if (startBtn) startBtn.disabled = !attached;
+            btn.innerHTML = '<i data-lucide="video-off"></i> Disable';
+            btn.disabled = false;
+            btn.onclick = disableFaceCamera;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            if (attached) {
+                toast("Feed connected — start analysis to detect nervousness cues.");
+            } else if (face.source !== "self") {
+                toast(`Waiting for ${subjectInfo().name}'s video to become available.`);
+            }
+        } catch (err) {
+            console.error("Face camera error:", err);
+            toast("Could not access the selected feed. Check camera permissions.");
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
+            lucide.createIcons();
+        }
+    }
+
+    function disableFaceCamera() {
+        stopFaceAnalysis(true);
+        if (face.camera) { try { face.camera.stop(); } catch (_) {} face.camera = null; }
+        const video = faceEl("face-video");
+        if (face.ownStream && face.ownsStream) {
+            face.ownStream.getTracks().forEach((t) => t.stop());
+        }
+        face.ownStream = null;
+        face.ownsStream = false;
+
+        // Completely shut down and detach the facial analysis monitor feed.
+        // We never stop state.localStream here so courtroom mesh peers continue
+        // receiving video, but #face-video must stop playing immediately.
+        if (video) {
+            stopVideoKeepalive(video);
+            try { video.pause(); } catch (_) {}
+            affirmVideo(video, null);
+            try { video.srcObject = null; } catch (_) {}
+        }
+        const overlay = faceEl("face-overlay");
+        if (overlay) {
+            const ctx = overlay.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+        const status = faceEl("face-source-status");
+        if (status) status.hidden = true;
+        resetFaceMetricsUI();
+
+        setFacePlaceholder(true, "Feed off", "user-round");
+        const statePill = faceEl("face-state");
+        if (statePill) { statePill.textContent = "Off"; statePill.classList.remove("on", "live"); }
+        const camBtn = faceEl("face-camera-btn");
+        if (camBtn) {
+            camBtn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
+            camBtn.onclick = enableFaceCamera;
+        }
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.disabled = true;
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.disabled = true;
+        document.querySelectorAll(".stage-tile.analyzing-face").forEach(t => t.classList.remove("analyzing-face"));
+        document.querySelectorAll(".stage-face-hud").forEach(h => h.classList.remove("visible"));
+        syncMeetControls();
+        renderStage();
+        lucide.createIcons();
+    }
+
+    // Creates the FaceLandmarker (async — resolves only once the model is
+    // loaded, so there is no race sending frames too early). Falls back to the
+    // CPU delegate if GPU is unavailable (headless / software rendering).
+    async function ensureFaceLandmarker() {
+        if (face.landmarker) return face.landmarker;
+        if (face._landmarkerPromise) return face._landmarkerPromise;
+        face._landmarkerPromise = (async () => {
+            await ensureFacePipeLibs();
+            const fileset = await Vision.FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+            );
+            const make = (delegate) => Vision.FaceLandmarker.createFromOptions(fileset, {
+                baseOptions: {
+                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                    delegate,
+                },
+                runningMode: "VIDEO",
+                numFaces: 1,
+                outputFaceBlendshapes: true,
+                outputFacialTransformationMatrixes: false,
+            });
+            const makeWithTimeout = (delegate, ms = 3000) => {
+                return Promise.race([
+                    make(delegate),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(`${delegate} initialization timed out`)), ms))
+                ]);
+            };
+            try {
+                face.landmarker = await makeWithTimeout("GPU", 3000);
+            } catch (e) {
+                console.warn("GPU FaceLandmarker unavailable or timed out — using CPU delegate.", e);
+                face.landmarker = await make("CPU");
+            }
+            return face.landmarker;
+        })();
+        return face._landmarkerPromise;
+    }
+
+    // Starts a requestAnimationFrame loop feeding the monitor <video> (local or
+    // remote feed) into the landmarker. detectForVideo is synchronous and needs
+    // strictly increasing timestamps.
+    async function initFaceMesh() {
+        const landmarker = await ensureFaceLandmarker();
+        if (!landmarker) throw new Error("FaceLandmarker failed to initialise.");
+        const video = faceEl("face-video");
+        const overlay = faceEl("face-overlay");
+        if (overlay) { overlay.width = 640; overlay.height = 480; }
+        if (face.camera) { try { face.camera.stop(); } catch (_) {} }
+        face.camera = {
+            stop: () => { if (face._raf) cancelAnimationFrame(face._raf); face._raf = null; },
+        };
+        let lastTs = 0;
+        const FACE_INFERENCE_INTERVAL_MS = 80; // ~12.5 FPS: sufficient for blink/lip cues while eliminating main-thread lockup
+        const loop = () => {
+            if (!face.landmarker || !face.camera) return;
+            if (video.readyState >= 2) {
+                const now = performance.now();
+                if (now - lastTs >= FACE_INFERENCE_INTERVAL_MS) {
+                    lastTs = now;
+                    try {
+                        onFaceMeshResults(landmarker.detectForVideo(video, now));
+                    } catch (e) {
+                        console.error("Face landmark inference failed:", e);
+                    }
+                }
+            }
+            face._raf = requestAnimationFrame(loop);
+        };
+        face._raf = requestAnimationFrame(loop);
+    }
+
+    // ---- analysis lifecycle ---------------------------------------------
+    async function startFaceAnalysis() {
+        const startBtn = faceEl("face-start-btn");
+        const stopBtn = faceEl("face-stop-btn");
+        const statePill = faceEl("face-state");
+
+        if (!face.landmarker || !face.camera) {
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Starting…';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+            await setupFaceForCurrentSource();
+        }
+
+        attachFaceSource();
+        setFacePlaceholder(false);
+        resetFaceMetricsUI();
+        face.analyzing = true;
+        face.calibrated = false;
+        face.calibrationFrames = 0;
+        face.calibAcc = { ear: [], lipOpen: [], lipWidth: [], frown: [], browGap: [], browRaise: [], gazeX: [], lipTremor: [], lipAmp: [] };
+        face.stats = { blinks: 0, lastEarState: "open", startedAt: Date.now(), peakScore: 0, cueEvents: 0, peakAtSpeaking: false, blinkTimes: [] };
+        face.history = { lipOpen: [] };
+        face.activeCues.clear();
+        face.cueStreak = {};
+        face.cueDurations = {};
+        face.lastFrameAt = 0;
+        face.logCooldownUntil = 0;
+        face.gauge = 0;
+        face.audioSpeaking = false;
+        face.visualTalking = false;
+        face.lateralZ = 0;
+        face.calibHintShown = false;
+        face.noFaceFrames = 0;
+        face.emaScore = 0;
+        face.emaStarted = false;
+        face.lastScoreAt = 0;
+        face.speakBaseline = emptySpeakBaseline();
+        face.speakingBaselineReady = false;
+        face.bout = null;
+        face.prevSpeaking = false;
+        face.scoreOn = true;
+        face.indexSum = 0;
+        face.indexFrames = 0;
+        face.speaking = false;
+        face.speakingAcc = { frames: 0, samples: 0 };
+        face.lastSpeakingSeenAt = 0;
+        face.speechSeenAt = 0;
+        face.sessionStartIso = new Date().toISOString();
+        attachSpeechMeter();
+
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i data-lucide="play"></i> Start Analysis';
+        }
+        if (stopBtn) stopBtn.disabled = false;
+        const scoreEl = faceEl("face-score");
+        if (scoreEl) scoreEl.textContent = "0%";
+        const fill = faceEl("face-gauge-fill");
+        if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
+        if (statePill) {
+            statePill.textContent = "Calibrating…";
+            statePill.classList.add("live");
+            statePill.classList.remove("on");
+        }
+        renderFaceCueChips();
+        syncMeetControls();
+        renderStage();
+    }
+
+    function stopFaceAnalysis(sendSummary = true) {
+        if (!face.analyzing) return;
+        face.analyzing = false;
+        detachSpeechMeter();
+        const startBtn = faceEl("face-start-btn");
+        if (startBtn) startBtn.disabled = false;
+        const stopBtn = faceEl("face-stop-btn");
+        if (stopBtn) stopBtn.disabled = true;
+        const statePill = faceEl("face-state");
+        if (statePill) { statePill.textContent = "Camera on"; statePill.classList.remove("live"); statePill.classList.add("on"); }
+        const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
+        const peak = face.stats.peakScore;
+        const mean = face.indexFrames ? Math.round(face.indexSum / face.indexFrames) : 0;
+        const calmPct = sessionSummary().calmPct;
+        let summary =
+            `Face analysis ended — session aggregate: mean index ${mean}%, peak ${peak}%, ` +
+            `calm ${calmPct}% of the session.`;
+        if (names.length) summary += ` Cues at stop: ${names.join(", ")}.`;
+        else summary += " No persistent nervousness cues.";
+        face.activeCues.clear();
+        face.cueStreak = {};
+        renderFaceCueChips();
+        document.querySelectorAll(".stage-tile.analyzing-face").forEach(t => t.classList.remove("analyzing-face"));
+        document.querySelectorAll(".stage-face-hud").forEach(h => h.classList.remove("visible"));
+        syncMeetControls();
+        renderStage();
+        if (sendSummary) {
+            sendBehaviorEntry(summary);
+            sendFaceSummary();
+            toast("Face analysis stopped — session aggregate logged.");
+        }
+    }
+
+    // Aggregates the whole analysis run into one object (also sent to the
+    // server so the session report and the record carry the balanced view).
+    function sessionSummary() {
+        const durationSec = Math.max(1, Math.round((Date.now() - face.stats.startedAt) / 1000));
+        let cueSec = 0;
+        for (const v of Object.values(face.cueDurations)) cueSec += v;
+        const calmSec = Math.max(0, durationSec - Math.round(cueSec));
+        const subject = subjectInfo();
+        return {
+            subject: subject.name,
+            subject_role: subject.role,
+            observer: state.me ? state.me.name : "",
+            // Identity for the server-side Judge-only check.
+            participant_id: state.me ? state.me.participant_id : "",
+            analyzed_source: face.source,
+            started_at: face.sessionStartIso || "",
+            ended_at: new Date().toISOString(),
+            duration_sec: durationSec,
+            time_speaking_sec: face.speakingAcc.samples,
+            calm_sec: calmSec,
+            calmPct: Math.round((calmSec / durationSec) * 100),
+            peak_index: face.stats.peakScore || 0,
+            mean_index: face.indexFrames ? Math.round(face.indexSum / face.indexFrames) : 0,
+            end_index: face.gauge || 0,
+            peak_during_speech: !!(face.stats.peakAtSpeaking),
+            dominant_emotion: face.dominantEmotion ? face.dominantEmotion.label : "Neutral / Composed",
+            dominant_emotion_score: face.dominantEmotion ? face.dominantEmotion.score : 95,
+            emotions: face.emotions ? { ...face.emotions } : {},
+            counters: { ...face.cueDurations },
+            active_durations: { ...face.cueDurations },
+            cue_events: face.stats.cueEvents || 0,
+        };
+    }
+
+    function sendFaceSummary() {
+        if (!state.me || state.me.role !== "Judge") return;
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        const summary = sessionSummary();
+        // Fire-and-forget; the server persists it on the room.
+        fetch(`/api/court/rooms/${ROOM_ID}/face-summary`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(summary),
+        }).catch(() => {});
+    }
+
+    // Who is being analyzed — name + display role for the record.
+    function subjectInfo() {
+        if (face.source === "self") {
+            return { name: state.me ? state.me.name : "Me", role: state.me ? state.me.display_role : "" };
+        }
+        const p = (state.participants || []).find((x) => x.participant_id === face.source);
+        if (p) {
+            return {
+                name: p.name,
+                role: displayRoleFor(p) || p.role,
+            };
+        }
+        return { name: "Participant", role: "" };
+    }
+
+    function finishFaceCalibration() {
+        const b = face.baseline;
+        b.earMean = meanOf(face.calibAcc.ear);       b.earStd = Math.max(0.005, stddev(face.calibAcc.ear));
+        b.lipOpenMean = meanOf(face.calibAcc.lipOpen); b.lipOpenStd = Math.max(0.0005, stddev(face.calibAcc.lipOpen));
+        b.lipWidthMean = meanOf(face.calibAcc.lipWidth); b.lipWidthStd = Math.max(0.005, stddev(face.calibAcc.lipWidth));
+        b.frownMean = meanOf(face.calibAcc.frown);   b.frownStd = Math.max(0.0005, stddev(face.calibAcc.frown));
+        b.browGapMean = meanOf(face.calibAcc.browGap); b.browGapStd = Math.max(0.005, stddev(face.calibAcc.browGap));
+        b.browRaiseMean = meanOf(face.calibAcc.browRaise); b.browRaiseStd = Math.max(0.003, stddev(face.calibAcc.browRaise));
+        b.gazeXMean = meanOf(face.calibAcc.gazeX);   b.gazeXStd = Math.max(0.012, stddev(face.calibAcc.gazeX));
+        b.lipTremorMean = meanOf(face.calibAcc.lipTremor); b.lipTremorStd = Math.max(MIN_STD.lipTremor, stddev(face.calibAcc.lipTremor));
+        b.lipAmpMean = meanOf(face.calibAcc.lipAmp);        b.lipAmpStd = Math.max(0.0008, stddev(face.calibAcc.lipAmp));
+        // Start from the quiet baseline; the first speaking bout replaces it with
+        // this person's actual talking face (see seedSpeakBaseline).
+        face.speakBaseline = emptySpeakBaseline();
+        face.speakingBaselineReady = false;
+        face.prevSpeaking = false;
+        face.bout = null;
+        face.lastScoreAt = 0;
+        face.calibrated = true;
+        face.stats.startedAt = Date.now();
+        face.sessionStartIso = new Date().toISOString();
+        const statePill = faceEl("face-state");
+        if (statePill) { statePill.textContent = "Analyzing"; statePill.classList.remove("on"); statePill.classList.add("live"); }
+        const subj = subjectInfo();
+        sendBehaviorEntry(`Face analysis started — baseline calibrated for ${subj.name} (${subj.role}). Cues count only while the subject is speaking, only when persistent, and always against this subject's own speaking baseline, so ordinary articulation is not reported.`);
+    }
+
+    // ---- per-frame signal extraction ------------------------------------
+    function meanOf(arr) {
+        if (!arr.length) return 0;
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+    function stddev(arr) {
+        if (arr.length < 2) return 0;
+        const m = meanOf(arr);
+        return Math.sqrt(arr.reduce((s, v) => s + (v - m) * (v - m), 0) / arr.length);
+    }
+
+    // Split a short lip-aperture window into articulation and tremor.
+    //   amplitude - the slow envelope: how much the mouth is OPENING. This is
+    //               speech. It drives the speaking gate and is never scored.
+    //   tremor    - the RMS of what is left once the envelope is removed, i.e.
+    //               the actual tremble of the lips. Smooth opening and closing
+    //               (every spoken word) is subtracted out, so ordinary talking
+    //               cannot inflate it. The old code scored the raw stddev of the
+    //               aperture as "tremor", which is dominated by speech.
+    function lipMotion(window) {
+        if (window.length < 5) return { tremor: 0, amplitude: 0 };
+        const k = 2;  // +/- 2 frames (~70 ms): longer than one tremor cycle
+        const env = [];
+        for (let i = 0; i < window.length; i++) {
+            const a = Math.max(0, i - k);
+            const b = Math.min(window.length - 1, i + k);
+            let sum = 0;
+            for (let j = a; j <= b; j++) sum += window[j];
+            env.push(sum / (b - a + 1));
+        }
+        let res = 0;
+        for (let i = 0; i < window.length; i++) {
+            const d = window[i] - env[i];
+            res += d * d;
+        }
+        return { tremor: Math.sqrt(res / window.length), amplitude: stddev(env) };
+    }
+
+    // Per-metric talking baseline: mean plus a robust spread (mean absolute
+    // deviation, ~0.8 sigma, which a momentary spike cannot inflate).
+    function emptySpeakBaseline() {
+        const out = {};
+        for (const k of SPEAK_METRICS) out[k] = { mean: 0, mad: 0, seeded: false };
+        return out;
+    }
+
+    function seedSpeakBaseline(acc) {
+        for (const k of SPEAK_METRICS) {
+            const vals = acc[k] || [];
+            if (vals.length < 5) continue;
+            const mean = meanOf(vals);
+            const mad = meanOf(vals.map((v) => Math.abs(v - mean)));
+            const sb = face.speakBaseline[k];
+            if (!sb || !sb.seeded) {
+                face.speakBaseline[k] = { mean: mean, mad: mad, seeded: true };
+            } else {
+                face.speakBaseline[k] = {
+                    mean: sb.mean + SPEAK_BASE_BLEND * (mean - sb.mean),
+                    mad: sb.mad + SPEAK_BASE_BLEND * (mad - sb.mad),
+                    seeded: true,
+                };
+            }
+        }
+        face.speakingBaselineReady = true;
+    }
+    function lmDist(a, b) {
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2) + Math.pow(a.z - b.z, 2));
+    }
+    function eyeAspectRatio(lm, idxs) {
+        const v1 = lmDist(lm[idxs[1]], lm[idxs[5]]);
+        const v2 = lmDist(lm[idxs[2]], lm[idxs[4]]);
+        const h = lmDist(lm[idxs[0]], lm[idxs[3]]);
+        return (v1 + v2) / (2.0 * h);
+    }
+
+    // Signed HORIZONTAL gaze position for one eye: how far the iris sits from
+    // the eye's centre, measured in half eye-widths along the HORIZONTAL axis.
+    // +1 = iris at the image-right corner, -1 = image-left corner, 0 = centred.
+    // x/y only (the old metric mixed in depth, read one eye, and had no sign,
+    // so it could never say which way the person looked).
+    function eyeGazeX(lm, eyeIdxs, irisIdx) {
+        const a = lm[eyeIdxs[0]];            // outer corner of this eye
+        const b = lm[eyeIdxs[3]];            // inner corner of this eye
+        const iris = lm[irisIdx];
+        if (!a || !b || !iris) return 0;    // iris landmarks missing -> neutral
+        const half = Math.abs(b.x - a.x) / 2;
+        if (half < 1e-4) return 0;
+        return (iris.x - (a.x + b.x) / 2) / half;
+    }
+
+    // ---- per-frame signal extraction ------------------------------------
+    // Landmark measurements for ONE frame, normalised by the inter-ocular
+    // distance so they do not depend on how close the subject sits.
+    function extractFaceSignals(lm) {
+        const L = FACE_LANDMARKS;
+        // Stable per-face scale: distance between the outer eye corners.
+        const unit = Math.max(1e-4, lmDist(lm[L.eyeOuterL], lm[L.eyeOuterR]));
+
+        const lipOpen = lmDist(lm[L.lipUpper], lm[L.lipLower]) / unit;
+        const lipWidth = lmDist(lm[L.lipLeftCorner], lm[L.lipRightCorner]) / unit;
+        const mouthMidY = (lm[L.lipMidUpper].y + lm[L.lipMidLower].y) / 2;
+        const cornerMidY = (lm[L.lipLeftCorner].y + lm[L.lipRightCorner].y) / 2;
+        const frown = (cornerMidY - mouthMidY) / unit;   // corners sag below the lip midline
+        const smile = Math.max(0, (mouthMidY - cornerMidY) / unit); // corners rise above mouth midline
+        const browGap = lmDist(lm[L.browInnerL], lm[L.browInnerR]) / unit;
+        const browRaise = (lmDist(lm[L.browInnerL], lm[L.eyeTopL]) + lmDist(lm[L.browInnerR], lm[L.eyeTopR])) / 2 / unit;
+        const ear = (eyeAspectRatio(lm, L.leftEye) + eyeAspectRatio(lm, L.rightEye)) / 2;
+        // Both eyes averaged so a head turn or an asymmetric eye cannot produce a
+        // phantom direction; the sign carries the direction (see eyeGazeX).
+        const gazeX = (eyeGazeX(lm, L.leftEye, L.leftIris) + eyeGazeX(lm, L.rightEye, L.rightIris)) / 2;
+        const noseSneer = (lm[L.noseTip] && lm[L.upperLipBase]) ? Math.max(0, 0.40 - lmDist(lm[L.upperLipBase], lm[L.noseTip]) / unit) : 0;
+        const jawDrop = (lm[L.lipUpper] && lm[L.lipLower]) ? lmDist(lm[L.lipUpper], lm[L.lipLower]) / unit : lipOpen;
+
+        return { lipOpen: lipOpen, lipWidth: lipWidth, frown: frown, browGap: browGap,
+                 browRaise: browRaise, ear: ear, gazeX: gazeX, smile: smile, noseSneer: noseSneer, jawDrop: jawDrop };
+    }
+
+    // Helper: extracts MediaPipe face blendshapes into a fast key-value map
+    function extractFaceBlendshapes(results) {
+        const map = {};
+        if (results && results.faceBlendshapes && results.faceBlendshapes.length && results.faceBlendshapes[0].categories) {
+            for (const cat of results.faceBlendshapes[0].categories) {
+                map[cat.categoryName] = cat.score;
+            }
+        }
+        return map;
+    }
+
+    // Comprehensive Human Emotion Classifier (FACS action units + blendshapes)
+    function classifyEmotions(sig, zSig, blend, isSpeaking, bpm, rawStress) {
+        blend = blend || {};
+        const hasBlend = Object.keys(blend).length > 0;
+
+        // 1. Joy / Happiness (AU6 + AU12: Cheek Raiser + Lip Corner Puller)
+        const blendJoy = hasBlend ? Math.max(0, ((blend.mouthSmileLeft || 0) + (blend.mouthSmileRight || 0)) / 2 * 0.75 + (blend.cheekSquintLeft || 0) * 0.25) : 0;
+        const geoJoy = Math.max(0, Math.min(1, (sig.smile || 0) * 7.5 + Math.max(0, (sig.lipWidth || 0.45) - 0.45) * 3.5));
+        const joyRaw = hasBlend ? (blendJoy * 0.75 + geoJoy * 0.25) : geoJoy;
+
+        // 2. Anger / Hostility (AU4 + AU5 + AU7 + AU23/24)
+        const blendAnger = hasBlend ? Math.max(0, ((blend.browDownLeft || 0) + (blend.browDownRight || 0)) / 2 * 0.6 + (blend.jawForward || 0) * 0.25 + ((blend.eyeSquintLeft || 0) + (blend.eyeSquintRight || 0)) / 2 * 0.15) : 0;
+        const geoAnger = Math.max(0, Math.min(1, Math.max(0, -zSig.zBrowGap - 1.2) * 0.35 + (sig.frown > 0.003 ? 0.25 : 0) + (zSig.zFrown > 1.3 ? 0.2 : 0)));
+        const angerRaw = hasBlend ? (blendAnger * 0.7 + geoAnger * 0.3) : geoAnger;
+
+        // 3. Sadness / Distress (AU1 + AU4 + AU15)
+        const blendSad = hasBlend ? Math.max(0, (blend.browInnerUp || 0) * 0.45 + ((blend.mouthFrownLeft || 0) + (blend.mouthFrownRight || 0)) / 2 * 0.55) : 0;
+        const geoSad = Math.max(0, Math.min(1, Math.max(0, zSig.zFrown - 1.1) * 0.35 + (sig.frown > 0.005 ? 0.35 : 0)));
+        const sadRaw = hasBlend ? (blendSad * 0.7 + geoSad * 0.3) : geoSad;
+
+        // 4. Fear / Apprehension (AU1 + AU2 + AU4 + AU5 + AU20)
+        const blendFear = hasBlend ? Math.max(0, (blend.browInnerUp || 0) * 0.35 + ((blend.eyeWideLeft || 0) + (blend.eyeWideRight || 0)) / 2 * 0.4 + (blend.mouthStretchLeft || 0) * 0.25) : 0;
+        const geoFear = Math.max(0, Math.min(1, Math.max(0, zSig.zBrowRaise - 1.5) * 0.25 + Math.max(0, (zSig.zEar || 0) - 1.2) * 0.25 + (Math.abs(zSig.lateralZ) > 1.8 ? 0.25 : 0)));
+        const fearRaw = hasBlend ? (blendFear * 0.7 + geoFear * 0.3) : geoFear;
+
+        // 5. Surprise / Shock (AU1 + AU2 + AU5 + AU26)
+        const blendSurprise = hasBlend ? Math.max(0, ((blend.browOuterUpLeft || 0) + (blend.browOuterUpRight || 0)) / 2 * 0.4 + ((blend.eyeWideLeft || 0) + (blend.eyeWideRight || 0)) / 2 * 0.3 + (blend.jawOpen || 0) * 0.3) : 0;
+        const geoSurprise = Math.max(0, Math.min(1, Math.max(0, zSig.zBrowRaise - 1.5) * 0.45 + (sig.lipOpen > 0.09 && !isSpeaking ? 0.35 : 0)));
+        const surpriseRaw = hasBlend ? (blendSurprise * 0.7 + geoSurprise * 0.3) : geoSurprise;
+
+        // 6. Disgust / Contempt (AU9 + AU10 + AU14)
+        const blendDisgust = hasBlend ? Math.max(0, ((blend.noseSneerLeft || 0) + (blend.noseSneerRight || 0)) / 2 * 0.6 + Math.abs((blend.mouthSmileLeft || 0) - (blend.mouthSmileRight || 0)) * 0.4) : 0;
+        const geoDisgust = Math.max(0, Math.min(1, (sig.noseSneer > 0.02 ? 0.4 : 0) + (zSig.zFrown > 1.4 ? 0.25 : 0)));
+        const disgustRaw = hasBlend ? (blendDisgust * 0.7 + geoDisgust * 0.3) : geoDisgust;
+
+        // 7. Skepticism / Scrutiny / Doubt
+        const blendSkepticism = hasBlend ? Math.max(0, Math.abs((blend.browOuterUpLeft || 0) - (blend.browOuterUpRight || 0)) * 0.5 + ((blend.eyeSquintLeft || 0) + (blend.eyeSquintRight || 0)) / 2 * 0.5) : 0;
+        const geoSkepticism = Math.max(0, Math.min(1, (Math.abs(zSig.lateralZ) > 1.2 ? 0.3 : 0) + (zSig.zBrowRaise > 1.2 && zSig.zBrowRaise < 2.5 ? 0.3 : 0)));
+        const skepticismRaw = hasBlend ? (blendSkepticism * 0.7 + geoSkepticism * 0.3) : geoSkepticism;
+
+        // 8. Stress / Tension
+        const stressRaw = Math.min(1, rawStress / 100);
+
+        // Sum of expressive cues
+        const totalExpressive = joyRaw + angerRaw + sadRaw + fearRaw + surpriseRaw + disgustRaw + skepticismRaw + stressRaw;
+        const neutralRaw = Math.max(0.10, 1.0 - totalExpressive * 0.95);
+
+        // Compute normalized percentages:
+        const sumAll = neutralRaw + joyRaw + angerRaw + sadRaw + fearRaw + surpriseRaw + disgustRaw + skepticismRaw + stressRaw;
+        const pct = (val) => Math.min(100, Math.max(0, Math.round((val / sumAll) * 100)));
+
+        const emotions = {
+            neutral: pct(neutralRaw),
+            joy: pct(joyRaw),
+            stress: Math.round(rawStress),
+            anger: pct(angerRaw),
+            fear: pct(fearRaw),
+            sadness: pct(sadRaw),
+            surprise: pct(surpriseRaw),
+            disgust: pct(disgustRaw),
+            skepticism: pct(skepticismRaw),
+        };
+
+        // Determine primary/dominant emotion:
+        let dominant = { key: "neutral", label: "Neutral / Composed", emoji: "😐", score: emotions.neutral, cls: "calm" };
+
+        if (rawStress >= 60 && emotions.stress > 50) {
+            dominant = { key: "stress", label: "High Stress", emoji: "⚡", score: emotions.stress, cls: "tension" };
+        } else if (rawStress >= 30 && emotions.stress > 35) {
+            dominant = { key: "stress", label: "Elevated Stress", emoji: "⚡", score: emotions.stress, cls: "elevated" };
+        } else if (emotions.joy > 40 && emotions.joy > emotions.neutral) {
+            dominant = { key: "joy", label: "Joy / Positive", emoji: "😊", score: emotions.joy, cls: "joy" };
+        } else if (emotions.anger > 35 && emotions.anger > emotions.neutral) {
+            dominant = { key: "anger", label: "Anger / Hostility", emoji: "😠", score: emotions.anger, cls: "anger" };
+        } else if (emotions.fear > 35 && emotions.fear > emotions.neutral) {
+            dominant = { key: "fear", label: "Fear / Alarm", emoji: "😨", score: emotions.fear, cls: "fear" };
+        } else if (emotions.sadness > 35 && emotions.sadness > emotions.neutral) {
+            dominant = { key: "sadness", label: "Sadness / Distress", emoji: "😟", score: emotions.sadness, cls: "sadness" };
+        } else if (emotions.surprise > 40 && emotions.surprise > emotions.neutral) {
+            dominant = { key: "surprise", label: "Surprise / Shock", emoji: "😲", score: emotions.surprise, cls: "surprise" };
+        } else if (emotions.disgust > 35 && emotions.disgust > emotions.neutral) {
+            dominant = { key: "disgust", label: "Disgust / Contempt", emoji: "🤢", score: emotions.disgust, cls: "disgust" };
+        } else if (emotions.skepticism > 35 && emotions.skepticism > emotions.neutral) {
+            dominant = { key: "skepticism", label: "Skeptical / Doubt", emoji: "🤔", score: emotions.skepticism, cls: "skepticism" };
+        } else if (rawStress >= 25) {
+            dominant = { key: "stress", label: "Tense", emoji: "⚡", score: emotions.stress, cls: "elevated" };
+        } else {
+            dominant = { key: "neutral", label: "Neutral / Composed", emoji: "😐", score: Math.max(70, emotions.neutral), cls: "calm" };
+        }
+
+        return { emotions, dominant };
+    }
+
+    function onFaceMeshResults(results) {
+        const overlay = faceEl("face-overlay");
+        if (!overlay) return;
+        const ctx = overlay.getContext("2d");
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        if (!results.faceLandmarks || !results.faceLandmarks.length) {
+            // No face in frame. Never leave the panel silently stuck at
+            // "Calibrating 0%" (and never score a stale face): say what's wrong.
+            if (face.analyzing) {
+                face.noFaceFrames++;
+                const pill = faceEl("face-state");
+                if (!face.calibrated) {
+                    if (pill) pill.textContent = "No face detected";
+                    if (Date.now() - face.stats.startedAt > CALIBRATION_TIMEOUT_MS && !face.calibHintShown) {
+                        face.calibHintShown = true;
+                        sendBehaviorEntry("Face analysis: no face detected on the selected feed — nothing can be measured until the subject is clearly in frame.");
+                    }
+                } else if (pill && face.noFaceFrames > 15) {
+                    pill.textContent = "No face detected";
+                }
+            }
+            return;
+        }
+        // A face is back — clear a "No face detected" state.
+        if (face.analyzing && face.noFaceFrames > 15) {
+            const pill = faceEl("face-state");
+            if (pill) pill.textContent = face.calibrated ? "Analyzing" : "Calibrating…";
+        }
+        face.noFaceFrames = 0;
+        const lm = results.faceLandmarks[0];
+        drawFaceOverlay(ctx, lm);
+        if (!face.analyzing) return;
+
+        const blend = extractFaceBlendshapes(results);
+        const out = ingestFaceSignals(extractFaceSignals(lm), blend);
+        if (!out) return;                       // baseline still calibrating
+        renderFaceLive(out.score, out.bpm, out.zSignals, out.emotions, out.dominantEmotion);
+        maybeLogFaceCues();
+    }
+
+    // ---- scoring core ----------------------------------------------------
+    // Everything downstream of the raw signals: the articulation/tremor split,
+    // calibration, the learned speaking baseline, cue gating and the index.
+    // Kept separate from the drawing path so an automated check can drive it
+    // with synthetic signals instead of a camera (_courtroom_face_check.cjs).
+    // Returns null while the baseline is still calibrating.
+    function ingestFaceSignals(sig, blend = {}) {
+        const lipOpen = sig.lipOpen, lipWidth = sig.lipWidth, frown = sig.frown;
+        const browGap = sig.browGap, browRaise = sig.browRaise;
+        const ear = sig.ear, gazeX = sig.gazeX;
+
+        // Rolling window for lip tremor (jitter of the mouth opening).
+        face.history.lipOpen.push(lipOpen);
+        if (face.history.lipOpen.length > LIP_WINDOW) face.history.lipOpen.shift();
+        const motion = lipMotion(face.history.lipOpen);
+        const lipTremor = motion.tremor;       // scored
+        const lipAmplitude = motion.amplitude; // articulation: gate only, never scored
+
+        // ---- calibration phase (neutral face baseline) ----
+        if (!face.calibrated) {
+            face.calibrationFrames++;
+            const seen = face.calibAcc.lipOpen;
+            // A baseline has to be measured on a NEUTRAL face. If the subject is
+            // already talking through the calibration, those frames would teach
+            // the analyzer that a moving mouth is calm (and that would then be
+            // the reference for everything). Skip clearly-speaking frames.
+            const talkingDuringCalib = seen.length >= 20 &&
+                lipOpen > meanOf(seen) + 4 * Math.max(stddev(seen), 0.004);
+            const samples = talkingDuringCalib ? seen.length : seen.length + 1;
+            if (!talkingDuringCalib) {
+                face.calibAcc.ear.push(ear);
+                face.calibAcc.lipOpen.push(lipOpen);
+                face.calibAcc.lipWidth.push(lipWidth);
+                face.calibAcc.frown.push(frown);
+                face.calibAcc.browGap.push(browGap);
+                face.calibAcc.browRaise.push(browRaise);
+                face.calibAcc.gazeX.push(gazeX);
+                face.calibAcc.lipTremor.push(lipTremor);
+                face.calibAcc.lipAmp.push(lipAmplitude);
+            }
+            const statePill = faceEl("face-state");
+            if (statePill) {
+                statePill.textContent = `Calibrating ${Math.min(100, Math.round((samples / CALIBRATION_FRAMES) * 100))}%`;
+            }
+            const calibElapsed = Date.now() - face.stats.startedAt;
+            if (
+                samples >= CALIBRATION_FRAMES ||
+                (calibElapsed > CALIBRATION_TIMEOUT_MS && samples >= CALIBRATION_MIN_FRAMES)
+            ) {
+                finishFaceCalibration();
+            } else if (calibElapsed > CALIBRATION_TIMEOUT_MS && !face.calibHintShown) {
+                // Face found too rarely (angle / lighting / occlusion): say why
+                // instead of sitting on "Calibrating…" forever.
+                face.calibHintShown = true;
+                sendBehaviorEntry("Face analysis: the selected feed is not showing a clear, steady face — waiting for a usable view before cues can be measured.");
+            }
+            return null;
+        }
+
+        // ---- live analysis ----
+        // The speaking state is resolved FIRST: everything below is conditioned
+        // on it, and it decides which baseline the z-scores are taken against.
+        updateSpeakingState(lipAmplitude, lipOpen);
+
+        const b = face.baseline;
+        const metrics = { ear, lipOpen, frown, browGap, browRaise, gazeX, lipTremor };
+
+        // Every time the subject starts talking, spend the first
+        // SPEAK_BASE_WARMUP frames learning how THIS person talks; nothing is
+        // scored during that window (see SCORE_ON). Once learned, the baseline
+        // persists across bouts and only micro-adapts.
+        if (face.speaking && !face.prevSpeaking) {
+            const nowSpeaking = Date.now();
+            if (!face.bout || (nowSpeaking - (face.lastSpeakingSeenAt || 0) > 1200)) {
+                const acc = {};
+                for (const k of SPEAK_METRICS) acc[k] = [];
+                face.bout = { frames: 0, acc: acc };
+            }
+        }
+        face.prevSpeaking = face.speaking;
+        if (face.speaking && face.bout) {
+            if (face.bout.frames < SPEAK_BASE_WARMUP) {
+                for (const k of SPEAK_METRICS) face.bout.acc[k].push(metrics[k]);
+            }
+            face.bout.frames++;
+            if (face.bout.frames === SPEAK_BASE_WARMUP) seedSpeakBaseline(face.bout.acc);
+        }
+        const speakReady = face.speaking && face.speakingBaselineReady;
+        const sbase = face.speakBaseline;
+
+        // Reference for one metric: the calibrated QUIET baseline while the
+        // subject is quiet, and their own learned TALKING baseline while they
+        // speak. mad x 1.25 is a robust stand-in for sigma; MIN_STD keeps
+        // landmark noise from ever reading as a large deviation.
+        const zs = (key, val, quietMean, quietStd) => {
+            const floor = MIN_STD[key] || 0.001;
+            const sb = sbase[key];
+            if (speakReady && sb && sb.seeded) {
+                return (val - sb.mean) / Math.max(floor, sb.mad * 1.25);
+            }
+            return (val - quietMean) / Math.max(quietStd, floor);
+        };
+        const zLipOpen = zs("lipOpen", lipOpen, b.lipOpenMean, b.lipOpenStd);
+        const zFrown = zs("frown", frown, b.frownMean, b.frownStd);
+        const zBrowGap = zs("browGap", browGap, b.browGapMean, b.browGapStd);
+        const zBrowRaise = zs("browRaise", browRaise, b.browRaiseMean, b.browRaiseStd);
+        const zLipTremor = zs("lipTremor", lipTremor, b.lipTremorMean, b.lipTremorStd);
+        const zEar = zs("ear", ear, b.earMean, b.earStd);
+        const lateralZ = zs("gazeX", gazeX, b.gazeXMean, Math.max(b.gazeXStd, GAZE_MIN_STD));
+
+        // Micro-adaptation: while the subject talks, unremarkable frames drift
+        // into the talking baseline so a person's natural expression can never
+        // accumulate into a score - while a genuine anomaly (|z| beyond
+        // BASE_ADAPT_Z) leaves the baseline untouched and keeps its z-score.
+        if (speakReady) {
+            for (const k of SPEAK_METRICS) {
+                const sb = sbase[k];
+                if (!sb || !sb.seeded) continue;
+                const sd = Math.max(MIN_STD[k] || 0.001, sb.mad * 1.25);
+                if (Math.abs(metrics[k] - sb.mean) / sd < BASE_ADAPT_Z) {
+                    sb.mean += SPEAK_BASE_ALPHA * (metrics[k] - sb.mean);
+                    sb.mad += SPEAK_BASE_ALPHA * (Math.abs(metrics[k] - sb.mean) - sb.mad);
+                }
+            }
+        }
+
+        // Blink counting: EAR dropping well below baseline = a blink.
+        if (zEar < -2.2) {
+            if (face.stats.lastEarState === "open") {
+                face.stats.blinks++;
+                face.stats.lastEarState = "closed";
+                face.stats.blinkTimes.push(Date.now());
+            }
+        } else {
+            face.stats.lastEarState = "open";
+        }
+        // Rate over a rolling 20 s window. The old session-average rate was
+        // nonsense early on (a single blink in second one read as 60 bpm).
+        const blinkCutoff = Date.now() - 20000;
+        while (face.stats.blinkTimes.length && face.stats.blinkTimes[0] < blinkCutoff) {
+            face.stats.blinkTimes.shift();
+        }
+        const bpm = face.stats.blinkTimes.length * 3;
+
+        // ---- cue detection: real-time behavioral expression tracking ----
+        const S = face.speaking;
+        const isSpeaking = S && speakReady;
+        face.scoreOn = true;
+        face.lateralZ = lateralZ;
+
+        // Cues evaluate in real time. Lip tremor evaluates during speech;
+        // brow furrowing, brow raising, gaze avoidance, and lip pressing evaluate continuously.
+        const frame = {
+            rapid_blink: bpm > 26,
+            gaze_left: lateralZ > LATERAL_GAZE_SIGMA,
+            gaze_right: lateralZ < -LATERAL_GAZE_SIGMA,
+            lip_press: !isSpeaking && zLipOpen < -1.8 && lipOpen < b.lipOpenMean * 0.8,
+            lip_tremor: isSpeaking && zLipTremor > 1.8 && lipTremor > MIN_STD.lipTremor * 1.5,
+            frown: zFrown > 1.8,
+            brow_furrow: zBrowGap < -1.8,
+            brow_raise: zBrowRaise > 1.8,
+        };
+
+        const nowMs = Date.now();
+        const dtSec = face.lastFrameAt ? Math.min(0.5, (nowMs - face.lastFrameAt) / 1000) : 0;
+        face.lastFrameAt = nowMs;
+        for (const key of Object.keys(frame)) {
+            face.cueStreak[key] = frame[key] ? (face.cueStreak[key] || 0) + 1 : 0;
+            if (frame[key] && face.cueStreak[key] >= CUE_PERSIST_FRAMES) {
+                face.activeCues.add(key);
+                face.cueDurations[key] = (face.cueDurations[key] || 0) + dtSec;
+            } else if (!frame[key]) {
+                face.activeCues.delete(key);
+            }
+        }
+
+        // Multi-channel physiological tension: prevents single/double cues from being diluted
+        const sBrowFurrow = Math.max(0, -zBrowGap);
+        const sBrowRaise = Math.max(0, zBrowRaise * 0.85);
+        const sGaze = Math.max(0, Math.abs(lateralZ) - 0.35);
+        const sLipTremor = isSpeaking ? Math.max(0, zLipTremor * 1.35) : 0;
+        const sLipPress = !isSpeaking ? Math.max(0, -zLipOpen * 1.1) : 0;
+        const sFrown = Math.max(0, zFrown * 0.95);
+        const sBlink = bpm > 26 ? Math.min(3, (bpm - 26) / 4) : 0;
+
+        const hasBlend = blend && Object.keys(blend).length > 0;
+        const sBlendBrow = hasBlend ? Math.max(0, ((blend.browDownLeft || 0) + (blend.browDownRight || 0)) / 2 * 3.0) : 0;
+        const sBlendPress = hasBlend ? Math.max(0, ((blend.mouthPressLeft || 0) + (blend.mouthPressRight || 0)) / 2 * 3.0) : 0;
+
+        const tSignals = [
+            sBrowFurrow * 1.15,
+            sBrowRaise,
+            sGaze * 1.1,
+            sLipTremor,
+            sLipPress,
+            sFrown,
+            sBlink,
+            sBlendBrow,
+            sBlendPress
+        ].sort((a, b) => b - a);
+
+        const top1 = tSignals[0];
+        const top2 = tSignals[1];
+        const top3 = tSignals[2];
+
+        let raw = 0;
+        if (top1 > 1.1) {
+            // Priority given to the strongest physiological tension markers
+            const effectiveTension = top1 * 0.55 + top2 * 0.32 + top3 * 0.13;
+            raw = Math.min(100, Math.max(0, Math.round(((effectiveTension - 1.0) / 1.7) * 100)));
+        }
+        raw = Math.min(100, raw + Math.min(28, face.activeCues.size * 9));
+        if (bpm > 30) raw = Math.min(100, raw + 8);
+
+        // Comprehensive emotion classification
+        const emotionRes = classifyEmotions(
+            sig,
+            { zBrowGap, zBrowRaise, zFrown, zLipOpen, zLipTremor, lateralZ, zEar },
+            blend,
+            isSpeaking,
+            bpm,
+            raw
+        );
+        face.emotions = emotionRes.emotions;
+        face.dominantEmotion = emotionRes.dominant;
+
+        const nowScore = Date.now();
+        face.lastScoreAt = nowScore;
+        if (!face.emaStarted) { face.emaScore = raw; face.emaStarted = true; }
+        if (raw > face.emaScore) {
+            face.emaScore = face.emaScore + 0.25 * (raw - face.emaScore);
+        } else {
+            face.emaScore = face.emaScore + 0.08 * (raw - face.emaScore);
+        }
+        let score = Math.round(face.emaScore);
+        if (score < 3) score = 0;                          // floor: calm is calm
+        face.gauge = score;
+        face.indexSum += score;
+        face.indexFrames += 1;
+        if (score > face.stats.peakScore) {
+            face.stats.peakScore = score;
+            face.stats.peakAtSpeaking = S;
+        }
+
+        return {
+            score: score,
+            bpm: bpm,
+            zSignals: { zBrowGap, zBrowRaise, zFrown, zLipOpen, zLipTremor, lateralZ },
+            emotions: emotionRes.emotions,
+            dominantEmotion: emotionRes.dominant,
+        };
+    }
+
+    // ---- rendering ----
+    function setMetric(el, text, cls) {
+        if (!el) return;
+        el.textContent = text;
+        el.className = cls || "";
+    }
+
+    function renderFaceLive(score, bpm, zSignals = {}, emotions = null, dominantEmotion = null) {
+        const fill = faceEl("face-gauge-fill");
+        if (fill) {
+            fill.style.width = `${score}%`;
+            fill.style.background = score >= 60 ? "var(--color-high)" : score >= 30 ? "var(--color-medium)" : "var(--color-low)";
+        }
+        const scoreEl = faceEl("face-score");
+        if (scoreEl) scoreEl.textContent = `${score}%`;
+
+        // Update stage tile HUD on the video stage grid for the Judge
+        const activePid = (face.source === "self" || !face.source) ? state.me?.participant_id : face.source;
+        if (activePid) {
+            const activeTile = document.querySelector(`.stage-tile[data-pid="${activePid}"]`);
+            if (activeTile) {
+                if (!activeTile.classList.contains("analyzing-face")) {
+                    activeTile.classList.add("analyzing-face");
+                }
+                let hud = activeTile.querySelector(".stage-face-hud");
+                if (hud) {
+                    hud.classList.add("visible");
+                    const hudScore = hud.querySelector(".face-hud-score");
+                    const hudLabel = hud.querySelector(".face-hud-label");
+                    if (hudScore) hudScore.textContent = `${score}%`;
+
+                    let levelClass = "low";
+                    let levelText = "Calm";
+                    if (score >= 60) {
+                        levelClass = "high";
+                        levelText = "High Stress";
+                    } else if (score >= 30) {
+                        levelClass = "medium";
+                        levelText = "Elevated";
+                    }
+
+                    if (face.activeCues && face.activeCues.size > 0) {
+                        if (face.activeCues.has("gaze_left")) levelText += " · Gaze Shift";
+                        else if (face.activeCues.has("lip_press")) levelText += " · Lip Press";
+                        else if (face.activeCues.has("lip_tremor")) levelText += " · Tremor";
+                        else if (face.activeCues.has("brow_furrow")) levelText += " · Furrowed";
+                    }
+
+                    hud.className = `stage-face-hud visible level-${levelClass}`;
+                    if (hudLabel) {
+                        const emText = dominantEmotion ? `${dominantEmotion.emoji} ${dominantEmotion.label}` : "Neutral";
+                        hudLabel.textContent = `${emText} (${dominantEmotion ? dominantEmotion.score : 0}%) · ${levelText}`;
+                    }
+                }
+            }
+        }
+
+        const blinks = faceEl("fm-blinks");
+        if (blinks) blinks.textContent = `${bpm} bpm (${face.stats.blinks})`;
+
+        // Live, responsive expression & emotion readout
+        const expr = faceEl("fm-expression");
+        if (expr) {
+            if (dominantEmotion) {
+                setMetric(expr, `${dominantEmotion.emoji} ${dominantEmotion.label}`, dominantEmotion.cls);
+            } else if (score >= 60) setMetric(expr, "High stress", "tension");
+            else if (score >= 30) setMetric(expr, "Elevated", "elevated");
+            else setMetric(expr, "Neutral", "calm");
+        }
+
+        // Live stress readout
+        const stressVal = faceEl("fm-stress-val");
+        if (stressVal) {
+            let sTxt = `${score}% (Calm)`;
+            let sCls = "calm";
+            if (score >= 60) { sTxt = `${score}% (High Stress)`; sCls = "tension"; }
+            else if (score >= 30) { sTxt = `${score}% (Elevated)`; sCls = "elevated"; }
+            setMetric(stressVal, sTxt, sCls);
+        }
+
+        // Live emotion confidence readout
+        const confEl = faceEl("fm-confidence");
+        if (confEl && dominantEmotion) {
+            setMetric(confEl, `${dominantEmotion.score}%`, "calm");
+        }
+
+        // Update Emotion Spectrum bars
+        const priBadge = document.getElementById("fes-primary-badge");
+        if (priBadge && dominantEmotion) {
+            priBadge.textContent = `${dominantEmotion.emoji} ${dominantEmotion.label} · ${dominantEmotion.score}%`;
+        }
+        if (emotions) {
+            for (const [emKey, emPct] of Object.entries(emotions)) {
+                const row = document.querySelector(`.fes-bar-row[data-emotion="${emKey}"]`);
+                if (row) {
+                    const fillBar = row.querySelector(".fes-bar-fill");
+                    const pctText = row.querySelector(".fes-bar-pct");
+                    if (fillBar) fillBar.style.width = `${emPct}%`;
+                    if (pctText) pctText.textContent = `${emPct}%`;
+                }
+            }
+        }
+
+        // Live, responsive lips readout
+        const lips = faceEl("fm-lips");
+        if (face.activeCues.has("lip_tremor") || zSignals.zLipTremor > 1.8) setMetric(lips, "Trembling", "tension");
+        else if (face.activeCues.has("lip_press") || zSignals.zLipOpen < -1.8) setMetric(lips, "Pressed", "tension");
+        else if (face.audioSpeaking || face.visualTalking) setMetric(lips, "Articulating", "elevated");
+        else setMetric(lips, "Stable", "");
+
+        // Live, responsive brows readout
+        const brows = faceEl("fm-brows");
+        if (face.activeCues.has("brow_furrow") || zSignals.zBrowGap < -1.8) setMetric(brows, "Furrowed", "tension");
+        else if (face.activeCues.has("brow_raise") || zSignals.zBrowRaise > 1.8) setMetric(brows, "Raised", "elevated");
+        else setMetric(brows, "Relaxed", "");
+
+        // Live, responsive gaze readout
+        const gazeEl = faceEl("fm-gaze");
+        if (gazeEl) {
+            const lz = face.lateralZ || 0;
+            if (face.activeCues.has("gaze_left") || lz > 1.5) setMetric(gazeEl, "Left (Avoidance)", "tension");
+            else if (face.activeCues.has("gaze_right") || lz < -1.5) setMetric(gazeEl, "Right (Recall)", "elevated");
+            else if (lz > 0.8) setMetric(gazeEl, "Left", "elevated");
+            else if (lz < -0.8) setMetric(gazeEl, "Right", "elevated");
+            else setMetric(gazeEl, "Center", "");
+        }
+
+        // Live speaking status
+        const spkEl = faceEl("fm-speaking");
+        if (spkEl) {
+            const label = face.audioSpeaking ? "Voice (Active)" : (face.visualTalking ? "Mouth (Moving)" : "Quiet (Listening)");
+            setMetric(spkEl, label, (face.audioSpeaking || face.visualTalking) ? "elevated" : "");
+        }
+
+        renderFaceCueChips();
+    }
+
+    function renderFaceCueChips() {
+        const wrap = faceEl("face-cues");
+        if (!wrap) return;
+        const keys = [...face.activeCues].sort();
+        const cueKey = (face.analyzing ? "1:" : "0:") + keys.join(",");
+        if (face._lastCueKey === cueKey) return;
+        face._lastCueKey = cueKey;
+
+        if (!keys.length) {
+            wrap.innerHTML = face.analyzing ? '<span class="face-note" style="margin:0;">No active cues</span>' : "";
+            return;
+        }
+        wrap.innerHTML = keys.map((k) => {
+            const c = CUE_LABELS[k] || { label: k, icon: "activity", sev: "mild" };
+            return `<span class="cue-chip ${c.sev}"><i data-lucide="${c.icon}"></i> ${c.label}</span>`;
+        }).join("");
+        if (typeof lucide !== "undefined" && lucide.createIcons) {
+            lucide.createIcons({ root: wrap });
+        }
+    }
+
+    function drawFaceOverlay(ctx, lm) {
+        const W = ctx.canvas.width, H = ctx.canvas.height;
+        const L = FACE_LANDMARKS;
+        const px = (i) => ({ x: lm[i].x * W, y: lm[i].y * H });
+        ctx.lineWidth = 1;
+
+        // Eye loops (gold)
+        ctx.strokeStyle = "rgba(201, 162, 75, 0.45)";
+        [L.leftEye, L.rightEye].forEach((idxs) => {
+            ctx.beginPath();
+            idxs.forEach((idx, i) => {
+                const p = px(idx);
+                if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+            ctx.stroke();
+        });
+
+        // Pupils (sage)
+        ctx.fillStyle = "rgba(78, 122, 102, 0.85)";
+        [L.leftIris, L.rightIris].forEach((idx) => {
+            const p = px(idx);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2.5, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        // Brows
+        ctx.strokeStyle = "rgba(80, 60, 20, 0.4)";
+        ctx.beginPath();
+        [[L.browInnerL, L.browOuterL], [L.browInnerR, L.browOuterR]].forEach((pair) => {
+            const a = px(pair[0]), b = px(pair[1]);
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+        });
+        ctx.stroke();
+
+        // Lips: corners + inner upper/lower
+        ctx.strokeStyle = "rgba(201, 162, 75, 0.45)";
+        const cL = px(L.lipLeftCorner), cR = px(L.lipRightCorner);
+        const uL = px(L.lipUpper), lL = px(L.lipLower);
+        ctx.beginPath();
+        ctx.moveTo(cL.x, cL.y);
+        ctx.lineTo(uL.x, uL.y);
+        ctx.lineTo(cR.x, cR.y);
+        ctx.lineTo(lL.x, lL.y);
+        ctx.closePath();
+        ctx.stroke();
+    }
+
+    // ---- logging to the official record ----
+    function maybeLogFaceCues() {
+        const now = Date.now();
+        if (now < face.logCooldownUntil) return;
+        if (!face.activeCues.size) return;
+        // Calm-face suppression: at most one brief flare is noise — require
+        // ≥2 concurrent persistent cues and a minimum speech history before
+        // anything reaches the official record. The session aggregate
+        // (logged on stop) remains the authoritative summary.
+        if (face.activeCues.size < CUE_LOG_MIN_CUES) return;
+        if (!face.speechSeenAt || now - face.speechSeenAt < SPEECH_GRACE_MS) return;
+        if (face.gauge < 25) return;
+        const names = [...face.activeCues].map((k) => (CUE_LABELS[k] || { label: k }).label.toLowerCase());
+        let note = "";
+        if (face.activeCues.has("gaze_left")) {
+            note = " — gaze held to the subject's own LEFT, associated with constructed / deliberately creative answers";
+        } else if (face.activeCues.has("gaze_right")) {
+            note = " — gaze held to the subject's own right, associated with recall";
+        }
+        sendBehaviorEntry(`Nervousness cues detected while speaking: ${names.join(", ")} — nervousness index ${face.gauge}%${note}.`);
+        face.logCooldownUntil = now + CUE_LOG_INTERVAL_MS;
+        face.stats.cueEvents++;
+    }
+
+    // ---- speech detection (is the analyzed feed actually talking?) ----
+    // Self: the local mic track's level via an AnalyserNode. Remote: the
+    // peer's incoming <audio> element through the same mechanism. Speech
+    // gates every cue: a silent, listening face is a calm face.
+    function attachSpeechMeter() {
+        detachSpeechMeter();
+        try {
+            if (face.source === "self") {
+                const stream = (state.localStream && state.localStream.getAudioTracks().length)
+                    ? state.localStream : null;
+                if (!stream) return;
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                ctx.resume().catch(() => {});
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 512;
+                const sourceNode = ctx.createMediaStreamSource(stream);
+                sourceNode.connect(analyser);
+                face.meter = { ctx, analyser, buf: new Uint8Array(analyser.fftSize), sourceNode, stream };
+            } else {
+                // Remote: REUSE the peer's live gain chain (speaker glow / volume
+                // boost). Creating a second MediaElementSource for the same
+                // <audio> element throws, and closing that context would silence
+                // the participant for everyone — so never do either.
+                const peer = state.peers.get(face.source);
+                if (!peer || !peer.gain || !peer.gain.ctx || !peer.gain.gain) return;
+                const ctx = peer.gain.ctx;
+                let analyser;
+                let ownConnection = null;
+                if (peer.speaker && peer.speaker.analyser) {
+                    analyser = peer.speaker.analyser; // already tapped - share it
+                } else {
+                    analyser = ctx.createAnalyser();
+                    analyser.fftSize = 512;
+                    peer.gain.gain.connect(analyser);
+                    ownConnection = peer.gain.gain;
+                }
+                face.remoteMeter = {
+                    ctx, analyser,
+                    buf: new Uint8Array(analyser.fftSize),
+                    owner: face.source,
+                    source: ownConnection,   // only disconnect if we made the tap
+                    ownCtx: false,           // the context belongs to the peer
+                };
+            }
+        } catch (e) {
+            console.warn("Face speech meter unavailable — voice gate OFF for this run (visible mouth movement still counts).", e);
+            // No meter ⇒ the audio half of the speaking gate stays silent. The
+            // visual half keeps the analysis honest instead of dead.
+        }
+    }
+
+    function detachSpeechMeter() {
+        // Self meter: the context and nodes are ours, so disconnect and close.
+        if (face.meter) {
+            try {
+                if (face.meter.sourceNode && typeof face.meter.sourceNode.disconnect === "function") {
+                    face.meter.sourceNode.disconnect();
+                }
+                if (face.meter.analyser && typeof face.meter.analyser.disconnect === "function") {
+                    face.meter.analyser.disconnect();
+                }
+                if (face.meter.ctx && face.meter.ctx.state !== "closed") {
+                    face.meter.ctx.close().catch(() => {});
+                }
+            } catch (_) {}
+            face.meter = null;
+        }
+        // Remote meter: the context + analyser belong to the peer (live
+        // playback). Only undo the tap we made ourselves.
+        if (face.remoteMeter) {
+            try {
+                if (face.remoteMeter.source && face.remoteMeter.analyser) {
+                    face.remoteMeter.source.disconnect(face.remoteMeter.analyser);
+                }
+                if (face.remoteMeter.analyser && typeof face.remoteMeter.analyser.disconnect === "function") {
+                    face.remoteMeter.analyser.disconnect();
+                }
+                if (face.remoteMeter.ownCtx && face.remoteMeter.ctx && face.remoteMeter.ctx.state !== "closed") {
+                    face.remoteMeter.ctx.close().catch(() => {});
+                }
+            } catch (_) {}
+            face.remoteMeter = null;
+        }
+    }
+
+    function updateSpeakingState(lipAmplitude, lipOpen) {
+        const now = Date.now();
+        let level = 0;
+        const m = face.source === "self" ? face.meter : face.remoteMeter;
+        if (m && m.analyser) {
+            m.analyser.getByteTimeDomainData(m.buf);
+            let sum = 0;
+            for (let i = 0; i < m.buf.length; i++) {
+                const v = (m.buf[i] - 128) / 128;
+                sum += v * v;
+            }
+            level = Math.sqrt(sum / m.buf.length); // RMS 0..1
+        }
+        const SPEAK_RMS = 0.045; // talking, not breathing
+        const audioActive = level > SPEAK_RMS;
+
+        // Visible mouth movement. Required because this room starts with the
+        // mic CLOSED (applyMicGate: audible only while Hold to Talk is held), so
+        // a disabled track feeds the analyser pure silence — with an audio-only
+        // gate the whole panel sat at 0% and never responded. Both tests are
+        // ABSOLUTE (not z-scores): the calibrated lip-aperture std is ~0.0005,
+        // so a z-test would call sensor noise "speech" on a motionless face.
+        const b = face.baseline;
+        // The gate uses the articulation AMPLITUDE (the slow envelope of the
+        // aperture), not the tremor residual: a still face has a flat envelope
+        // however noisy its landmarks are, while a talking one always swings.
+        const ampFloor = Math.max(0.0035, b.lipAmpMean + 2.2 * Math.max(b.lipAmpStd, 0.0008));
+        const mouthOpening = b.lipOpenMean + Math.max(0.02, b.lipOpenStd * 4);
+        const visualActive = lipAmplitude > ampFloor || lipOpen > mouthOpening;
+
+        face.audioSpeaking = audioActive;
+        face.visualTalking = visualActive;
+
+        const HOLD_MS = 900; // speech lag before "quiet"
+        if (audioActive || visualActive) {
+            face.speaking = true;
+            face.lastSpeakingSeenAt = now;
+            if (!face.speechSeenAt) face.speechSeenAt = now;
+            face.speakingAcc.frames++;
+            // Rough speaking-time accounting (sampled every other frame).
+            if (face.speakingAcc.frames % 2 === 0) face.speakingAcc.samples += 1;
+        } else if (face.speaking && now - (face.lastSpeakingSeenAt || 0) > HOLD_MS) {
+            face.speaking = false;
+        }
+    }
+
+    function sendBehaviorEntry(text) {
+        // Only the presiding judge may log a behavioral observation.
+        if (!state.me || state.me.role !== "Judge") return;
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        state.ws.send(JSON.stringify({ type: "behavior", text }));
+    }
+
+    // ====================================================================
+    // ACTIONS (UI)
+    // ====================================================================
+    async function copyInvite() {
+        const url = await buildInviteUrl(ROOM_ID);
+        try {
+            await navigator.clipboard.writeText(url);
+            toast("Invite link copied to clipboard");
+        } catch {
+            // Fallback: select a temporary input.
+            const tmp = document.createElement("input");
+            tmp.value = url;
+            document.body.appendChild(tmp);
+            tmp.select();
+            document.execCommand("copy");
+            document.body.removeChild(tmp);
+            toast("Invite link copied");
+        }
+    }
+
+    function downloadTranscript() {
+        window.location.href = `/api/court/rooms/${ROOM_ID}/transcript`;
+    }
+
+    function downloadTranscriptPdf() {
+        window.location.href = `/api/court/rooms/${ROOM_ID}/transcript.pdf`;
+    }
+
+    // ====================================================================
+    // UTIL
+    // ====================================================================
+    function showJoinError(text) {
+        // Every join failure path lands here — drop the countdown with the error
+        // so it can never cover the retry card.
+        stopJoinCountdown();
+        els.joinError.textContent = text;
+        els.joinError.style.display = "block";
+    }
+    function hideJoinError() {
+        els.joinError.style.display = "none";
+    }
+
+    let toastTimer = null;
+    function toast(text) {
+        els.toast.textContent = text;
+        els.toast.style.display = "block";
+        // Reflow to restart animation.
+        void els.toast.offsetWidth;
+        els.toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            els.toast.classList.remove("show");
+            setTimeout(() => { els.toast.style.display = "none"; }, 300);
+        }, 2600);
+    }
+
+    function escapeHtml(s) {
+        return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Clean up on unload: stop tracks, cancel rAF loops, close peers and AudioContexts.
+    window.addEventListener("beforeunload", () => {
+        // 1. Cancel active requestAnimationFrame loops
+        if (face && face._raf) {
+            try { cancelAnimationFrame(face._raf); } catch (_) {}
+            face._raf = null;
+        }
+        if (scrollRafId) {
+            try { cancelAnimationFrame(scrollRafId); } catch (_) {}
+            scrollRafId = null;
+        }
+        // Stop all video keepalives
+        try {
+            for (const [video] of videoKeepalive.entries()) {
+                stopVideoKeepalive(video);
+            }
+        } catch (_) {}
+
+        // 2. Cleanly stop all local media tracks
+        if (state.localStream) {
+            try {
+                state.localStream.getTracks().forEach((t) => {
+                    try { t.stop(); } catch (_) {}
+                });
+            } catch (_) {}
+        }
+        disableFaceCamera();
+
+        // 3. Close WebRTC peer connections
+        for (const pid of [...state.peers.keys()]) {
+            try { closePeer(pid); } catch (_) {}
+        }
+
+        // 4. Clean up Web Audio nodes and contexts
+        detachSpeechMeter();
+        if (clipGain) {
+            try {
+                if (clipGain.gain && typeof clipGain.gain.disconnect === "function") clipGain.gain.disconnect();
+                if (clipGain.ctx && clipGain.ctx.state !== "closed") clipGain.ctx.close();
+            } catch (_) {}
+            clipGain = null;
+        }
+        try { clipPlayer.pause(); } catch (_) {}
+
+        // 5. Clean up dictation and WebSocket
+        stopAutoTranscription();
+        stopAutoDictation();
+        try { if (state.ws) state.ws.close(); } catch (_) {}
+    });
+
+    // Test seam for _courtroom_face_check.cjs: lets an automated check drive the
+    // analyzer with synthetic signals (a calm face, a talking face, a stressed
+    // face) instead of a webcam. Nothing in the product reads this.
+    window.__anavayaFace = {
+        extract: extractFaceSignals,
+        ingest: ingestFaceSignals,
+        onResults: onFaceMeshResults,   // full path: extract + score + render
+        start: startFaceAnalysis,
+        stop: stopFaceAnalysis,
+        disableCamera: disableFaceCamera,
+        resetMetrics: resetFaceMetricsUI,
+        initPanel: initFacePanel,
+        state: face,
+        lipMotion: lipMotion,
+    };
+
+    // Test seam for _courtroom_transcript_check.cjs: push a server message (as
+    // received over the socket) into the real handler, so the transcript's
+    // replace-in-place behaviour can be checked without a live ASR round trip.
+    window.__anavayaCourt = {
+        pushMessage: handleMessage,
+        state: state,
+        face: face,
+        renderStage: renderStage,
+        renderCourt: renderCourt,
+        syncMeetControls: syncMeetControls,
+        renderFaceLive: renderFaceLive,
+        onFaceMeshResults: onFaceMeshResults,
+        selectAndStartFaceAnalysis: selectAndStartFaceAnalysis,
+    };
+
+    init();
+})();

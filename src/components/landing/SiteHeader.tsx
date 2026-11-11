@@ -7,6 +7,7 @@ import { APP_URL } from "./constants";
 const links = [
   { href: "#triage-sandbox", label: "Simulator" },
   { href: "#architecture", label: "Architecture" },
+  { href: "#how-priority-is-given", label: "Model Logic" },
   { href: "#accuracy", label: "Transformation" },
   { href: "#why", label: "Why it matters" },
   { href: "#reviews", label: "Advocate Reviews" },

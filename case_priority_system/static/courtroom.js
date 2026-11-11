@@ -188,7 +188,10 @@
     // Fetch room metadata to show in the join card + disable taken roles.
     async function loadRoomPreview() {
         try {
-            const res = await fetch(`/api/court/rooms/${ROOM_ID}`);
+            const previewUrl = (window.AnavayaNode && typeof window.AnavayaNode.apiUrl === "function")
+                ? window.AnavayaNode.apiUrl(`/api/court/rooms/${ROOM_ID}`)
+                : `/api/court/rooms/${ROOM_ID}`;
+            const res = await fetch(previewUrl);
             if (!res.ok) {
                 if (res.status === 404) {
                     els.joinCaseTitle.textContent = "Room not found";
@@ -214,6 +217,9 @@
             renderTranscript(room.transcript);
         } catch (e) {
             console.error("Failed to load room preview:", e);
+            if (window.AnavayaNode && typeof window.AnavayaNode.showStandbyModal === "function") {
+                window.AnavayaNode.showStandbyModal("Live Virtual Courtroom (WebRTC Mesh & Whisper GPU)");
+            }
         }
     }
 
@@ -481,7 +487,9 @@
     // WEBSOCKET
     // ====================================================================
     async function connectWebSocket(name, role) {
-        const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/court/${ROOM_ID}`;
+        const wsUrl = (window.AnavayaNode && typeof window.AnavayaNode.wsUrl === "function")
+            ? window.AnavayaNode.wsUrl(`/ws/court/${ROOM_ID}`)
+            : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/court/${ROOM_ID}`;
         state.ws = new WebSocket(wsUrl);
 
         state.ws.onopen = async () => {
@@ -498,7 +506,10 @@
         state.ws.onclose = () => {
             // If we never made it into the room, surface a friendly error.
             if (!state.me) {
-                showJoinError("Could not reach the courtroom server. Please try again.");
+                showJoinError("Could not reach the courtroom server. Hardware node may be in standby.");
+                if (window.AnavayaNode && typeof window.AnavayaNode.showStandbyModal === "function") {
+                    window.AnavayaNode.showStandbyModal("Live Virtual Courtroom (WebRTC Mesh & Whisper GPU)");
+                }
                 els.enterBtn.disabled = false;
                 els.enterBtn.innerHTML = '<i data-lucide="door-open"></i> Enter the Courtroom';
                 lucide.createIcons();

@@ -7,6 +7,7 @@ import { LawyerReviews } from "@/components/landing/LawyerReviews";
 import { Features, TechStack } from "@/components/landing/Features";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
 import { PriorityRoadmap } from "@/components/landing/PriorityRoadmap";
+import { HowPriorityIsGiven } from "@/components/landing/HowPriorityIsGiven";
 import { ModelAccuracy } from "@/components/landing/ModelAccuracy";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 
@@ -41,6 +42,7 @@ function Index() {
         <TriageSandbox />
         <StatsBar />
         <PriorityRoadmap />
+        <HowPriorityIsGiven />
         <ModelAccuracy />
         <WhyItMatters />
         <LawyerReviews />

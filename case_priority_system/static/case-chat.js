@@ -319,7 +319,11 @@
                 .slice(-7, -1)
                 .map(m => ({ role: m.role, content: m.content }));
 
-            const response = await fetch(`/api/cases/${encodeURIComponent(currentCaseId)}/chat`, {
+            const chatUrl = (window.AnavayaNode && typeof window.AnavayaNode.apiUrl === "function")
+                ? window.AnavayaNode.apiUrl(`/api/cases/${encodeURIComponent(currentCaseId)}/chat`)
+                : `/api/cases/${encodeURIComponent(currentCaseId)}/chat`;
+
+            const response = await fetch(chatUrl, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -349,9 +353,15 @@
         } catch (err) {
             console.error("[CaseAIChat] Error dispatching message:", err);
             removeTypingIndicator();
+
+            if (window.AnavayaNode && typeof window.AnavayaNode.showStandbyModal === "function") {
+                window.AnavayaNode.showStandbyModal("Case AI Copilot (Ollama Qwen 2.5)");
+            }
+
+            const adminEmail = (window.AnavayaNode && window.AnavayaNode.ADMIN_EMAIL) || "yeshwanth9750@gmail.com";
             state.histories[currentCaseId].push({
                 role: "assistant",
-                content: `⚠️ **Unable to complete request:** ${escapeHtml(err.message || "Network error. Please verify Ollama is running.")}`
+                content: `⚠️ **GPU Hardware Node in Standby:**\n\nThe local Ollama Qwen 2.5 engine is currently sleeping or disconnected from this cloud deployment.\n\n👉 **[Alert Yeshwanth to Turn On System Node](javascript:window.AnavayaNode%26%26window.AnavayaNode.showStandbyModal('Case%20AI%20Copilot'))** or email directly at **${adminEmail}**.`
             });
             renderMessages();
         } finally {

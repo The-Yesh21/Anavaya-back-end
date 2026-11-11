@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "tanstack-start"
+    },
+    "front": {
+      "root": "front",
+      "framework": "tanstack-start-lovable"
+    },
+    "landing": {
+      "root": "landing",
+      "framework": "tanstack-start-lovable"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    }
+  ]
+}
