@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".output/public",
+  "cleanUrls": true,
   "env": {
     "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
   },
@@ -8,26 +11,22 @@
       "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
     }
   },
-  "services": {
-    "app": {
-      "root": ".",
-      "framework": "tanstack-start"
-    },
-    "front": {
-      "root": "front",
-      "framework": "tanstack-start-lovable"
-    },
-    "landing": {
-      "root": "landing",
-      "framework": "tanstack-start-lovable"
-    }
-  },
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": {
-        "service": "app"
-      }
+      "source": "/dashboard",
+      "destination": "/dashboard/index.html"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/dashboard/index.html"
+    },
+    {
+      "source": "/courtroom",
+      "destination": "/dashboard/courtroom.html"
+    },
+    {
+      "source": "/court/:roomId*",
+      "destination": "/dashboard/courtroom.html"
     }
   ]
 }
