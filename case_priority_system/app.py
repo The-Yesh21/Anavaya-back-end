@@ -21,6 +21,7 @@ from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, W
 from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,13 @@ REPORTS_DIR = 'case_priority_system/reports'
 # use the deterministic rule-based extractor and return priority in ~2s.
 
 app = FastAPI(title="Anavaya Judicial Case Priority Dashboard API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 STATIC_EXTS = (

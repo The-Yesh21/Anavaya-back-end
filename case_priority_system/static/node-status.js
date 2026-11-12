@@ -75,11 +75,12 @@
         /**
          * Test if the backend hardware node is actively responding.
          */
-        async checkNodeHealth(timeoutMs = 4000) {
+        async checkNodeHealth(timeoutMs = 8000) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
-                const res = await fetch(this.apiUrl("/api/network-info"), {
+                const targetUrl = this.apiUrl("/api/network-info");
+                const res = await fetch(targetUrl, {
                     signal: controller.signal,
                     cache: "no-store",
                     headers: { "ngrok-skip-browser-warning": "1" }
@@ -88,6 +89,7 @@
                 return res.ok;
             } catch (e) {
                 clearTimeout(timer);
+                console.warn("[AnavayaNode] Health check probe failed:", e);
                 return false;
             }
         },
@@ -208,7 +210,7 @@ Thank you!`
                     }
                     saveBtn.textContent = "Connecting…";
                     AnavayaNode.setBackendUrl(url);
-                    const online = await AnavayaNode.checkNodeHealth(3000);
+                    const online = await AnavayaNode.checkNodeHealth(8000);
                     if (online) {
                         alert("Connection established! Successfully linked to " + url);
                         close();
