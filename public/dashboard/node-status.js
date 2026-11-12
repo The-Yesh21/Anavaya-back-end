@@ -82,6 +82,7 @@
                 const res = await fetch(this.apiUrl("/api/network-info"), {
                     signal: controller.signal,
                     cache: "no-store",
+                    headers: { "ngrok-skip-browser-warning": "1" }
                 });
                 clearTimeout(timer);
                 return res.ok;
@@ -250,6 +251,15 @@ Thank you!`
                 // If endpoint starts with /api/, rewrite to custom backend
                 const cleanEndpoint = url.startsWith("http") ? new URL(url).pathname : url;
                 const rewritten = backendBase.replace(/\/+$/, "") + cleanEndpoint;
+                init = init || {};
+                init.headers = init.headers || {};
+                if (init.headers instanceof Headers) {
+                    init.headers.set("ngrok-skip-browser-warning", "1");
+                } else if (Array.isArray(init.headers)) {
+                    init.headers.push(["ngrok-skip-browser-warning", "1"]);
+                } else {
+                    init.headers["ngrok-skip-browser-warning"] = "1";
+                }
                 if (typeof input === "string") {
                     input = rewritten;
                 } else if (input && input.url) {
