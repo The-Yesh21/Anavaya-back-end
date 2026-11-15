@@ -13,22 +13,34 @@ def predict_priority(description, crime_type, severity, vulnerability, influence
     feature_names = data['feature_names']
     
     # Preprocess inputs
-    structured_values = {}
-    if 'category' in encoders:
-        structured_values['case_category_enc'] = encoders['category'].transform([case_category])[0]
-    structured_values.update({
-        'crime_type_enc': encoders['crime'].transform([crime_type])[0],
-        'severity_enc': encoders['severity'].transform([severity])[0],
-        'vulnerability_enc': encoders['vulnerability'].transform([vulnerability])[0],
-        'influence_enc': encoders['influence'].transform([influence])[0]
-    })
-    
+    ohe = data.get('ohe')
+    STRUCTURED_COLS = ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']
+    if ohe is not None:
+        structured_row = pd.DataFrame([{
+            'case_category': case_category,
+            'crime_type': crime_type,
+            'severity': severity,
+            'vulnerability': vulnerability,
+            'influence': influence,
+        }])
+        ohe_cols = list(ohe.get_feature_names_out(STRUCTURED_COLS))
+        structured_data = pd.DataFrame(ohe.transform(structured_row[STRUCTURED_COLS]), columns=ohe_cols)
+    else:
+        structured_values = {}
+        if 'category' in encoders:
+            structured_values['case_category_enc'] = encoders['category'].transform([case_category])[0]
+        structured_values.update({
+            'crime_type_enc': encoders['crime'].transform([crime_type])[0],
+            'severity_enc': encoders['severity'].transform([severity])[0],
+            'vulnerability_enc': encoders['vulnerability'].transform([vulnerability])[0],
+            'influence_enc': encoders['influence'].transform([influence])[0]
+        })
+        structured_data = pd.DataFrame([structured_values])
+
     # NLP Features
     text_feat = tfidf.transform([description]).toarray()
     text_df = pd.DataFrame(text_feat, columns=tfidf.get_feature_names_out())
-    
-    # Combine
-    structured_data = pd.DataFrame([structured_values])
+
     X = pd.concat([structured_data, text_df], axis=1)
     
     # Reorder and align columns to match feature_names seen during fit

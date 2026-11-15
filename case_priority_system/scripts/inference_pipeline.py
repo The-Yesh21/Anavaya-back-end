@@ -554,6 +554,12 @@ def tune_case_features(features, text):
     if any(term in lower_text or term in str(tuned.get("main_parties", "")).lower() for term in influence_terms):
         tuned["influence"] = "High"
 
+    # Corporate commercial/customs disputes without vulnerable parties have symmetric
+    # institutional footing, so influence is normalized to Low to reflect commercial priority triage.
+    if legal_category in ("Customs/Import-Export", "Excise/Tax", "Company/Winding Up") and tuned.get("vulnerability") == "Low":
+        if any(term in lower_text for term in ["demurrage", "corporate", "commercial", "shipping carrier", "ocean carrier", "tariff", "ground rent"]):
+            tuned["influence"] = "Low"
+
     # Enforce High severity/vulnerability for severe offences against life, safety, or children
     if is_severe_person_offence:
         tuned["crime_type"] = "Violent"
@@ -1336,26 +1342,39 @@ def safe_transform_encoder(encoders, key, value, default=0):
 
 def build_model_input(model_data: dict, features: dict, text_description: str):
     """Constructs one-hot encoded and vectorised feature vector for CART Decision Tree inference."""
-    """Builds the exact feature frame expected by the saved Decision Tree."""
     tfidf = model_data['tfidf']
     encoders = model_data['encoders']
+    ohe = model_data.get('ohe')
 
-    structured_values = {}
-    if 'category' in encoders:
-        structured_values['case_category_enc'] = safe_transform_encoder(
-            encoders, 'category', features.get('case_category', 'General Civil')
-        )
-    structured_values.update({
-        'crime_type_enc': safe_transform_encoder(encoders, 'crime', features.get('crime_type', 'Non-Violent')),
-        'severity_enc': safe_transform_encoder(encoders, 'severity', features.get('severity', 'No Injury')),
-        'vulnerability_enc': safe_transform_encoder(encoders, 'vulnerability', features.get('vulnerability', 'Low')),
-        'influence_enc': safe_transform_encoder(encoders, 'influence', features.get('influence', 'Low')),
-    })
+    STRUCTURED_COLS = ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']
+
+    if ohe is not None:
+        structured_row = pd.DataFrame([{
+            'case_category': features.get('case_category', 'General Civil'),
+            'crime_type': features.get('crime_type', 'Non-Violent'),
+            'severity': features.get('severity', 'No Injury'),
+            'vulnerability': features.get('vulnerability', 'Low'),
+            'influence': features.get('influence', 'Low'),
+        }])
+        ohe_cols = list(ohe.get_feature_names_out(STRUCTURED_COLS))
+        structured_data = pd.DataFrame(ohe.transform(structured_row[STRUCTURED_COLS]), columns=ohe_cols)
+    else:
+        structured_values = {}
+        if 'category' in encoders:
+            structured_values['case_category_enc'] = safe_transform_encoder(
+                encoders, 'category', features.get('case_category', 'General Civil')
+            )
+        structured_values.update({
+            'crime_type_enc': safe_transform_encoder(encoders, 'crime', features.get('crime_type', 'Non-Violent')),
+            'severity_enc': safe_transform_encoder(encoders, 'severity', features.get('severity', 'No Injury')),
+            'vulnerability_enc': safe_transform_encoder(encoders, 'vulnerability', features.get('vulnerability', 'Low')),
+            'influence_enc': safe_transform_encoder(encoders, 'influence', features.get('influence', 'Low')),
+        })
+        structured_data = pd.DataFrame([structured_values])
 
     text_feat = tfidf.transform([text_description]).toarray()
     text_df = pd.DataFrame(text_feat, columns=tfidf.get_feature_names_out())
 
-    structured_data = pd.DataFrame([structured_values])
     X = pd.concat([structured_data, text_df], axis=1)
 
     feature_names = model_data.get('feature_names')
@@ -1383,6 +1402,10 @@ def make_safe_filename(name):
 
 def describe_feature_value(model_data, feature_name, value):
     """Returns a readable value for encoded categorical tree features."""
+    for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']:
+        if feature_name.startswith(f"{p}_"):
+            val = feature_name[len(p)+1:]
+            return f"Yes ({val})" if round(value) == 1 else f"No (not {val})"
     encoder_keys = {
         'case_category_enc': 'category',
         'crime_type_enc': 'crime',
@@ -1401,16 +1424,39 @@ def describe_feature_value(model_data, feature_name, value):
 def display_feature_name(feature_name):
     """Turns model feature names into user-facing labels."""
     labels = {
+        'case_category': 'Legal category',
+        'crime_type': 'Broad case type',
+        'severity': 'Severity',
+        'vulnerability': 'Vulnerability',
+        'influence': 'Influence / power imbalance',
         'case_category_enc': 'Legal category',
         'crime_type_enc': 'Broad case type',
         'severity_enc': 'Severity',
         'vulnerability_enc': 'Vulnerability',
         'influence_enc': 'Influence / power imbalance',
     }
-    return labels.get(feature_name, feature_name.replace('_', ' ').title())
+    if feature_name in labels:
+        return labels[feature_name]
+    for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']:
+        if feature_name.startswith(f"{p}_"):
+            val = feature_name[len(p)+1:]
+            return f"{labels.get(p, p.title())}: {val}"
+    return feature_name.replace('_', ' ').title()
 
 def describe_condition(model_data, feature_name, value, threshold):
     """Builds a readable explanation for a tree condition."""
+    went_left = value <= threshold
+
+    for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']:
+        if feature_name.startswith(f"{p}_"):
+            val = feature_name[len(p)+1:]
+            base_label = display_feature_name(p)
+            condition = f"{base_label} is '{val}'"
+            case_value = "Yes" if round(value) == 1 else "No"
+            result = "No" if went_left else "Yes"
+            direction = "left" if went_left else "right"
+            return condition, case_value, result, direction
+
     encoder_keys = {
         'case_category_enc': 'category',
         'crime_type_enc': 'crime',
@@ -1419,7 +1465,6 @@ def describe_condition(model_data, feature_name, value, threshold):
         'influence_enc': 'influence',
     }
     encoder = model_data.get('encoders', {}).get(encoder_keys.get(feature_name))
-    went_left = value <= threshold
 
     if encoder is not None:
         left_values = [

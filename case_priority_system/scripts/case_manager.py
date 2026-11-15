@@ -164,9 +164,24 @@ class CaseManager:
 
     # ---- case lifecycle ----------------------------------------------
 
-    def create_case(self, title: str = "", created_by: str = "", source: str = "AUTO_ID") -> Case:
-        """Create an empty case. The case id is always system-assigned."""
-        case_id = self._new_case_id()
+    def create_case(self, title: str = "", created_by: str = "", source: str = "AUTO_ID", case_id: Optional[str] = None) -> Case:
+        """Create an empty case. The case id is system-assigned or specified."""
+        if case_id:
+            if not self.valid_case_id(case_id):
+                raise ValueError(f"Invalid case_id format: {case_id}")
+            try:
+                parts = case_id.split("-")
+                if len(parts) == 3:
+                    seq_num = int(parts[2])
+                    with self._lock:
+                        index_data = self._load_index()
+                        if seq_num >= int(index_data.get("next_seq", 0)):
+                            index_data["next_seq"] = seq_num
+                            self._save_index(index_data)
+            except Exception:
+                pass
+        else:
+            case_id = self._new_case_id()
         case = Case(
             case_id=case_id,
             title=(title or "").strip() or f"Untitled Case {case_id}",

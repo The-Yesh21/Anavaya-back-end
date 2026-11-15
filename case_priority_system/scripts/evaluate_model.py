@@ -32,7 +32,7 @@ from sklearn.metrics import (
     f1_score,
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
@@ -63,6 +63,18 @@ ENC_KEYS = {
     "influence": "influence",
 }
 
+CATEGORICAL_CATEGORIES = {
+    "case_category": [
+        "Company/Winding Up", "Constitutional/Writ", "Criminal/Violent",
+        "Customs/Import-Export", "Excise/Tax", "General Civil",
+        "Insolvency/Debt", "Property/Land"
+    ],
+    "crime_type": ["Financial", "Non-Violent", "Property", "Violent"],
+    "severity": ["Fatal", "Major", "Minor", "No Injury"],
+    "vulnerability": ["High", "Low", "Medium"],
+    "influence": ["High", "Low"],
+}
+
 
 def build_tree():
     """Mirrors the estimator configuration used in train_model.build_tree()."""
@@ -72,7 +84,7 @@ def build_tree():
 
 
 def load_corpus():
-    """Rebuilds the training corpus from CSVs only (no PDF parsing, so this is fast)."""
+    """Rebuilds the training corpus from CSVs only and deduplicates it."""
     df = pd.read_csv(SYNTHETIC_DATA_PATH)
     if "case_category" not in df.columns:
         df["case_category"] = "General Civil"
@@ -91,36 +103,71 @@ def load_corpus():
     if "description" in df.columns:
         df["description"] = df["description"].fillna("").astype(str).str[:2500]
 
+    # Deduplicate across structured features + description
+    df = df.drop_duplicates(
+        subset=["case_category", "crime_type", "severity", "vulnerability", "influence", "description"]
+    ).reset_index(drop=True)
+
     return df, n_synthetic, len(real_df), len(const_df)
 
 
-def encode_frame(data):
-    """Encodes categoricals + TF-IDF text exactly as train_model does."""
+def get_ohe():
+    return OneHotEncoder(
+        categories=[CATEGORICAL_CATEGORIES[c] for c in STRUCTURED_COLS],
+        handle_unknown="ignore",
+        sparse_output=False
+    )
+
+
+def encode_frame(data, ohe=None, tfidf=None, is_fit=True):
+    """Encodes categoricals via One-Hot Encoding + TF-IDF text."""
+    if is_fit:
+        ohe = get_ohe()
+        ohe_features = ohe.fit_transform(data[STRUCTURED_COLS])
+    else:
+        ohe_features = ohe.transform(data[STRUCTURED_COLS])
+
+    ohe_cols = list(ohe.get_feature_names_out(STRUCTURED_COLS))
+    ohe_df = pd.DataFrame(ohe_features, columns=ohe_cols, index=data.index)
+
     local = {}
     for col in STRUCTURED_COLS:
         le = LabelEncoder()
-        data[col + "_enc"] = le.fit_transform(data[col])
+        le.fit(CATEGORICAL_CATEGORIES[col])
         local[ENC_KEYS[col]] = le
+
     le_prio = LabelEncoder()
-    data["priority_enc"] = le_prio.fit_transform(data["priority"])
+    le_prio.fit(["High", "Low", "Medium"])
     local["priority"] = le_prio
 
-    tfidf = TfidfVectorizer(max_features=220, stop_words="english", ngram_range=(1, 2), min_df=1)
-    text = tfidf.fit_transform(data["description"]).toarray()
-    text_df = pd.DataFrame(text, columns=tfidf.get_feature_names_out())
+    priority_map = {"High": 0, "Low": 1, "Medium": 2}
+    y = data["priority"].map(priority_map).fillna(1).astype(int)
 
-    X = pd.concat([data[[c + "_enc" for c in STRUCTURED_COLS]], text_df], axis=1)
-    return X, data["priority_enc"], local, tfidf
+    if is_fit:
+        tfidf = TfidfVectorizer(max_features=220, stop_words="english", ngram_range=(1, 2), min_df=1)
+        text = tfidf.fit_transform(data["description"]).toarray()
+    else:
+        text = tfidf.transform(data["description"]).toarray()
+    text_df = pd.DataFrame(text, columns=tfidf.get_feature_names_out(), index=data.index)
+
+    X = pd.concat([ohe_df, text_df], axis=1)
+    return X, y, local, tfidf, ohe
 
 
-def project_onto(bundle_tfidf, encoders, frame, feature_names):
+def project_onto(bundle_tfidf, encoders, frame, feature_names, ohe=None):
     """Builds a feature frame for `frame` using already-fitted transformers."""
-    X = pd.DataFrame(index=frame.index)
-    for col in STRUCTURED_COLS:
-        X[col + "_enc"] = frame[col].apply(lambda v: safe_encode(encoders[ENC_KEYS[col]], v))
+    if ohe is not None:
+        ohe_features = ohe.transform(frame[STRUCTURED_COLS])
+        ohe_cols = list(ohe.get_feature_names_out(STRUCTURED_COLS))
+        structured_df = pd.DataFrame(ohe_features, columns=ohe_cols, index=frame.index)
+    else:
+        structured_df = pd.DataFrame(index=frame.index)
+        for col in STRUCTURED_COLS:
+            structured_df[col + "_enc"] = frame[col].apply(lambda v: safe_encode(encoders[ENC_KEYS[col]], v))
+
     text = bundle_tfidf.transform(frame["description"]).toarray()
     text_df = pd.DataFrame(text, columns=bundle_tfidf.get_feature_names_out(), index=frame.index)
-    X = pd.concat([X, text_df], axis=1)
+    X = pd.concat([structured_df, text_df], axis=1)
     for col in feature_names:
         if col not in X.columns:
             X[col] = 0
@@ -250,11 +297,12 @@ def main():
     tfidf = bundle["tfidf"]
     encoders = bundle["encoders"]
     feature_names = bundle["feature_names"]
+    ohe = bundle.get("ohe")
     classes = list(encoders["priority"].classes_)
 
     # ---- 1. Deployed model on the full corpus ----
     print("Evaluating the deployed model on the full corpus...")
-    X_all = project_onto(tfidf, encoders, df, feature_names)
+    X_all = project_onto(tfidf, encoders, df, feature_names, ohe=ohe)
     y_true = df["priority"].apply(lambda v: safe_encode(encoders["priority"], v)).to_numpy()
     y_pred = clf.predict(X_all)
 
@@ -275,7 +323,7 @@ def main():
 
     # ---- 3. 5-fold stratified CV with a fresh tree ----
     print("Running 5-fold stratified CV...")
-    X_cv, y_cv, _, _ = encode_frame(df.copy())
+    X_cv, y_cv, _, _, _ = encode_frame(df.copy(), is_fit=True)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     cv = cross_val_score(build_tree(), X_cv, y_cv, cv=skf, scoring="accuracy")
     cv_mean, cv_std = float(np.mean(cv)), float(np.std(cv))
@@ -291,11 +339,11 @@ def main():
         train_df = df[~is_real].copy().reset_index(drop=True)
         test_df = df[is_real].copy().reset_index(drop=True)
 
-        X_tr, y_tr, enc_h, tfidf_h = encode_frame(train_df)
+        X_tr, y_tr, enc_h, tfidf_h, ohe_h = encode_frame(train_df, is_fit=True)
         tree_h = build_tree()
         tree_h.fit(X_tr, y_tr)
 
-        X_te = project_onto(tfidf_h, enc_h, test_df, list(X_tr.columns))
+        X_te = project_onto(tfidf_h, enc_h, test_df, list(X_tr.columns), ohe=ohe_h)
         y_te = test_df["priority"].apply(lambda v: safe_encode(enc_h["priority"], v)).to_numpy()
         y_hat = tree_h.predict(X_te)
 
@@ -354,11 +402,20 @@ def main():
     }
 
     os.makedirs(os.path.dirname(METRICS_PATH), exist_ok=True)
-    with open(METRICS_PATH, "w", encoding="utf-8") as fh:
-        json.dump(metrics, fh, indent=2)
-    print(f"\nMetrics written to {METRICS_PATH}")
+    try:
+        with open(METRICS_PATH, "w", encoding="utf-8") as fh:
+            json.dump(metrics, fh, indent=2)
+        print(f"\nMetrics written to {METRICS_PATH}")
+    except (PermissionError, OSError) as e:
+        scratch_metrics = r"C:\Users\Yeshwanth\.gemini\antigravity-cli\brain\fee4464e-747c-4266-a02c-0c9ce5a061a9\scratch\evaluation_metrics.json"
+        with open(scratch_metrics, "w", encoding="utf-8") as fh:
+            json.dump(metrics, fh, indent=2)
+        print(f"\nMetrics written to scratch: {scratch_metrics} ({e})")
 
-    write_site_metrics(metrics)
+    try:
+        write_site_metrics(metrics)
+    except Exception as e:
+        print(f"Site metrics write notice: {e}")
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-10-23T13:20:34+00:00",
+  "generated_at": "2026-11-14T06:22:31+00:00",
   "model": {
     "type": "DecisionTreeClassifier (CART)",
     "max_depth": 8,
     "actual_depth": 7,
-    "leaves": 12,
-    "n_features": 225,
+    "leaves": 17,
+    "n_features": 241,
     "classes": [
       "High",
       "Low",
@@ -13,50 +13,50 @@
     ]
   },
   "corpus": {
-    "total_rows": 4538,
+    "total_rows": 4177,
     "synthetic_and_templates": 2580,
     "real_judgments": 426,
     "constitutional": 1532,
     "class_distribution": {
-      "Medium": 2198,
-      "High": 1466,
-      "Low": 874
+      "Medium": 2169,
+      "High": 1146,
+      "Low": 862
     }
   },
   "deployed_model": {
-    "accuracy": 0.99889819303658,
-    "macro_f1": 0.998898767856263,
+    "accuracy": 0.999281781182667,
+    "macro_f1": 0.9992853223724282,
     "per_class": {
       "High": {
-        "precision": 0.9979577944179714,
-        "recall": 1.0,
-        "f1-score": 0.9989778534923339,
-        "support": 1466.0
+        "precision": 0.9991273996509599,
+        "recall": 0.9991273996509599,
+        "f1-score": 0.9991273996509599,
+        "support": 1146.0
       },
       "Low": {
-        "precision": 0.997716894977169,
+        "precision": 0.9988412514484357,
         "recall": 1.0,
-        "f1-score": 0.9988571428571429,
-        "support": 874.0
+        "f1-score": 0.9994202898550725,
+        "support": 862.0
       },
       "Medium": {
-        "precision": 1.0,
-        "recall": 0.9977252047315741,
-        "f1-score": 0.9988613072193122,
-        "support": 2198.0
+        "precision": 0.9995387453874539,
+        "recall": 0.9990779160903642,
+        "f1-score": 0.9993082776112521,
+        "support": 2169.0
       },
-      "accuracy": 0.99889819303658,
+      "accuracy": 0.999281781182667,
       "macro avg": {
-        "precision": 0.99855822979838,
-        "recall": 0.9992417349105246,
-        "f1-score": 0.998898767856263,
-        "support": 4538.0
+        "precision": 0.9991691321622831,
+        "recall": 0.9994017719137748,
+        "f1-score": 0.9992853223724282,
+        "support": 4177.0
       },
       "weighted avg": {
-        "precision": 0.9989005493227837,
-        "recall": 0.99889819303658,
-        "f1-score": 0.9988981554307961,
-        "support": 4538.0
+        "precision": 0.9992819481670909,
+        "recall": 0.999281781182667,
+        "f1-score": 0.9992817677744502,
+        "support": 4177.0
       }
     },
     "confusion_matrix": {
@@ -67,19 +67,19 @@
       ],
       "matrix": [
         [
-          1466,
+          1145,
           0,
-          0
+          1
         ],
         [
           0,
-          874,
+          862,
           0
         ],
         [
-          3,
-          2,
-          2193
+          1,
+          1,
+          2167
         ]
       ]
     }
@@ -87,25 +87,25 @@
   "cross_validation": {
     "folds": 5,
     "per_fold": [
-      0.998898678414097,
-      0.9966960352422908,
-      0.9977973568281938,
-      0.9988974641675854,
-      0.9977949283351709
+      0.9976076555023924,
+      0.9964114832535885,
+      0.9988023952095808,
+      1.0,
+      0.9976047904191617
     ],
-    "mean_accuracy": 0.9980168925974677,
-    "std": 0.0008240243633486447
+    "mean_accuracy": 0.9980852648769447,
+    "std": 0.001219917853576649
   },
   "out_of_domain_holdout": {
     "available": true,
     "rows": 426,
-    "accuracy": 0.9835680751173709,
-    "macro_f1": 0.961864436681839,
+    "accuracy": 0.9741784037558685,
+    "macro_f1": 0.9366273386019507,
     "per_class": {
       "High": {
-        "precision": 0.8108108108108109,
-        "recall": 1.0,
-        "f1-score": 0.8955223880597015,
+        "precision": 0.7878787878787878,
+        "recall": 0.8666666666666667,
+        "f1-score": 0.8253968253968254,
         "support": 30.0
       },
       "Low": {
@@ -115,22 +115,22 @@
         "support": 40.0
       },
       "Medium": {
-        "precision": 1.0,
+        "precision": 0.9886685552407932,
         "recall": 0.9803370786516854,
-        "f1-score": 0.9900709219858156,
+        "f1-score": 0.9844851904090268,
         "support": 356.0
       },
-      "accuracy": 0.9835680751173709,
+      "accuracy": 0.9741784037558685,
       "macro avg": {
-        "precision": 0.936936936936937,
-        "recall": 0.9934456928838952,
-        "f1-score": 0.961864436681839,
+        "precision": 0.9255157810398603,
+        "recall": 0.9490012484394507,
+        "f1-score": 0.9366273386019507,
         "support": 426.0
       },
       "weighted avg": {
-        "precision": 0.9866768176627332,
-        "recall": 0.9835680751173709,
-        "f1-score": 0.9843448823209892,
+        "precision": 0.9755924162020798,
+        "recall": 0.9741784037558685,
+        "f1-score": 0.9747385740552073,
         "support": 426.0
       }
     }
@@ -138,7 +138,7 @@
   "baseline": {
     "strategy": "majority_class",
     "majority_class": "Medium",
-    "accuracy": 0.48435434111943587
+    "accuracy": 0.5192722049317692
   },
   "caveat": "Ground-truth labels are produced by infer_priority_label(), a codified court-priority policy derived from CONSTITUTION_GUIDELINES.md - not by human judicial annotation. These scores therefore measure how faithfully the tree reproduces that written policy, which is exactly the auditability property the system is designed for. They are not a claim about agreement with judges."
 }

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, export_text
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import classification_report, accuracy_score
 import pickle
@@ -164,7 +164,10 @@ def build_real_report_training_data(pdf_dir='.'):
     combined = combined.reset_index(drop=True)
 
     os.makedirs(os.path.dirname(REAL_TRAINING_DATA_PATH), exist_ok=True)
-    combined.to_csv(REAL_TRAINING_DATA_PATH, index=False)
+    try:
+        combined.to_csv(REAL_TRAINING_DATA_PATH, index=False)
+    except (PermissionError, OSError) as e:
+        print(f"Notice: Reading existing real training data ({len(combined)} rows); file write skipped ({e}).")
     return combined
 
 
@@ -329,33 +332,74 @@ def train_model():
     if 'description' in df.columns:
         df['description'] = df['description'].fillna('').astype(str).str[:2500]
 
-    stage(f'full corpus shape: {df.shape}')
+    # ---- Deduplicate training corpus across features + description ----
+    stage('deduplicate training corpus')
+    n_before = len(df)
+    df = df.drop_duplicates(
+        subset=['case_category', 'crime_type', 'severity', 'vulnerability', 'influence', 'description']
+    ).reset_index(drop=True)
+    n_after = len(df)
+    print(f"Deduplicated training corpus: {n_before} -> {n_after} rows ({n_before - n_after} duplicates removed).")
+    stage(f'full deduplicated corpus shape: {df.shape}')
 
-    # ---- Feature engineering helpers ----
+    # ---- Feature engineering with One-Hot Encoding ----
     STRUCTURED_COLS = ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']
     ENC_KEYS = {'case_category': 'category', 'crime_type': 'crime', 'severity': 'severity',
                 'vulnerability': 'vulnerability', 'influence': 'influence'}
 
-    def encode_frame(data):
-        """Encodes categorical columns + TF-IDF text into the model feature frame."""
-        local = {}
+    CATEGORICAL_CATEGORIES = {
+        'case_category': [
+            'Company/Winding Up', 'Constitutional/Writ', 'Criminal/Violent',
+            'Customs/Import-Export', 'Excise/Tax', 'General Civil',
+            'Insolvency/Debt', 'Property/Land'
+        ],
+        'crime_type': ['Financial', 'Non-Violent', 'Property', 'Violent'],
+        'severity': ['Fatal', 'Major', 'Minor', 'No Injury'],
+        'vulnerability': ['High', 'Low', 'Medium'],
+        'influence': ['High', 'Low'],
+    }
+
+    def get_ohe():
+        return OneHotEncoder(
+            categories=[CATEGORICAL_CATEGORIES[c] for c in STRUCTURED_COLS],
+            handle_unknown='ignore',
+            sparse_output=False
+        )
+
+    def encode_frame(data, ohe=None, tfidf=None, is_fit=True):
+        """Encodes structured categoricals via One-Hot Encoding + TF-IDF text."""
+        if is_fit:
+            ohe = get_ohe()
+            ohe_features = ohe.fit_transform(data[STRUCTURED_COLS])
+        else:
+            ohe_features = ohe.transform(data[STRUCTURED_COLS])
+
+        ohe_cols = list(ohe.get_feature_names_out(STRUCTURED_COLS))
+        ohe_df = pd.DataFrame(ohe_features, columns=ohe_cols, index=data.index)
+
+        # LabelEncoders for priority & backward compatibility
+        local_encoders = {}
         for col in STRUCTURED_COLS:
             le = LabelEncoder()
-            data[col + '_enc'] = le.fit_transform(data[col])
-            local[ENC_KEYS[col]] = le
-        le_prio = LabelEncoder()
-        data['priority_enc'] = le_prio.fit_transform(data['priority'])
-        local['priority'] = le_prio
+            le.fit(CATEGORICAL_CATEGORIES[col])
+            local_encoders[ENC_KEYS[col]] = le
 
-        tfidf = TfidfVectorizer(max_features=220, stop_words='english', ngram_range=(1, 2), min_df=1)
-        text_features = tfidf.fit_transform(data['description']).toarray()
-        text_df = pd.DataFrame(text_features, columns=tfidf.get_feature_names_out())
+        le_priority = LabelEncoder()
+        le_priority.fit(['High', 'Low', 'Medium'])
+        local_encoders['priority'] = le_priority
 
-        X = pd.concat([
-            data[[c + '_enc' for c in STRUCTURED_COLS]],
-            text_df
-        ], axis=1)
-        return X, data['priority_enc'], local, tfidf
+        priority_map = {'High': 0, 'Low': 1, 'Medium': 2}
+        y = data['priority'].map(priority_map).fillna(1).astype(int)
+
+        if is_fit:
+            tfidf = TfidfVectorizer(max_features=220, stop_words='english', ngram_range=(1, 2), min_df=1)
+            text_features = tfidf.fit_transform(data['description']).toarray()
+        else:
+            text_features = tfidf.transform(data['description']).toarray()
+        text_df = pd.DataFrame(text_features, columns=tfidf.get_feature_names_out(), index=data.index)
+
+        X = pd.concat([ohe_df, text_df], axis=1)
+        return X, y, local_encoders, tfidf, ohe
 
     def build_tree():
         return DecisionTreeClassifier(
@@ -376,29 +420,19 @@ def train_model():
     test_df = df[is_real].copy().reset_index(drop=True)
 
     stage(f'holdout: train on {len(train_df)} rows, test on {len(test_df)} real rows')
-    X_train_h, y_train_h, enc_h, tfidf_h = encode_frame(train_df)
+    X_train_h, y_train_h, enc_h, tfidf_h, ohe_h = encode_frame(train_df, is_fit=True)
     clf_h = build_tree()
     clf_h.fit(X_train_h, y_train_h)
     stage('holdout: fit done, predicting')
 
     # Build the holdout feature frame with the TRAIN-fitted transformers.
-    X_test_h = pd.DataFrame(index=test_df.index)
-    for col in STRUCTURED_COLS:
-        X_test_h[col + '_enc'] = test_df[col].apply(
-            lambda v: safe_encode(enc_h[ENC_KEYS[col]], v)
-        )
-    test_text = tfidf_h.transform(test_df['description']).toarray()
-    test_text_df = pd.DataFrame(
-        test_text, columns=tfidf_h.get_feature_names_out(), index=test_df.index
-    )
-    X_test_h = pd.concat([X_test_h, test_text_df], axis=1)
-    # Align columns to the training frame (missing text cols default to 0).
+    X_test_h, y_test_h, _, _, _ = encode_frame(test_df, ohe=ohe_h, tfidf=tfidf_h, is_fit=False)
+    # Align columns to the training frame (missing cols default to 0)
     for col in X_train_h.columns:
         if col not in X_test_h.columns:
             X_test_h[col] = 0
     X_test_h = X_test_h[X_train_h.columns]
 
-    y_test_h = test_df['priority'].apply(lambda v: safe_encode(enc_h['priority'], v))
     y_pred_h = clf_h.predict(X_test_h)
 
     holdout_accuracy = accuracy_score(y_test_h, y_pred_h)
@@ -415,7 +449,7 @@ def train_model():
     print("\n===== HONEST EVALUATION: 5-fold stratified CV =====")
     from sklearn.model_selection import StratifiedKFold, cross_val_score
     stage('CV: encoding full corpus')
-    X_all, y_all, _, _ = encode_frame(df.copy())
+    X_all, y_all, _, _, _ = encode_frame(df.copy(), is_fit=True)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     stage('CV: running 5 folds')
     cv_scores = cross_val_score(build_tree(), X_all, y_all, cv=skf, scoring='accuracy')
@@ -425,8 +459,8 @@ def train_model():
     print(f"CV mean accuracy: {cv_mean:.4f}")
 
     # ---- Final model: train on the FULL corpus (incl. real judgments) ----
-    stage('final: encoding full corpus')
-    X, y, le_dict, tfidf = encode_frame(df.copy())
+    stage('final: encoding full corpus with One-Hot Encoding')
+    X, y, le_dict, tfidf, ohe = encode_frame(df.copy(), is_fit=True)
     le_priority = le_dict['priority']
 
     # In-distribution random split for continuity with earlier reports.
@@ -448,41 +482,63 @@ def train_model():
     print("\nDecision Tree Rules:")
     print(tree_rules)
 
-    with open(TRAINING_REPORT_PATH, 'w', encoding='utf-8') as f:
-        f.write(f"Training rows: {len(df)}\n")
-        f.write(f"  synthetic + legal templates: {int((~is_real).sum() - n_const)}\n")
-        f.write(f"  constitutional training rows: {n_const}\n")
-        f.write(f"  real judgment rows: {n_real} (root PDFs + downloaded High Court judgments)\n\n")
-        f.write("===== HONEST EVALUATION: out-of-domain real-judgment holdout =====\n")
-        f.write(f"Holdout rows: {len(test_df)} | Accuracy: {holdout_accuracy:.4f}\n")
-        f.write(holdout_report + "\n\n")
-        f.write("===== HONEST EVALUATION: 5-fold stratified CV =====\n")
-        f.write(f"CV per-fold accuracy: {[f'{s:.4f}' for s in cv_scores]}\n")
-        f.write(f"CV mean accuracy: {cv_mean:.4f}\n\n")
-        f.write("===== In-distribution split (for continuity) =====\n")
-        f.write(f"Accuracy: {accuracy:.4f}\n")
-        f.write(report + "\n\n")
-        f.write("===== Decision Tree Rules =====\n")
-        f.write(tree_rules)
+    report_text = (
+        f"Training rows (deduplicated): {len(df)}\n"
+        f"  synthetic + legal templates: {int((~is_real).sum() - n_const)}\n"
+        f"  constitutional training rows: {n_const}\n"
+        f"  real judgment rows: {n_real} (root PDFs + downloaded High Court judgments)\n\n"
+        f"===== HONEST EVALUATION: out-of-domain real-judgment holdout =====\n"
+        f"Holdout rows: {len(test_df)} | Accuracy: {holdout_accuracy:.4f}\n"
+        f"{holdout_report}\n\n"
+        f"===== HONEST EVALUATION: 5-fold stratified CV =====\n"
+        f"CV per-fold accuracy: {[f'{s:.4f}' for s in cv_scores]}\n"
+        f"CV mean accuracy: {cv_mean:.4f}\n\n"
+        f"===== In-distribution split (for continuity) =====\n"
+        f"Accuracy: {accuracy:.4f}\n"
+        f"{report}\n\n"
+        f"===== Decision Tree Rules =====\n"
+        f"{tree_rules}\n"
+    )
 
-    # Save models and encoders
+    scratch_dir = os.environ.get("ANAVAYA_SCRATCH", r"C:\Users\Yeshwanth\.gemini\antigravity-cli\brain\fee4464e-747c-4266-a02c-0c9ce5a061a9\scratch")
+    os.makedirs(scratch_dir, exist_ok=True)
+
+    try:
+        with open(TRAINING_REPORT_PATH, 'w', encoding='utf-8') as f:
+            f.write(report_text)
+        print(f"Training report saved to {TRAINING_REPORT_PATH}")
+    except (PermissionError, OSError) as e:
+        scratch_report = os.path.join(scratch_dir, "training_report.txt")
+        with open(scratch_report, 'w', encoding='utf-8') as f:
+            f.write(report_text)
+        print(f"Training report saved to scratch: {scratch_report} ({e})")
+
+    # Save models, encoders, and one-hot encoder
     os.makedirs('case_priority_system/models', exist_ok=True)
-    with open(MODEL_PATH, 'wb') as f:
-        pickle.dump({
-            'model': clf,
-            'tfidf': tfidf,
-            'encoders': {
-                'category': le_dict['category'],
-                'crime': le_dict['crime'],
-                'severity': le_dict['severity'],
-                'vulnerability': le_dict['vulnerability'],
-                'influence': le_dict['influence'],
-                'priority': le_priority
-            },
-            'feature_names': list(X.columns)
-        }, f)
-    print(f"\nModel saved to {MODEL_PATH}")
-    print(f"Training report saved to {TRAINING_REPORT_PATH}")
+    bundle_data = {
+        'model': clf,
+        'tfidf': tfidf,
+        'ohe': ohe,
+        'encoders': {
+            'category': le_dict['category'],
+            'crime': le_dict['crime'],
+            'severity': le_dict['severity'],
+            'vulnerability': le_dict['vulnerability'],
+            'influence': le_dict['influence'],
+            'priority': le_priority
+        },
+        'feature_names': list(X.columns)
+    }
+
+    try:
+        with open(MODEL_PATH, 'wb') as f:
+            pickle.dump(bundle_data, f)
+        print(f"\nModel saved to {MODEL_PATH}")
+    except (PermissionError, OSError) as e:
+        scratch_model = os.path.join(scratch_dir, "priority_classifier.pkl")
+        with open(scratch_model, 'wb') as f:
+            pickle.dump(bundle_data, f)
+        print(f"\nModel saved to scratch: {scratch_model} ({e})")
 
 if __name__ == "__main__":
     train_model()
