@@ -39,7 +39,7 @@ export function PriorityRoadmap() {
   const scored = active >= stages.length;
 
   return (
-    <section id="architecture" className="snap-section px-6 py-24 md:px-10">
+    <section id="priority-roadmap" className="snap-section px-6 py-24 md:px-10">
       <div className="mx-auto w-full max-w-6xl">
         <Reveal>
           <p className="eyebrow">Architecture</p>

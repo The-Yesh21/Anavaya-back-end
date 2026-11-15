@@ -292,13 +292,24 @@ except ImportError:
 
 def display_feature_name(feature_name):
     labels = {
+        'case_category': 'Legal Category',
+        'crime_type': 'Broad Case Type',
+        'severity': 'Severity',
+        'vulnerability': 'Vulnerability',
+        'influence': 'Influence / Power Imbalance',
         'case_category_enc': 'Legal Category',
         'crime_type_enc': 'Broad Case Type',
         'severity_enc': 'Severity',
         'vulnerability_enc': 'Vulnerability',
         'influence_enc': 'Influence / Power Imbalance',
     }
-    return labels.get(feature_name, feature_name.replace('_', ' ').title())
+    if feature_name in labels:
+        return labels[feature_name]
+    for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']:
+        if feature_name.startswith(f"{p}_"):
+            val = feature_name[len(p)+1:]
+            return f"{labels.get(p, p.title())}: {val}"
+    return feature_name.replace('_', ' ').title()
 
 def serialize_tree_node(clf, encoders, feature_names, node_id=0):
     tree = clf.tree_
@@ -346,6 +357,12 @@ def serialize_tree_node(clf, encoders, feature_names, node_id=0):
             ]
             readable_condition = f"in [{', '.join(left_values)}]"
             name_label = f"{display_feature_name(feature_name)} {readable_condition}"
+        elif any(feature_name.startswith(f"{p}_") for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']):
+            prefix = feature_name.split('_', 1)[0]
+            val = feature_name[len(prefix)+1:]
+            left_values = [f"Not {val}"]
+            readable_condition = f"is not '{val}'" if threshold == 0.5 else f"<= {threshold:.2f}"
+            name_label = f"{display_feature_name(prefix)} {readable_condition}"
         else:
             readable_condition = f"<= {threshold:.4f}"
             name_label = f"Keyword '{feature_name}' {readable_condition}"
