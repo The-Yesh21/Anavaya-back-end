@@ -1,0 +1,14 @@
+digraph DecisionPath {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fillcolor="#F7FBFF", color="#4B5563", fontname="Arial"];
+  edge [color="#6B7280", fontname="Arial"];
+  n0 [label="Node 0\nBroad case type is 'Violent'\nCase value: No (not Violent)\nDecision: No"];
+  n1 [label="Node 1\nInfluence / power imbalance is 'High'\nCase value: Yes (High)\nDecision: Yes"];
+  n0 -> n1 [label="step 1"];
+  n21 [label="Node 21\nFatal score <= 0.0324\nCase value: 0.0000\nDecision: Yes"];
+  n1 -> n21 [label="step 2"];
+  n22 [label="Node 22\nJurisdiction score <= 0.0087\nCase value: 0.0000\nDecision: Yes"];
+  n21 -> n22 [label="step 3"];
+  n23 [label="Leaf node 23\nPredicted priority: Medium\nSamples: 1"];
+  n22 -> n23 [label="step 4"];
+}

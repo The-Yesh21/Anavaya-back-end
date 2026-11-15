@@ -1,0 +1,12 @@
+digraph DecisionPath {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fillcolor="#F7FBFF", color="#4B5563", fontname="Arial"];
+  edge [color="#6B7280", fontname="Arial"];
+  n0 [label="Node 0\nBroad case type is 'Violent'\nCase value: Yes (Violent)\nDecision: Yes"];
+  n28 [label="Node 28\nSeverity is 'No Injury'\nCase value: No (not No Injury)\nDecision: No"];
+  n0 -> n28 [label="step 1"];
+  n29 [label="Node 29\nSeverity is 'Minor'\nCase value: No (not Minor)\nDecision: No"];
+  n28 -> n29 [label="step 2"];
+  n30 [label="Leaf node 30\nPredicted priority: High\nSamples: 1"];
+  n29 -> n30 [label="step 3"];
+}
