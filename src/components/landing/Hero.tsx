@@ -1,134 +1,46 @@
-import { useEffect, useRef } from "react";
-import { Scale } from "lucide-react";
+import { FileText, GitBranch, Scale } from "lucide-react";
 import { Reveal } from "./Reveal";
 import { HandwrittenText } from "./HandwrittenText";
 import { APP_URL } from "./constants";
 
 function HeroVisual() {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const node = wrapRef.current;
-    if (!node) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const onMove = (e: MouseEvent) => {
-      const x = e.clientX / window.innerWidth - 0.5;
-      const y = e.clientY / window.innerHeight - 0.5;
-      node.style.setProperty("--px", `${x * 26}px`);
-      node.style.setProperty("--py", `${y * 26}px`);
-    };
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, []);
-
   return (
-    <div
-      ref={wrapRef}
-      aria-hidden="true"
-      className="relative mx-auto aspect-square w-full max-w-[520px]"
-      style={{ transform: "translate3d(var(--px, 0), var(--py, 0), 0)", transition: "transform 400ms ease-out" }}
-    >
-      {/* Outer ambient glow */}
-      <div className="absolute inset-8 rounded-full bg-primary/10 blur-[80px]" />
-
-      {/* Slow rotating gold ring */}
-      <div className="animate-spin-slow absolute inset-0 rounded-full border border-primary/20 shadow-[0_0_30px_-5px_color-mix(in_oklab,var(--primary)_15%,transparent)]" />
-
-      <svg viewBox="0 0 400 400" className="relative h-full w-full">
-        <defs>
-          <linearGradient id="goldGrad" gradientUnits="userSpaceOnUse" x1="40" y1="40" x2="360" y2="360">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.3" />
-          </linearGradient>
-          <radialGradient id="scaleCenterGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.16" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        {/* Central aura */}
-        <circle cx="200" cy="210" r="130" fill="url(#scaleCenterGlow)" />
-
-        {/* floating hexagons */}
-        <g className="animate-float-slow" style={{ transformOrigin: "80px 90px" }}>
-          <polygon
-            points="80,55 110,72 110,108 80,125 50,108 50,72"
-            fill="var(--surface-strong)"
-            stroke="url(#goldGrad)"
-            strokeWidth="1.5"
-          />
-        </g>
-        <g className="animate-float-slow" style={{ animationDelay: "1.8s", transformOrigin: "320px 300px" }}>
-          <polygon
-            points="320,270 346,285 346,315 320,330 294,315 294,285"
-            fill="var(--surface-strong)"
-            stroke="url(#goldGrad)"
-            strokeWidth="1.5"
-          />
-        </g>
-
-        {/* scales of justice */}
-        <g stroke="var(--primary)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeOpacity="0.85">
-          <path d="M200 120 L200 290" />
-          <path d="M130 150 L270 150" />
-          <path d="M150 290 L250 290" />
-          <path d="M130 150 L130 176" strokeWidth="1.2" />
-          <path d="M270 150 L270 176" strokeWidth="1.2" />
-          <circle cx="200" cy="120" r="7" fill="var(--primary)" stroke="none" />
-          <path d="M130 176 L108 200 L152 200 Z" fill="var(--primary)" fillOpacity="0.14" />
-          <path d="M270 176 L248 200 L292 200 Z" fill="var(--primary)" fillOpacity="0.14" />
-        </g>
-
-        {/* document glyphs */}
-        <g>
-          <rect
-            x="288"
-            y="78"
-            width="48"
-            height="62"
-            rx="5"
-            fill="var(--surface-strong)"
-            stroke="url(#goldGrad)"
-            strokeWidth="1.4"
-          />
-          <g stroke="var(--primary)" strokeOpacity="0.6" strokeWidth="2" strokeLinecap="round">
-            <line x1="298" y1="94" x2="326" y2="94" />
-            <line x1="298" y1="106" x2="326" y2="106" />
-            <line x1="298" y1="118" x2="314" y2="118" />
-          </g>
-        </g>
-        <g>
-          <rect
-            x="56"
-            y="272"
-            width="48"
-            height="62"
-            rx="5"
-            fill="var(--surface-strong)"
-            stroke="url(#goldGrad)"
-            strokeWidth="1.4"
-          />
-          <g stroke="var(--primary)" strokeOpacity="0.6" strokeWidth="2" strokeLinecap="round">
-            <line x1="66" y1="288" x2="94" y2="288" />
-            <line x1="66" y1="300" x2="94" y2="300" />
-            <line x1="66" y1="312" x2="82" y2="312" />
-          </g>
-        </g>
-
-        {/* priority indicator dots with subtle halos */}
-        <g>
-          <circle cx="196" cy="336" r="8" fill="var(--priority-high)" fillOpacity="0.25" />
-          <circle cx="196" cy="336" r="4.5" fill="var(--priority-high)" />
-
-          <circle cx="220" cy="336" r="8" fill="var(--priority-medium)" fillOpacity="0.25" />
-          <circle cx="220" cy="336" r="4.5" fill="var(--priority-medium)" />
-
-          <circle cx="244" cy="336" r="8" fill="var(--priority-low)" fillOpacity="0.25" />
-          <circle cx="244" cy="336" r="4.5" fill="var(--priority-low)" />
-        </g>
-      </svg>
-    </div>
+    <figure className="mx-auto w-full max-w-md rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+      <figcaption className="flex items-center justify-between gap-3 border-b border-border px-6 py-4 text-xs text-muted-foreground">
+        <span className="font-semibold uppercase tracking-widest">Demo case file</span>
+        <span className="font-mono">ANV-2026-0053</span>
+      </figcaption>
+      <div className="px-6 py-6 sm:px-8">
+        <h2 className="font-display text-3xl leading-tight">Customs appeal</h2>
+        <p className="mt-2 text-sm text-muted-foreground">A dispute over port storage charges.</p>
+        <div className="my-5 space-y-2 border-y border-border py-4">
+          {["Customs appeal memorandum", "Bill of entry and port schedule"].map((name) => (
+            <div key={name} className="flex items-center gap-3 text-sm">
+              <FileText aria-hidden="true" className="size-4 shrink-0 text-primary" />{name}
+            </div>
+          ))}
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Extracted facts</p>
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          <dt>Category</dt><dd className="text-right font-medium">Customs / Import–Export</dd>
+          <dt>Severity</dt><dd className="text-right font-medium">No injury</dd>
+        </dl>
+      </div>
+      <div className="rounded-b-xl border-t border-border bg-secondary px-6 py-4 sm:px-8">
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 text-sm"><GitBranch aria-hidden="true" className="size-4" />Decision tree result</span>
+          <strong className="text-primary">Low priority</strong>
+        </div>
+        <details className="mt-3 text-sm text-muted-foreground">
+          <summary className="w-fit cursor-pointer rounded underline underline-offset-4 focus-visible:outline-2">Inspect the first three decisions</summary>
+          <ol className="mt-3 list-decimal space-y-1 pl-5">
+            <li>Violent case type? No.</li>
+            <li>High power imbalance? No.</li>
+            <li>No injury recorded? Yes.</li>
+          </ol>
+        </details>
+      </div>
+    </figure>
   );
 }
 
