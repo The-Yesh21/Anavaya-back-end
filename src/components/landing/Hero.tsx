@@ -16,7 +16,7 @@ function HeroVisual() {
               </div>
             ))}
           </div>
-          <div className="travelling-file"><span>Case file</span><i /><i /></div>
+          <div className="travelling-file"><span>Case file</span><i /><b className="priority-seal">High priority</b></div>
         </div>
       </div>
       <figcaption className="mx-auto max-w-xs text-center text-sm leading-relaxed text-muted-foreground">
