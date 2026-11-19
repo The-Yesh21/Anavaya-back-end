@@ -102,6 +102,48 @@
 }
 
 @layer base {
+  .triage-desk { width: 100%; margin: 0 auto; container-type: inline-size; }
+  .triage-stage { height: clamp(230px, 73cqw, 390px); display: grid; place-items: center; perspective: 850px; }
+  .triage-plane {
+    width: 83%; aspect-ratio: 1.72; position: relative;
+    transform: rotateX(52deg) rotateZ(-22deg); transform-style: preserve-3d;
+    border-radius: 12px; background: var(--secondary); border: 1px solid var(--border);
+    box-shadow: 0 5px 0 var(--border), -10px 25px 30px var(--surface-strong);
+  }
+  .waiting-pile, .travelling-file, .filing-tray { position: absolute; border-radius: 3px; }
+  .waiting-pile, .travelling-file {
+    left: 7%; top: 28%; width: 33%; height: 49%; padding: 6% 4% 3%;
+    background: #f8ebd9; color: #65172f; border: 1px solid #a37579;
+    font: 600 clamp(10px, 2.7cqw, 15px)/1.15 Georgia, serif;
+  }
+  .waiting-pile { transform: translateZ(10px); box-shadow: 0 3px #aa8386, 0 6px #f8ebd9, 0 8px #aa8386, 0 11px #f8ebd9; }
+  .filing-rack { position: absolute; left: 53%; top: 18%; width: 40%; height: 66%; transform-style: preserve-3d; }
+  .filing-tray { inset: 0; background: #9a6471; border: 2px solid #5d1b32; transform-style: preserve-3d; }
+  .filing-tray::before, .filing-tray::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 13px; background: #713349;
+  }
+  .filing-tray::before { left: 0; transform-origin: left; transform: rotateY(-90deg); }
+  .filing-tray::after { right: 0; transform-origin: right; transform: rotateY(90deg); }
+  .filing-tray span {
+    position: absolute; bottom: 0; width: 100%; height: 23px; display: grid; place-items: center;
+    background: #5e172f; color: #fff1dc; border: 1px solid #ad8390;
+    font: 600 12px/1 system-ui; transform-origin: bottom; transform: rotateX(-68deg);
+  }
+  .travelling-file {
+    background: #f4ddc7; transform: translate3d(150%, -6%, 94px);
+    box-shadow: 1px 2px 0 #985f6b; animation: file-to-priority 7s ease-in-out infinite;
+  }
+  .travelling-file::before { content: ""; position: absolute; left: -1px; top: -7px; width: 46%; height: 8px; border-radius: 4px 6px 0 0; background: #781635; }
+  .travelling-file i { display: block; width: 80%; height: 1px; background: #b78989; margin-top: 7%; }
+  .travelling-file i:last-child { width: 55%; }
+  @keyframes file-to-priority {
+    0%, 12% { transform: translate3d(0, 0, 14px); opacity: 1; }
+    33% { transform: translate3d(0, -7%, 101px); }
+    60% { transform: translate3d(150%, -6%, 109px); }
+    73%, 91% { transform: translate3d(150%, -6%, 94px); opacity: 1; }
+    96%, 100% { transform: translate3d(150%, -6%, 94px); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .travelling-file { animation: none; } }
   * {
     border-color: var(--color-border);
   }

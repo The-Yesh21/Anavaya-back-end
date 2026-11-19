@@ -1,45 +1,27 @@
-import { FileText, GitBranch, Scale } from "lucide-react";
+import { Scale } from "lucide-react";
 import { Reveal } from "./Reveal";
 import { HandwrittenText } from "./HandwrittenText";
 import { APP_URL } from "./constants";
 
 function HeroVisual() {
   return (
-    <figure className="mx-auto w-full max-w-md rounded-xl border border-border bg-card text-card-foreground shadow-xl">
-      <figcaption className="flex items-center justify-between gap-3 border-b border-border px-6 py-4 text-xs text-muted-foreground">
-        <span className="font-semibold uppercase tracking-widest">Demo case file</span>
-        <span className="font-mono">ANV-2026-0053</span>
+    <figure className="triage-desk">
+      <div className="triage-stage" role="img" aria-label="A case folder rises from a waiting stack and moves into the High tray of a three-tier priority rack.">
+        <div className="triage-plane">
+          <div className="waiting-pile"><span>Incoming cases</span></div>
+          <div className="filing-rack">
+            {["Low", "Medium", "High"].map((priority, index) => (
+              <div className="filing-tray" key={priority} style={{transform: `translateZ(${index * 45}px)`}}>
+                <span>{priority}</span>
+              </div>
+            ))}
+          </div>
+          <div className="travelling-file"><span>Case file</span><i /><i /></div>
+        </div>
+      </div>
+      <figcaption className="mx-auto max-w-xs text-center text-sm leading-relaxed text-muted-foreground">
+        From the waiting stack to a priority queue. The decision tree assigns each case a place.
       </figcaption>
-      <div className="px-6 py-6 sm:px-8">
-        <h2 className="font-display text-3xl leading-tight">Customs appeal</h2>
-        <p className="mt-2 text-sm text-muted-foreground">A dispute over port storage charges.</p>
-        <div className="my-5 space-y-2 border-y border-border py-4">
-          {["Customs appeal memorandum", "Bill of entry and port schedule"].map((name) => (
-            <div key={name} className="flex items-center gap-3 text-sm">
-              <FileText aria-hidden="true" className="size-4 shrink-0 text-primary" />{name}
-            </div>
-          ))}
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Extracted facts</p>
-        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt>Category</dt><dd className="text-right font-medium">Customs / Import–Export</dd>
-          <dt>Severity</dt><dd className="text-right font-medium">No injury</dd>
-        </dl>
-      </div>
-      <div className="rounded-b-xl border-t border-border bg-secondary px-6 py-4 sm:px-8">
-        <div className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-2 text-sm"><GitBranch aria-hidden="true" className="size-4" />Decision tree result</span>
-          <strong className="text-primary">Low priority</strong>
-        </div>
-        <details className="mt-3 text-sm text-muted-foreground">
-          <summary className="w-fit cursor-pointer rounded underline underline-offset-4 focus-visible:outline-2">Inspect the first three decisions</summary>
-          <ol className="mt-3 list-decimal space-y-1 pl-5">
-            <li>Violent case type? No.</li>
-            <li>High power imbalance? No.</li>
-            <li>No injury recorded? Yes.</li>
-          </ol>
-        </details>
-      </div>
     </figure>
   );
 }
