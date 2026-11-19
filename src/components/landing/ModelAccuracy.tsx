@@ -694,8 +694,8 @@ export function ModelAccuracy() {
                     <div className="flex items-center justify-between border-b border-border/60 pb-3">
                       <div className="flex items-center gap-1.5" aria-hidden="true">
                         <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]/70" />
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]/70" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-primary/70" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-accent/70" />
                       </div>
                       <span className="text-[0.6875rem] font-medium tracking-wider text-muted-foreground uppercase">
                         Terminal

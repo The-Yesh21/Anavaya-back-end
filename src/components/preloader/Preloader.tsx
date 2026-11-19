@@ -20,18 +20,18 @@ import {
 } from "lucide-react";
 import { RAIL_ITEMS, usePreloaderTimeline } from "./usePreloaderTimeline";
 
-/* ---------- Theme: gold, brown, white ---------- */
+/* ---------- Landing theme and burgundy illustration tones ---------- */
 const COLORS = {
-  bg: "#FBF8F2", // warm white
-  ink: "#3B2414", // deep brown
-  muted: "#8A6A45", // soft brown
-  gold: "#C9A24A",
-  goldLight: "#E3C77E",
-  seam: "rgba(201,162,74,0.45)",
-  woodDark: "#5A3418",
-  wood: "#7A4A24",
-  woodLight: "#A06A38",
-  grain: "rgba(59,36,20,0.35)",
+  bg: "var(--background)",
+  ink: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  gold: "var(--primary)",
+  goldLight: "var(--accent)",
+  seam: "rgba(123,31,59,0.45)",
+  woodDark: "#56172c",
+  wood: "#812744",
+  woodLight: "#b46a80",
+  grain: "rgba(67,17,36,0.35)",
 } as const;
 const FONT = "'Playfair Display', 'Cormorant Garamond', Georgia, serif";
 const SESSION_KEY = "anvaya-preloader-seen";
@@ -66,14 +66,14 @@ const RAIL_INSET = "clamp(10px, 3vw, 38px)";
 const MEDALLION = "clamp(42px, 6.4vw, 66px)";
 
 // Extruded 3D stack: deep brown -> gold, 1px further each step
-const EXTRUDE = ["#4A2D17", "#5A381C", "#6B4422", "#7D5229", "#8F6232", "#A2743B", "#B48745", "#C9A24A"]
+const EXTRUDE = ["#491328", "#57192e", "#692039", "#7d2d47", "#91425a", "#a4566b", "#b86b81", "var(--primary)"]
   .map((c, i) => `${i + 1}px ${i + 1}px 0 ${c}`)
-  .concat("10px 16px 22px rgba(59,36,20,0.25)")
+  .concat("10px 16px 22px rgba(67,17,36,0.25)")
   .join(", ");
 
 // Mirror effects: a bright sweep across the letters + a faded reflection below
 const SHEEN =
-  "linear-gradient(110deg, transparent 38%, rgba(255,248,225,0.15) 44%, rgba(255,252,240,0.95) 50%, rgba(227,199,126,0.6) 53%, transparent 60%)";
+  "linear-gradient(110deg, transparent 38%, rgba(255,248,225,0.15) 44%, rgba(255,252,240,0.95) 50%, rgba(218,163,176,0.6) 53%, transparent 60%)";
 const REFLECT_MASK = "linear-gradient(to top, rgba(0,0,0,0.95) 0%, transparent 65%)";
 
 // Mirror finish on the letter edges: a bright rim traced along the top curves
@@ -87,7 +87,7 @@ const EDGES = [
   },
   {
     mask: "linear-gradient(to bottom, transparent 62%, black 78%)",
-    stroke: "rgba(201,162,74,0.6)",
+    stroke: "rgba(123,31,59,0.6)",
     blur: 0,
   },
 ] as const;
@@ -287,7 +287,7 @@ export function Preloader() {
 
               {/* Wooden sound block — top surface at y=126 where the head lands */}
               <g ref={block}>
-                <ellipse cx="102" cy="142" rx="30" ry="3" fill="rgba(59,36,20,0.18)" />
+                <ellipse cx="102" cy="142" rx="30" ry="3" fill="rgba(67,17,36,0.18)" />
                 <rect x="74" y="126" width="56" height="14" rx="3" fill="url(#pl-wood)" />
                 <rect x="74" y="126" width="56" height="3" rx="1.5" fill={COLORS.goldLight} opacity="0.55" />
                 <path d="M80 132 Q95 130 110 133 T126 132" stroke={COLORS.grain} strokeWidth="0.8" fill="none" />
@@ -352,7 +352,7 @@ export function Preloader() {
                         border: `1.5px solid ${COLORS.seam}`,
                         background: "rgba(255,252,245,0.85)",
                         backdropFilter: "blur(4px)",
-                        boxShadow: "0 10px 24px -10px rgba(59,36,20,0.38), 0 0 12px rgba(201,162,74,0.18)",
+                        boxShadow: "0 10px 24px -10px rgba(67,17,36,0.38), 0 0 12px rgba(123,31,59,0.18)",
                       }}
                     >
                       <Icon style={{ width: "52%", height: "52%" }} strokeWidth={1.5} color={COLORS.muted} />

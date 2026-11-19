@@ -111,8 +111,8 @@ export function TriageSandbox() {
       return {
         tier: "High" as const,
         color: "var(--priority-high)",
-        bgTint: "rgba(232, 93, 74, 0.12)",
-        borderColor: "rgba(232, 93, 74, 0.35)",
+        bgTint: "color-mix(in srgb, var(--priority-high) 12%, transparent)",
+        borderColor: "color-mix(in srgb, var(--priority-high) 35%, transparent)",
         badgeText: "High Priority · Tier 1",
         queueLeap: "Leaps to Position #1",
         legacyQueue: `#${legacyPosition.toLocaleString()} in line`,
@@ -132,8 +132,8 @@ export function TriageSandbox() {
       return {
         tier: "Medium" as const,
         color: "var(--priority-medium)",
-        bgTint: "rgba(217, 163, 67, 0.12)",
-        borderColor: "rgba(217, 163, 67, 0.35)",
+        bgTint: "color-mix(in srgb, var(--priority-medium) 12%, transparent)",
+        borderColor: "color-mix(in srgb, var(--priority-medium) 35%, transparent)",
         badgeText: "Medium Priority · Tier 2",
         queueLeap: "Fast-Track Commercial Calendar",
         legacyQueue: "#11,350 in line",
@@ -150,8 +150,8 @@ export function TriageSandbox() {
     return {
       tier: "Low" as const,
       color: "var(--priority-low)",
-      bgTint: "rgba(102, 178, 122, 0.12)",
-      borderColor: "rgba(102, 178, 122, 0.35)",
+      bgTint: "color-mix(in srgb, var(--priority-low) 12%, transparent)",
+      borderColor: "color-mix(in srgb, var(--priority-low) 35%, transparent)",
       badgeText: "Low Priority · Tier 3",
       queueLeap: "Routine Civil Listing",
       legacyQueue: "#22,600 in line",
