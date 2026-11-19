@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Hero } from "@/components/landing/Hero";
+import { CaseFlow } from "@/components/landing/CaseFlow";
 import { ProblemBand, StatsBar } from "@/components/landing/ProblemStats";
 import { TriageSandbox } from "@/components/landing/TriageSandbox";
 import { WhyItMatters } from "@/components/landing/WhyItMatters";
@@ -38,6 +39,7 @@ function Index() {
       <SiteHeader />
       <main id="main" className="relative z-10">
         <Hero />
+        <CaseFlow />
         <ProblemBand />
         <TriageSandbox />
         <StatsBar />
