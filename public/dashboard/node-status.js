@@ -10,6 +10,9 @@
 
 (function () {
     const ADMIN_EMAIL = "yeshwanth9750@gmail.com";
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[c]);
     const STORAGE_KEY = "anavaya_backend_url";
 
     const AnavayaNode = {
@@ -141,14 +144,14 @@ Thank you!`
                         <h3 class="node-modal-title" id="node-modal-title">Hardware System in Standby</h3>
                         <div class="node-feature-pill">
                             <span>⚡ Requested:</span>
-                            <strong>${featureName}</strong>
+                            <strong>${escapeHtml(featureName)}</strong>
                         </div>
                     </div>
 
                     <div class="node-modal-body">
                         <div class="node-explanation-box">
                             <strong>Why is this node in standby?</strong><br>
-                            Anavaya’s AI Copilot (Ollama Qwen 2.5) and Virtual Courtroom (Whisper GPU stenography & Chakshu facial analysis) strictly execute on an on-premise hardware node to safeguard sovereign judicial data and maintain Article 21 compliance without cloud leaks. The local workstation is currently sleeping.
+                            Anavaya’s AI Copilot (Ollama Qwen 2.5) and Virtual Courtroom (Whisper GPU stenography & Chakshu facial analysis) strictly execute on an on-premise hardware node to safeguard sovereign judicial data and maintain Article 21 compliance without cloud leaks. The configured backend could not be reached. It may be offline or incorrectly configured.
                         </div>
 
                         <div class="node-action-stack">
@@ -165,7 +168,7 @@ Thank you!`
                                     If your local server is running with a public tunnel, paste the HTTPS tunnel URL below to patch the cloud UI directly to your machine.
                                 </p>
                                 <div class="node-tunnel-form">
-                                    <input type="url" id="node-tunnel-input" class="node-tunnel-input" placeholder="https://xxxx.ngrok-free.app" value="${currentTunnel}">
+                                    <input type="url" id="node-tunnel-input" class="node-tunnel-input" placeholder="https://xxxx.ngrok-free.app" value="${escapeHtml(currentTunnel)}">
                                     <button type="button" id="node-tunnel-save-btn" class="node-tunnel-btn">Connect</button>
                                 </div>
                                 ${currentTunnel ? '<button type="button" id="node-tunnel-clear-btn" style="background:none;border:none;color:#EF4444;font-size:11px;cursor:pointer;margin-top:6px;padding:0;">Disconnect custom tunnel</button>' : ''}
@@ -272,8 +275,10 @@ Thank you!`
 
         try {
             const res = await originalFetch.apply(this, [input, init]);
-            // If the server answered 404/502/503/504 on a static host without backend:
-            if (!res.ok && isApi && (res.status === 404 || res.status >= 500)) {
+            // If the server answered 502/503/504 on a static host without backend:
+            // Note: 404 is a valid REST response (e.g. non-existent case, room check)
+            // and should NOT be intercepted or trigger standby modals.
+            if (!res.ok && isApi && res.status >= 502 && res.status <= 504) {
                 throw new Error(`HTTP ${res.status} from backend on ${url}`);
             }
             return res;

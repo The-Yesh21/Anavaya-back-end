@@ -760,6 +760,31 @@ def analyze_case_whole(case, model_data=None) -> dict:
     except Exception as e:
         print(f"whole-case: delay precedents failed (non-fatal): {e}")
 
+    statutory_sections = []
+    turnaround_time = {}
+    try:
+        from case_priority_system.scripts.statutory_sections import (
+            determine_statutory_sections,
+            calculate_turnaround_time,
+        )
+        statutory_sections = determine_statutory_sections(
+            category=tuned.get("case_category", ""),
+            crime_type=tuned.get("crime_type", ""),
+            severity=tuned.get("severity", ""),
+            vulnerability=tuned.get("vulnerability", ""),
+            influence=tuned.get("influence", ""),
+            text=f"{case.title} {merged.get('case_gist', '')} {synthesis_text}",
+        )
+        turnaround_time = calculate_turnaround_time(
+            priority=priority,
+            category=tuned.get("case_category", ""),
+            severity=tuned.get("severity", ""),
+            vulnerability=tuned.get("vulnerability", ""),
+            document_count=len(per_doc),
+        )
+    except Exception as e:
+        print(f"whole-case: statutory sections / turnaround time calculation failed (non-fatal): {e}")
+
     return {
         "priority": priority,
         "priority_justification": justification,
@@ -778,6 +803,8 @@ def analyze_case_whole(case, model_data=None) -> dict:
         "path_steps": path_steps,
         "constitutional": analysis,
         "delay_precedents": delay_precedents,
+        "statutory_sections": statutory_sections,
+        "turnaround_time": turnaround_time,
         "case_gist": merged.get("case_gist", ""),
         "report_pdf": report_pdf,
         "computed_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),

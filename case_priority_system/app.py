@@ -1192,6 +1192,34 @@ def get_case_analysis(case_id: str):
         case_title=case.title or "",
         case_text=f"{cl.get('case_gist', '')} {cl_feats.get('plain_summary', '')}",
     )
+    statutory_sections = cl.get("statutory_sections") or []
+    turnaround_time = cl.get("turnaround_time") or {}
+    if not statutory_sections or not turnaround_time:
+        try:
+            from case_priority_system.scripts.statutory_sections import (
+                determine_statutory_sections,
+                calculate_turnaround_time,
+            )
+            if not statutory_sections:
+                statutory_sections = determine_statutory_sections(
+                    category=cl_feats.get("case_category", ""),
+                    crime_type=cl_feats.get("crime_type", ""),
+                    severity=cl_feats.get("severity", ""),
+                    vulnerability=cl_feats.get("vulnerability", ""),
+                    influence=cl_feats.get("influence", ""),
+                    text=f"{case.title} {cl.get('case_gist', '')} {cl_feats.get('plain_summary', '')}",
+                )
+            if not turnaround_time:
+                turnaround_time = calculate_turnaround_time(
+                    priority=cl.get("priority", "Medium"),
+                    category=cl_feats.get("case_category", ""),
+                    severity=cl_feats.get("severity", ""),
+                    vulnerability=cl_feats.get("vulnerability", ""),
+                    document_count=len(cl.get("per_document", []) or case.documents),
+                )
+        except Exception as e:
+            print(f"Failed to compute dynamic statutory sections / turnaround time: {e}")
+
     return _repair_tree({
         "case_id": case.case_id,
         "title": case.title,
@@ -1207,6 +1235,8 @@ def get_case_analysis(case_id: str):
         "per_document": cl.get("per_document", []),
         "constitutional": cl.get("constitutional", {}),
         "delay_precedents": precedents,
+        "statutory_sections": statutory_sections,
+        "turnaround_time": turnaround_time,
         "report_pdf": cl.get("report_pdf", ""),
         "computed_at": cl.get("computed_at", ""),
         "aggregate": {

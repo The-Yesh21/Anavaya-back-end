@@ -378,6 +378,8 @@
                                          #case-level-glance; replaces the old text "The case —
                                          what it is about" section and the chips row). -->
                                     <div id="case-level-glance" class="case-level-glance"></div>
+                                    <!-- Turnaround Time (TAT) & Adjudication Loss Mitigation Target -->
+                                    <div id="case-level-tat" class="case-level-tat-container"></div>
                                     <details class="case-level-section" open>
                                         <summary><i data-lucide="layers"></i> Evidence &amp; weight — what each document says and contributes</summary>
                                         <div id="case-level-evidence" class="case-level-evidence"></div>
@@ -387,7 +389,11 @@
                                         <div id="case-level-path" class="case-level-path"></div>
                                     </details>
                                     <details class="case-level-section" open>
-                                        <summary><i data-lucide="landmark"></i> Articles that apply &amp; doctrines</summary>
+                                        <summary><i data-lucide="book-marked"></i> Statutory Sections &amp; Penal Codes (IPC / BNS / CrPC / Special Acts)</summary>
+                                        <div id="case-level-sections" class="case-level-sections"><div class="ev-empty">Statutory sections appear here once the case is analysed.</div></div>
+                                    </details>
+                                    <details class="case-level-section" open>
+                                        <summary><i data-lucide="landmark"></i> Constitutional Articles &amp; Fundamental Rights (Articles 14, 21, 226)</summary>
                                         <div id="case-level-articles" class="case-level-articles"><div class="ev-empty">Constitutional analysis appears here once the case is analysed.</div></div>
                                     </details>
                                     <details class="case-level-section" open>
@@ -452,18 +458,26 @@
                                     </div>
 
                                     <div class="detail-section">
-                                        <h3><i data-lucide="sliders" style="width:16px;height:16px;vertical-align:middle;"></i> Priority Parameters</h3>
+                                        <h3><i data-lucide="sliders" style="width:16px;height:16px;vertical-align:middle;"></i> Priority &amp; Turnaround Time</h3>
                                         <div class="param-chips">
                                             <span class="param-chip"><span>Model Category</span><strong id="param-model-cat">N/A</strong></span>
                                             <span class="param-chip"><span>Severity</span><strong id="param-severity">N/A</strong></span>
                                             <span class="param-chip"><span>Vulnerability</span><strong id="param-vulnerability">N/A</strong></span>
                                             <span class="param-chip"><span>Influence</span><strong id="param-influence">N/A</strong></span>
+                                            <span class="param-chip tat-chip"><span style="color:var(--gold,#C9A24B); font-weight:600;">Recommended TAT</span><strong id="param-tat" style="color:var(--gold,#C9A24B);">Within 72 Hours</strong></span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- RIGHT: Constitutional analysis -->
+                                <!-- RIGHT: Legal & Constitutional analysis -->
                                 <div class="case-detail-right">
+                                    <div class="detail-section">
+                                        <h3><i data-lucide="book-marked" style="width:16px;height:16px;vertical-align:middle;"></i> Statutory Sections Engaged</h3>
+                                        <div id="case-statutory-sections" class="statutory-sections-grid">
+                                            Loading statutory sections...
+                                        </div>
+                                    </div>
+
                                     <div class="detail-section">
                                         <h3><i data-lucide="shield" style="width:16px;height:16px;vertical-align:middle;"></i> Constitutional Rights Engaged</h3>
                                         <div id="case-constitutional-rights" class="constitutional-rights-grid">

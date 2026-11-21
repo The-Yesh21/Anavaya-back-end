@@ -27,7 +27,55 @@
           "applicable_doctrines": "[{'name': 'Doctrine of Proportionality', 'description': 'Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.', 'application': 'Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.'}, {'name': 'Principle of Natural Justice — Audi Alteram Partem', 'description': 'No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.', 'application': 'Ensures procedural fairness in administrative and quasi-judicial proceedings.'}, {'name': 'Rule of Law', 'description': 'Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.', 'application': 'Foundational principle engaged in every challenge to executive or legislative action.'}, {'name': 'Doctrine of Reasonable Classification', 'description': 'Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.', 'application': 'Used to test whether differential treatment of litigants or groups is constitutional.'}]"
         },
         "report_pdf": "case_priority_system\\reports\\03_Exhibit_P2_Bank_Transfers_report.pdf",
-        "text_excerpt": ""
+        "text_excerpt": "",
+        "statutory_sections": [
+          {
+            "section": "Section 420 IPC / Section 318(4) BNS",
+            "statute": "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+            "title": "Cheating and Dishonestly Inducing Delivery of Property",
+            "category": "Commercial/Financial",
+            "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
+            "severity_weight": "Economic / High Value",
+            "statutory_mandate": "Asset attachment under CrPC §102 / BNSS §107 to prevent debtor flight or insolvency.",
+            "inference_ground": "Deceptive financial inducement / property misappropriation"
+          },
+          {
+            "section": "Sections 2(1)(c) & 16 Commercial Courts Act 2015",
+            "statute": "Commercial Courts Act, 2015",
+            "title": "Commercial Dispute of Specified Value",
+            "category": "Commercial/Financial",
+            "classification": "Civil Jurisdiction · Commercial Division of High Court",
+            "severity_weight": "Commercial Capital Lockup",
+            "statutory_mandate": "Mandatory Case Management Hearing under Order XV-A CPC; judgment within 90 days of arguments.",
+            "inference_ground": "Statutory commercial suit under Commercial Courts Act 2015"
+          },
+          {
+            "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
+            "statute": "Central Goods and Services Tax Act, 2017",
+            "title": "Offences, Search, Seizure & Fraudulent Input Tax Credit",
+            "category": "Excise/Tax",
+            "classification": "Cognizable & Non-Bailable (if tax evasion exceeds ₹5 Crore)",
+            "severity_weight": "Fiscal Revenue Peril",
+            "statutory_mandate": "Expedited revenue bench listing under Article 265 and statutory recovery timelines.",
+            "inference_ground": "Statutory tax audit and revenue evasion adjudication"
+          }
+        ],
+        "turnaround_time": {
+          "priority_tier": "Low",
+          "recommended_hearing_window": "Within 30 to 60 Days",
+          "recommended_hearing_days": 60,
+          "target_disposal_window": "180 to 365 Days",
+          "target_disposal_days": 365,
+          "statutory_benchmark": "National Court Management System (NCMS) Routine Civil Docket Guidelines",
+          "target_hearing_sessions": "1–2 Summary Sessions",
+          "loss_category": "Standard Civil Procedure & Transactional Docketing",
+          "loss_risk_level": "Low / Stable",
+          "projected_loss_if_delayed": "Routine procedural delay without risk of irreversible bodily harm or corporate liquidation.",
+          "loss_mitigation_benefit": "Orderly chronological triage prevents queue-jumping, preserving judicial bench hours for urgent liberty and severe commercial distress cases.",
+          "mitigation_percentage": "45%",
+          "action_directive": "Queued on Standard Civil Hearing Docket in Regular Chronological Order",
+          "urgency_pill": "STANDARD_QUEUE"
+        }
       },
       "priority": "Low",
       "decision_report": "case_priority_system\\decision_graphs\\03_Exhibit_P2_Bank_Transfers_decision_report.md"
@@ -54,7 +102,35 @@
           "applicable_doctrines": "[{'name': 'Doctrine of Proportionality', 'description': 'Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.', 'application': 'Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.'}, {'name': 'Principle of Natural Justice — Audi Alteram Partem', 'description': 'No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.', 'application': 'Ensures procedural fairness in administrative and quasi-judicial proceedings.'}, {'name': 'Rule of Law', 'description': 'Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.', 'application': 'Foundational principle engaged in every challenge to executive or legislative action.'}, {'name': 'Doctrine of Reasonable Classification', 'description': 'Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.', 'application': 'Used to test whether differential treatment of litigants or groups is constitutional.'}]"
         },
         "report_pdf": "case_priority_system\\reports\\04_Exhibit_P3_Disputed_Invoices_report.pdf",
-        "text_excerpt": ""
+        "text_excerpt": "",
+        "statutory_sections": [
+          {
+            "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
+            "statute": "Central Goods and Services Tax Act, 2017",
+            "title": "Offences, Search, Seizure & Fraudulent Input Tax Credit",
+            "category": "Excise/Tax",
+            "classification": "Cognizable & Non-Bailable (if tax evasion exceeds ₹5 Crore)",
+            "severity_weight": "Fiscal Revenue Peril",
+            "statutory_mandate": "Expedited revenue bench listing under Article 265 and statutory recovery timelines.",
+            "inference_ground": "Statutory tax audit and revenue evasion adjudication"
+          }
+        ],
+        "turnaround_time": {
+          "priority_tier": "Low",
+          "recommended_hearing_window": "Within 30 to 60 Days",
+          "recommended_hearing_days": 60,
+          "target_disposal_window": "180 to 365 Days",
+          "target_disposal_days": 365,
+          "statutory_benchmark": "National Court Management System (NCMS) Routine Civil Docket Guidelines",
+          "target_hearing_sessions": "1–2 Summary Sessions",
+          "loss_category": "Standard Civil Procedure & Transactional Docketing",
+          "loss_risk_level": "Low / Stable",
+          "projected_loss_if_delayed": "Routine procedural delay without risk of irreversible bodily harm or corporate liquidation.",
+          "loss_mitigation_benefit": "Orderly chronological triage prevents queue-jumping, preserving judicial bench hours for urgent liberty and severe commercial distress cases.",
+          "mitigation_percentage": "45%",
+          "action_directive": "Queued on Standard Civil Hearing Docket in Regular Chronological Order",
+          "urgency_pill": "STANDARD_QUEUE"
+        }
       },
       "priority": "Low",
       "decision_report": "case_priority_system\\decision_graphs\\04_Exhibit_P3_Disputed_Invoices_decision_report.md"
@@ -81,7 +157,45 @@
           "applicable_doctrines": "[{'name': 'Doctrine of Proportionality', 'description': 'Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.', 'application': 'Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.'}, {'name': 'Principle of Natural Justice — Audi Alteram Partem', 'description': 'No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.', 'application': 'Ensures procedural fairness in administrative and quasi-judicial proceedings.'}, {'name': 'Rule of Law', 'description': 'Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.', 'application': 'Foundational principle engaged in every challenge to executive or legislative action.'}]"
         },
         "report_pdf": "case_priority_system\\reports\\05_Exhibit_P4_Bank_Statement_report.pdf",
-        "text_excerpt": ""
+        "text_excerpt": "",
+        "statutory_sections": [
+          {
+            "section": "Section 420 IPC / Section 318(4) BNS",
+            "statute": "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+            "title": "Cheating and Dishonestly Inducing Delivery of Property",
+            "category": "Commercial/Financial",
+            "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
+            "severity_weight": "Economic / High Value",
+            "statutory_mandate": "Asset attachment under CrPC §102 / BNSS §107 to prevent debtor flight or insolvency.",
+            "inference_ground": "Deceptive financial inducement / property misappropriation"
+          },
+          {
+            "section": "Sections 2(1)(c) & 16 Commercial Courts Act 2015",
+            "statute": "Commercial Courts Act, 2015",
+            "title": "Commercial Dispute of Specified Value",
+            "category": "Commercial/Financial",
+            "classification": "Civil Jurisdiction · Commercial Division of High Court",
+            "severity_weight": "Commercial Capital Lockup",
+            "statutory_mandate": "Mandatory Case Management Hearing under Order XV-A CPC; judgment within 90 days of arguments.",
+            "inference_ground": "Statutory commercial suit under Commercial Courts Act 2015"
+          }
+        ],
+        "turnaround_time": {
+          "priority_tier": "Low",
+          "recommended_hearing_window": "Within 30 to 60 Days",
+          "recommended_hearing_days": 60,
+          "target_disposal_window": "180 to 365 Days",
+          "target_disposal_days": 365,
+          "statutory_benchmark": "National Court Management System (NCMS) Routine Civil Docket Guidelines",
+          "target_hearing_sessions": "1–2 Summary Sessions",
+          "loss_category": "Standard Civil Procedure & Transactional Docketing",
+          "loss_risk_level": "Low / Stable",
+          "projected_loss_if_delayed": "Routine procedural delay without risk of irreversible bodily harm or corporate liquidation.",
+          "loss_mitigation_benefit": "Orderly chronological triage prevents queue-jumping, preserving judicial bench hours for urgent liberty and severe commercial distress cases.",
+          "mitigation_percentage": "45%",
+          "action_directive": "Queued on Standard Civil Hearing Docket in Regular Chronological Order",
+          "urgency_pill": "STANDARD_QUEUE"
+        }
       },
       "priority": "Low",
       "decision_report": "case_priority_system\\decision_graphs\\05_Exhibit_P4_Bank_Statement_decision_report.md"
@@ -108,7 +222,35 @@
           "applicable_doctrines": "[{'name': 'Doctrine of Proportionality', 'description': 'Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.', 'application': 'Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.'}, {'name': 'Principle of Natural Justice — Audi Alteram Partem', 'description': 'No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.', 'application': 'Ensures procedural fairness in administrative and quasi-judicial proceedings.'}, {'name': 'Rule of Law', 'description': 'Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.', 'application': 'Foundational principle engaged in every challenge to executive or legislative action.'}, {'name': 'Doctrine of Reasonable Classification', 'description': 'Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.', 'application': 'Used to test whether differential treatment of litigants or groups is constitutional.'}]"
         },
         "report_pdf": "case_priority_system\\reports\\06_Exhibit_P5_GST_Certificate_report.pdf",
-        "text_excerpt": ""
+        "text_excerpt": "",
+        "statutory_sections": [
+          {
+            "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
+            "statute": "Central Goods and Services Tax Act, 2017",
+            "title": "Offences, Search, Seizure & Fraudulent Input Tax Credit",
+            "category": "Excise/Tax",
+            "classification": "Cognizable & Non-Bailable (if tax evasion exceeds ₹5 Crore)",
+            "severity_weight": "Fiscal Revenue Peril",
+            "statutory_mandate": "Expedited revenue bench listing under Article 265 and statutory recovery timelines.",
+            "inference_ground": "Statutory tax audit and revenue evasion adjudication"
+          }
+        ],
+        "turnaround_time": {
+          "priority_tier": "Medium",
+          "recommended_hearing_window": "Within 7 to 14 Days",
+          "recommended_hearing_days": 14,
+          "target_disposal_window": "90 to 180 Days",
+          "target_disposal_days": 180,
+          "statutory_benchmark": "Commercial Courts Act 2015 (§16 Case Management) & Arbitration Act Section 29A",
+          "target_hearing_sessions": "1–2 Summary Sessions",
+          "loss_category": "Commercial Solvency & Compounding Fiscal Attrition",
+          "loss_risk_level": "Elevated / Financial Compounding",
+          "projected_loss_if_delayed": "Delay leads to compounding interest liability, blocked operating capital, potential enterprise insolvency, and asset dissipation by adverse parties.",
+          "loss_mitigation_benefit": "Fast-track listing within 14 days preserves commercial liquidity, mandates pre-trial disclosures, and curtails compound commercial attrition by up to 80%.",
+          "mitigation_percentage": "78%",
+          "action_directive": "Routed to Fast-Track Commercial Docket / Statutory Supervisory Calendar",
+          "urgency_pill": "FAST_TRACK"
+        }
       },
       "priority": "Medium",
       "decision_report": "case_priority_system\\decision_graphs\\06_Exhibit_P5_GST_Certificate_decision_report.md"
@@ -135,7 +277,35 @@
           "applicable_doctrines": "[{'name': 'Doctrine of Proportionality', 'description': 'Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.', 'application': 'Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.'}, {'name': 'Principle of Natural Justice — Audi Alteram Partem', 'description': 'No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.', 'application': 'Ensures procedural fairness in administrative and quasi-judicial proceedings.'}, {'name': 'Rule of Law', 'description': 'Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.', 'application': 'Foundational principle engaged in every challenge to executive or legislative action.'}, {'name': 'Doctrine of Reasonable Classification', 'description': 'Article 14 permits classification of persons if it is based on intelligible differentia having a rational nexus with the object sought to be achieved.', 'application': 'Used to test whether differential treatment of litigants or groups is constitutional.'}]"
         },
         "report_pdf": "case_priority_system\\reports\\07_Exhibit_P6_Forensic_Report_report.pdf",
-        "text_excerpt": ""
+        "text_excerpt": "",
+        "statutory_sections": [
+          {
+            "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
+            "statute": "Central Goods and Services Tax Act, 2017",
+            "title": "Offences, Search, Seizure & Fraudulent Input Tax Credit",
+            "category": "Excise/Tax",
+            "classification": "Cognizable & Non-Bailable (if tax evasion exceeds ₹5 Crore)",
+            "severity_weight": "Fiscal Revenue Peril",
+            "statutory_mandate": "Expedited revenue bench listing under Article 265 and statutory recovery timelines.",
+            "inference_ground": "Statutory tax audit and revenue evasion adjudication"
+          }
+        ],
+        "turnaround_time": {
+          "priority_tier": "Low",
+          "recommended_hearing_window": "Within 30 to 60 Days",
+          "recommended_hearing_days": 60,
+          "target_disposal_window": "180 to 365 Days",
+          "target_disposal_days": 365,
+          "statutory_benchmark": "National Court Management System (NCMS) Routine Civil Docket Guidelines",
+          "target_hearing_sessions": "1–2 Summary Sessions",
+          "loss_category": "Standard Civil Procedure & Transactional Docketing",
+          "loss_risk_level": "Low / Stable",
+          "projected_loss_if_delayed": "Routine procedural delay without risk of irreversible bodily harm or corporate liquidation.",
+          "loss_mitigation_benefit": "Orderly chronological triage prevents queue-jumping, preserving judicial bench hours for urgent liberty and severe commercial distress cases.",
+          "mitigation_percentage": "45%",
+          "action_directive": "Queued on Standard Civil Hearing Docket in Regular Chronological Order",
+          "urgency_pill": "STANDARD_QUEUE"
+        }
       },
       "priority": "Low",
       "decision_report": "case_priority_system\\decision_graphs\\07_Exhibit_P6_Forensic_Report_decision_report.md"
@@ -162,7 +332,55 @@
           "applicable_doctrines": "[{'name': 'Doctrine of Basic Structure', 'description': 'The Parliament cannot amend the Constitution to destroy its basic features such as supremacy of the Constitution, rule of law, and judicial review.', 'application': 'Applicable to cases involving constitutional amendments or executive actions affecting foundational principles.'}, {'name': 'Doctrine of Proportionality', 'description': 'Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.', 'application': 'Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.'}, {'name': 'Principle of Natural Justice — Audi Alteram Partem', 'description': 'No person shall be condemned without being heard. The right to be heard is a fundamental principle of justice.', 'application': 'Ensures procedural fairness in administrative and quasi-judicial proceedings.'}, {'name': 'Rule of Law', 'description': 'Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.', 'application': 'Foundational principle engaged in every challenge to executive or legislative action.'}, {'name': 'Doctrine of Colourable Legislation', 'description': 'If the legislature lacks the competence to enact a law directly, it cannot do indirectly what it cannot do directly — such camouflage is struck down.', 'application': 'Applicable where a statute purports to do one thing but in substance does another outside legislative competence.'}, {'name': 'Doctrine of Harmonious Construction', 'description': 'Where two constitutional provisions conflict, they should be interpreted so that both are given effect rather than one nullifying the other.', 'application': 'Used when Articles or statutory provisions appear to overlap or clash.'}]"
         },
         "report_pdf": "case_priority_system\\reports\\09_Evidence_Booklet_report.pdf",
-        "text_excerpt": ""
+        "text_excerpt": "",
+        "statutory_sections": [
+          {
+            "section": "Section 420 IPC / Section 318(4) BNS",
+            "statute": "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+            "title": "Cheating and Dishonestly Inducing Delivery of Property",
+            "category": "Commercial/Financial",
+            "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
+            "severity_weight": "Economic / High Value",
+            "statutory_mandate": "Asset attachment under CrPC §102 / BNSS §107 to prevent debtor flight or insolvency.",
+            "inference_ground": "Deceptive financial inducement / property misappropriation"
+          },
+          {
+            "section": "Sections 2(1)(c) & 16 Commercial Courts Act 2015",
+            "statute": "Commercial Courts Act, 2015",
+            "title": "Commercial Dispute of Specified Value",
+            "category": "Commercial/Financial",
+            "classification": "Civil Jurisdiction · Commercial Division of High Court",
+            "severity_weight": "Commercial Capital Lockup",
+            "statutory_mandate": "Mandatory Case Management Hearing under Order XV-A CPC; judgment within 90 days of arguments.",
+            "inference_ground": "Statutory commercial suit under Commercial Courts Act 2015"
+          },
+          {
+            "section": "Article 226 & 227 of the Constitution of India",
+            "statute": "Constitution of India",
+            "title": "High Court Supervisory & Extraordinary Writ Jurisdiction",
+            "category": "Constitutional/Writ",
+            "classification": "Constitutional Bench / Division Bench",
+            "severity_weight": "Fundamental Rights Infringement",
+            "statutory_mandate": "Prompt judicial review to quash arbitrary administrative action or illegal incarceration.",
+            "inference_ground": "Supervisory writ jurisdiction under Articles 226 & 227"
+          }
+        ],
+        "turnaround_time": {
+          "priority_tier": "Medium",
+          "recommended_hearing_window": "Within 7 to 14 Days",
+          "recommended_hearing_days": 14,
+          "target_disposal_window": "90 to 180 Days",
+          "target_disposal_days": 180,
+          "statutory_benchmark": "Commercial Courts Act 2015 (§16 Case Management) & Arbitration Act Section 29A",
+          "target_hearing_sessions": "1–2 Summary Sessions",
+          "loss_category": "Commercial Solvency & Compounding Fiscal Attrition",
+          "loss_risk_level": "Elevated / Financial Compounding",
+          "projected_loss_if_delayed": "Delay leads to compounding interest liability, blocked operating capital, potential enterprise insolvency, and asset dissipation by adverse parties.",
+          "loss_mitigation_benefit": "Fast-track listing within 14 days preserves commercial liquidity, mandates pre-trial disclosures, and curtails compound commercial attrition by up to 80%.",
+          "mitigation_percentage": "78%",
+          "action_directive": "Routed to Fast-Track Commercial Docket / Statutory Supervisory Calendar",
+          "urgency_pill": "FAST_TRACK"
+        }
       },
       "priority": "Medium",
       "decision_report": "case_priority_system\\decision_graphs\\09_Evidence_Booklet_decision_report.md"
@@ -607,7 +825,55 @@
     },
     "case_gist": "STATE, on the complaint of ARJUN NAIR, seeks to hold ROHAN MALHOTRA liable for breach of a partnership agreement. Arjun Nair filed a complaint against Rohan Malhotra for unauthorized bank transfers totaling Rs. 45,00,000 between January and April 2024. The accused is allegedly misusing funds from these transactions. Kaveri Auto Traders is accused of fabricating six vehicle invoices. On the merged evidence the matter is classified as Excise/Tax (non-violent case type). Names appearing across the documents: Arjun Nair, Rohan Malhotra, Kaveri Auto Traders, Prosecution.",
     "report_pdf": "case_priority_system/reports\\ANV-2026-0019_whole_case_report.pdf",
-    "computed_at": "2026-10-08T22:02:05"
+    "computed_at": "2026-10-08T22:02:05",
+    "statutory_sections": [
+      {
+        "section": "Section 420 IPC / Section 318(4) BNS",
+        "statute": "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+        "title": "Cheating and Dishonestly Inducing Delivery of Property",
+        "category": "Commercial/Financial",
+        "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
+        "severity_weight": "Economic / High Value",
+        "statutory_mandate": "Asset attachment under CrPC §102 / BNSS §107 to prevent debtor flight or insolvency.",
+        "inference_ground": "Deceptive financial inducement / property misappropriation"
+      },
+      {
+        "section": "Sections 2(1)(c) & 16 Commercial Courts Act 2015",
+        "statute": "Commercial Courts Act, 2015",
+        "title": "Commercial Dispute of Specified Value",
+        "category": "Commercial/Financial",
+        "classification": "Civil Jurisdiction · Commercial Division of High Court",
+        "severity_weight": "Commercial Capital Lockup",
+        "statutory_mandate": "Mandatory Case Management Hearing under Order XV-A CPC; judgment within 90 days of arguments.",
+        "inference_ground": "Statutory commercial suit under Commercial Courts Act 2015"
+      },
+      {
+        "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
+        "statute": "Central Goods and Services Tax Act, 2017",
+        "title": "Offences, Search, Seizure & Fraudulent Input Tax Credit",
+        "category": "Excise/Tax",
+        "classification": "Cognizable & Non-Bailable (if tax evasion exceeds ₹5 Crore)",
+        "severity_weight": "Fiscal Revenue Peril",
+        "statutory_mandate": "Expedited revenue bench listing under Article 265 and statutory recovery timelines.",
+        "inference_ground": "Statutory tax audit and revenue evasion adjudication"
+      }
+    ],
+    "turnaround_time": {
+      "priority_tier": "Medium",
+      "recommended_hearing_window": "Within 7 to 14 Days",
+      "recommended_hearing_days": 14,
+      "target_disposal_window": "90 to 180 Days",
+      "target_disposal_days": 180,
+      "statutory_benchmark": "Commercial Courts Act 2015 (§16 Case Management) & Arbitration Act Section 29A",
+      "target_hearing_sessions": "4–6 Structured Sessions",
+      "loss_category": "Commercial Solvency & Compounding Fiscal Attrition",
+      "loss_risk_level": "Elevated / Financial Compounding",
+      "projected_loss_if_delayed": "Delay leads to compounding interest liability, blocked operating capital, potential enterprise insolvency, and asset dissipation by adverse parties.",
+      "loss_mitigation_benefit": "Fast-track listing within 14 days preserves commercial liquidity, mandates pre-trial disclosures, and curtails compound commercial attrition by up to 80%.",
+      "mitigation_percentage": "78%",
+      "action_directive": "Routed to Fast-Track Commercial Docket / Statutory Supervisory Calendar",
+      "urgency_pill": "FAST_TRACK"
+    }
   },
   "sessions": []
 }

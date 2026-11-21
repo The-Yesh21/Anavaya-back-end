@@ -918,6 +918,119 @@ document.addEventListener("DOMContentLoaded", () => {
             reportBtn.href = `/api/cases/${encoded}/report.pdf`;
             reportBtn.style.display = "inline-flex";
         }
+
+        // Recommended Turnaround Time (TAT)
+        const tatEl = document.getElementById("param-tat");
+        if (tatEl) {
+            const prioLower = String(c.Predicted_Priority || "medium").toLowerCase();
+            tatEl.textContent = prioLower === "high" ? "Within 24–72 Hours" : prioLower === "low" ? "Within 30–60 Days" : "Within 7–14 Days";
+        }
+
+        // 0. Statutory Sections Engaged
+        const sectionsContainer = document.getElementById("case-statutory-sections");
+        if (sectionsContainer) {
+            let sectionsList = c.statutory_sections || [];
+            if (!sectionsList.length && c._constitutional && c._constitutional.statutory_sections) {
+                sectionsList = c._constitutional.statutory_sections;
+            }
+            if (!sectionsList.length) {
+                const catLower = (c.Category || "").toLowerCase();
+                const crimeLower = (c.Broad_Model_Category || "").toLowerCase();
+                const sevLower = (c.Severity || "").toLowerCase();
+                const vulnLower = (c.Vulnerability || "").toLowerCase();
+                const textLower = ((c.Plain_Language_Summary || "") + " " + (c.Case_File || "")).toLowerCase();
+                if (textLower.includes("murder") || (sevLower.includes("fatal") && crimeLower.includes("violent"))) {
+                    sectionsList.push({
+                        section: "Section 302 IPC / Section 103 BNS",
+                        statute: "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+                        title: "Punishment for Murder",
+                        classification: "Cognizable · Non-Bailable · Court of Session",
+                        statutory_mandate: "Life imprisonment or capital sentence. Immediate prompt trial."
+                    });
+                }
+                if (textLower.includes("kidnap") || textLower.includes("missing") || textLower.includes("hostage")) {
+                    sectionsList.push({
+                        section: textLower.includes("ransom") ? "Section 364A IPC / Section 140(2) BNS" : "Section 363 IPC / Section 137(2) BNS",
+                        statute: "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+                        title: textLower.includes("ransom") ? "Kidnapping for Ransom" : "Punishment for Kidnapping",
+                        classification: "Cognizable · Non-Bailable · Sessions / Magistrate",
+                        statutory_mandate: "Immediate tracking and judicial oversight within 24h to prevent harm."
+                    });
+                }
+                if (textLower.includes("pocso") || (vulnLower.includes("child") && textLower.includes("sexual"))) {
+                    sectionsList.push({
+                        section: "Sections 4 & 6 POCSO Act 2012",
+                        statute: "Protection of Children from Sexual Offences Act, 2012",
+                        title: "Aggravated Penetrative Sexual Assault on Child",
+                        classification: "Cognizable · Non-Bailable · Special POCSO Court",
+                        statutory_mandate: "POCSO §35: evidence in 30 days, final trial within 1 year."
+                    });
+                }
+                if (textLower.includes("hospital") || textLower.includes("icu") || textLower.includes("ransomware")) {
+                    sectionsList.push({
+                        section: "Sections 43 & 66 IT Act / Section 304A IPC",
+                        statute: "Information Technology Act, 2000 & IPC 1860",
+                        title: "Critical Infrastructure Cyber Sabotage & Reckless Life Peril",
+                        classification: "Cognizable · Emergency Injunction",
+                        statutory_mandate: "Immediate digital forensic preservation and emergency patient care relief."
+                    });
+                }
+                if (catLower.includes("commercial") || textLower.includes("cheating") || textLower.includes("fraud") || textLower.includes("bank")) {
+                    sectionsList.push({
+                        section: "Section 420 IPC / Section 318(4) BNS",
+                        statute: "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+                        title: "Cheating & Dishonestly Inducing Delivery of Property",
+                        classification: "Cognizable · Non-Bailable · Magistrate 1st Class",
+                        statutory_mandate: "Asset preservation under CrPC §102 / BNSS §107."
+                    });
+                    sectionsList.push({
+                        section: "Sections 2(1)(c) & 16 Commercial Courts Act 2015",
+                        statute: "Commercial Courts Act, 2015",
+                        title: "Commercial Dispute of Specified Value",
+                        classification: "Commercial Court Division",
+                        statutory_mandate: "Summary case management hearing within 30 days."
+                    });
+                }
+                if (catLower.includes("property") || textLower.includes("encroachment") || textLower.includes("land")) {
+                    sectionsList.push({
+                        section: "Order 39 Rules 1 & 2 CPC / Specific Relief Act §38",
+                        statute: "Code of Civil Procedure, 1908",
+                        title: "Ad-Interim Injunction Against Dispossession / Encroachment",
+                        classification: "Civil Jurisdiction · Senior Civil Judge",
+                        statutory_mandate: "Order 39 Rule 3A: ex-parte injunction disposal within 30 days."
+                    });
+                }
+                if (catLower.includes("excise") || catLower.includes("tax") || textLower.includes("gst")) {
+                    sectionsList.push({
+                        section: "Sections 67 & 132 CGST Act 2017",
+                        statute: "Central Goods and Services Tax Act, 2017",
+                        title: "Tax Evasion & Fraudulent Input Credit Adjudication",
+                        classification: "Revenue Bench · High Court",
+                        statutory_mandate: "Statutory fiscal compliance and recovery timeline."
+                    });
+                }
+                if (!sectionsList.length) {
+                    sectionsList.push({
+                        section: "Articles 226 & 227 Constitution of India",
+                        statute: "Constitution of India",
+                        title: "Extraordinary Writ & Supervisory Jurisdiction",
+                        classification: "Constitutional Bench",
+                        statutory_mandate: "Judicial review of state action and fundamental rights protection."
+                    });
+                }
+            }
+            sectionsContainer.innerHTML = sectionsList.map(s => `
+                <div class="statutory-card">
+                    <div class="statutory-head">
+                        <strong class="statutory-section"><i data-lucide="scale"></i> ${escHtml(s.section)}</strong>
+                        <span class="statutory-badge">${escHtml(s.classification ? s.classification.split("·")[1]?.trim() || "Statutory" : "Statutory")}</span>
+                    </div>
+                    <span class="statutory-title">${escHtml(s.title)}</span>
+                    <span class="statutory-statute">${escHtml(s.statute)}</span>
+                    ${s.statutory_mandate ? `<p class="statutory-mandate"><strong>Mandate:</strong> ${escHtml(s.statutory_mandate)}</p>` : ""}
+                </div>
+            `).join("");
+        }
         
         // Enhanced Constitutional Analysis
         // 1. Constitutional Rights Engaged
