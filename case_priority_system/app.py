@@ -8,6 +8,9 @@ import subprocess
 import tempfile
 import traceback
 import uuid
+import secrets
+import threading
+from functools import wraps
 import asyncio
 import urllib.request
 import logging
@@ -17,7 +20,7 @@ import numpy as np
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 import requests
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Header, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
@@ -31,6 +34,31 @@ RESULTS_EXCEL = EXCEL_PATH
 MODEL_PATH = 'case_priority_system/models/priority_classifier.pkl'
 STATIC_DIR = 'case_priority_system/static'
 REPORTS_DIR = 'case_priority_system/reports'
+
+# Serialize read/modify/write transactions in this single-process local app.
+_excel_write_lock = threading.RLock()
+
+
+def _serialized_excel_update(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        with _excel_write_lock:
+            return function(*args, **kwargs)
+    return wrapped
+
+
+def _write_cases_df(frame):
+    """Replace the workbook atomically so readers never see a partial ZIP."""
+    fd, temporary = tempfile.mkstemp(suffix=".xlsx", dir=os.path.dirname(EXCEL_PATH) or ".")
+    os.close(fd)
+    try:
+        frame.to_excel(temporary, index=False)
+        os.replace(temporary, EXCEL_PATH)
+        _update_excel_cache(frame)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
 
 # LLM feature extraction mode. Resolved lazily on the first upload via
 # inference_pipeline.llm_extraction_enabled(): it is enabled when an NVIDIA
@@ -410,6 +438,13 @@ def safe_transform_encoder(encoders, key, value, default=0):
 
 @app.post("/api/upload", summary="Quick Document Ingestion & Priority Classification", tags=["Triage Pipeline"])
 async def upload_case(file: UploadFile = File(...)):
+    if preload_ollama_model is not None:
+        asyncio.create_task(asyncio.to_thread(preload_ollama_model))
+    return await asyncio.to_thread(_upload_case_sync, file)
+
+
+@_serialized_excel_update
+def _upload_case_sync(file: UploadFile):
     # Accept PDFs and images (JPG, PNG, WEBP, BMP, TIFF).
     _ALLOWED_EXTS = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff")
     _IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff")
@@ -469,10 +504,6 @@ async def upload_case(file: UploadFile = File(...)):
                 llm_extraction_enabled,
             )
 
-        # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
-        if preload_ollama_model is not None:
-            asyncio.create_task(asyncio.to_thread(preload_ollama_model))
-
         # 1. Extract text (PDF via PyMuPDF, images via the Qwen2.5-VL vision model)
         extraction_model = None
         if is_image:
@@ -501,7 +532,7 @@ async def upload_case(file: UploadFile = File(...)):
         # the local Ollama LLM runs on the GPU for richer extraction; otherwise
         # the deterministic rule-based path returns in ~2s.
         if llm_extraction_enabled():
-            llm_data = call_ollama_api(text)
+            llm_data = call_ollama_api(text, model=extraction_model)
             if not llm_data:
                 print("Ollama LLM unavailable or failed. Using fast rule-based extraction.")
                 llm_data = fast_extract_features(text, filename)
@@ -572,6 +603,7 @@ async def upload_case(file: UploadFile = File(...)):
         }
 
         # 7b. Generate the PDF report (fast, no LLM) so the user gets it immediately
+        report_pdf = ""
         try:
             from case_priority_system.scripts.generate_case_report import save_case_report
             report_pdf = save_case_report(
@@ -617,8 +649,7 @@ async def upload_case(file: UploadFile = File(...)):
         
         new_row_df = pd.DataFrame([new_case])
         excel_df = pd.concat([excel_df, new_row_df], ignore_index=True)
-        excel_df.to_excel(EXCEL_PATH, index=False)
-        _update_excel_cache(excel_df)
+        _write_cases_df(excel_df)
 
         # Clean up the uploaded temp file (keep the repo root tidy)
         if os.path.exists(temp_path):
@@ -629,6 +660,8 @@ async def upload_case(file: UploadFile = File(...)):
 
         return new_case
         
+    except HTTPException:
+        raise
     except Exception as e:
         if os.path.exists(temp_path):
             try:
@@ -636,6 +669,13 @@ async def upload_case(file: UploadFile = File(...)):
             except Exception:
                 pass
         raise HTTPException(status_code=500, detail=f"Error analyzing case document: {str(e)}")
+    finally:
+        # Also clean up when validation raises an HTTPException.
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                logger.warning("Could not remove upload temporary file.")
 
 @app.get("/api/cases/{case_file}/report.pdf")
 def get_case_report_pdf(case_file: str):
@@ -704,6 +744,7 @@ def get_cases():
 
 
 @app.delete("/api/cases/{case_file}")
+@_serialized_excel_update
 def delete_case_by_file(case_file: str):
     """Delete a case row from the Excel file by its Case_File name.
 
@@ -713,26 +754,7 @@ def delete_case_by_file(case_file: str):
     """
     # If it looks like a case id, handle it as a full case deletion.
     if case_manager is not None and case_manager.valid_case_id(case_file):
-        case = _get_case_or_404(case_file)
-        try:
-            case_manager.delete_case(case_file)
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
-        if os.path.exists(EXCEL_PATH):
-            try:
-                df = pd.read_excel(EXCEL_PATH)
-                before = len(df)
-                if "Case_ID" in df.columns:
-                    df = df[df["Case_ID"] != case_file]
-                doc_filenames = {d.filename for d in case.documents}
-                if "Case_File" in df.columns and doc_filenames:
-                    df = df[~df["Case_File"].isin(doc_filenames)]
-                if len(df) < before:
-                    df.to_excel(EXCEL_PATH, index=False)
-                    _update_excel_cache(df)
-            except Exception as e:
-                print(f"case delete: Excel cleanup failed for {case_file}: {e}")
-        return {"deleted": case_file, "title": case.title}
+        return delete_case_by_id(case_file)
 
     # Otherwise it's a Case_File name — just remove the Excel row.
     if not os.path.exists(EXCEL_PATH):
@@ -743,8 +765,7 @@ def delete_case_by_file(case_file: str):
         df = df[df["Case_File"] != case_file]
         if len(df) == before:
             raise HTTPException(status_code=404, detail=f"Case '{case_file}' not found.")
-        df.to_excel(EXCEL_PATH, index=False)
-        _update_excel_cache(df)
+        _write_cases_df(df)
         return {"deleted": case_file, "remaining": len(df)}
     except HTTPException:
         raise
@@ -819,6 +840,7 @@ def get_case_decision_path(case_file: str):
 # =====================================================================
 
 
+@_serialized_excel_update
 def _append_case_documents_to_excel(case, case_id: str) -> None:
     """Append every analysed document of a case to case_results.xlsx.
 
@@ -898,8 +920,7 @@ def _append_case_documents_to_excel(case, case_id: str) -> None:
             excel_df = excel_df[~(is_whole & (excel_df['Case_ID'] == case_id))]
     new_df = pd.DataFrame(rows)
     excel_df = pd.concat([excel_df, new_df], ignore_index=True)
-    excel_df.to_excel(EXCEL_PATH, index=False)
-    _update_excel_cache(excel_df)
+    _write_cases_df(excel_df)
 
 _append_to_excel = _append_case_documents_to_excel
 
@@ -916,7 +937,7 @@ def _get_case_or_404(case_id: str):
     return case
 
 
-@app.delete("/api/cases/{case_id}")
+@_serialized_excel_update
 def delete_case_by_id(case_id: str):
     """Delete a case from the registry (JSON + evidence files + sessions).
 
@@ -934,23 +955,23 @@ def delete_case_by_id(case_id: str):
         try:
             df = pd.read_excel(EXCEL_PATH)
             before = len(df)
-            if "Case_ID" in df.columns:
-                df = df[df["Case_ID"] != case_id]
-            # Also drop any row whose Case_File matches a document filename
-            # from this case (belt-and-suspenders for single-upload cases).
+            # Only use filename matching for legacy rows without a case id.
+            # Different cases may legitimately upload the same filename.
+            ids = df["Case_ID"].fillna("").astype(str).str.strip() if "Case_ID" in df.columns else pd.Series("", index=df.index)
+            remove = ids.eq(case_id)
             doc_filenames = {d.filename for d in case.documents}
             if "Case_File" in df.columns and doc_filenames:
-                df = df[~df["Case_File"].isin(doc_filenames)]
+                remove |= ids.eq("") & df["Case_File"].isin(doc_filenames)
+            df = df[~remove]
             if len(df) < before:
-                df.to_excel(EXCEL_PATH, index=False)
-                _update_excel_cache(df)
+                _write_cases_df(df)
         except Exception as e:
             print(f"case delete: Excel cleanup failed for {case_id}: {e}")
     return {"deleted": case_id, "title": case.title}
 
 
 @app.post("/api/cases")
-async def create_case(case_title: str = Form(""), created_by: str = Form(""),
+def create_case(case_title: str = Form(""), created_by: str = Form(""),
                       fir_file: UploadFile = File(None)):
     """Create a new case. Optionally attach the FIR document immediately.
 
@@ -1001,6 +1022,12 @@ async def add_case_document(case_id: str, file: UploadFile = File(...),
 
 @app.post("/api/cases/{case_id}/analyze")
 async def analyze_case(case_id: str):
+    if preload_ollama_model is not None:
+        asyncio.create_task(asyncio.to_thread(preload_ollama_model))
+    return await asyncio.to_thread(_analyze_case_sync, case_id)
+
+
+def _analyze_case_sync(case_id: str):
     """Analyse every unanalysed document, then compute the WHOLE-CASE analysis.
 
     Two layers:
@@ -1010,10 +1037,6 @@ async def analyze_case(case_id: str):
        merged deterministically, Decision Tree run ONCE on the merged set
        (see scripts/whole_case_analysis.py).
     """
-    # Trigger Ollama pre-warm immediately when request arrives (fire-and-forget)
-    if preload_ollama_model is not None:
-        asyncio.create_task(asyncio.to_thread(preload_ollama_model))
-
     case = _get_case_or_404(case_id)
     documents = [d for d in list(case.documents) if not d.priority]
     errors = []
@@ -1649,7 +1672,8 @@ async def chat_with_case_ai(case_identifier: str, payload: CaseChatRequest):
         # Check Excel by Case_File or Case_ID
         if os.path.exists(EXCEL_PATH):
             try:
-                df = pd.read_excel(EXCEL_PATH)
+                import asyncio
+                df = await asyncio.to_thread(pd.read_excel, EXCEL_PATH)
                 match = df[df["Case_File"] == case_identifier]
                 if match.empty and "Case_ID" in df.columns:
                     match = df[df["Case_ID"] == case_identifier]
@@ -1773,6 +1797,23 @@ COURTROOM_HTML = os.path.join(STATIC_DIR, "courtroom.html")
 # Recorded courtroom speech clips live under courtrooms/audio/{room_id}/ and are
 # served back to the transcript UI via /api/court/rooms/{room_id}/audio/{file}.
 COURTROOM_AUDIO_DIR = os.path.join("case_priority_system", "courtrooms", "audio")
+
+# Private, per-connection capabilities; never included in a roster or persisted.
+_court_session_tokens: dict[tuple[str, str], str] = {}
+
+
+def _court_participant(room_id: str, token: str, judge_only: bool = False):
+    if courtroom_manager is None:
+        raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    room = courtroom_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    for (rid, pid), secret in list(_court_session_tokens.items()):
+        if rid == room_id and isinstance(token, str) and secrets.compare_digest(secret, token):
+            participant = room.get_participant(pid)
+            if participant and (not judge_only or participant.role == "Judge"):
+                return participant
+    raise HTTPException(status_code=403, detail="A valid courtroom session is required for this action.")
 
 
 def _court_context_hint(room) -> str:
@@ -2181,7 +2222,8 @@ def court_turn_credentials():
 async def transcribe_courtroom_audio(room_id: str = Form(...),
                                      participant_id: str = Form(...),
                                      audio: UploadFile = File(...),
-                                     recorded_at: str = Form("")):
+                                     recorded_at: str = Form(""),
+                                     x_court_token: str = Header("")):
     """Transcribe one recorded courtroom speech segment (WAV).
 
     The clip is stored under courtrooms/audio/{room_id}/, transcribed with the
@@ -2203,9 +2245,11 @@ async def transcribe_courtroom_audio(room_id: str = Form(...),
     room = courtroom_manager.get_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found.")
-    participant = room.get_participant(participant_id)
-    if participant is None:
-        raise HTTPException(status_code=404, detail="Participant not found in this room.")
+    participant = _court_participant(room_id, x_court_token)
+    if participant.participant_id != participant_id:
+        raise HTTPException(status_code=403, detail="Cannot transcribe for another participant.")
+    if room.status == "ended":
+        raise HTTPException(status_code=409, detail="The courtroom session has ended.")
     if whisper_available is None or transcribe_audio is None:
         raise HTTPException(status_code=503, detail={"code": "asr_unavailable", "message": "Speech transcription module is not installed."})
     if not whisper_available():
@@ -2424,7 +2468,7 @@ def get_courtroom(request: Request, room_id: str):
 
 
 @app.post("/api/court/rooms/{room_id}/face-summary")
-def post_face_summary(room_id: str, payload: dict):
+def post_face_summary(room_id: str, payload: dict, x_court_token: str = Header("")):
     """Record the whole-session face/expression aggregate for one analyzed feed.
 
     The client sends this when the observer stops the analyzer (or on session
@@ -2439,10 +2483,8 @@ def post_face_summary(room_id: str, payload: dict):
     # Face & Expression analysis is Judge-only — the client hides the panel,
     # but the server must enforce it too (no auth layer, so the participant id
     # is the identity).
-    room = courtroom_manager.get_room(room_id)
-    participant = room.get_participant(str(payload.get("participant_id", ""))) if room else None
-    if participant is None or participant.role != "Judge":
-        raise HTTPException(status_code=403, detail="Only the presiding judge may run the face & expression analysis.")
+    participant = _court_participant(room_id, x_court_token, judge_only=True)
+    payload = {**payload, "participant_id": participant.participant_id}
     fs = courtroom_manager.record_face_summary(room_id, payload)
     if fs is None:
         raise HTTPException(status_code=404, detail="Room not found.")
@@ -2450,7 +2492,7 @@ def post_face_summary(room_id: str, payload: dict):
 
 
 @app.post("/api/court/rooms/{room_id}/end")
-async def end_courtroom_session(room_id: str, payload: dict = None):
+async def end_courtroom_session(room_id: str, payload: dict = None, x_court_token: str = Header("")):
     """Adjourn and conclude a courtroom session. Broadcasts session_ended and persists the final state."""
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
@@ -2458,9 +2500,8 @@ async def end_courtroom_session(room_id: str, payload: dict = None):
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found.")
 
-    ended_by = "The Presiding Judge"
-    if payload and isinstance(payload, dict):
-        ended_by = payload.get("ended_by", ended_by)
+    participant = _court_participant(room_id, x_court_token, judge_only=True)
+    ended_by = participant.name
 
     ended = courtroom_manager.end_room(room_id, ended_by)
     if ended is not None:
@@ -2478,10 +2519,11 @@ async def end_courtroom_session(room_id: str, payload: dict = None):
 
 
 @app.post("/api/court/rooms/{room_id}/refresh-context")
-def refresh_court_context(room_id: str):
+def refresh_court_context(room_id: str, x_court_token: str = Header("")):
     """Rebuild the linked case's context snapshot (evidence changed mid-trial)."""
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    _court_participant(room_id, x_court_token)
     ctx = courtroom_manager.refresh_case_context(room_id, case_manager)
     if ctx is None:
         raise HTTPException(status_code=404, detail="Room has no linked case.")
@@ -2489,10 +2531,11 @@ def refresh_court_context(room_id: str):
 
 
 @app.post("/api/court/rooms/{room_id}/link-case")
-async def link_court_case(room_id: str, payload: dict):
+async def link_court_case(room_id: str, payload: dict, x_court_token: str = Header("")):
     """Link (or switch) an active courtroom session to a registered case (ANV-…)."""
     if courtroom_manager is None:
         raise HTTPException(status_code=503, detail="Courtroom manager not available.")
+    _court_participant(room_id, x_court_token, judge_only=True)
     case_id = str(payload.get("case_id", "")).strip()
     if not case_id:
         raise HTTPException(status_code=400, detail="case_id is required.")
@@ -3374,10 +3417,17 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                 await websocket.send_json({"type": "error", "detail": "Invalid JSON."})
                 continue
 
+            if not isinstance(msg, dict):
+                await websocket.send_json({"type": "error", "detail": "Expected a JSON object."})
+                continue
+
             mtype = msg.get("type")
 
             # --- join: register a participant ----------------------------------
             if mtype == "join":
+                if bound_participant_id is not None:
+                    await websocket.send_json({"type": "error", "detail": "This connection has already joined."})
+                    continue
                 name = str(msg.get("name", "")).strip() or "Anonymous"
                 role = str(msg.get("role", "")).strip()
                 try:
@@ -3390,10 +3440,13 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
 
                 bound_participant_id = participant.participant_id
                 sockets[participant.participant_id] = websocket
+                session_token = secrets.token_urlsafe(32)
+                _court_session_tokens[(room_id, participant.participant_id)] = session_token
 
                 # Tell this client its own identity + the full room snapshot.
                 await websocket.send_json({
                     "type": "room_state",
+                    "session_token": session_token,
                     "me": {
                         "participant_id": participant.participant_id,
                         "name": participant.name,
@@ -3582,6 +3635,7 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
             room = courtroom_manager.get_room(room_id) if courtroom_manager else None
             ended = room is not None and room.status == "ended"
             if courtroom_manager is not None and not ended:
+                _court_session_tokens.pop((room_id, bound_participant_id), None)
                 # Skip the "left the court" noise when the Judge already ended
                 # the session — the record closes with the adjournment entry.
                 courtroom_manager.leave_room(room_id, bound_participant_id)

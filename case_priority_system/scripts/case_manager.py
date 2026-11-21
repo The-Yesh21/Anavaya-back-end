@@ -190,6 +190,8 @@ class CaseManager:
             source=source if source in ("FIR_UPLOADED", "AUTO_ID") else "AUTO_ID",
         )
         with self._lock:
+            if case_id in self._cases or os.path.exists(os.path.join(self.cases_dir, f"{case_id}.json")):
+                raise ValueError(f"Case {case_id} already exists.")
             self._cases[case_id] = case
             self._persist(case)
         return case
@@ -315,7 +317,7 @@ class CaseManager:
         if case is None:
             raise ValueError(f"Case {case_id} not found.")
         with self._lock:
-            del self._cases[case_id]
+            self._cases.pop(case_id, None)
         # Remove the persisted JSON.
         try:
             case_path = os.path.join(self.cases_dir, f"{case_id}.json")
@@ -408,7 +410,7 @@ class CaseManager:
         model_text = f"{features.get('plain_summary', '')} {features.get('main_parties', '')}"
         priority = predict_priority(model_data, features, model_text)
         decision_report, _ = build_decision_path_graph(
-            model_data, features, model_text, doc.filename, priority
+            model_data, features, model_text, f"{case.case_id}_{doc.doc_id}_{doc.filename}", priority
         )
 
         # Constitutional analysis (deterministic, no LLM).
@@ -418,7 +420,7 @@ class CaseManager:
         report_pdf = ""
         try:
             from case_priority_system.scripts.generate_case_report import save_case_report
-            report_pdf = save_case_report(doc.filename, features, priority, analysis)
+            report_pdf = save_case_report(f"{case.case_id}_{doc.doc_id}_{doc.filename}", features, priority, analysis)
         except Exception as e:
             print(f"Case {case.case_id} report generation failed (non-fatal): {e}")
 
@@ -517,6 +519,7 @@ class CaseManager:
                     + self._document_breakdown(case)
                 ).strip()
             else:
+                case.case_level = {}
                 case.aggregate_priority = fallback_priority
                 case.aggregate_rationale = fallback_rationale
             self._persist(case)
@@ -774,17 +777,16 @@ class CaseManager:
         with self._lock:
             index_data = self._load_index()
             seq = int(index_data.get("next_seq", 0))
-            seq += 1
+            year = datetime.now().year
+            while True:
+                seq += 1
+                if seq > 9999:
+                    raise ValueError("Case ID sequence exhausted; migrate the ID format before creating more cases.")
+                candidate = f"ANV-{year}-{seq:04d}"
+                if candidate not in self._cases and not os.path.exists(os.path.join(self.cases_dir, f"{candidate}.json")):
+                    break
             index_data["next_seq"] = seq
             self._save_index(index_data)
-        year = datetime.now().year
-        candidate = f"ANV-{year}-{seq:04d}"
-        # Defensive: never reuse an id that already exists on disk.
-        guard = 0
-        while os.path.exists(os.path.join(self.cases_dir, f"{candidate}.json")) and guard < 1000:
-            seq += 1
-            candidate = f"ANV-{year}-{seq:04d}"
-            guard += 1
         return candidate
 
 

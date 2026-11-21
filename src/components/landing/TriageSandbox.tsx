@@ -105,14 +105,15 @@ export function TriageSandbox() {
     const isConstitutional = category === "Constitutional / Writ";
 
     // High Priority Conditions (Articles 21, 23, 24)
-    if (isFatalOrMajor || isChildOrUndertrial || isViolent) {
+    // Severe Power Imbalance acts as a constitutional multiplier under Article 14
+    if (isFatalOrMajor || isChildOrUndertrial || isViolent || (imbalance === "Severe Asymmetry" && severity === "Minor")) {
       const waitDays = category === "Criminal / Violent" ? "7.4 Years" : "5.8 Years";
       const legacyPosition = category === "Criminal / Violent" ? 18420 : 14190;
       return {
         tier: "High" as const,
         color: "var(--priority-high)",
-        bgTint: "rgba(232, 93, 74, 0.12)",
-        borderColor: "rgba(232, 93, 74, 0.35)",
+        bgTint: "color-mix(in srgb, var(--priority-high) 12%, transparent)",
+        borderColor: "color-mix(in srgb, var(--priority-high) 35%, transparent)",
         badgeText: "High Priority · Tier 1",
         queueLeap: "Leaps to Position #1",
         legacyQueue: `#${legacyPosition.toLocaleString()} in line`,
@@ -120,28 +121,36 @@ export function TriageSandbox() {
         docketPosition: 1,
         articleEngaged: isChildOrUndertrial
           ? "Articles 21 & 24 (Right to Life & Child Protection)"
+          : imbalance === "Severe Asymmetry"
+          ? "Articles 14 & 21 (Procedural Equality & Life Protection)"
           : "Article 21 (Personal Liberty & Speedy Trial Mandate)",
         rationale:
-          "Severe threat to personal liberty or bodily safety. Under the Constitution, the court cannot permit this matter to languish in a chronological paper queue.",
+          imbalance === "Severe Asymmetry"
+            ? "Severe structural asymmetry detected against an individual litigant. Under Articles 14 and 21, the court invokes Parens Patriae to prevent procedural attrition."
+            : "Severe threat to personal liberty or bodily safety. Under the Constitution, the court cannot permit this matter to languish in a chronological paper queue.",
         action: "Scheduled for Immediate Hearing in Next Session",
       };
     }
 
     // Medium Priority Conditions
-    if (severity === "Minor" || isConstitutional || category === "Excise / Tax") {
+    if (severity === "Minor" || isConstitutional || category === "Excise / Tax" || imbalance === "Severe Asymmetry") {
       return {
         tier: "Medium" as const,
         color: "var(--priority-medium)",
-        bgTint: "rgba(217, 163, 67, 0.12)",
-        borderColor: "rgba(217, 163, 67, 0.35)",
+        bgTint: "color-mix(in srgb, var(--priority-medium) 12%, transparent)",
+        borderColor: "color-mix(in srgb, var(--priority-medium) 35%, transparent)",
         badgeText: "Medium Priority · Tier 2",
         queueLeap: "Fast-Track Commercial Calendar",
         legacyQueue: "#11,350 in line",
         legacyWait: "4.2 Years",
         docketPosition: 14,
-        articleEngaged: "Article 19(1)(g) & Article 265 (Trade & Lawful Revenue)",
+        articleEngaged: imbalance === "Severe Asymmetry"
+          ? "Article 14 & Doctrine of Parens Patriae (Equality Before Law)"
+          : "Article 19(1)(g) & Article 265 (Trade & Lawful Revenue)",
         rationale:
-          "Economic dispute or non-violent compliance matter. Scheduled on deterministic commercial docket without displacing urgent liberty cases.",
+          imbalance === "Severe Asymmetry"
+            ? "Power disparity identified between powerful institutional actor and citizen. Accelerated on supervisory calendar to preserve legal equality."
+            : "Economic dispute or non-violent compliance matter. Scheduled on deterministic commercial docket without displacing urgent liberty cases.",
         action: "Routed to Fast-Track Commercial Bench within 14 Days",
       };
     }
@@ -150,8 +159,8 @@ export function TriageSandbox() {
     return {
       tier: "Low" as const,
       color: "var(--priority-low)",
-      bgTint: "rgba(102, 178, 122, 0.12)",
-      borderColor: "rgba(102, 178, 122, 0.35)",
+      bgTint: "color-mix(in srgb, var(--priority-low) 12%, transparent)",
+      borderColor: "color-mix(in srgb, var(--priority-low) 35%, transparent)",
       badgeText: "Low Priority · Tier 3",
       queueLeap: "Routine Civil Listing",
       legacyQueue: "#22,600 in line",

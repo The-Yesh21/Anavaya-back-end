@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import re
 import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -407,6 +408,8 @@ class CourtroomManager:
 
     def get_room(self, room_id: str) -> Optional[Room]:
         """Active room by id, falling back to disk if the server restarted."""
+        if not isinstance(room_id, str) or not re.fullmatch(r"[A-F0-9]{4}(?:[A-F0-9]{2})?", room_id):
+            return None
         with self._lock:
             if room_id in self._rooms:
                 return self._rooms[room_id]
@@ -575,8 +578,8 @@ class CourtroomManager:
 
     def end_room(self, room_id: str, ended_by: str) -> Optional[Room]:
         """Adjourn a trial: mark the room ended, set the phase to Concluded,
-        and append a system entry. The transcript + roster stay on disk so the
-        official record can still be exported; new joins are refused.
+        and append a system entry. The transcript, audio recordings, and roster stay on disk so the
+        official record can still be exported and audio clips played; new joins are refused.
 
         Idempotent — ending an already-ended room is a no-op that returns it.
         """
@@ -594,8 +597,9 @@ class CourtroomManager:
                     text="The Presiding Judge ended the session. The court stands adjourned.",
                 )
                 self._persist(room)
-        # Delete temporary WAV audio segments when trial session is ended to prevent disk bloat
-        self.cleanup_stale_room_audio(room_id)
+        # Note: Audio segments are intentionally preserved here so completed session
+        # audio playback & judicial export remain fully intact. Audio is only deleted
+        # when delete_room() is explicitly called.
         return room
 
     def record_statement(self, room_id: str, participant_id: str, text: str,

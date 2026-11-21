@@ -53,6 +53,7 @@
 
     // ---- state ----------------------------------------------------------
     const state = {
+        sessionToken: "",
         me: null,                  // { participant_id, name, role, display_role }
         participants: [],          // roster from server
         selectedRole: null,
@@ -261,7 +262,7 @@
         try {
             const res = await fetch(`/api/court/rooms/${ROOM_ID}/link-case`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-Court-Token": state.sessionToken },
                 body: JSON.stringify({ case_id: caseId }),
             });
             if (!res.ok) {
@@ -358,7 +359,7 @@
 
     async function refreshCaseContext() {
         try {
-            const res = await fetch(`/api/court/rooms/${ROOM_ID}/refresh-context`, { method: "POST" });
+            const res = await fetch(`/api/court/rooms/${ROOM_ID}/refresh-context`, { method: "POST", headers: { "X-Court-Token": state.sessionToken } });
             if (!res.ok) throw new Error(res.statusText);
             const ctx = await res.json();
             renderCaseContext(ctx);
@@ -513,6 +514,15 @@
                 els.enterBtn.disabled = false;
                 els.enterBtn.innerHTML = '<i data-lucide="door-open"></i> Enter the Courtroom';
                 lucide.createIcons();
+            } else if (state.room?.status !== "ended") {
+                // Unexpected drop during an active trial session
+                toast("Courtroom connection lost. Reconnecting…");
+                console.warn("WebSocket closed mid-session; attempting auto-reconnect in 2s...");
+                setTimeout(() => {
+                    if (state.me && (!state.ws || state.ws.readyState === WebSocket.CLOSED)) {
+                        connect();
+                    }
+                }, 2000);
             }
         };
 
@@ -524,6 +534,7 @@
             case "room_state": {
                 // First message after a successful join.
                 state.me = msg.me;
+                state.sessionToken = msg.session_token || "";
                 state.participants = msg.room.participants;
                 enterCourtroom();
                 renderCourt();
@@ -1123,11 +1134,11 @@
             const offer = await pc.createOffer(opts.iceRestart ? { iceRestart: true } : undefined);
             await pc.setLocalDescription(offer);
             applyBitrateLimits(pc);
-            state.ws.send(JSON.stringify({
+            safeWsSend({
                 type: "sdp_offer",
                 target_participant_id: remotePid,
                 data: pc.localDescription,
-            }));
+            });
             return true;
         } catch (e) {
             console.error(`Offer to ${remotePid} failed:`, e);
@@ -1584,11 +1595,11 @@
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             applyBitrateLimits(pc);
-            state.ws.send(JSON.stringify({
+            safeWsSend({
                 type: "sdp_answer",
                 target_participant_id: remotePid,
                 data: pc.localDescription,
-            }));
+            });
             if (micRouteState(pc) === "sending") trackSyncPending.delete(remotePid);
             if (needsSignaling) trackSyncPending.add(remotePid);
         } catch (e) {
@@ -2485,14 +2496,29 @@
         els.statementInput.value = "";
     }
 
+    function safeWsSend(payload) {
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+            console.warn("WebSocket not open. Unable to send:", payload?.type);
+            toast("Connection interrupted. Reconnecting to courtroom server…");
+            return false;
+        }
+        try {
+            state.ws.send(typeof payload === "string" ? payload : JSON.stringify(payload));
+            return true;
+        } catch (err) {
+            console.error("Failed to send WebSocket message:", err);
+            return false;
+        }
+    }
+
     function sendStatement(text) {
-        state.ws.send(JSON.stringify({ type: "statement", text }));
+        safeWsSend({ type: "statement", text });
     }
     function sendAction(text) {
-        state.ws.send(JSON.stringify({ type: "action", text }));
+        safeWsSend({ type: "action", text });
     }
     function setPhase(phase) {
-        state.ws.send(JSON.stringify({ type: "set_phase", phase }));
+        safeWsSend({ type: "set_phase", phase });
     }
 
     // ====================================================================
@@ -2815,7 +2841,7 @@
         // paused or simply spoke two halves of one sentence.
         fd.append("recorded_at", String(ptt.startedAt || Date.now()));
         fd.append("audio", wavBlob, `ptt_${Date.now()}.wav`);
-        const res = await fetch("/api/court/transcribe", { method: "POST", body: fd });
+        const res = await fetch("/api/court/transcribe", { method: "POST", body: fd, headers: { "X-Court-Token": state.sessionToken } });
         if (!res.ok) {
             let msg = `Transcription failed (${res.status})`;
             let asrUnavailable = false;
@@ -2896,7 +2922,7 @@
         try {
             const res = await fetch(`/api/court/rooms/${ROOM_ID}/end`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-Court-Token": state.sessionToken },
                 body: JSON.stringify({ ended_by: state.me.name || "The Presiding Judge" }),
             });
             if (res.ok) {
@@ -4200,7 +4226,7 @@
         // Fire-and-forget; the server persists it on the room.
         fetch(`/api/court/rooms/${ROOM_ID}/face-summary`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-Court-Token": state.sessionToken },
             body: JSON.stringify(summary),
         }).catch(() => {});
     }
