@@ -137,52 +137,27 @@ export function LawyerReviews() {
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase text-primary shadow-xs">
               <Scale className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-              Bench &amp; Bar Field Evaluations
+              Illustrative Review Scenarios
             </span>
           </Reveal>
 
           <Reveal delay={120}>
             <h2 className="font-display mt-6 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Tested in Chambers.
+              Possible Uses in Chambers.
               <span className="mt-2 block font-serif italic font-normal text-gradient-gold">
-                Endorsed for the Bench.
+                Fictional Perspectives.
               </span>
             </h2>
           </Reveal>
 
           <Reveal delay={200}>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Ahead of public exhibition, Anavaya&apos;s deterministic decision tree, evidence corroboration
-              engine, and constitutional grounding were audited on authentic dockets by Senior Advocates,
-              trial litigators, and retired judicial officers.
+              These fictional personas and quotes illustrate possible uses of Anavaya. They are not
+              testimonials, verified practitioner audits, or evidence of performance. Names, credentials,
+              timings, and outcomes in these scenarios are illustrative.
             </p>
           </Reveal>
         </div>
-
-        {/* Verification KPI Strip */}
-        <Reveal delay={280}>
-          <div className="mt-12 grid grid-cols-2 gap-4 rounded-2xl border border-primary/25 bg-surface/80 p-5 shadow-sm backdrop-blur-md sm:grid-cols-4">
-            <div className="flex flex-col items-center justify-center p-3 text-center">
-              <span className="tnum font-display text-3xl font-bold text-primary sm:text-4xl">40+</span>
-              <span className="mt-1 text-xs font-medium text-muted-foreground">Case Dockets Tested</span>
-            </div>
-            <div className="flex flex-col items-center justify-center border-l border-border/50 p-3 text-center">
-              <span className="tnum font-display text-3xl font-bold text-primary sm:text-4xl">100%</span>
-              <span className="mt-1 text-xs font-medium text-muted-foreground">Deterministic Consistency</span>
-            </div>
-            <div className="flex flex-col items-center justify-center border-l border-border/50 p-3 text-center">
-              <span className="tnum font-display text-3xl font-bold text-primary sm:text-4xl">&lt; 2.5s</span>
-              <span className="mt-1 text-xs font-medium text-muted-foreground">Average Triage Time</span>
-            </div>
-            <div className="flex flex-col items-center justify-center border-l border-border/50 p-3 text-center">
-              <span className="inline-flex items-center gap-1 font-display text-2xl font-bold text-primary sm:text-3xl">
-                <span>0</span>
-                <span className="text-xs font-normal text-muted-foreground">Cloud Leaks</span>
-              </span>
-              <span className="mt-1 text-xs font-medium text-muted-foreground">100% Local GPU Inference</span>
-            </div>
-          </div>
-        </Reveal>
 
         {/* Category Filter Pills */}
         <Reveal delay={340}>
@@ -223,7 +198,7 @@ export function LawyerReviews() {
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/[0.08] px-2 py-0.5 text-[0.6875rem] font-semibold text-primary">
                       <CheckCircle2 className="h-3 w-3" />
-                      Verified Chamber Audit
+                      Fictional Example
                     </span>
                   </div>
 

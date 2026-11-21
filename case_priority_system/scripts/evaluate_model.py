@@ -31,7 +31,6 @@ from sklearn.metrics import (
     confusion_matrix,
     f1_score,
 )
-from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
 
@@ -323,9 +322,11 @@ def main():
 
     # ---- 3. 5-fold stratified CV with a fresh tree ----
     print("Running 5-fold stratified CV...")
-    X_cv, y_cv, _, _, _ = encode_frame(df.copy(), is_fit=True)
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    cv = cross_val_score(build_tree(), X_cv, y_cv, cv=skf, scoring="accuracy")
+    try:
+        from case_priority_system.scripts.model_validation import cross_validate_raw
+    except ImportError:
+        from model_validation import cross_validate_raw
+    cv = cross_validate_raw(df, encode_frame, build_tree)
     cv_mean, cv_std = float(np.mean(cv)), float(np.std(cv))
     print(f"  CV mean accuracy: {cv_mean:.4f} (+/- {cv_std:.4f})")
 

@@ -1489,11 +1489,10 @@ def get_comprehensive_constitutional_analysis(features: dict, priority: str) -> 
     """
     rights_analysis = analyze_constitutional_rights(features)
 
-    # Precedent citations from the LLM (may be None if LLM didn't produce them)
-    llm_precedents = features.get("precedent_citations") or {}
+    # Constitutional output must not accept unverified LLM-generated citations.
 
     def _merge_precedents(article: str, right: dict) -> dict:
-        """Attach LLM-generated precedent citations to a constitutional right."""
+        """Build a rule-based constitutional right; citations require a curated source."""
         result = {
             "article": right["article"],
             "title": right["title"],
@@ -1501,8 +1500,6 @@ def get_comprehensive_constitutional_analysis(features: dict, priority: str) -> 
             "why_applies": _generate_why_applies(right["article"], features, priority),
             "precedents": [],
         }
-        # Merge: LLM citations take priority; fall back to empty list
-        result["precedents"] = llm_precedents.get(article, [])
         return result
 
     return {

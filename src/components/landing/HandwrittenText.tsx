@@ -173,44 +173,44 @@ export function HandwrittenText({
             <div className={cn(isWriting && "animate-nib-bob")}>
               <svg
                 viewBox="0 0 28 42"
-                className="h-10 w-7 drop-shadow-[0_4px_12px_rgba(201,162,74,0.7)]"
+                className="h-10 w-7 drop-shadow-[0_4px_12px_rgba(25,46,66,0.7)]"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <defs>
                   <linearGradient id="nibBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#FFF4BE" />
-                    <stop offset="35%" stopColor="#E5B942" />
-                    <stop offset="80%" stopColor="#9E7618" />
-                    <stop offset="100%" stopColor="#5E4308" />
+                    <stop offset="0%" stopColor="#F6F2EA" />
+                    <stop offset="35%" stopColor="#91AAB9" />
+                    <stop offset="80%" stopColor="#546F83" />
+                    <stop offset="100%" stopColor="#243C50" />
                   </linearGradient>
                   <linearGradient id="nibAccGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#FFE072" stopOpacity="0" />
+                    <stop offset="100%" stopColor="#D7E2E8" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 {/* Pen barrel collar */}
-                <path d="M7 0 L21 0 L20 8 L8 8 Z" fill="#241D0E" stroke="#9E7618" strokeWidth="0.8" />
+                <path d="M7 0 L21 0 L20 8 L8 8 Z" fill="#192E42" stroke="#546F83" strokeWidth="0.8" />
                 {/* Nib shoulder & body */}
                 <path
                   d="M8 8 C8 8, 5 15, 5 21 C5 26, 12 38, 14 41 C16 38, 23 26, 23 21 C23 15, 20 8, 20 8 Z"
                   fill="url(#nibBodyGrad)"
-                  stroke="#3B2B06"
+                  stroke="#283C50"
                   strokeWidth="0.75"
                 />
                 {/* Nib central spine highlight */}
-                <path d="M14 9 L14 37" stroke="#3B2B06" strokeWidth="0.8" strokeLinecap="round" />
+                <path d="M14 9 L14 37" stroke="#283C50" strokeWidth="0.8" strokeLinecap="round" />
                 {/* Breathing hole */}
-                <circle cx="14" cy="22" r="1.6" fill="#1A1408" stroke="#FFE072" strokeWidth="0.6" />
+                <circle cx="14" cy="22" r="1.6" fill="#142536" stroke="#D7E2E8" strokeWidth="0.6" />
                 {/* Gold filigree engraving lines */}
-                <path d="M9 17 C11 19, 17 19, 19 17" stroke="#FFF4BE" strokeWidth="0.6" strokeOpacity="0.85" fill="none" />
-                <path d="M10 26 C12 28, 16 28, 18 26" stroke="#FFF4BE" strokeWidth="0.6" strokeOpacity="0.6" fill="none" />
+                <path d="M9 17 C11 19, 17 19, 19 17" stroke="#F6F2EA" strokeWidth="0.6" strokeOpacity="0.85" fill="none" />
+                <path d="M10 26 C12 28, 16 28, 18 26" stroke="#F6F2EA" strokeWidth="0.6" strokeOpacity="0.6" fill="none" />
                 {/* Ink droplet glint at the nib tip */}
                 <circle
                   cx="14"
                   cy="41"
                   r="1.8"
-                  fill="#FFE072"
+                  fill="#D7E2E8"
                   className={cn(isWriting && "animate-ping")}
                   style={{ animationDuration: "0.85s" }}
                 />

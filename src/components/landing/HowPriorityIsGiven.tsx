@@ -667,15 +667,15 @@ export function HowPriorityIsGiven() {
                   <h4 className="font-display mt-3 text-lg font-bold text-foreground">Rigid &amp; Fragile</h4>
                   <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground">
                     <li className="flex items-start gap-2">
-                      <span className="text-amber-500 font-bold">!</span>
+                      <span className="text-primary font-bold">!</span>
                       <span><strong>Blind to phrasing:</strong> Fails when legal complaints use regional dialects or colloquial police shorthand.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-amber-500 font-bold">!</span>
+                      <span className="text-primary font-bold">!</span>
                       <span><strong>Negation blind:</strong> Triggers false alarms on phrases like <em>"no grievous injury occurred"</em>.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-amber-500 font-bold">!</span>
+                      <span className="text-primary font-bold">!</span>
                       <span><strong>Zero narrative synthesis:</strong> Cannot discern whether an indigent person is the victim or the claimant.</span>
                     </li>
                   </ul>

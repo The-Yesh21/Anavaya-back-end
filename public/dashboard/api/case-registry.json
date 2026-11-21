@@ -1,5 +1,222 @@
 [
   {
+    "case_id": "ANV-2026-0053",
+    "title": "Global Container Lines Ltd. v. Commissioner of Customs (Nhava Sheva)",
+    "created_at": "2026-11-16T01:07:12",
+    "created_by": "Customs Appellate Authority",
+    "source": "AUTO_ID",
+    "aggregate_priority": "Low",
+    "case_level_priority": "Low",
+    "document_count": 2,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_1bb84454",
+        "filename": "Exhibit_C01_Customs_Appeal_Memorandum.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-16T01:07:12",
+        "priority": "Low",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_C01_Customs_Appeal_Memorandum_decision_report.md"
+      },
+      {
+        "doc_id": "d_76bc7e39",
+        "filename": "Exhibit_C02_Bill_of_Entry_Port_Trust_Schedule.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-16T01:07:12",
+        "priority": "Low",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_C02_Bill_of_Entry_Port_Trust_Schedule_decision_report.md"
+      }
+    ]
+  },
+  {
+    "case_id": "ANV-2026-0052",
+    "title": "Gram Panchayat Chhatarpur & Ors. v. Apex Dyechem Industries Ltd.",
+    "created_at": "2026-11-16T01:06:41",
+    "created_by": "Sub-Divisional Magistrate / Writ Petitioner",
+    "source": "FIR_UPLOADED",
+    "aggregate_priority": "High",
+    "case_level_priority": "High",
+    "document_count": 3,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_ae42a326",
+        "filename": "Exhibit_P01_Writ_Petition_Article_226_PIL.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-16T01:06:41",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P01_Writ_Petition_Article_226_PIL_decision_report.md"
+      },
+      {
+        "doc_id": "d_18639ea8",
+        "filename": "Exhibit_P02_CPCB_Urgent_Chemical_Analysis_Report.pdf",
+        "doc_type": "Medical",
+        "uploaded_at": "2026-11-16T01:06:41",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P02_CPCB_Urgent_Chemical_Analysis_Report_decision_report.md"
+      },
+      {
+        "doc_id": "d_32b87ab9",
+        "filename": "Exhibit_P03_SDM_Spot_Inspection_Seal_Panchnama.pdf",
+        "doc_type": "Police Report",
+        "uploaded_at": "2026-11-16T01:06:41",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P03_SDM_Spot_Inspection_Seal_Panchnama_decision_report.md"
+      }
+    ]
+  },
+  {
+    "case_id": "ANV-2026-0051",
+    "title": "State of NCT of Delhi v. Kunal Singhania & Anr.",
+    "created_at": "2026-11-16T01:06:00",
+    "created_by": "Traffic Police / Special Investigation Unit",
+    "source": "FIR_UPLOADED",
+    "aggregate_priority": "High",
+    "case_level_priority": "High",
+    "document_count": 4,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_d2b6dd02",
+        "filename": "Exhibit_D01_Defence_Alibi_Murthal_Toll.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-16T01:06:00",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_D01_Defence_Alibi_Murthal_Toll_decision_report.md"
+      },
+      {
+        "doc_id": "d_d923c947",
+        "filename": "Exhibit_P01_FIR_214_2026_Connaught_Place.pdf",
+        "doc_type": "FIR",
+        "uploaded_at": "2026-11-16T01:06:00",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P01_FIR_214_2026_Connaught_Place_decision_report.md"
+      },
+      {
+        "doc_id": "d_ad0c4392",
+        "filename": "Exhibit_P02_AIIMS_Trauma_Emergency_MLC.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-16T01:06:00",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P02_AIIMS_Trauma_Emergency_MLC_decision_report.md"
+      },
+      {
+        "doc_id": "d_84bd1adb",
+        "filename": "Exhibit_P03_Traffic_Police_Speed_Camera_Log.pdf",
+        "doc_type": "Police Report",
+        "uploaded_at": "2026-11-16T01:06:00",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P03_Traffic_Police_Speed_Camera_Log_decision_report.md"
+      }
+    ]
+  },
+  {
+    "case_id": "ANV-2026-0042",
+    "title": "State of Maharashtra v. Vikram Malhotra & Anr. — Apollo Pediatric Extortion",
+    "created_at": "2026-11-16T01:05:40",
+    "created_by": "Special Investigation Team (Cyber Crime)",
+    "source": "FIR_UPLOADED",
+    "aggregate_priority": "High",
+    "case_level_priority": "High",
+    "document_count": 5,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_04d70c1e",
+        "filename": "Exhibit_D01_Defence_Alibi_Toll_Receipt.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-16T01:05:40",
+        "priority": "Low",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_D01_Defence_Alibi_Toll_Receipt_decision_report.md"
+      },
+      {
+        "doc_id": "d_42750a63",
+        "filename": "Exhibit_P01_FIR_CR_2026_089_Cyber_Kidnap.pdf",
+        "doc_type": "FIR",
+        "uploaded_at": "2026-11-16T01:05:40",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P01_FIR_CR_2026_089_Cyber_Kidnap_decision_report.md"
+      },
+      {
+        "doc_id": "d_b3acdcbb",
+        "filename": "Exhibit_P02_Pediatric_ICU_Clinical_Status.pdf",
+        "doc_type": "Medical",
+        "uploaded_at": "2026-11-16T01:05:40",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P02_Pediatric_ICU_Clinical_Status_decision_report.md"
+      },
+      {
+        "doc_id": "d_a4e4c125",
+        "filename": "Exhibit_P03_Hospital_CCTV_and_Server_Access_Log.pdf",
+        "doc_type": "Medical",
+        "uploaded_at": "2026-11-16T01:05:40",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P03_Hospital_CCTV_and_Server_Access_Log_decision_report.md"
+      },
+      {
+        "doc_id": "d_8cde72a7",
+        "filename": "Exhibit_P04_Witness_Deposition_Nurse_Anjali.pdf",
+        "doc_type": "Statement",
+        "uploaded_at": "2026-11-16T01:05:40",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\Exhibit_P04_Witness_Deposition_Nurse_Anjali_decision_report.md"
+      }
+    ]
+  },
+  {
+    "case_id": "ANV-2026-0026",
+    "title": "01 FIR Report",
+    "created_at": "2026-11-12T19:32:38",
+    "created_by": "Officer",
+    "source": "FIR_UPLOADED",
+    "aggregate_priority": "High",
+    "case_level_priority": "Medium",
+    "document_count": 5,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_036dd33b",
+        "filename": "01_FIR_Report.pdf",
+        "doc_type": "FIR",
+        "uploaded_at": "2026-11-12T19:32:38",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\01_FIR_Report_decision_report.md"
+      },
+      {
+        "doc_id": "d_f198ba09",
+        "filename": "03_All_Evidence_Exhibits.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-12T19:33:30",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\03_All_Evidence_Exhibits_decision_report.md"
+      },
+      {
+        "doc_id": "d_27cb6156",
+        "filename": "04_Witness_Testimonial_Transcripts.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-12T19:33:30",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\04_Witness_Testimonial_Transcripts_decision_report.md"
+      },
+      {
+        "doc_id": "d_40442f6a",
+        "filename": "05_Facial_Analyzer_Performance_Guide.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-12T19:33:30",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\05_Facial_Analyzer_Performance_Guide_decision_report.md"
+      },
+      {
+        "doc_id": "d_5180a21d",
+        "filename": "06_Chain_of_Custody_and_Final_Analysis.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-12T19:33:30",
+        "priority": "Medium",
+        "decision_report": "case_priority_system/decision_graphs\\06_Chain_of_Custody_and_Final_Analysis_decision_report.md"
+      }
+    ]
+  },
+  {
     "case_id": "ANV-2026-0025",
     "title": "Missing case",
     "created_at": "2026-10-13T11:21:08",
@@ -78,7 +295,7 @@
   },
   {
     "case_id": "ANV-2026-0019",
-    "title": "Evidence Booklet \u2014 State vs Kaveri Auto Traders",
+    "title": "Evidence Booklet — State vs Kaveri Auto Traders",
     "created_at": "2026-09-04T14:00:00",
     "created_by": "Officer",
     "source": "AUTO_ID",

@@ -3,24 +3,47 @@ import { Moon, Sun } from "lucide-react";
 
 type Theme = "light" | "dark";
 
-export const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('anavaya-theme');var t=s==='dark'||s==='light'?s:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+const morning = 6;
+const evening = 18;
+export const THEME_INIT_SCRIPT = `(function(){var h=new Date().getHours();document.documentElement.classList.toggle('dark',h<${morning}||h>=${evening});})();`;
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    let timer: number;
+    let lastPeriod = "";
+    function sync() {
+      const now = new Date();
+      const hour = now.getHours();
+      const next = hour < morning || hour >= evening ? "dark" : "light";
+      const boundary = new Date(now);
+      if (hour >= evening) boundary.setDate(boundary.getDate() + 1);
+      boundary.setHours(next === "light" ? evening : morning, 0, 0, 0);
+      // Keep a manual choice until the next local morning or evening.
+      const period = boundary.toISOString();
+      if (period !== lastPeriod) {
+        lastPeriod = period;
+        document.documentElement.classList.toggle("dark", next === "dark");
+        setTheme(next);
+      }
+      window.clearTimeout(timer);
+      timer = window.setTimeout(sync, boundary.getTime() - now.getTime());
+    }
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("focus", sync);
+    };
   }, []);
 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.classList.toggle("dark", next === "dark");
-    try {
-      localStorage.setItem("anavaya-theme", next);
-    } catch {
-      /* ignore */
-    }
   };
 
   return (

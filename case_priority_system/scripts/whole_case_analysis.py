@@ -653,11 +653,8 @@ def analyze_case_whole(case, model_data=None) -> dict:
     Case. Raises nothing — failures degrade to a partial result where the
     invariant-critical parts (priority) simply stay absent.
     """
-    # In multi-document analysis: extract text and analyze attached evidence documents in parallel
-    unanalysed = [d for d in getattr(case, "documents", []) if not getattr(d, "priority", None)]
-    if unanalysed:
-        analyze_documents(unanalysed, case, model_data=model_data)
-
+    # Document analysis belongs to the caller. Do not retry failed uploads here
+    # or silently select a different manager/storage directory.
     merged, merge_info = merge_case_features(case)
     if not merged:
         return {}

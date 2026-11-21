@@ -1300,15 +1300,6 @@ def get_priority_rules_applied(features, priority, text_description=""):
     broad_category = features.get('crime_type', 'Non-Violent')
     severity = features.get('severity', 'No Injury')
     
-    # Calculate mock damage percentage based on severity
-    damage_mapping = {
-        'Fatal': '90% to 100%',
-        'Major': '60% to 90%',
-        'Minor': '20% to 50%',
-        'No Injury': '0% to 10%'
-    }
-    damage_percentage = damage_mapping.get(severity, '0%')
-
     # Find keywords
     text_lower = (text_description or features.get('plain_summary', '') + ' ' + features.get('main_parties', '')).lower()
     found_keywords = []
@@ -1326,9 +1317,10 @@ def get_priority_rules_applied(features, priority, text_description=""):
     
     return (
         f"Based on a legal document review, this case was assigned a {priority} priority. "
-        f"This determination was made because the document contains key terms such as {keyword_str}, "
-        f"and the estimated physical or material damage percentage assessed from the facts is approximately {damage_percentage}. "
-        f"These factors categorize it as a {broad_category} matter under {category} law."
+        f"Extracted features describe a {broad_category} matter in {category}, with severity '{severity}'. "
+        f"Detected terms include {keyword_str}. These are extracted signals, not findings of fact. "
+        "The Decision Tree path records the actual splits responsible for the assigned priority; "
+        "no damage percentage is inferred."
     )
 
 def safe_transform_encoder(encoders, key, value, default=0):
@@ -1403,7 +1395,7 @@ def make_safe_filename(name):
 def describe_feature_value(model_data, feature_name, value):
     """Returns a readable value for encoded categorical tree features."""
     for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']:
-        if feature_name.startswith(f"{p}_"):
+        if feature_name.startswith(f"{p}_") and not feature_name.endswith('_enc'):
             val = feature_name[len(p)+1:]
             return f"Yes ({val})" if round(value) == 1 else f"No (not {val})"
     encoder_keys = {
@@ -1448,7 +1440,7 @@ def describe_condition(model_data, feature_name, value, threshold):
     went_left = value <= threshold
 
     for p in ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']:
-        if feature_name.startswith(f"{p}_"):
+        if feature_name.startswith(f"{p}_") and not feature_name.endswith('_enc'):
             val = feature_name[len(p)+1:]
             base_label = display_feature_name(p)
             condition = f"{base_label} is '{val}'"
@@ -1522,6 +1514,15 @@ def trace_decision_steps(model_data, features, text_description):
         'case_category_enc', 'crime_type_enc', 'severity_enc',
         'vulnerability_enc', 'influence_enc',
     }
+    ohe_groups = {}
+    ohe = model_data.get('ohe')
+    if ohe is not None:
+        fields = ['case_category', 'crime_type', 'severity', 'vulnerability', 'influence']
+        for field, categories in zip(fields, ohe.categories_):
+            group = [f'{field}_{category}' for category in categories]
+            for name in group:
+                ohe_groups[name] = group
+        structured_features.update(ohe_groups)
     encoder_keys = {
         'case_category_enc': 'category',
         'crime_type_enc': 'crime',
@@ -1534,7 +1535,20 @@ def trace_decision_steps(model_data, features, text_description):
         # All-float copy: the encoded categorical columns are int64 and a
         # threshold nudge can't be assigned into them directly.
         X_branch = X.astype(float).copy()
-        X_branch.iloc[0, feature_idx] = branch_value
+        name = feature_names[feature_idx]
+        if name in ohe_groups:
+            group = ohe_groups[name]
+            if branch_value > 0:
+                chosen = name
+            else:
+                # Retain the existing alternative if present; otherwise use the
+                # first alternative in the encoder's fixed category order.
+                alternatives = [col for col in group if col != name]
+                chosen = next((col for col in alternatives if X.at[0, col] == 1), alternatives[0])
+            X_branch.loc[:, group] = 0.0
+            X_branch.at[0, chosen] = 1.0
+        else:
+            X_branch.iloc[0, feature_idx] = branch_value
         pred_idx = int(clf.predict(X_branch)[0])
         return str(encoders['priority'].inverse_transform([pred_idx])[0])
 
@@ -1552,7 +1566,7 @@ def trace_decision_steps(model_data, features, text_description):
                 'type': 'leaf',
                 'title': f"Final Priority: {pred_class}",
                 'condition': 'The case reached this Decision Tree leaf.',
-                'case_value': f"{int(sum(class_counts))} training samples reached this leaf",
+                'case_value': f"{int(clf.tree_.n_node_samples[node_id])} training samples reached this leaf",
                 'result': pred_class,
                 'direction': 'final',
                 'effect': 'outcome',
@@ -1604,10 +1618,21 @@ def trace_decision_steps(model_data, features, text_description):
             'direction': direction,
             'effect': effect,
             'branch_priorities': {'left': left_priority, 'right': right_priority},
+            'counterfactual_note': (
+                'One categorical value is replaced while preserving one-hot validity; '
+                'when several alternatives exist, the first encoder category is used. '
+                'This is a model sensitivity probe, not a causal claim.'
+                if feature_name in ohe_groups else 'One model input is varied; this is not a causal claim.'
+            ),
         })
 
     # The exact signal values that fed the tree (the 5 structured features).
     feature_scores = []
+    if ohe is not None:
+        feature_scores = [
+            {'feature': field, 'label': display_feature_name(field), 'value': str(features.get(field, ''))}
+            for field in fields
+        ]
     for name in ['case_category_enc', 'crime_type_enc', 'severity_enc',
                  'vulnerability_enc', 'influence_enc']:
         if name not in X.columns:

@@ -134,9 +134,9 @@
         }
 
         return {
-            caseId: caseId || "ANV-2026-0025", // Default to main demo case if not set
+            caseId: caseId || null,
             caseTitle: caseTitle || "Active Case Dossier",
-            priority: priority || "High"
+            priority: priority || "Pending"
         };
     }
 
@@ -154,11 +154,22 @@
      * Sets the active case context for the chat
      */
     function setActiveCase(caseId, title, priority, render = true) {
-        if (!caseId) return;
+        if (!caseId) {
+            state.activeCaseId = null;
+            state.activeCaseTitle = "Select a case to start";
+            state.activeCasePriority = "Pending";
+            if (headerContext) headerContext.textContent = state.activeCaseTitle;
+            if (headerPriority) headerPriority.style.display = "none";
+            if (floatBtn) floatBtn.classList.remove("active-case");
+            if (sendBtn) sendBtn.disabled = true;
+            renderMessages();
+            return;
+        }
+        if (sendBtn) sendBtn.disabled = state.isLoading;
         const changed = state.activeCaseId !== caseId;
         state.activeCaseId = caseId;
         state.activeCaseTitle = title || caseId;
-        state.activeCasePriority = priority || "High";
+        state.activeCasePriority = priority || "Pending";
 
         if (floatBtn) {
             floatBtn.classList.add("active-case");
@@ -252,7 +263,7 @@
                 <div class="chat-msg-avatar"><i data-lucide="bot"></i></div>
                 <div class="chat-bubble">
                     <p><strong>Case Intelligence Assistant Active</strong></p>
-                    <p>I have indexed the complete case dossier, evidence register, and corroborated timeline for <strong>${escapeHtml(state.activeCaseTitle)}</strong> (<code>${escapeHtml(state.activeCaseId)}</code>).</p>
+                    <p>I can answer using the available dossier context for <strong>${escapeHtml(state.activeCaseTitle)}</strong> (<code>${escapeHtml(state.activeCaseId)}</code>).</p>
                     <p style="margin-bottom:0; font-size: 0.78rem; color: #7A7263;">Ask me to summarize allegations, detail specific witness statements, inspect timeline contradictions, or explain the Decision Tree priority.</p>
                 </div>
             `;
@@ -295,7 +306,8 @@
         const text = inputText.value.trim();
         if (!text || state.isLoading) return;
 
-        const currentCaseId = state.activeCaseId || "ANV-2026-0025";
+        const currentCaseId = state.activeCaseId;
+        if (!currentCaseId) return;
         if (!state.histories[currentCaseId]) {
             state.histories[currentCaseId] = [];
         }
@@ -361,12 +373,12 @@
             const adminEmail = (window.AnavayaNode && window.AnavayaNode.ADMIN_EMAIL) || "yeshwanth9750@gmail.com";
             state.histories[currentCaseId].push({
                 role: "assistant",
-                content: `⚠️ **GPU Hardware Node in Standby:**\n\nThe local Ollama Qwen 2.5 engine is currently sleeping or disconnected from this cloud deployment.\n\n👉 **[Alert Yeshwanth to Turn On System Node](javascript:window.AnavayaNode%26%26window.AnavayaNode.showStandbyModal('Case%20AI%20Copilot'))** or email directly at **${adminEmail}**.`
+                content: `⚠️ **GPU Hardware Node in Standby:**\n\nThe local Ollama Qwen 2.5 engine is currently sleeping or disconnected from this cloud deployment.\n\nUse the connection dialog to reconnect, or email **${adminEmail}**.`
             });
             renderMessages();
         } finally {
             state.isLoading = false;
-            sendBtn.disabled = false;
+            sendBtn.disabled = !state.activeCaseId;
             if (inputText) inputText.focus();
         }
     }

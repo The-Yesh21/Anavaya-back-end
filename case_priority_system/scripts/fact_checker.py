@@ -491,6 +491,8 @@ def _ollama_verify(undecided: list, evidence: list, ollama_url: str = OLLAMA_URL
     """
     if requests is None or not undecided:
         return {}
+    ollama_url = ollama_url or OLLAMA_URL
+    ollama_model = ollama_model or OLLAMA_MODEL
     from case_priority_system.scripts.inference_pipeline import parse_llm_json
 
     results: dict = {}
@@ -544,7 +546,7 @@ def _ollama_verify(undecided: list, evidence: list, ollama_url: str = OLLAMA_URL
             for v in data.get("verdicts", []):
                 idx = v.get("index")
                 verdict = str(v.get("verdict", "")).lower()
-                if isinstance(idx, int) and verdict in VERDICTS:
+                if type(idx) is int and idx in {i for i, _ in chunk} and verdict in VERDICTS:
                     results[idx] = {
                         "verdict": verdict,
                         "reason": str(v.get("reason", "")),

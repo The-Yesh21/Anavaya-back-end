@@ -16,7 +16,7 @@ falls back to the browser's speech recognition; if the correction LLM is
 down the raw transcription is used unchanged.
 
 Config (env vars, same convention as the rest of the app):
-    WHISPER_MODEL   whisper model name, default "small" (~460 MB, cached in
+    WHISPER_MODEL   whisper model name, default "base" (~140 MB, cached in
                     ~/.cache/whisper on first use; "base"/"tiny" are smaller)
     OLLAMA_URL      default http://localhost:11434
     OLLAMA_MODEL    correction LLM, default qwen2.5:3b
@@ -300,30 +300,10 @@ def _is_invalid_correction(corrected: str, raw: str) -> bool:
     if not raw_words or not corr_words:
         return True
 
-    # Word count sanity check (cannot change length drastically)
-    if abs(len(corr_words) - len(raw_words)) > max(2, int(len(raw_words) * 0.20)):
-        return True
+    # Only punctuation, whitespace and letter case may change. Set overlap
+    # accepted omitted negations, reordered words and altered numbers.
+    return raw_words != corr_words
 
-    raw_set = set(raw_words)
-    corr_set = set(corr_words)
-    if not raw_set or not corr_set:
-        return True
-
-    # Overlap check: at least 80% of raw words must be retained
-    overlap = len(raw_set & corr_set)
-    if (overlap / len(raw_set)) < 0.80:
-        return True
-
-    # Check for significant new content words introduced by LLM
-    new_words = corr_set - raw_set
-    particles = {"a", "an", "the", "to", "in", "of", "and", "or", "is", "are", "was", "were"}
-    significant_new = new_words - particles
-    if len(significant_new) > 0 and len(raw_words) < 8:
-        return True
-    if len(significant_new) > max(1, int(len(raw_words) * 0.15)):
-        return True
-
-    return False
 
 
 def correct_transcript_text(text: str, context_hint: str = "") -> tuple[str, bool]:

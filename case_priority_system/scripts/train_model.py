@@ -447,12 +447,12 @@ def train_model():
 
     # ---- HONEST EVALUATION 2: stratified k-fold cross-validation on full corpus ----
     print("\n===== HONEST EVALUATION: 5-fold stratified CV =====")
-    from sklearn.model_selection import StratifiedKFold, cross_val_score
-    stage('CV: encoding full corpus')
-    X_all, y_all, _, _, _ = encode_frame(df.copy(), is_fit=True)
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    try:
+        from case_priority_system.scripts.model_validation import cross_validate_raw, encoded_split
+    except ImportError:
+        from model_validation import cross_validate_raw, encoded_split
     stage('CV: running 5 folds')
-    cv_scores = cross_val_score(build_tree(), X_all, y_all, cv=skf, scoring='accuracy')
+    cv_scores = cross_validate_raw(df, encode_frame, build_tree)
     cv_mean = float(np.mean(cv_scores))
     stage('CV: done')
     print(f"CV accuracy per fold: {[f'{s:.4f}' for s in cv_scores]}")
@@ -464,8 +464,11 @@ def train_model():
     le_priority = le_dict['priority']
 
     # In-distribution random split for continuity with earlier reports.
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+    train_split, test_split = train_test_split(
+        df, test_size=0.2, random_state=42, stratify=df['priority']
+    )
+    X_train, X_test, y_train, y_test = encoded_split(
+        train_split.reset_index(drop=True), test_split.reset_index(drop=True), encode_frame
     )
 
     clf = build_tree()
@@ -478,6 +481,8 @@ def train_model():
     print(f"Accuracy: {accuracy:.4f}")
     print(report)
 
+    # The deployed bundle is fitted on the full corpus only AFTER evaluation.
+    clf.fit(X, y)
     tree_rules = export_text(clf, feature_names=list(X.columns))
     print("\nDecision Tree Rules:")
     print(tree_rules)

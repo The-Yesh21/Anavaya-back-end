@@ -24,7 +24,7 @@ import { Preloader } from "../components/preloader/Preloader";
 // visit. The Preloader removes the <style> once its own curtain is painted (same
 // paper colour, so the handover is invisible), and a timeout removes it too, so a
 // failed bundle can never leave a blank page — the guard fails open.
-const PRELOADER_BOOT = `(function(){var K='anvaya-preloader-seen';var first=true;try{first=sessionStorage.getItem(K)!=='1';}catch(e){first=true;}if(!first)return;var css="html{background:#FBF8F2}#page-root{visibility:hidden}html::before,html::after{content:'';position:fixed;top:0;bottom:0;width:50%;background:#FBF8F2;z-index:2147483000;pointer-events:none}html::before{left:0;border-right:1px solid rgba(201,162,74,0.45)}html::after{right:0}";var s=document.createElement('style');s.id='anavaya-preloader-curtain';s.textContent=css;document.head.appendChild(s);window.__anavayaPreloaderBoot=true;window.clearTimeout(window.__anavayaPreloaderTimer);window.__anavayaPreloaderTimer=window.setTimeout(function(){if(window.__anavayaPreloaderBoot){var e=document.getElementById('anavaya-preloader-curtain');if(e)e.remove();}},6000);})();`;
+const PRELOADER_BOOT = `(function(){var K='anvaya-preloader-seen';var first=true;try{first=sessionStorage.getItem(K)!=='1';}catch(e){first=true;}if(!first)return;var css="html{background:var(--background)}#page-root{visibility:hidden}html::before,html::after{content:'';position:fixed;top:0;bottom:0;width:50%;background:var(--background);z-index:2147483000;pointer-events:none}html::before{left:0;border-right:1px solid rgba(25,46,66,0.45)}html::after{right:0}";var s=document.createElement('style');s.id='anavaya-preloader-curtain';s.textContent=css;document.head.appendChild(s);window.__anavayaPreloaderBoot=true;window.clearTimeout(window.__anavayaPreloaderTimer);window.__anavayaPreloaderTimer=window.setTimeout(function(){if(window.__anavayaPreloaderBoot){var e=document.getElementById('anavaya-preloader-curtain');if(e)e.remove();}},6000);})();`;
 
 const ROOT_TITLE = "Anavaya — AI-Powered Judicial Case Priority System";
 // Same base the vite server runs on (VITE_BASE=/landing/ on the tunnel stack).
@@ -102,7 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: ROOT_TITLE },
       { name: "description", content: ROOT_DESCRIPTION },
       { name: "author", content: "Anavaya" },
-      { name: "theme-color", content: "#8C6D18" },
+      { name: "theme-color", content: "#192E42" },
       { property: "og:title", content: ROOT_TITLE },
       { property: "og:description", content: ROOT_DESCRIPTION },
       { property: "og:site_name", content: "Anavaya" },
@@ -135,7 +135,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

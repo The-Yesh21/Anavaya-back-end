@@ -1,0 +1,20 @@
+.case-flow-board { display: block; width: 100%; }
+.flow-file {
+  transform: translate(var(--queue-x), var(--queue-y));
+  transition: transform 1.05s cubic-bezier(.3,.05,.18,1) calc(var(--i) * 160ms);
+}
+.flow-destinations { opacity: 0; transition: opacity .45s; }
+.case-flow-board:not([data-scene="waiting"]) .flow-destinations { opacity: 1; }
+.case-flow-board:not([data-scene="waiting"]) .flow-file { transform: translate(var(--file-x), var(--file-y)); }
+.case-flow-board[data-started="true"] .flow-arrival {
+  animation: intake-arrival .65s ease-out calc(var(--i) * 310ms) backwards;
+}
+@keyframes intake-arrival {
+  from { opacity: 0; transform: translate(-70px,-22px) rotate(-4deg); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .case-replay { display: none; }
+  .flow-file, .flow-destinations { transition: none; }
+  .case-flow-board[data-started] .flow-arrival { animation: none; }
+}

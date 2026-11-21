@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 #  Anavaya — Remote demo launcher
 #  One run brings up the whole public flow:
 #     <ngrok-url>/landing/   -> landing page (vite dev, base /landing/)
@@ -78,6 +78,16 @@ Set-Location $RepoRoot
 # Ollama warms up and keeps the remote demo deterministic.
 $env:ANAVAYA_USE_LLM = "1"
 $env:WHISPER_MODEL = "base"
+
+try {
+    $null = Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 2
+    Write-Host "[0/4] Ollama already reachable on :11434" -ForegroundColor Green
+} catch {
+    Write-Host "[0/4] Starting Ollama serve..."
+    Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+    Write-Host "  Ollama started" -ForegroundColor Green
+}
 
 # --- 1. Backend (FastAPI, https :8000, repo self-signed certs) ---
 if (Test-Port 8000) {
