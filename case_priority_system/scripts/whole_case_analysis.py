@@ -761,19 +761,30 @@ def analyze_case_whole(case, model_data=None) -> dict:
         print(f"whole-case: delay precedents failed (non-fatal): {e}")
 
     statutory_sections = []
+    ipc_sections = []
     turnaround_time = {}
     try:
         from case_priority_system.scripts.statutory_sections import (
             determine_statutory_sections,
+            determine_ipc_sections,
             calculate_turnaround_time,
         )
+        context_text = f"{case.title} {merged.get('case_gist', '')} {synthesis_text}"
         statutory_sections = determine_statutory_sections(
             category=tuned.get("case_category", ""),
             crime_type=tuned.get("crime_type", ""),
             severity=tuned.get("severity", ""),
             vulnerability=tuned.get("vulnerability", ""),
             influence=tuned.get("influence", ""),
-            text=f"{case.title} {merged.get('case_gist', '')} {synthesis_text}",
+            text=context_text,
+        )
+        ipc_sections = determine_ipc_sections(
+            category=tuned.get("case_category", ""),
+            crime_type=tuned.get("crime_type", ""),
+            severity=tuned.get("severity", ""),
+            vulnerability=tuned.get("vulnerability", ""),
+            influence=tuned.get("influence", ""),
+            text=context_text,
         )
         turnaround_time = calculate_turnaround_time(
             priority=priority,
@@ -783,7 +794,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
             document_count=len(per_doc),
         )
     except Exception as e:
-        print(f"whole-case: statutory sections / turnaround time calculation failed (non-fatal): {e}")
+        print(f"whole-case: statutory/ipc sections / turnaround time calculation failed (non-fatal): {e}")
 
     return {
         "priority": priority,
@@ -804,6 +815,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
         "constitutional": analysis,
         "delay_precedents": delay_precedents,
         "statutory_sections": statutory_sections,
+        "ipc_sections": ipc_sections,
         "turnaround_time": turnaround_time,
         "case_gist": merged.get("case_gist", ""),
         "report_pdf": report_pdf,

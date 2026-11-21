@@ -837,29 +837,29 @@ async function openCaseWorkspace(caseId) {
         `;
     }
 
-    // "Statutory Sections & Penal Codes": Indian Penal Code (IPC) / Bharatiya Nyaya
-    // Sanhita (BNS), Code of Criminal Procedure (CrPC), and Special Acts.
+    // "IPC Sections & Penal Provisions": Indian Penal Code (IPC) / Bharatiya Nyaya
+    // Sanhita (BNS) offense sections, bailability, classification and mandates.
     function renderStatutorySections(sections) {
         const wrap = $("case-level-sections");
         if (!wrap) return;
         const list = Array.isArray(sections) ? sections : [];
         if (!list.length) {
-            wrap.innerHTML = `<div class="ev-empty">Statutory sections appear here once the case is analysed.</div>`;
+            wrap.innerHTML = `<div class="ev-empty">IPC sections appear here once the case is analysed.</div>`;
             return;
         }
         wrap.innerHTML = list.map((s) => `
             <div class="ev-section-card">
                 <div class="ev-section-head">
                     <span class="ev-section-num"><i data-lucide="scale"></i> ${esc(s.section || "")}</span>
-                    <span class="ev-section-statute">${esc(s.statute || "")}</span>
+                    <span class="ev-section-statute">${esc(s.statute || "Indian Penal Code")}</span>
                     <span class="ev-section-badge ${s.classification && s.classification.includes("Non-Bailable") ? "badge-danger" : "badge-info"}">
-                        ${esc(s.classification ? s.classification.split("·")[1]?.trim() || "Statutory" : "Statutory")}
+                        ${esc(s.classification ? s.classification.split("·")[1]?.trim() || "Penal Section" : "Penal Section")}
                     </span>
                 </div>
                 <div class="ev-section-title">${esc(s.title || "")}</div>
                 ${s.classification ? `<div class="ev-section-class"><i data-lucide="shield-alert"></i> ${esc(s.classification)}</div>` : ""}
-                ${s.statutory_mandate ? `<div class="ev-section-mandate"><strong>Statutory Mandate:</strong> ${esc(s.statutory_mandate)}</div>` : ""}
-                ${s.inference_ground ? `<div class="ev-section-ground"><strong>Inference Ground:</strong> ${esc(s.inference_ground)}</div>` : ""}
+                ${s.statutory_mandate ? `<div class="ev-section-mandate"><strong>IPC / Legal Mandate:</strong> ${esc(s.statutory_mandate)}</div>` : ""}
+                ${s.inference_ground ? `<div class="ev-section-ground"><strong>Case Fact Ground:</strong> ${esc(s.inference_ground)}</div>` : ""}
             </div>
         `).join("");
     }

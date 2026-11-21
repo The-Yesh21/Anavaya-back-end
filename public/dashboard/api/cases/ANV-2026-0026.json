@@ -247,7 +247,7 @@
             "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC §363 / BNS §137"
           },
           {
             "section": "Sections 324 & 326 IPC / Sections 117 & 118 BNS",
@@ -266,7 +266,7 @@
           "recommended_hearing_days": 3,
           "target_disposal_window": "30 to 90 Days",
           "target_disposal_days": 90,
-          "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+          "statutory_benchmark": "CrPC §167 & §437/439 Statutory Bail Standards / POCSO Act §35 Mandatory Fast-Track Timeline",
           "target_hearing_sessions": "1–2 Summary Sessions",
           "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
           "loss_risk_level": "Critical / Imminent",
@@ -470,7 +470,7 @@
             "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC §363 / BNS §137"
           },
           {
             "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
@@ -755,7 +755,7 @@
             "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC §363 / BNS §137"
           },
           {
             "section": "Sections 324 & 326 IPC / Sections 117 & 118 BNS",
@@ -774,7 +774,7 @@
           "recommended_hearing_days": 3,
           "target_disposal_window": "30 to 90 Days",
           "target_disposal_days": 90,
-          "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+          "statutory_benchmark": "CrPC §167 & §437/439 Statutory Bail Standards / POCSO Act §35 Mandatory Fast-Track Timeline",
           "target_hearing_sessions": "1–2 Summary Sessions",
           "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
           "loss_risk_level": "Critical / Imminent",
@@ -1030,7 +1030,7 @@
             "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC §363 / BNS §137"
           },
           {
             "section": "Sections 324 & 326 IPC / Sections 117 & 118 BNS",
@@ -1049,7 +1049,7 @@
           "recommended_hearing_days": 3,
           "target_disposal_window": "30 to 90 Days",
           "target_disposal_days": 90,
-          "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+          "statutory_benchmark": "CrPC §167 & §437/439 Statutory Bail Standards / POCSO Act §35 Mandatory Fast-Track Timeline",
           "target_hearing_sessions": "1–2 Summary Sessions",
           "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
           "loss_risk_level": "Critical / Imminent",
@@ -1253,7 +1253,7 @@
             "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC §363 / BNS §137"
           },
           {
             "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
@@ -1765,6 +1765,16 @@
     "report_pdf": "case_priority_system/reports\\ANV-2026-0026_whole_case_report.pdf",
     "computed_at": "2026-11-12T19:33:06",
     "statutory_sections": [
+      {
+        "section": "Section 363 IPC / Section 137(2) BNS",
+        "statute": "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+        "title": "Punishment for Kidnapping",
+        "category": "Criminal/Violent",
+        "classification": "Cognizable · Non-Bailable · Magistrate 1st Class",
+        "severity_weight": "Major / Missing Person",
+        "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
+        "inference_ground": "Missing person / unlawful confinement allegation under IPC §363 / BNS §137"
+      },
       {
         "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
         "statute": "Central Goods and Services Tax Act, 2017",

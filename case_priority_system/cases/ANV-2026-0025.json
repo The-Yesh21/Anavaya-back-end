@@ -264,7 +264,7 @@
             "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
           },
           {
             "section": "Article 226 & 227 of the Constitution of India",
@@ -1017,7 +1017,7 @@
             "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
           },
           {
             "section": "Article 226 & 227 of the Constitution of India",
@@ -1288,7 +1288,7 @@
             "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
           },
           {
             "section": "Sections 43, 66 & 66D IT Act 2000",
@@ -1553,7 +1553,7 @@
             "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
           },
           {
             "section": "Sections 67 & 132 Central Goods and Services Tax (CGST) Act 2017",
@@ -2079,7 +2079,7 @@
             "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
           },
           {
             "section": "Sections 43, 66 & 66D IT Act 2000",
@@ -2128,7 +2128,7 @@
           "recommended_hearing_days": 3,
           "target_disposal_window": "30 to 90 Days",
           "target_disposal_days": 90,
-          "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+          "statutory_benchmark": "CrPC \u00a7167 & \u00a7437/439 Statutory Bail Standards / POCSO Act \u00a735 Mandatory Fast-Track Timeline",
           "target_hearing_sessions": "1\u20132 Summary Sessions",
           "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
           "loss_risk_level": "Critical / Imminent",
@@ -2777,7 +2777,7 @@
         "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
         "severity_weight": "Major / Missing Person",
         "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-        "inference_ground": "Missing person / unlawful confinement allegation"
+        "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
       },
       {
         "section": "Sections 324 & 326 IPC / Sections 117 & 118 BNS",
@@ -2796,7 +2796,7 @@
       "recommended_hearing_days": 3,
       "target_disposal_window": "30 to 90 Days",
       "target_disposal_days": 90,
-      "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+      "statutory_benchmark": "CrPC \u00a7167 & \u00a7437/439 Statutory Bail Standards / POCSO Act \u00a735 Mandatory Fast-Track Timeline",
       "target_hearing_sessions": "4\u20136 Structured Sessions",
       "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
       "loss_risk_level": "Critical / Imminent",

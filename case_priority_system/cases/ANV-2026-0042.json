@@ -560,6 +560,16 @@
             "severity_weight": "Major / Permanent Disability Risk",
             "statutory_mandate": "Immediate medical preservation and bail hearing to prevent witness tampering.",
             "inference_ground": "Armed assault / severe bodily injury inflicted"
+          },
+          {
+            "section": "Section 363 IPC / Section 137(2) BNS",
+            "statute": "Indian Penal Code 1860 / Bharatiya Nyaya Sanhita 2023",
+            "title": "Punishment for Kidnapping",
+            "category": "Criminal/Violent",
+            "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
+            "severity_weight": "Major / Missing Person",
+            "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
+            "inference_ground": "Unlawful confinement & criminal intimidation in FIR under IPC \u00a7363 & \u00a7506"
           }
         ],
         "turnaround_time": {
@@ -568,7 +578,7 @@
           "recommended_hearing_days": 3,
           "target_disposal_window": "30 to 90 Days",
           "target_disposal_days": 90,
-          "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+          "statutory_benchmark": "CrPC \u00a7167 & \u00a7437/439 Statutory Bail Standards / POCSO Act \u00a735 Mandatory Fast-Track Timeline",
           "target_hearing_sessions": "1\u20132 Summary Sessions",
           "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
           "loss_risk_level": "Critical / Imminent",
@@ -1276,7 +1286,7 @@
             "classification": "Cognizable \u00b7 Non-Bailable \u00b7 Magistrate 1st Class",
             "severity_weight": "Major / Missing Person",
             "statutory_mandate": "Supreme Court Bachpan Bachao Andolan guidelines: immediate FIR and tracking within 24 hours.",
-            "inference_ground": "Missing person / unlawful confinement allegation"
+            "inference_ground": "Missing person / unlawful confinement allegation under IPC \u00a7363 / BNS \u00a7137"
           },
           {
             "section": "Sections 43, 66 & 66D IT Act 2000",
@@ -1932,7 +1942,7 @@
       "recommended_hearing_days": 3,
       "target_disposal_window": "30 to 90 Days",
       "target_disposal_days": 90,
-      "statutory_benchmark": "Article 21 Speedy Trial Mandate & Hussainara Khatoon Doctrine (Emergency Liberty Bench)",
+      "statutory_benchmark": "CrPC \u00a7167 & \u00a7437/439 Statutory Bail Standards / POCSO Act \u00a735 Mandatory Fast-Track Timeline",
       "target_hearing_sessions": "4\u20136 Structured Sessions",
       "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
       "loss_risk_level": "Critical / Imminent",

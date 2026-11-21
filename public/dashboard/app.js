@@ -1023,10 +1023,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="statutory-card">
                     <div class="statutory-head">
                         <strong class="statutory-section"><i data-lucide="scale"></i> ${escHtml(s.section)}</strong>
-                        <span class="statutory-badge">${escHtml(s.classification ? s.classification.split("·")[1]?.trim() || "Statutory" : "Statutory")}</span>
+                        <span class="statutory-badge">${escHtml(s.classification ? s.classification.split("·")[1]?.trim() || "IPC Section" : "IPC Section")}</span>
                     </div>
                     <span class="statutory-title">${escHtml(s.title)}</span>
-                    <span class="statutory-statute">${escHtml(s.statute)}</span>
+                    <span class="statutory-statute">${escHtml(s.statute || "Indian Penal Code")}</span>
                     ${s.statutory_mandate ? `<p class="statutory-mandate"><strong>Mandate:</strong> ${escHtml(s.statutory_mandate)}</p>` : ""}
                 </div>
             `).join("");
