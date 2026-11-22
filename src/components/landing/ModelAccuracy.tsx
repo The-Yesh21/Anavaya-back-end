@@ -414,11 +414,11 @@ export function ModelAccuracy() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="eyebrow">Transformation & Measured Impact</p>
-              <h2 className="font-display mt-3 max-w-2xl text-4xl text-foreground sm:text-5xl">
+              <h2 className="heading-section mt-3 max-w-2xl text-foreground">
                 The Performance Leap:{" "}
-                <span className="text-gradient-gold">Static Backlog vs. Intelligent Triage</span>
+                <span className="text-glass">Static Backlog vs. Intelligent Triage</span>
               </h2>
-              <p className="mt-3 max-w-2xl text-[0.9375rem] leading-[1.7] text-muted-foreground">
+              <p className="body-2 mt-3 max-w-2xl text-muted-foreground">
                 Moving Indian judicial administration from sluggish 45-day clerical backlogs to instant,
                 deterministic, and constitutionally grounded case prioritization.
               </p>
@@ -472,7 +472,7 @@ export function ModelAccuracy() {
                             {m.badge}
                           </span>
                         </div>
-                        <p className="font-display tnum text-gradient-gold mt-4 text-4xl font-semibold tracking-tight">
+                        <p className="font-display tnum text-glass mt-4 text-4xl font-semibold tracking-tight">
                           {m.stat}
                         </p>
                         <p className="mt-2 text-sm font-semibold text-foreground/95">{m.label}</p>
@@ -537,7 +537,7 @@ export function ModelAccuracy() {
                               {p.modern.tag}
                             </span>
                           </div>
-                          <p className="font-display text-gradient-gold mt-3 text-lg font-semibold">
+                          <p className="font-display text-glass mt-3 text-lg font-semibold">
                             {p.modern.headline}
                           </p>
                           <p className="mt-2 text-[0.875rem] leading-[1.7] text-foreground/85">
@@ -559,11 +559,7 @@ export function ModelAccuracy() {
 
             {/* Grounding Callout */}
             <Reveal delay={120}>
-              <div className="relative mt-10 overflow-hidden rounded-2xl border border-primary/35 bg-surface/90 p-8 shadow-[0_8px_30px_-8px_color-mix(in_oklab,var(--primary)_15%,transparent)] backdrop-blur-xl sm:p-10">
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"
-                />
+              <div className="relative mt-10 overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-xs sm:p-10">
                 <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                   <div className="max-w-3xl">
                     <p className="eyebrow">The Core System Invariant</p>
@@ -657,19 +653,15 @@ export function ModelAccuracy() {
 
               {/* Honest framing */}
               <Reveal delay={80}>
-                <div className="relative mt-8 overflow-hidden rounded-2xl border border-primary/35 bg-surface/90 p-8 shadow-[0_8px_30px_-8px_color-mix(in_oklab,var(--primary)_15%,transparent)] backdrop-blur-xl sm:p-10">
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"
-                  />
+                <div className="relative mt-8 overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-xs sm:p-10">
                   <p className="eyebrow">Read this before quoting the number</p>
                   <p className="mt-4 text-[0.9375rem] leading-[1.75] text-foreground/85">
                     These labels are not human judicial annotations. Ground truth comes from a written
                     court-priority policy derived from the Constitution of India, applied by deterministic code. So{" "}
                     <span className="font-semibold text-foreground">{pct(headline.policyFidelity)}</span> means{" "}
-                    <em className="emphasis font-normal not-italic text-primary/95 underline decoration-primary/40 underline-offset-4">
+                    <span className="font-medium text-primary underline decoration-primary/40 underline-offset-4">
                       the tree reproduces that written policy almost perfectly
-                    </em>{" "}
+                    </span>{" "}
                     — which is precisely the auditability the system is built for. It is not a claim that Anavaya
                     agrees with a judge {pct(headline.policyFidelity)} of the time. The honest generalisation figure
                     is the {pct(headline.holdoutAccuracy)} scored on real judgments the model never saw during

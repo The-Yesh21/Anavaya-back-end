@@ -5,28 +5,23 @@ import { MODEL_METRICS } from "@/data/model-metrics";
 export function ProblemBand() {
   return (
     <section className="snap-section relative px-6 py-20 md:px-10">
-      {/* Subtle radial ambient background glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_50%_50%,color-mix(in_oklab,var(--primary)_7%,transparent),transparent_70%)]"
-      />
-      <div className="relative mx-auto max-w-5xl border-y border-border/80 py-16 text-center">
-        {/* Subtle center gold accent notch */}
+      <div className="relative mx-auto max-w-5xl border-y border-border py-16 text-center">
+        {/* Center accent notch */}
         <span
           aria-hidden="true"
-          className="absolute top-0 left-1/2 h-1 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/45 shadow-[0_0_12px_var(--primary)]"
+          className="absolute top-0 left-1/2 h-0.5 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/40"
         />
         <Reveal>
           <p className="eyebrow">The problem</p>
         </Reveal>
         <Reveal delay={120}>
-          <h2 className="font-display mx-auto mt-6 max-w-3xl text-3xl leading-snug tracking-tight text-balance text-foreground sm:text-4xl">
-            Over <span className="text-gradient-gold">4 crore cases</span> sit pending across Indian courts. A
+          <h2 className="heading-section mx-auto mt-6 max-w-3xl text-balance text-foreground">
+            Over <span className="text-glass">4 crore cases</span> sit pending across Indian courts. A
             single matter can wait years for its first substantive hearing.
           </h2>
         </Reveal>
         <Reveal delay={220}>
-          <p className="mx-auto mt-6 max-w-2xl text-[1.0625rem] leading-[1.75] text-muted-foreground">
+          <p className="body-1 mx-auto mt-6 max-w-2xl text-muted-foreground">
             Court staff triage thousands of FIRs, complaints, and pleadings by hand every day. Urgency is
             judged page by page, under time pressure, with no consistent record of why one file moved ahead of
             another. Anavaya gives that first pass structure, speed, and a written justification.
@@ -34,7 +29,7 @@ export function ProblemBand() {
         </Reveal>
         <span
           aria-hidden="true"
-          className="absolute bottom-0 left-1/2 h-1 w-16 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary/45 shadow-[0_0_12px_var(--primary)]"
+          className="absolute bottom-0 left-1/2 h-0.5 w-16 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary/40"
         />
       </div>
     </section>
@@ -82,7 +77,7 @@ export function StatsBar() {
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-primary/30 bg-primary/[0.08] text-primary shadow-[0_0_15px_-3px_color-mix(in_oklab,var(--primary)_25%,transparent)] transition-all duration-300 group-hover:scale-110 group-hover:border-primary/60 group-hover:bg-primary/[0.15]">
                 <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
               </span>
-              <p className="font-display tnum mt-5 text-4xl font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary">
+              <p className="font-display tnum mt-5 text-4xl sm:text-5xl font-black tracking-[-0.05em] text-foreground transition-colors group-hover:text-primary">
                 {"display" in stat ? stat.display : <CountUp value={stat.value} suffix={stat.suffix} />}
               </p>
               <p className="mt-3 text-[0.8125rem] leading-relaxed tracking-wide text-muted-foreground">

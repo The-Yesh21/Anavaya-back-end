@@ -244,7 +244,7 @@ export function HowPriorityIsGiven() {
 
         {/* Founding Invariant Banner */}
         <Reveal delay={100} className="mt-8">
-          <div className="glass-panel relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/[0.08] via-surface to-primary/[0.04] p-5 sm:p-6 shadow-[0_8px_30px_-10px_color-mix(in_oklab,var(--primary)_20%,transparent)]">
+          <div className="glass-card relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-5 sm:p-6 shadow-xs">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <span className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-primary/50 bg-primary/15 text-primary shadow-xs">
                 <Scale className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
@@ -688,7 +688,7 @@ export function HowPriorityIsGiven() {
 
             {/* Anavaya Way: Hybrid Architecture */}
             <Reveal delay={450}>
-              <div className="glass-panel relative flex h-full flex-col justify-between rounded-xl border-2 border-primary/50 bg-gradient-to-b from-primary/[0.08] to-surface p-6 shadow-md">
+              <div className="glass-card relative flex h-full flex-col justify-between rounded-xl border border-primary/40 bg-card p-6 shadow-xs">
                 <div>
                   <div className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
                     <ShieldCheck className="h-3.5 w-3.5" /> Anavaya Hybrid Pipeline

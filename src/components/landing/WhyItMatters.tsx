@@ -45,12 +45,12 @@ export function WhyItMatters() {
           <div className="flex items-center gap-2">
             <span className="eyebrow">Constitutional imperative</span>
           </div>
-          <blockquote className="font-display mt-8 text-3xl leading-[1.3] text-balance text-foreground sm:text-4xl">
+          <blockquote className="heading-section mt-8 text-balance text-foreground">
             "In India, over 4 crore cases are pending across courts. Officers manually triage thousands of
             documents daily.{" "}
-            <span className="font-serif italic font-normal text-gradient-gold">Anavaya changes that — instantly.</span>"
+            <span className="font-semibold text-glass">Anavaya changes that — instantly.</span>"
           </blockquote>
-          <p className="mt-6 max-w-lg text-[0.9375rem] leading-[1.7] text-muted-foreground">
+          <p className="body-1 mt-6 max-w-lg text-muted-foreground">
             Without reliable triage, urgent matters involving personal liberty can be lost in the sheer
             volume of commercial filings. Anavaya ensures high-stakes human matters rise to immediate
             attention.
@@ -62,9 +62,9 @@ export function WhyItMatters() {
             const Icon = b.icon;
             return (
               <Reveal key={b.title} delay={i * 160}>
-                <div className="glass-panel group rounded-2xl border border-border/80 border-l-4 border-l-primary p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_12px_32px_-10px_color-mix(in_oklab,var(--primary)_25%,transparent)]">
+                <div className="glass-card group rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xs">
                   <div className="flex items-center gap-3.5">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08] text-primary shadow-xs transition-transform duration-300 group-hover:scale-105">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-surface text-primary shadow-xs transition-transform duration-300 group-hover:scale-105">
                       <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
                     </span>
                     <h3 className="font-display text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
@@ -80,16 +80,12 @@ export function WhyItMatters() {
       </div>
 
       {/* Trust & human oversight band */}
-      <div className="relative mx-auto mt-20 max-w-6xl overflow-hidden rounded-2xl border border-border/80 bg-surface/80 p-8 shadow-sm backdrop-blur-xl sm:p-12">
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary/60 to-transparent"
-        />
+      <div className="relative mx-auto mt-20 max-w-6xl overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-xs sm:p-12">
         <Reveal>
           <div className="max-w-2xl">
             <p className="eyebrow">Trust &amp; human oversight</p>
-            <h3 className="font-display mt-5 text-3xl font-semibold text-foreground sm:text-4xl">
-              A tool for the bench — <span className="text-gradient-gold">accountable by construction.</span>
+            <h3 className="heading-section mt-5 text-foreground">
+              A tool for the bench — <span className="text-glass">accountable by construction.</span>
             </h3>
           </div>
         </Reveal>

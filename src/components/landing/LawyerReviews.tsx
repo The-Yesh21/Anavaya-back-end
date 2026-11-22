@@ -125,12 +125,6 @@ export function LawyerReviews() {
 
   return (
     <section id="reviews" className="snap-section-loose relative isolate px-6 py-28 md:px-10">
-      {/* Background ambient gold gradient glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[500px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[160px]"
-      />
-
       <div className="mx-auto max-w-6xl">
         {/* Section Header */}
         <div className="text-center">
@@ -142,16 +136,16 @@ export function LawyerReviews() {
           </Reveal>
 
           <Reveal delay={120}>
-            <h2 className="font-display mt-6 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+            <h2 className="heading-section mt-6 text-foreground">
               Possible Uses in Chambers.
-              <span className="mt-2 block font-serif italic font-normal text-gradient-gold">
+              <span className="mt-2 block text-glass">
                 Fictional Perspectives.
               </span>
             </h2>
           </Reveal>
 
           <Reveal delay={200}>
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            <p className="body-1 mx-auto mt-6 max-w-2xl text-muted-foreground">
               These fictional personas and quotes illustrate possible uses of Anavaya. They are not
               testimonials, verified practitioner audits, or evidence of performance. Names, credentials,
               timings, and outcomes in these scenarios are illustrative.
@@ -224,7 +218,7 @@ export function LawyerReviews() {
 
                   <div className="mt-4 flex items-center gap-3.5">
                     {/* Initials Avatar */}
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent font-display text-sm font-bold text-primary shadow-xs">
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-primary/40 bg-surface font-display text-sm font-bold text-primary shadow-xs">
                       {rev.avatarInitials}
                     </div>
 

@@ -115,7 +115,7 @@ export function HandwrittenText({
     <span
       ref={containerRef}
       className={cn(
-        "group/handwrite relative inline-block font-serif italic font-normal tracking-wide select-none",
+        "group/handwrite relative inline-block font-display font-black tracking-[-0.055em] select-none",
         className,
       )}
     >
@@ -177,25 +177,13 @@ export function HandwrittenText({
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <defs>
-                  <linearGradient id="nibBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#F6F2EA" />
-                    <stop offset="35%" stopColor="#91AAB9" />
-                    <stop offset="80%" stopColor="#546F83" />
-                    <stop offset="100%" stopColor="#243C50" />
-                  </linearGradient>
-                  <linearGradient id="nibAccGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#D7E2E8" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
                 {/* Pen barrel collar */}
-                <path d="M7 0 L21 0 L20 8 L8 8 Z" fill="#192E42" stroke="#546F83" strokeWidth="0.8" />
+                <path d="M7 0 L21 0 L20 8 L8 8 Z" fill="var(--primary)" stroke="var(--border)" strokeWidth="0.8" />
                 {/* Nib shoulder & body */}
                 <path
                   d="M8 8 C8 8, 5 15, 5 21 C5 26, 12 38, 14 41 C16 38, 23 26, 23 21 C23 15, 20 8, 20 8 Z"
-                  fill="url(#nibBodyGrad)"
-                  stroke="#283C50"
+                  fill="var(--accent)"
+                  stroke="var(--border)"
                   strokeWidth="0.75"
                 />
                 {/* Nib central spine highlight */}
@@ -229,17 +217,9 @@ export function HandwrittenText({
             className="pointer-events-none absolute -bottom-3.5 left-0 h-4 w-full overflow-visible"
             preserveAspectRatio="none"
           >
-            <defs>
-              <linearGradient id="flourishGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
-                <stop offset="20%" stopColor="var(--primary)" stopOpacity="0.95" />
-                <stop offset="75%" stopColor="var(--accent)" stopOpacity="1" />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.5" />
-              </linearGradient>
-            </defs>
             <path
               d="M 2 12 Q 75 22, 160 13 T 310 16 Q 318 17, 312 22"
-              stroke="url(#flourishGrad)"
+              stroke="var(--accent)"
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeDasharray="400"

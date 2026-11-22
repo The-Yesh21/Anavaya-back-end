@@ -38,11 +38,11 @@ export function Features() {
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <p className="eyebrow">Capabilities</p>
-              <h2 className="font-display mt-5 text-4xl font-semibold text-foreground sm:text-5xl">
-                Key <span className="text-gradient-gold">features</span>
+              <h2 className="heading-section mt-5 text-foreground">
+                Key <span className="text-glass">features</span>
               </h2>
             </div>
-            <p className="max-w-sm text-[0.9375rem] leading-[1.65] text-muted-foreground">
+            <p className="body-2 max-w-sm text-muted-foreground">
               Everything from intake to a judge-ready report, running entirely on hardware the court already owns.
             </p>
           </div>
@@ -53,13 +53,8 @@ export function Features() {
             const Icon = f.icon;
             return (
               <Reveal key={f.title} delay={i * 140}>
-                <div className="glass-panel group relative h-full overflow-hidden rounded-2xl border border-border/80 p-8 transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/50 hover:shadow-[0_16px_40px_-12px_color-mix(in_oklab,var(--primary)_25%,transparent)]">
-                  {/* Subtle hover gradient highlight on top border */}
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:via-primary/70 group-hover:opacity-100"
-                  />
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08] text-primary shadow-xs transition-all duration-300 group-hover:scale-110 group-hover:border-primary/50 group-hover:bg-primary/[0.16] group-hover:shadow-[0_0_18px_-3px_color-mix(in_oklab,var(--primary)_30%,transparent)]">
+                <div className="glass-card group relative h-full overflow-hidden rounded-2xl border border-border p-8 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-sm">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-surface text-primary shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50">
                     <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
                   </span>
                   <h3 className="font-display mt-6 text-xl font-semibold text-foreground transition-colors group-hover:text-primary">

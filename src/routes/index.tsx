@@ -4,8 +4,10 @@ import { CaseFlow } from "@/components/landing/CaseFlow";
 import { ProblemBand, StatsBar } from "@/components/landing/ProblemStats";
 import { TriageSandbox } from "@/components/landing/TriageSandbox";
 import { WhyItMatters } from "@/components/landing/WhyItMatters";
+import { TaglineReveal } from "@/components/landing/TaglineReveal";
 import { LawyerReviews } from "@/components/landing/LawyerReviews";
 import { Features, TechStack } from "@/components/landing/Features";
+import { TechWordmarkShowcase } from "@/components/landing/TechWordmarkShowcase";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
 import { PriorityRoadmap } from "@/components/landing/PriorityRoadmap";
 import { SystemArchitecture } from "@/components/landing/SystemArchitecture";
@@ -49,8 +51,10 @@ function Index() {
         <HowPriorityIsGiven />
         <ModelAccuracy />
         <WhyItMatters />
+        <TaglineReveal />
         <LawyerReviews />
         <Features />
+        <TechWordmarkShowcase />
         <TechStack />
         <ClosingCTA />
         <SiteFooter />

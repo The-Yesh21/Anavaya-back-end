@@ -52,8 +52,8 @@ export function SystemArchitecture() {
       <div className="mx-auto w-full max-w-4xl">
         <Reveal>
           <p className="eyebrow text-center">System Architecture</p>
-          <h2 className="font-display mx-auto mt-4 max-w-2xl text-center text-4xl font-semibold sm:text-5xl">
-            One <em className="emphasis">engine</em> at the centre, everything else built around it
+          <h2 className="heading-section mx-auto mt-4 max-w-2xl text-center text-foreground">
+            One <span className="font-semibold text-primary">engine</span> at the centre, everything else built around it
           </h2>
         </Reveal>
 
@@ -108,7 +108,7 @@ export function SystemArchitecture() {
             <Connector label="labelled features" />
 
             {/* Middle engine */}
-            <div className="relative rounded-2xl border-2 border-primary/55 bg-gradient-to-b from-primary/[0.12] via-surface to-primary/[0.05] px-4 pt-7 pb-5 text-center shadow-[0_0_50px_-14px_color-mix(in_oklab,var(--primary)_55%,transparent)] sm:px-6">
+            <div className="relative rounded-2xl border-2 border-primary/45 bg-card px-4 pt-7 pb-5 text-center shadow-xs sm:px-6">
               <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[0.6rem] font-bold tracking-[0.18em] whitespace-nowrap text-primary-foreground uppercase">
                 Middle engine
               </span>

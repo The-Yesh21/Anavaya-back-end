@@ -24,7 +24,7 @@ function Wordmark() {
       <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/[0.08] text-primary shadow-xs transition-all duration-300 group-hover:border-primary/60 group-hover:bg-primary/[0.15] group-hover:shadow-[0_0_15px_-3px_color-mix(in_oklab,var(--primary)_35%,transparent)] group-hover:scale-105">
         <Scale className="h-4.5 w-4.5" strokeWidth={2} aria-hidden="true" />
       </span>
-      <span className="font-display text-lg font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary">
+      <span className="font-display text-xl font-black tracking-[-0.05em] text-foreground transition-colors group-hover:text-primary">
         Anavaya
       </span>
     </a>
