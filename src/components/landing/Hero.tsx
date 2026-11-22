@@ -1,6 +1,7 @@
 import { Scale } from "lucide-react";
 import { Reveal } from "./Reveal";
 import { TechText } from "@/components/ui/TechText";
+import { SideRays } from "@/components/ui/SideRays";
 import { APP_URL } from "./constants";
 
 function HeroVisual() {
@@ -37,6 +38,28 @@ export function Hero() {
         aria-hidden="true"
         className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[560px] w-[860px] -translate-x-1/2 rounded-full bg-surface/40 blur-3xl"
       />
+
+      {/* Celestial judicial volumetric light beam */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-75 dark:opacity-60"
+      >
+        <SideRays
+          rayColor1="#C5A059"
+          rayColor2="#F5E4C3"
+          origin="top-right"
+          speed={1.8}
+          intensity={1.7}
+          spread={2.2}
+          density={5.5}
+          sharpness={0.48}
+          glow={1.2}
+          falloff={1.5}
+          dust={0.3}
+          followMouse={true}
+          mouseInfluence={0.4}
+        />
+      </div>
 
       <div className="mx-auto grid w-full max-w-6xl items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
