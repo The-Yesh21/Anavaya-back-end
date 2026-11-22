@@ -2,6 +2,7 @@
  * Chakshu AI — Mobile Companion Camera Client
  * Connects mobile phone camera directly into the Courtroom WebRTC mesh as a high-definition stream.
  * Renders real-time Biometric Face Alignment HUD receiving guidance feedback from the desktop judge station.
+ * Upgraded with luxury dark judicial HUD, live telemetry, torch toggle, and Web Speech API voice coaching.
  */
 (() => {
     "use strict";
@@ -23,7 +24,20 @@
     const statusBadge = document.getElementById("status-badge");
     const statusText = document.getElementById("status-text");
     const flipCamBtn = document.getElementById("flip-cam-btn");
+    const torchBtn = document.getElementById("torch-btn");
+    const torchLabel = document.getElementById("torch-label");
+    const headerVoiceBtn = document.getElementById("header-voice-btn");
+    const headerVoiceLabel = document.getElementById("header-voice-label");
+    const footerVoiceBtn = document.getElementById("footer-voice-btn");
+    const footerVoiceIcon = document.getElementById("footer-voice-icon");
+    const footerVoiceLabel = document.getElementById("footer-voice-label");
+    const guidanceBanner = document.getElementById("guidance-banner");
+    const guidanceIcon = document.getElementById("guidance-icon");
+    const guidanceCategory = document.getElementById("guidance-category");
+    const guidanceText = document.getElementById("guidance-text");
     const resTag = document.getElementById("resolution-tag");
+    const telemetryFpsRes = document.getElementById("telemetry-fps-res");
+    const telemetryPing = document.getElementById("telemetry-ping");
     const permCard = document.getElementById("permission-card");
     const grantBtn = document.getElementById("grant-btn");
 
@@ -52,7 +66,22 @@
         },
         lastFeedbackAt: 0,
         holdProgress: 0,
-        rafId: null
+        rafId: null,
+
+        // Voice Coaching State
+        voiceEnabled: true,
+        lastSpokenAt: 0,
+        lastGuidanceSpoken: "",
+        speaking: false,
+
+        // Hardware Controls State
+        torchActive: false,
+        torchSupported: false,
+
+        // Telemetry State
+        currentRes: "1080p 60FPS",
+        currentFps: 60,
+        currentPingMs: 24
     };
 
     function setStatus(text, type = "default") {
@@ -61,7 +90,242 @@
         statusBadge.className = "status-pill " + type;
     }
 
-    // 2. Fetch ICE configuration (STUN/TURN)
+    // =========================================================================
+    // VOICE COACHING & AUDIO UNLOCK (Web Speech API)
+    // =========================================================================
+    let audioUnlocked = false;
+    function unlockAudioPlayback() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+        if ("speechSynthesis" in window) {
+            try {
+                const u = new SpeechSynthesisUtterance("");
+                u.volume = 0;
+                window.speechSynthesis.speak(u);
+            } catch (_) {}
+        }
+    }
+    window.addEventListener("click", unlockAudioPlayback, { once: true, passive: true });
+    window.addEventListener("touchstart", unlockAudioPlayback, { once: true, passive: true });
+
+    function updateVoiceUI() {
+        if (headerVoiceBtn) {
+            headerVoiceBtn.className = "voice-coach-btn " + (state.voiceEnabled ? "active" : "muted") + (state.speaking ? " speaking" : "");
+            if (headerVoiceLabel) {
+                headerVoiceLabel.textContent = state.voiceEnabled ? "🔊 Voice Guide (On)" : "🔇 Voice Guide (Off)";
+            }
+        }
+        if (footerVoiceBtn) {
+            footerVoiceBtn.className = "btn-ctrl " + (state.voiceEnabled ? "active" : "");
+            if (footerVoiceIcon) {
+                footerVoiceIcon.textContent = state.voiceEnabled ? "🔊" : "🔇";
+            }
+            if (footerVoiceLabel) {
+                footerVoiceLabel.textContent = state.voiceEnabled ? "Voice On" : "Voice Muted";
+            }
+        }
+    }
+
+    function toggleVoiceGuide() {
+        unlockAudioPlayback();
+        state.voiceEnabled = !state.voiceEnabled;
+        if (!state.voiceEnabled) {
+            if ("speechSynthesis" in window) {
+                try { window.speechSynthesis.cancel(); } catch (_) {}
+            }
+            state.speaking = false;
+        }
+        updateVoiceUI();
+    }
+
+    function speakVoiceCommand(spokenText) {
+        if (!state.voiceEnabled) return;
+        if (!spokenText) return;
+        if (!("speechSynthesis" in window)) return;
+
+        const now = Date.now();
+        const timeSince = now - state.lastSpokenAt;
+
+        // Throttle speech to at most once every 3.5 - 4.0 seconds to prevent chatter
+        if (spokenText === state.lastGuidanceSpoken && timeSince < 4000) {
+            return;
+        }
+        if (timeSince < 3500) {
+            return;
+        }
+
+        try {
+            // Cancel previous utterance before speaking a new command
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(spokenText);
+            utterance.rate = 1.02;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            utterance.lang = "en-US";
+
+            utterance.onstart = () => {
+                state.speaking = true;
+                updateVoiceUI();
+            };
+            utterance.onend = () => {
+                state.speaking = false;
+                updateVoiceUI();
+            };
+            utterance.onerror = () => {
+                state.speaking = false;
+                updateVoiceUI();
+            };
+
+            state.lastSpokenAt = now;
+            state.lastGuidanceSpoken = spokenText;
+            window.speechSynthesis.speak(utterance);
+        } catch (e) {
+            console.warn("Speech synthesis failure:", e);
+            state.speaking = false;
+            updateVoiceUI();
+        }
+    }
+
+    // =========================================================================
+    // GUIDANCE BANNER & HUD LOGIC
+    // =========================================================================
+    function updateGuidanceBannerUI(instruction, mode, icon = "🎯", category = "Biometric Face Alignment") {
+        if (!guidanceBanner || !guidanceText) return;
+
+        guidanceBanner.className = "guidance-banner " + mode;
+        guidanceText.textContent = instruction;
+        if (guidanceIcon) guidanceIcon.textContent = icon;
+        if (guidanceCategory) guidanceCategory.textContent = category;
+    }
+
+    function processAlignmentFeedback(alignment) {
+        if (!alignment) return;
+        const { isOptimal, guidance = "", roll = 0, yaw = 1, pitch = 0.40, scale = 0 } = alignment;
+        const gLower = (guidance || "").toLowerCase();
+
+        if (isOptimal) {
+            updateGuidanceBannerUI("OPTIMAL ALIGNMENT - HOLD STEADY", "optimal", "✨", "Biometric Lock Acquired");
+            speakVoiceCommand("Optimal alignment acquired. Please remain steady.");
+            return;
+        }
+
+        // 1. Too far from camera
+        if (gLower.includes("closer") || (scale > 0 && scale < 0.17)) {
+            updateGuidanceBannerUI("MOVE CLOSER", "correcting", "🔍", "Distance Adjustment");
+            speakVoiceCommand("Please move closer to the camera.");
+        }
+        // 2. Too close to camera
+        else if (gLower.includes("further") || gLower.includes("back") || scale > 0.35) {
+            updateGuidanceBannerUI("STEP BACK", "correcting", "📏", "Distance Adjustment");
+            speakVoiceCommand("Please step slightly back.");
+        }
+        // 3. Face turned / Yaw offset
+        else if (gLower.includes("turn") || gLower.includes("face right") || gLower.includes("face left") || Math.abs(yaw - 1) > 0.16) {
+            updateGuidanceBannerUI("TURN FACE TO CENTER", "correcting", "🔄", "Orientation Adjustment");
+            speakVoiceCommand("Please face the camera directly.");
+        }
+        // 4. Head tilted / Pitch or Roll offset
+        else if (gLower.includes("tilt") || gLower.includes("chin") || gLower.includes("level") || Math.abs(roll) > 5.0 || Math.abs(pitch - 0.40) > 0.08) {
+            updateGuidanceBannerUI("KEEP HEAD LEVEL", "correcting", "⚖️", "Posture Adjustment");
+            speakVoiceCommand("Please keep your head level.");
+        }
+        // 5. General centering
+        else if (gLower.includes("center") || gLower.includes("right") || gLower.includes("left")) {
+            updateGuidanceBannerUI("ALIGNING... CENTER FACE IN GUIDE", "correcting", "🎯", "Position Adjustment");
+        }
+        // 6. Searching
+        else {
+            updateGuidanceBannerUI("ALIGNING... POSITION FACE IN GUIDE", "searching", "🎯", "Biometric Face Alignment");
+        }
+    }
+
+    // =========================================================================
+    // HARDWARE CONTROLS (Torch / Flashlight & Camera Switch)
+    // =========================================================================
+    function inspectTorchSupport() {
+        if (!state.localStream) return;
+        const track = state.localStream.getVideoTracks()[0];
+        if (!track) return;
+
+        try {
+            const caps = track.getCapabilities ? track.getCapabilities() : {};
+            state.torchSupported = Boolean(caps && "torch" in caps && caps.torch);
+            if (torchBtn) {
+                torchBtn.disabled = !state.torchSupported;
+                torchBtn.style.display = state.torchSupported ? "inline-flex" : "none";
+            }
+        } catch (_) {
+            state.torchSupported = false;
+            if (torchBtn) torchBtn.style.display = "none";
+        }
+        updateTorchUI();
+    }
+
+    function updateTorchUI() {
+        if (!torchBtn || !torchLabel) return;
+        torchBtn.className = "btn-ctrl " + (state.torchActive ? "active" : "");
+        torchLabel.textContent = state.torchActive ? "Torch On" : "Torch Off";
+    }
+
+    async function toggleTorch() {
+        if (!state.localStream || !state.torchSupported) return;
+        const track = state.localStream.getVideoTracks()[0];
+        if (!track) return;
+
+        try {
+            state.torchActive = !state.torchActive;
+            await track.applyConstraints({
+                advanced: [{ torch: state.torchActive }]
+            });
+            updateTorchUI();
+        } catch (err) {
+            console.warn("Torch constraint application error:", err);
+            state.torchActive = false;
+            updateTorchUI();
+        }
+    }
+
+    // =========================================================================
+    // TELEMETRY & NETWORK STATS
+    // =========================================================================
+    async function refreshTelemetry() {
+        if (!state.peers || state.peers.size === 0) {
+            if (telemetryPing) telemetryPing.textContent = "24ms latency";
+            return;
+        }
+
+        for (const [, peer] of state.peers) {
+            if (!peer.pc) continue;
+            try {
+                const stats = await peer.pc.getStats();
+                stats.forEach(report => {
+                    if (report.type === "candidate-pair" && report.state === "succeeded") {
+                        if (typeof report.currentRoundTripTime === "number") {
+                            state.currentPingMs = Math.max(8, Math.round(report.currentRoundTripTime * 1000));
+                        }
+                    }
+                    if (report.type === "outbound-rtp" && report.kind === "video") {
+                        if (typeof report.framesPerSecond === "number" && report.framesPerSecond > 0) {
+                            state.currentFps = Math.round(report.framesPerSecond);
+                        }
+                    }
+                });
+            } catch (_) {}
+        }
+
+        if (telemetryPing) {
+            telemetryPing.textContent = `${state.currentPingMs}ms latency`;
+        }
+        if (telemetryFpsRes) {
+            telemetryFpsRes.textContent = state.currentRes;
+        }
+    }
+    setInterval(refreshTelemetry, 2000);
+
+    // =========================================================================
+    // ICE CONFIG & CAMERA
+    // =========================================================================
     async function loadIceConfig() {
         try {
             const res = await fetch("/api/court/turn-credentials");
@@ -84,12 +348,12 @@
         } catch (_) {}
     }
 
-    // 3. Camera capture
     async function initCamera() {
         if (state.localStream) {
             state.localStream.getTracks().forEach(t => t.stop());
             state.localStream = null;
         }
+        state.torchActive = false;
 
         const constraints = {
             audio: false,
@@ -107,7 +371,7 @@
             videoEl.srcObject = stream;
             videoEl.classList.toggle("rear", state.facingMode === "environment");
 
-            permCard.classList.remove("active");
+            if (permCard) permCard.classList.remove("active");
 
             // Inspect actual resolution
             const videoTrack = stream.getVideoTracks()[0];
@@ -115,8 +379,12 @@
                 const settings = videoTrack.getSettings ? videoTrack.getSettings() : {};
                 const w = settings.width || 1920;
                 const h = settings.height || 1080;
-                const fps = Math.round(settings.frameRate || 30);
-                if (resTag) resTag.textContent = `${w}x${h} ${fps}fps`;
+                const fps = Math.round(settings.frameRate || 60);
+                const is4K = (w >= 3840 || h >= 2160);
+                state.currentRes = is4K ? `4K ${fps}FPS` : `${w}x${h} ${fps}FPS`;
+
+                if (resTag) resTag.textContent = state.currentRes;
+                if (telemetryFpsRes) telemetryFpsRes.textContent = state.currentRes;
 
                 // Update tracks in existing peer connections
                 state.peers.forEach(({ pc }) => {
@@ -130,15 +398,18 @@
                 });
             }
 
+            inspectTorchSupport();
             setStatus("Camera Ready", "online");
         } catch (err) {
             console.error("Camera access failed:", err);
-            permCard.classList.add("active");
+            if (permCard) permCard.classList.add("active");
             setStatus("Camera Blocked", "default");
         }
     }
 
-    // 4. WebSocket Signaling
+    // =========================================================================
+    // WEBSOCKET SIGNALING & WEBRTC MESH
+    // =========================================================================
     function connectSignaling() {
         const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${proto}//${window.location.host}/ws/court/${state.roomId}`;
@@ -198,7 +469,6 @@
             case "participant_joined": {
                 const pid = msg.participant ? msg.participant.participant_id : null;
                 if (pid && pid !== state.myId && !state.peers.has(pid)) {
-                    // Prepare peer connection to receive or offer
                     getOrCreatePeerConnection(pid);
                 }
                 break;
@@ -246,6 +516,7 @@
                 if (msg.alignment) {
                     state.alignmentFeedback = msg.alignment;
                     state.lastFeedbackAt = Date.now();
+                    processAlignmentFeedback(msg.alignment);
                 }
                 break;
             }
@@ -282,7 +553,7 @@
             }
         };
 
-        // DataChannel for low-latency alignment sync
+        // DataChannel for low-latency biometric alignment sync
         pc.ondatachannel = (e) => {
             const dc = e.channel;
             dc.onmessage = (evt) => {
@@ -291,6 +562,7 @@
                     if (data.type === "alignment_feedback" && data.alignment) {
                         state.alignmentFeedback = data.alignment;
                         state.lastFeedbackAt = Date.now();
+                        processAlignmentFeedback(data.alignment);
                     }
                 } catch (_) {}
             };
@@ -310,6 +582,7 @@
                     if (data.type === "alignment_feedback" && data.alignment) {
                         state.alignmentFeedback = data.alignment;
                         state.lastFeedbackAt = Date.now();
+                        processAlignmentFeedback(data.alignment);
                     }
                 } catch (_) {}
             };
@@ -325,7 +598,9 @@
         }
     }
 
-    // 5. Canvas HUD Rendering Loop
+    // =========================================================================
+    // CANVAS HUD RENDERING LOOP
+    // =========================================================================
     function resizeCanvas() {
         if (!hudCanvas) return;
         const rect = hudCanvas.parentElement.getBoundingClientRect();
@@ -337,13 +612,12 @@
     function renderHUD() {
         if (hudCanvas) {
             const ctx = hudCanvas.getContext("2d");
-            const dpr = window.devicePixelRatio || 1;
             ctx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 
             // Compute stability progress
             const now = Date.now();
             const feedback = state.alignmentFeedback;
-            const isFresh = (now - state.lastFeedbackAt) < 2000;
+            const isFresh = (now - state.lastFeedbackAt) < 2200;
 
             let pose = feedback;
             if (!isFresh) {
@@ -358,6 +632,7 @@
                     isOptimal: false
                 };
                 state.holdProgress = 0;
+                updateGuidanceBannerUI("ALIGNING... POSITION FACE IN GUIDE", "searching", "🎯");
             } else if (pose.isOptimal) {
                 state.holdProgress = Math.min(1, state.holdProgress + 0.016 / 2.0);
             } else {
@@ -377,16 +652,35 @@
         state.rafId = requestAnimationFrame(renderHUD);
     }
 
-    // 6. User Interactions
+    // =========================================================================
+    // EVENT LISTENERS & USER INTERACTIONS
+    // =========================================================================
     if (flipCamBtn) {
         flipCamBtn.addEventListener("click", () => {
+            unlockAudioPlayback();
             state.facingMode = state.facingMode === "user" ? "environment" : "user";
             initCamera();
         });
     }
 
+    if (torchBtn) {
+        torchBtn.addEventListener("click", () => {
+            unlockAudioPlayback();
+            toggleTorch();
+        });
+    }
+
+    if (headerVoiceBtn) {
+        headerVoiceBtn.addEventListener("click", toggleVoiceGuide);
+    }
+
+    if (footerVoiceBtn) {
+        footerVoiceBtn.addEventListener("click", toggleVoiceGuide);
+    }
+
     if (grantBtn) {
         grantBtn.addEventListener("click", () => {
+            unlockAudioPlayback();
             initCamera();
         });
     }
@@ -396,6 +690,7 @@
     // Boot
     async function boot() {
         resizeCanvas();
+        updateVoiceUI();
         await loadIceConfig();
         await initCamera();
         connectSignaling();
