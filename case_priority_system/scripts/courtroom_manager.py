@@ -138,9 +138,8 @@ class FaceSummary:
     """Whole-session face/expression result for one analyzed feed.
 
     Recorded once when the observer stops the analyzer (or the session
-    ends). counters/peak/active_durations carry the *aggregate* evidence for
-    the whole run — a brief spike never defines the person; the court record
-    keeps the balanced, session-long view.
+    ends). Version 2 stores observable facial actions, not mental states.
+    Legacy index fields remain only for loading historical room records.
     """
 
     subject: str                  # participant name of the analyzed feed
@@ -150,15 +149,19 @@ class FaceSummary:
     started_at: str = ""
     ended_at: str = ""
     duration_sec: int = 0
-    time_speaking_sec: int = 0    # portion where the subject was actually talking
-    calm_sec: int = 0             # session time with no active cue
-    peak_index: int = 0           # peak nervousness index (0-100)
+    time_speaking_sec: float = 0  # audio/mouth activity; not verified speech
+    calm_sec: int = 0             # legacy heuristic field, not measured calmness
+    peak_index: int = 0           # legacy heuristic field, not measured nervousness
     mean_index: int = 0           # session-average index (only while a face was visible)
     end_index: int = 0            # last index before stop
     peak_during_speech: bool = False  # whether the peak coincided with speech
     counters: dict = field(default_factory=dict)   # cue name -> seconds active
     active_durations: dict = field(default_factory=dict)  # kept for the PDF renderer
     cue_events: int = 0           # number of distinct cue episodes
+    measurements_version: int = 1  # 1 = legacy heuristic, 2 = observable facial actions
+    visible_sec: float = 0
+    cue_observed_sec: float = 0
+    blink_count: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -763,7 +766,7 @@ class CourtroomManager:
                 started_at=str(summary.get("started_at", "")),
                 ended_at=str(summary.get("ended_at", "")),
                 duration_sec=int(summary.get("duration_sec", 0) or 0),
-                time_speaking_sec=int(summary.get("time_speaking_sec", 0) or 0),
+                time_speaking_sec=float(summary.get("time_speaking_sec", 0) or 0),
                 calm_sec=int(summary.get("calm_sec", 0) or 0),
                 peak_index=int(summary.get("peak_index", 0) or 0),
                 mean_index=int(summary.get("mean_index", 0) or 0),
@@ -772,6 +775,10 @@ class CourtroomManager:
                 counters=dict(summary.get("counters", {}) or {}),
                 active_durations=dict(summary.get("active_durations", {}) or {}),
                 cue_events=int(summary.get("cue_events", 0) or 0),
+                measurements_version=int(summary.get("measurements_version", 1)),
+                visible_sec=float(summary.get("visible_sec", 0) or 0),
+                cue_observed_sec=float(summary.get("cue_observed_sec", 0) or 0),
+                blink_count=int(summary.get("blink_count", 0) or 0),
             )
         except (TypeError, ValueError):
             return None
@@ -965,17 +972,11 @@ def room_to_markdown(room: Room) -> str:
         for f in room.face_summaries:
             lines.append(f"### {f.subject} ({f.subject_role})")
             lines.append("")
-            lines.append(
-                f"- Observed for {f.duration_sec}s ({f.time_speaking_sec}s speaking) — "
-                f"peak index {f.peak_index}%, session average {f.mean_index}%."
-            )
-            lines.append(
-                f"- Calm {f.calm_sec}s of {f.duration_sec}s; "
-                f"{f.cue_events} cue episode(s)."
-            )
-            if f.counters:
+            from case_priority_system.scripts.face_observation_report import observation_description
+            lines.append("- " + observation_description(f.to_dict()))
+            if f.measurements_version == 2 and f.counters:
                 totals = ", ".join(
-                    f"{name.replace('_', ' ')} {int(sec)}s"
+                    f"{name.replace('_', ' ')} {float(sec):g}s"
                     for name, sec in sorted(f.counters.items(), key=lambda kv: -kv[1])
                 )
                 lines.append(f"- Cues: {totals}.")

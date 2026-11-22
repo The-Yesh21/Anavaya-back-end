@@ -510,23 +510,17 @@ def session_report_markdown(report: dict, room_title: str = "",
             lines.append("")
 
     if face_summaries:
-        lines.append("## IV. Biometric Demeanour & Physiological Stress Aggregate")
+        lines.append("## IV. Facial Action Observations (Not Mental-State Assessments)")
         lines.append("")
         for f in face_summaries:
             lines.append(f"### {f.get('subject', 'Unknown')} ({f.get('subject_role', '')})")
             lines.append("")
-            lines.append(
-                f"- **Observation Period:** {f.get('duration_sec', 0)}s ({f.get('time_speaking_sec', 0)}s active vocalization); "
-                f"baseline calm {f.get('calm_sec', 0)}s; peak arousal {f.get('peak_index', 0)}%; "
-                f"session mean {f.get('mean_index', 0)}%."
-            )
-            if f.get("dominant_emotion"):
-                score_str = f" ({f.get('dominant_emotion_score', 0)}% confidence)" if f.get("dominant_emotion_score") else ""
-                lines.append(f"- **Dominant Demeanour & Emotion:** {f.get('dominant_emotion')}{score_str}.")
-            counters = f.get("counters") or {}
+            from case_priority_system.scripts.face_observation_report import observation_description
+            lines.append("- " + observation_description(f))
+            counters = (f.get("counters") or {}) if f.get("measurements_version") == 2 else {}
             if counters:
                 totals = ", ".join(
-                    f"{name.replace('_', ' ').title()} ({int(sec)}s)"
+                    f"{name.replace('_', ' ').title()} ({float(sec):g}s)"
                     for name, sec in sorted(counters.items(), key=lambda kv: -kv[1])
                 )
                 lines.append(f"- **Micro-Cues Recorded:** {totals}.")
@@ -633,17 +627,19 @@ def session_report_pdf_path(report: dict, room_title: str = "",
     else:
         speakers_html = '<div class="empty-notice">No witness or participant testimony was evaluated in this session.</div>'
 
-    # ---- face / demeanour section ----
+    from case_priority_system.scripts.face_observation_report import observation_description
+
+    # ---- facial observations ----
     face_html = ""
     for f in (face_summaries or []):
-        counters = f.get("counters") or {}
+        counters = (f.get("counters") or {}) if f.get("measurements_version") == 2 else {}
         totals = ", ".join(
-            f"{name.replace('_', ' ').title()} ({int(sec)}s)"
+            f"{name.replace('_', ' ').title()} ({float(sec):g}s)"
             for name, sec in sorted(counters.items(), key=lambda kv: -kv[1])
         )
         cues_row = (
-            f'<div class="face-cues-row"><strong>Micro-Behavioural &amp; Cognitive Cues:</strong> {esc(totals)}</div>'
-            if totals else '<div class="face-cues-row"><strong>Micro-Cues:</strong> Calm baseline maintained; no abnormal cues recorded.</div>'
+            f'<div class="face-cues-row"><strong>Visible facial actions:</strong> {esc(totals)}</div>'
+            if totals else '<div class="face-cues-row">No validated action totals available; this does not establish calmness.</div>'
         )
         face_html += (
             f'<div class="face-card">'
@@ -652,18 +648,13 @@ def session_report_pdf_path(report: dict, room_title: str = "",
             f'<span class="subject-role-pill">{esc(f.get("subject_role", "Participant"))}</span>'
             f'</div>'
             f'<div class="face-metrics-row">'
-            f'<span>Observation: <strong>{f.get("duration_sec", 0)}s</strong></span>'
-            f'<span>Active Speech: <strong>{f.get("time_speaking_sec", 0)}s</strong></span>'
-            f'<span>Calm Baseline: <strong>{f.get("calm_sec", 0)}s</strong></span>'
-            f'<span>Peak Stress Index: <strong>{f.get("peak_index", 0)}%</strong></span>'
-            f'<span>Mean Index: <strong>{f.get("mean_index", 0)}%</strong></span>'
-            f'<span>Dominant Emotion: <strong>{esc(f.get("dominant_emotion", "Neutral"))}</strong></span>'
+            f'<span>{esc(observation_description(f))}</span>'
             f'</div>'
             f'{cues_row}'
             f'</div>'
         )
     face_section = (
-        f'<div class="section"><div class="section-title">IV. Biometric Demeanour &amp; Cognitive Stress Record</div>'
+        f'<div class="section"><div class="section-title">IV. Facial Action Observations</div>'
         f"{face_html}</div>" if face_html else ""
     )
 

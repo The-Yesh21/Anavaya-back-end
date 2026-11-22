@@ -2502,8 +2502,9 @@ def post_face_summary(room_id: str, payload: dict, x_court_token: str = Header("
     """Record the whole-session face/expression aggregate for one analyzed feed.
 
     The client sends this when the observer stops the analyzer (or on session
-    end): subject, duration, speaking/calm time, peak + mean index and the
-    per-cue totals. It replaces any earlier summary for the same source and is
+    end): subject, duration, usable tracking, audio/mouth activity, completed
+    blinks and per-action totals. Legacy indices are not mental-state measures.
+    It replaces any earlier summary for the same source and is
     included in the transcript exports and the session analysis report.
     """
     if courtroom_manager is None:
@@ -2511,8 +2512,7 @@ def post_face_summary(room_id: str, payload: dict, x_court_token: str = Header("
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Expected a JSON object body.")
     # Face & Expression analysis is Judge-only — the client hides the panel,
-    # but the server must enforce it too (no auth layer, so the participant id
-    # is the identity).
+    # but the server must enforce the authenticated participant's role too.
     participant = _court_participant(room_id, x_court_token, judge_only=True)
     payload = {**payload, "participant_id": participant.participant_id}
     fs = courtroom_manager.record_face_summary(room_id, payload)
