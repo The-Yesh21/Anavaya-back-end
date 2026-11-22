@@ -1,6 +1,6 @@
 import { Scale } from "lucide-react";
 import { Reveal } from "./Reveal";
-import { HandwrittenText } from "./HandwrittenText";
+import { TechText } from "@/components/ui/TechText";
 import { APP_URL } from "./constants";
 
 function HeroVisual() {
@@ -32,20 +32,16 @@ export function Hero() {
       id="top"
       className="snap-section relative isolate items-center overflow-hidden px-6 pt-32 pb-24 md:px-10"
     >
-      {/* Layered glowing gold ambient backgrounds */}
+      {/* Subtle flat ambient background */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[560px] w-[860px] -translate-x-1/2 rounded-full bg-primary/12 blur-[150px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/3 -right-20 -z-10 h-[400px] w-[400px] rounded-full bg-accent/8 blur-[120px]"
+        className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[560px] w-[860px] -translate-x-1/2 rounded-full bg-surface/40 blur-3xl"
       />
 
       <div className="mx-auto grid w-full max-w-6xl items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
           <Reveal delay={0}>
-            <span className="inline-flex items-center gap-2.5 rounded-full border border-primary/35 bg-primary/[0.08] px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase text-primary shadow-[0_0_20px_-3px_color-mix(in_oklab,var(--primary)_30%,transparent)] backdrop-blur-md transition-all hover:border-primary/60 hover:bg-primary/[0.12]">
+            <span className="inline-flex items-center gap-2.5 rounded-full border border-primary/35 bg-primary/[0.08] px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase text-primary shadow-xs backdrop-blur-md transition-all hover:border-primary/60 hover:bg-primary/[0.12]">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -56,24 +52,42 @@ export function Hero() {
           </Reveal>
 
           <Reveal delay={120}>
-            <h1 className="font-display mt-8 text-5xl leading-[1.05] font-semibold tracking-tight text-balance text-foreground sm:text-6xl lg:text-7xl">
+            <h1 className="heading-hero text-foreground">
               Every Case Matters.
-              <span className="mt-2.5 block text-gradient-gold drop-shadow-xs">
-                <HandwrittenText text="Anavaya sorts it." delay={300} />
+              <span className="mt-2 block w-full max-w-xl h-16 sm:h-20 md:h-24 text-foreground dark:text-[#F4E8D1]">
+                <TechText
+                  text="Anavaya sorts it."
+                  fontFamily='"Inter Tight", ui-sans-serif, system-ui, sans-serif'
+                  fontWeight={900}
+                  fontSize={82}
+                  letterSpacing={-0.05}
+                  align="left"
+                  color="currentColor"
+                  accentColor="#C5A059"
+                  reveal="letter"
+                  dashLength={4}
+                  dashGap={2}
+                  specks={12}
+                  intro="type"
+                  introDuration={1.6}
+                  clickKick={true}
+                  draggable={true}
+                  guides={false}
+                />
               </span>
             </h1>
           </Reveal>
 
           <Reveal delay={240}>
-            <p className="mt-7 max-w-xl text-[1.125rem] leading-[1.75] text-muted-foreground">
+            <p className="body-1 mt-7 max-w-xl text-muted-foreground">
               Behind every case file is a{" "}
-              <span className="font-serif italic font-medium text-foreground">human life on hold</span>.
+              <span className="font-semibold text-foreground">human life on hold</span>.
               When millions wait in the shadows of judicial delay, Anavaya ensures that urgent cries for{" "}
-              <span className="font-serif italic font-medium text-foreground">liberty, protection, and fundamental rights</span>{" "}
+              <span className="font-semibold text-foreground">liberty, protection, and fundamental rights</span>{" "}
               are never buried in paper —{" "}
-              <em className="font-serif italic font-normal text-primary underline decoration-primary/40 underline-offset-4">
+              <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">
                 triaging cases in seconds with the living conscience of the Constitution of India.
-              </em>
+              </span>
             </p>
           </Reveal>
 
@@ -98,7 +112,7 @@ export function Hero() {
             <div className="mt-10 flex flex-wrap gap-4">
               <a
                 href={APP_URL}
-                className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition-all duration-300 hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_-12px_color-mix(in_oklab,var(--primary)_60%,transparent)] active:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-xs transition-all duration-300 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <span>Try Anavaya Now</span>
                 <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
