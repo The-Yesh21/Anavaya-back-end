@@ -204,15 +204,30 @@ def build_corroboration_map(case) -> dict:
 
     docs = [d for d in case.documents if d.analysis]
     facts: dict[str, dict] = {}
+
+    def _fmt_date(d):
+        if isinstance(d, (tuple, list)) and len(d) == 3:
+            try:
+                return f"{int(d[0]):04d}-{int(d[1]):02d}-{int(d[2]):02d}"
+            except (ValueError, TypeError):
+                return str(d)
+        return str(d)
+
     for doc in docs:
         text = (doc.analysis or {}).get("text_excerpt", "") or ""
         parties = doc.analysis.get("main_parties") or []
         if isinstance(parties, str):
             parties = [p.strip() for p in re.split(r"[;,]| and ", parties) if p.strip()]
+
+        date_strings = set()
+        for norm, _ in extract_dates(text):
+            if norm:
+                date_strings.add(_fmt_date(norm))
+
         facts[doc.doc_id] = {
             "filename": doc.filename,
             "doc_type": doc.doc_type,
-            "dates": {norm for norm, _ in extract_dates(text)},
+            "dates": date_strings,
             "locs": {loc.lower() for loc in _extract_locations(text)},
             "parties": {str(p).strip().lower() for p in parties if str(p).strip()},
         }
@@ -225,7 +240,7 @@ def build_corroboration_map(case) -> dict:
             if not fa or not fb:
                 continue
             shared: list[str] = []
-            shared_dates = sorted(fa["dates"] & fb["dates"])
+            shared_dates = sorted(str(d) for d in (fa["dates"] & fb["dates"]))
             shared_locs = sorted(fa["locs"] & fb["locs"])
             shared_parties = sorted(fa["parties"] & fb["parties"])
             if shared_dates:
@@ -261,15 +276,23 @@ def build_corroboration_map(case) -> dict:
 
 def corroboration_to_text(corroboration: dict) -> str:
     """Human-readable lines for the report / dossier from the map."""
+    def _format_date_val(d) -> str:
+        if isinstance(d, (tuple, list)) and len(d) == 3:
+            try:
+                return f"{int(d[0]):04d}-{int(d[1]):02d}-{int(d[2]):02d}"
+            except (ValueError, TypeError):
+                return str(d)
+        return str(d)
+
     lines: list[str] = []
     for pair in corroboration.get("pairs", []):
         detail = []
         if pair.get("shared_dates"):
-            detail.append("date(s) " + ", ".join(pair["shared_dates"]))
+            detail.append("date(s) " + ", ".join(_format_date_val(d) for d in pair["shared_dates"]))
         if pair.get("shared_places"):
-            detail.append("place(s) " + ", ".join(pair["shared_places"]))
+            detail.append("place(s) " + ", ".join(str(p) for p in pair["shared_places"]))
         if pair.get("shared_parties"):
-            detail.append("party/parties " + ", ".join(pair["shared_parties"]))
+            detail.append("party/parties " + ", ".join(str(p) for p in pair["shared_parties"]))
         lines.append(
             f"- **{pair['a']}** and **{pair['b']}** corroborate each other: "
             f"shared {'; '.join(detail)}."

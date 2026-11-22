@@ -1183,11 +1183,11 @@ def call_ollama_api(text, model=None):
         "stream": False,
         "think": False,
         "keep_alive": "60m",
-        "options": {"temperature": 0, "num_predict": 768, "num_ctx": 4096, "seed": 42},
+        "options": {"temperature": 0, "num_predict": 384, "num_ctx": 4096, "seed": 42},
     }
 
     try:
-        response = requests.post(f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload, timeout=300)
+        response = requests.post(f"{OLLAMA_URL.rstrip('/')}/api/chat", json=payload, timeout=45)
         response.raise_for_status()
         data = response.json()
         content = (data.get("message") or {}).get("content", "").strip()

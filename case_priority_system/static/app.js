@@ -696,6 +696,20 @@ document.addEventListener("DOMContentLoaded", () => {
             advance(2, 850);
         },
 
+        updateStep(stepIndex, customTitle, customDesc) {
+            const stepNum = Math.min(5, Math.max(1, (stepIndex % 5) + 1));
+            this.currentStep = stepNum;
+            this.renderStep(stepNum, customTitle, customDesc);
+            const titleEl = document.getElementById("overlay-status-title");
+            const descEl = document.getElementById("overlay-status-desc");
+            const microEl = document.getElementById("pipeline-micro-text");
+            if (titleEl && customTitle) titleEl.textContent = customTitle;
+            if (descEl && customDesc) descEl.textContent = customDesc;
+            if (microEl && (customTitle || customDesc)) {
+                microEl.textContent = `[${stepIndex + 1}] ${customTitle || ""} — ${customDesc || ""}`.trim();
+            }
+        },
+
         renderStep(stepNum, customTitle, customDesc) {
             this.currentStep = stepNum;
             const stage = this.stages[stepNum - 1] || this.stages[0];

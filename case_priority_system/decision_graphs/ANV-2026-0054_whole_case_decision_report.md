@@ -92,12 +92,12 @@
 <div class="decision-hero">
   <div class="priority-badge">High Priority</div>
   <h2>ANV-2026-0054_whole_case</h2>
-  <p>This case file brings together 1 document (FIR) and is assessed as a single matter of Criminal/Violent with major injury indicated. The evidence on record consists of “E01.pdf” (FIR; Criminal/Violent; Major severity; assessed High priority). “E01.pdf” currently stands alone — no other document shares a date, place or party with it, so further supporting evidence would strengthen the case.</p>
+  <p>This case file brings together 7 documents (FIR, 6 × Other) and is assessed as a single matter of Criminal/Violent with major injury indicated, involving vulnerable parties. The evidence on record consists of “E01.pdf” (FIR; Criminal/Violent; Major severity; assessed High priority); “E01.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E02.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E03.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E04.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E05.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E06.pdf” (Other; Criminal/Violent; Major severity; assessed High priority). Cross-comparison finds 13 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “E01.pdf” and “E01.pdf” share dates and parties. “E06.pdf” currently stands alone — no other document shares a date, place or party with it, so further supporting evidence would strengthen the case.</p>
   <div class="metric-grid">
     <div class="metric"><span>Legal Category</span><strong>Criminal/Violent</strong></div>
     <div class="metric"><span>Model Category</span><strong>Violent</strong></div>
     <div class="metric"><span>Severity</span><strong>Major</strong></div>
-    <div class="metric"><span>Vulnerability</span><strong>Low</strong></div>
+    <div class="metric"><span>Vulnerability</span><strong>High</strong></div>
     <div class="metric"><span>Influence</span><strong>Low</strong></div>
   </div>
 </div>

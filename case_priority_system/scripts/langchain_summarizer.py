@@ -275,8 +275,8 @@ def extract_with_ollama(
     model_name: Optional[str] = None,
     ollama_url: Optional[str] = None,
     temperature: float = 0.0,
-    max_tokens: int = 768,
-    timeout: int = 300,
+    max_tokens: int = 384,
+    timeout: int = 45,
     seed: int = 42,
 ) -> Optional[dict]:
     """

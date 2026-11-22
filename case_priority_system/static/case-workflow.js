@@ -1260,7 +1260,21 @@ async function openCaseWorkspace(caseId) {
         btn.disabled = true;
         const status = $("workspace-upload-status");
         try {
-            for (const pd of wsPending) {
+            if (window.AnavayaPipelineLoader) {
+                window.AnavayaPipelineLoader.show(
+                    "Uploading & Ingesting Evidence...",
+                    "Uploading " + wsPending.length + " evidence file(s) to case " + currentWorkspaceCaseId
+                );
+            }
+            for (let i = 0; i < wsPending.length; i++) {
+                const pd = wsPending[i];
+                if (window.AnavayaPipelineLoader && typeof window.AnavayaPipelineLoader.updateStep === "function") {
+                    window.AnavayaPipelineLoader.updateStep(
+                        i,
+                        "Ingesting Evidence (" + (i + 1) + "/" + wsPending.length + ")",
+                        "Parsing " + pd.file.name + " (" + pd.type + ")"
+                    );
+                }
                 status.innerHTML = `<div class="loader">Uploading ${esc(pd.file.name)}…</div>`;
                 const fd = new FormData();
                 fd.append("file", pd.file);
@@ -1273,15 +1287,40 @@ async function openCaseWorkspace(caseId) {
                     throw new Error(err.detail || `Upload of ${pd.file.name} failed`);
                 }
             }
+            if (window.AnavayaPipelineLoader) {
+                await window.AnavayaPipelineLoader.complete();
+            }
             wsPending = [];
             renderWsPending();
             status.innerHTML = "";
-            // Refresh the workspace + registry so the new evidence shows up.
+
+            // Automatically trigger whole-case re-analysis so the case-level priority updates immediately!
+            try {
+                if (window.AnavayaPipelineLoader) {
+                    window.AnavayaPipelineLoader.show(
+                        "Updating Case Priority...",
+                        "Synthesizing whole-case priority and corroborating evidence across all documents."
+                    );
+                }
+                const anRes = await fetch(`/api/cases/${encodeURIComponent(currentWorkspaceCaseId)}/analyze`, { method: "POST" });
+                if (anRes.ok && window.AnavayaPipelineLoader) {
+                    await window.AnavayaPipelineLoader.complete();
+                }
+            } catch (anErr) {
+                console.warn("Auto whole-case analysis failed:", anErr);
+            } finally {
+                if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
+            }
+
+            // Refresh the workspace + registry so the new evidence and updated priority show up.
             await openCaseWorkspace(currentWorkspaceCaseId);
+            try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
             fetchRegistry();
         } catch (err) {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
             status.innerHTML = `<div class="loader" style="color:#B3402E">${esc(err.message)}</div>`;
         } finally {
+            if (window.AnavayaPipelineLoader) window.AnavayaPipelineLoader.hide();
             // Re-enable only when files are still queued (empty batch = done).
             btn.disabled = wsPending.length > 0;
             btn.innerHTML = '<i data-lucide="upload"></i> Upload Evidence';

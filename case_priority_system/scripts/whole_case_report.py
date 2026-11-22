@@ -123,16 +123,24 @@ def build_whole_case_report_html(case_id, title, features, priority, analysis,
     if not merge_rows:
         merge_rows = "<tr><td colspan='4'>Merge provenance unavailable.</td></tr>"
 
+    def _str_date(d) -> str:
+        if isinstance(d, (tuple, list)) and len(d) == 3:
+            try:
+                return f"{int(d[0]):04d}-{int(d[1]):02d}-{int(d[2]):02d}"
+            except (ValueError, TypeError):
+                return str(d)
+        return str(d)
+
     # ---- corroboration map ---------------------------------------------
     corr_lines: list[str] = []
     for pair in corroboration.get("pairs", []):
         corr_lines.append(
             f"<li><strong>{esc(pair.get('a', ''))}</strong> ↔ "
             f"<strong>{esc(pair.get('b', ''))}</strong> — shared "
-            f"{esc(', '.join(pair.get('shared', [])))}."
-            + (f" Dates: {esc(', '.join(pair.get('shared_dates', [])))}." if pair.get("shared_dates") else "")
-            + (f" Places: {esc(', '.join(pair.get('shared_places', [])))}." if pair.get("shared_places") else "")
-            + (f" Parties: {esc(', '.join(pair.get('shared_parties', [])))}." if pair.get("shared_parties") else "")
+            f"{esc(', '.join(str(s) for s in pair.get('shared', [])))}."
+            + (f" Dates: {esc(', '.join(_str_date(d) for d in pair.get('shared_dates', [])))}." if pair.get("shared_dates") else "")
+            + (f" Places: {esc(', '.join(str(p) for p in pair.get('shared_places', [])))}." if pair.get("shared_places") else "")
+            + (f" Parties: {esc(', '.join(str(p) for p in pair.get('shared_parties', [])))}." if pair.get("shared_parties") else "")
             + "</li>"
         )
     for s in corroboration.get("standalone", []):
