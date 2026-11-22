@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Scale, CheckCircle2, Star, Quote, Award, ShieldCheck, Building2, UserCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Scale, CheckCircle2, Star, Quote, Award, ShieldCheck, Building2, UserCheck, X, ExternalLink } from "lucide-react";
 import { Reveal } from "./Reveal";
+import FolderFloat from "@/components/ui/FolderFloat";
 
 interface LawyerReview {
   id: string;
@@ -117,8 +118,50 @@ const categoryTabs = [
   { id: "commercial", label: "Commercial & Civil" },
 ] as const;
 
+const dossierItems = [
+  { label: "Adv. Rajeshwari Sen • Art. 21 Triage", value: "review-1" },
+  { label: "Hon. K. R. Suryanarayana • Decision Tree", value: "review-2" },
+  { label: "Adv. Vikramaditya Mehta • 6-Doc Corroboration", value: "review-3" },
+  { label: "Adv. Fatima Noor Jehan • Minor Protection", value: "review-4" },
+  { label: "Adv. Anand Deshmukh • Local GPU Privacy", value: "review-5" },
+  { label: "Adv. Gayatri Raman • Art. 39A Legal Aid", value: "review-6" },
+];
+
 export function LawyerReviews() {
   const [activeCategory, setActiveCategory] = useState<"all" | "constitutional" | "criminal" | "commercial">("all");
+  const [selectedReview, setSelectedReview] = useState<LawyerReview | null>(null);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDark(
+        document.documentElement.classList.contains("dark") ||
+        document.documentElement.dataset["theme"] === "dark"
+      );
+    };
+    updateTheme();
+    const obs = new MutationObserver(updateTheme);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+    window.addEventListener("anavaya:themechange", updateTheme);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("anavaya:themechange", updateTheme);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedReview(null);
+    };
+    if (selectedReview) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [selectedReview]);
 
   const filteredReviews =
     activeCategory === "all" ? reviews : reviews.filter((r) => r.category === activeCategory);
@@ -153,9 +196,47 @@ export function LawyerReviews() {
           </Reveal>
         </div>
 
+        {/* Matter.js Zero-Gravity Chamber Dossier */}
+        <Reveal delay={260}>
+          <div className="mt-10 mb-2 flex flex-col items-center justify-center">
+            <div className="relative flex h-[310px] w-full max-w-2xl items-end justify-center pb-2">
+              <FolderFloat
+                items={dossierItems}
+                label="Chambers Dossier"
+                sublabel="6 advocate audits"
+                trigger="hover"
+                closeOnSelect={false}
+                physics={true}
+                drift={0.65}
+                onSelect={(value) => {
+                  const rev = reviews.find((r) => r.id === value);
+                  if (rev) setSelectedReview(rev);
+                }}
+                folderColor={isDark ? "#27272A" : "#DCD1BC"}
+                frontColor={isDark ? "#3F3F46" : "#EDE3CF"}
+                paperColor={isDark ? "#C5A059" : "#FAF7F2"}
+                itemColor={isDark ? "#1E1E24" : "#FFFFFF"}
+                itemTextColor={isDark ? "#F4E8D1" : "#1E1B18"}
+                labelColor={isDark ? "#F4E8D1" : "#1E1B18"}
+                width={240}
+                height={160}
+                radius={16}
+                spread={220}
+                lift={32}
+                tilt={10}
+                bounce={0.35}
+              />
+            </div>
+            <p className="mt-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <span>Hover folder to release zero-g review notes · Drag pills freely · Click any note to inspect full chamber audit</span>
+            </p>
+          </div>
+        </Reveal>
+
         {/* Category Filter Pills */}
         <Reveal delay={340}>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
             {categoryTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -177,7 +258,18 @@ export function LawyerReviews() {
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredReviews.map((rev, idx) => (
             <Reveal key={rev.id} delay={100 + idx * 80}>
-              <div className="glass-card flex h-full flex-col justify-between rounded-2xl border border-primary/25 bg-surface/90 p-7 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-lg">
+              <div
+                onClick={() => setSelectedReview(rev)}
+                className="glass-card group flex h-full flex-col justify-between rounded-2xl border border-primary/25 bg-surface/90 p-7 shadow-sm transition-all duration-300 hover:border-primary/60 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedReview(rev);
+                  }
+                }}
+              >
                 <div>
                   {/* Card Header: Rating, Badge, and Tested Docket */}
                   <div className="flex items-center justify-between gap-2">
@@ -203,7 +295,7 @@ export function LawyerReviews() {
                   </div>
 
                   {/* Quote Body */}
-                  <blockquote className="mt-5 text-[0.9375rem] leading-[1.7] text-foreground/85">
+                  <blockquote className="mt-5 text-[0.9375rem] leading-[1.7] text-foreground/85 line-clamp-4">
                     <Quote className="mb-2 h-5 w-5 text-primary/40" />
                     &ldquo;{rev.quote}&rdquo;
                   </blockquote>
@@ -216,24 +308,30 @@ export function LawyerReviews() {
                     {rev.keyTakeaway}
                   </p>
 
-                  <div className="mt-4 flex items-center gap-3.5">
-                    {/* Initials Avatar */}
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-primary/40 bg-surface font-display text-sm font-bold text-primary shadow-xs">
-                      {rev.avatarInitials}
+                  <div className="mt-4 flex items-center justify-between gap-3.5">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Initials Avatar */}
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-primary/40 bg-surface font-display text-sm font-bold text-primary shadow-xs">
+                        {rev.avatarInitials}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <h4 className="truncate font-display text-sm font-semibold text-foreground">
+                          {rev.name}
+                        </h4>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {rev.role}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-muted-foreground/80">
+                          <span className="truncate">{rev.court}</span>
+                          <span>•</span>
+                          <span className="font-mono text-[0.625rem]">{rev.barEnrollment}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <h4 className="truncate font-display text-sm font-semibold text-foreground">
-                        {rev.name}
-                      </h4>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {rev.role}
-                      </p>
-                      <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-muted-foreground/80">
-                        <span className="truncate">{rev.court}</span>
-                        <span>•</span>
-                        <span className="font-mono text-[0.625rem]">{rev.barEnrollment}</span>
-                      </div>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 transition-opacity duration-200 group-hover:opacity-100 flex-shrink-0">
+                      <ExternalLink className="h-3.5 w-3.5" />
                     </div>
                   </div>
                 </div>
@@ -253,6 +351,105 @@ export function LawyerReviews() {
             </div>
           </div>
         </Reveal>
+
+        {/* Mini-Dialogue Box (Review Modal) */}
+        {selectedReview && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setSelectedReview(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-review-title"
+          >
+            <div
+              className="relative w-full max-w-xl rounded-2xl border border-primary/40 bg-surface p-6 sm:p-8 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedReview(null)}
+                className="absolute top-5 right-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/80 bg-background/80 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Close dialogue"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              {/* Modal Advocate Header */}
+              <div className="flex items-start gap-4 pr-8">
+                <div className="flex h-13 w-13 flex-shrink-0 items-center justify-center rounded-full border-2 border-primary/60 bg-primary/10 font-display text-lg font-bold text-primary shadow-sm">
+                  {selectedReview.avatarInitials}
+                </div>
+                <div>
+                  <h3 id="modal-review-title" className="font-display text-xl font-bold text-foreground">
+                    {selectedReview.name}
+                  </h3>
+                  <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                    {selectedReview.role}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-primary/80">
+                    <span className="font-medium">{selectedReview.court}</span>
+                    <span>•</span>
+                    <span className="font-mono text-[0.7rem] bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                      {selectedReview.barEnrollment}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rating & Benchmarked Feature */}
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-y border-border/60 py-3">
+                <div className="flex items-center gap-1">
+                  {[...Array(selectedReview.rating)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className="h-4 w-4 fill-primary text-primary"
+                      strokeWidth={1}
+                    />
+                  ))}
+                  <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                    5.0 Benchmarked
+                  </span>
+                </div>
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  {selectedReview.testedFeature}
+                </span>
+              </div>
+
+              {/* Tested Docket Dossier */}
+              <div className="mt-4 rounded-xl border border-border/80 bg-background/70 p-3.5 text-xs">
+                <span className="font-bold text-foreground">Audited Docket / Simulation: </span>
+                <span className="text-muted-foreground">{selectedReview.testedDocket}</span>
+              </div>
+
+              {/* Full Testimonial / Audit Statement */}
+              <div className="mt-5 max-h-[40vh] overflow-y-auto pr-1">
+                <blockquote className="relative text-sm sm:text-base leading-relaxed text-foreground/90 italic border-l-2 border-primary/60 pl-4 py-1">
+                  &ldquo;{selectedReview.quote}&rdquo;
+                </blockquote>
+              </div>
+
+              {/* Constitutional Takeaway & Close Action */}
+              <div className="mt-6 rounded-xl border border-primary/25 bg-primary/[0.05] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="text-xs">
+                  <span className="font-bold uppercase tracking-wider text-[0.65rem] text-primary block">
+                    Constitutional Takeaway
+                  </span>
+                  <span className="text-foreground/90 font-medium">
+                    {selectedReview.keyTakeaway}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReview(null)}
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer self-end sm:self-auto"
+                >
+                  Close Audit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
