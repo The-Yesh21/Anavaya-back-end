@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "skills": {
+    "brag": {
+      "source": "latent-spaces/brag",
+      "sourceType": "github",
+      "skillPath": "skills/brag/SKILL.md",
+      "computedHash": "6eefb4ac1485fd9834ea42c70a789bcc532cb6cf17f9f82925be8cdc681b0d75"
+    },
+    "figma-designer": {
+      "source": "elayadesign/ai-design-skills",
+      "commit": "456d9e0d3e2d84c748bb143c6ca3d90c45e16213",
+      "sourceType": "github",
+      "skillPath": "skills/figma-designer/SKILL.md",
+      "computedHash": "7dd0425720ec529650af8fc6840eb7c02ae1721dd895dcfbc68b4c741658f607"
+    },
+    "landing-page-design": {
+      "source": "elayadesign/ai-design-skills",
+      "commit": "456d9e0d3e2d84c748bb143c6ca3d90c45e16213",
+      "sourceType": "github",
+      "skillPath": "skills/landing-page-design/SKILL.md",
+      "computedHash": "98fa8463d5fc56f969d52f24512366d66655271080cb67b43ca0790d8e951bc6"
+    },
+    "openfilm": {
+      "source": "openfilm/openfilm",
+      "sourceType": "github",
+      "skillPath": "skills/openfilm/SKILL.md",
+      "computedHash": "c5a254e8aed6cbfd2098cae414081fa155b6e22fbd409a4460f8931565729fb1"
+    },
+    "openmotion-director": {
+      "source": "nexu-io/openmotion",
+      "sourceType": "github",
+      "skillPath": "skills/openmotion-director/SKILL.md",
+      "computedHash": "57b82ca1071ae31853adb5af27f2eae1bb053742b6756093b141b09bb427ee1c"
+    },
+    "openmotion-production": {
+      "source": "nexu-io/openmotion",
+      "sourceType": "github",
+      "skillPath": "skills/openmotion-production/SKILL.md",
+      "computedHash": "a754906960da9b4d7e48859f9adef6c924b15850291f7c20bac3fefef2e564ab"
+    },
+    "openmotion-recreate": {
+      "source": "nexu-io/openmotion",
+      "sourceType": "github",
+      "skillPath": "skills/openmotion-recreate/SKILL.md",
+      "computedHash": "d48303a78ea10fcbe28c87ee9232d52811f729d918e824df10c57c8942895fc0"
+    },
+    "openmotion-template-to-video": {
+      "source": "nexu-io/openmotion",
+      "sourceType": "github",
+      "skillPath": "skills/openmotion-template-to-video/SKILL.md",
+      "computedHash": "8d5467fb534db0b09d1d15b358594e590a7f2581fb5dd7d89ab4865301238483"
+    },
+    "openmotion-video-to-template": {
+      "source": "nexu-io/openmotion",
+      "sourceType": "github",
+      "skillPath": "skills/openmotion-video-to-template/SKILL.md",
+      "computedHash": "26047e25c40e50c4130496705aee585ff67b39c215b0d8f7b8d477fcbaf118b4"
+    }
+  }
+}
