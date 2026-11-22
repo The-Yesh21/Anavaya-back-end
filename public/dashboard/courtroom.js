@@ -183,6 +183,21 @@
         const ctrlCamBtn = $("control-cam-btn");
         if (ctrlCamBtn) ctrlCamBtn.addEventListener("click", toggleVideo);
         if (els.mediaRetryBtn) els.mediaRetryBtn.addEventListener("click", () => restartMediaConnections());
+
+        // Companion Camera Modal Bindings
+        const companionBtn = $("face-companion-btn");
+        if (companionBtn) companionBtn.addEventListener("click", openCompanionModal);
+        const companionClose = $("companion-modal-close");
+        if (companionClose) companionClose.addEventListener("click", closeCompanionModal);
+        const companionCopy = $("companion-copy-btn");
+        if (companionCopy) companionCopy.addEventListener("click", copyCompanionLink);
+        const companionModal = $("companion-modal");
+        if (companionModal) {
+            companionModal.addEventListener("click", (e) => {
+                if (e.target === companionModal) closeCompanionModal();
+            });
+        }
+
         els.joinName.focus();
     }
 
@@ -558,6 +573,27 @@
                 state.participants.push(msg.participant);
                 renderCourt();
                 appendTranscript(msg.transcript_entry);
+
+                // Check if joining participant is a mobile Companion Camera
+                if (msg.participant && msg.participant.role === "Companion") {
+                    const statusEl = $("companion-qr-status");
+                    if (statusEl) {
+                        statusEl.className = "companion-qr-status connected";
+                        const lbl = $("companion-status-lbl");
+                        if (lbl) lbl.textContent = "Phone Connected (4K Feed Active)";
+                    }
+                    toast("📱 Mobile Companion Camera joined! Switching feed to high-definition mobile stream...");
+                    populateFaceSourceSelect();
+                    const sel = faceEl("face-source");
+                    if (sel) sel.value = msg.participant.participant_id;
+                    face.source = msg.participant.participant_id;
+                    resetFaceMetricsUI();
+                    setupFaceForCurrentSource().then(() => {
+                        if (state.me && state.me.role === "Judge" && !face.analyzing) {
+                            startFaceAnalysis();
+                        }
+                    });
+                }
                 // The NEW participant initiates the offer; existing peers just
                 // wait for it. So here we do NOT initiate — we only prepare an
                 // RTCPeerConnection entry when the offer arrives.
@@ -3544,9 +3580,13 @@
                 camBtn.innerHTML = '<i data-lucide="video-off"></i> Disable';
                 camBtn.onclick = disableFaceCamera;
             }
-            await ensureFacePipeLibs().catch(() => {});
-            await initFaceMesh().catch(() => {});
-            lucide.createIcons();
+            try {
+                await ensureFacePipeLibs();
+                await initFaceMesh();
+            } catch (err) {
+                console.warn("Could not pre-init face mesh on feed attach:", err);
+            }
+            if (typeof lucide !== "undefined") lucide.createIcons();
             toast(`Connected to ${subjectInfo().name}'s feed — start analysis to observe visible facial actions.`);
         } else {
             if (startBtn) startBtn.disabled = true;
@@ -3558,7 +3598,7 @@
                 camBtn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
                 camBtn.onclick = enableFaceCamera;
             }
-            lucide.createIcons();
+            if (typeof lucide !== "undefined") lucide.createIcons();
         }
     }
 
@@ -3632,6 +3672,8 @@
         });
         const camBtn = faceEl("face-camera-btn");
         if (camBtn) camBtn.addEventListener("click", enableFaceCamera);
+        const compBtn = faceEl("face-companion-btn");
+        if (compBtn) compBtn.addEventListener("click", openCompanionModal);
         const startBtn = faceEl("face-start-btn");
         if (startBtn) startBtn.addEventListener("click", startFaceAnalysis);
         const stopBtn = faceEl("face-stop-btn");
@@ -3667,16 +3709,16 @@
         });
     }
 
-    // Loads the official, maintained @mediapipe/tasks-vision bundle (the legacy
-    // @mediapipe/face_mesh "solution" bundle is deprecated and throws when sent
-    // frames before its model finishes loading).
+    // Loads the official, maintained @mediapipe/tasks-vision bundle (local with CDN fallback).
     function ensureFacePipeLibs() {
         if (typeof window.Vision !== "undefined" && window.Vision.FaceLandmarker) return Promise.resolve();
         if (!face.mediaPipePromise) {
-            face.mediaPipePromise = loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.js").catch(error => {
-                face.mediaPipePromise = null;
-                throw error;
-            });
+            face.mediaPipePromise = loadScript("/mediapipe/vision_bundle.js")
+                .catch(() => loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.js"))
+                .catch(error => {
+                    face.mediaPipePromise = null;
+                    throw error;
+                });
         }
         return face.mediaPipePromise;
     }
@@ -3817,7 +3859,7 @@
         try {
             btn.disabled = true;
             btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Connecting to feed…';
-            lucide.createIcons();
+            if (typeof lucide !== "undefined") lucide.createIcons();
             // Self: reuse the shared mesh camera when available; only ask the
             // browser for a dedicated stream if the user joined audio-only.
             // Remote: no permission needed — we mirror their video track.
@@ -3835,8 +3877,16 @@
                 }
             }
             const attached = attachFaceSource();
-            await ensureFacePipeLibs();
-            await initFaceMesh();
+            const video = faceEl("face-video");
+            if (video && video.paused) {
+                try { video.play().catch(() => {}); } catch (_) {}
+            }
+            try {
+                await ensureFacePipeLibs();
+                await initFaceMesh();
+            } catch (meshErr) {
+                console.warn("Face mesh background init during enableCamera:", meshErr);
+            }
             if (statePill) { statePill.textContent = "On"; statePill.classList.add("on"); }
             const startBtn = faceEl("face-start-btn");
             if (startBtn) startBtn.disabled = !attached;
@@ -3854,7 +3904,7 @@
             toast("Could not access the selected feed. Check camera permissions.");
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="video"></i> Enable Camera';
-            lucide.createIcons();
+            if (typeof lucide !== "undefined") lucide.createIcons();
         }
     }
 
@@ -3913,35 +3963,60 @@
         if (face._landmarkerPromise) return face._landmarkerPromise;
         face._landmarkerPromise = (async () => {
             await ensureFacePipeLibs();
-            const fileset = await Vision.FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
-            );
-            const make = (delegate) => Vision.FaceLandmarker.createFromOptions(fileset, {
-                baseOptions: {
-                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                    delegate,
-                },
-                runningMode: "VIDEO",
-                numFaces: 2,
-                minFaceDetectionConfidence: 0.65,
-                minFacePresenceConfidence: 0.65,
-                minTrackingConfidence: 0.65,
-                outputFaceBlendshapes: true,
-                outputFacialTransformationMatrixes: false,
-            });
-            const makeWithTimeout = (delegate, ms = 10000) => new Promise((resolve, reject) => {
+            let fileset;
+            try {
+                fileset = await Vision.FilesetResolver.forVisionTasks("/mediapipe/wasm");
+            } catch (err) {
+                console.warn("Local MediaPipe wasm resolver failed, trying CDN:", err);
+                fileset = await Vision.FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+                );
+            }
+            const modelPaths = [
+                "/mediapipe/face_landmarker.task",
+                "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+            ];
+            const make = async (delegate) => {
+                let lastErr = null;
+                for (const path of modelPaths) {
+                    try {
+                        return await Vision.FaceLandmarker.createFromOptions(fileset, {
+                            baseOptions: {
+                                modelAssetPath: path,
+                                delegate,
+                            },
+                            runningMode: "VIDEO",
+                            numFaces: 2,
+                            minFaceDetectionConfidence: 0.5,
+                            minFacePresenceConfidence: 0.5,
+                            minTrackingConfidence: 0.5,
+                            outputFaceBlendshapes: true,
+                            outputFacialTransformationMatrixes: false,
+                        });
+                    } catch (e) {
+                        lastErr = e;
+                        console.warn(`FaceLandmarker createFromOptions failed with path ${path}:`, e);
+                    }
+                }
+                throw lastErr || new Error("Failed to load FaceLandmarker from all model paths");
+            };
+            const makeWithTimeout = (delegate, ms = 25000) => new Promise((resolve, reject) => {
                 let expired = false;
                 const timer = setTimeout(() => { expired = true; reject(new Error(`${delegate} initialization timed out`)); }, ms);
                 make(delegate).then(model => {
                     clearTimeout(timer);
-                    if (expired) model.close(); else resolve(model);
+                    if (expired) {
+                        try { model.close(); } catch (_) {}
+                    } else {
+                        resolve(model);
+                    }
                 }, error => { clearTimeout(timer); reject(error); });
             });
             try {
-                face.landmarker = await makeWithTimeout("GPU");
+                face.landmarker = await makeWithTimeout("GPU", 25000);
             } catch (e) {
-                console.warn("GPU FaceLandmarker unavailable or timed out — using CPU delegate.", e);
-                face.landmarker = await makeWithTimeout("CPU", 20000);
+                console.warn("GPU FaceLandmarker unavailable or timed out — trying CPU delegate.", e);
+                face.landmarker = await makeWithTimeout("CPU", 35000);
             }
             return face.landmarker;
         })();
@@ -3968,7 +4043,7 @@
         const FACE_INFERENCE_INTERVAL_MS = 50; // Up to 20 FPS; short blinks can still be missed on slower devices.
         const loop = () => {
             if (!face.landmarker || !face.camera) return;
-            if (video.readyState >= 2) {
+            if (video && video.readyState >= 2 && !video.paused) {
                 const now = performance.now();
                 if (video.currentTime !== lastVideoTime && now - lastTs >= FACE_INFERENCE_INTERVAL_MS) {
                     lastVideoTime = video.currentTime;
@@ -3986,12 +4061,12 @@
                     }
                 }
             }
-            if (face.analyzing && face.observer && performance.now() - lastNewFrameAt > 1000) {
+            if (face.analyzing && face.observer && performance.now() - lastNewFrameAt > 1500) {
                 face.activeCues.clear();
                 face.calibrated = false;
                 face.history = { lipOpen: [], lipSamples: [] };
                 if (overlay) overlay.getContext("2d").clearRect(0, 0, overlay.width, overlay.height);
-                renderFaceLive(face.observer.pause(Date.now(), "Video paused or disconnected"));
+                renderFaceLive(face.observer.pause(Date.now(), "Waiting for clear face…"));
             }
             face._raf = requestAnimationFrame(loop);
         };
@@ -4004,50 +4079,74 @@
         const stopBtn = faceEl("face-stop-btn");
         const statePill = faceEl("face-state");
 
-        if (!face.landmarker || !face.camera) {
-            if (startBtn) {
-                startBtn.disabled = true;
-                startBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Starting…';
-                if (typeof lucide !== "undefined") lucide.createIcons();
-            }
-            await setupFaceForCurrentSource();
-        }
-
-        attachFaceSource();
-        setFacePlaceholder(false);
-        resetFaceMetricsUI();
-        face.observer = new window.AnavayaFaceObservations.Engine();
-        face.analyzing = true;
-        face.calibrated = false;
-        face.stats = { blinks: 0, startedAt: Date.now() };
-        face.history = { lipOpen: [] };
-        face.activeCues.clear();
-        face.cueDurations = {};
-        face.gauge = 0;
-        face.audioSpeaking = false;
-        face.visualTalking = false;
-        face.speaking = false;
-        face.lastSpeakingSeenAt = 0;
-        face.sessionStartIso = new Date().toISOString();
-        attachSpeechMeter();
-
         if (startBtn) {
             startBtn.disabled = true;
-            startBtn.innerHTML = '<i data-lucide="play"></i> Start Analysis';
+            startBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Starting…';
+            if (typeof lucide !== "undefined") lucide.createIcons();
         }
-        if (stopBtn) stopBtn.disabled = false;
-        const scoreEl = faceEl("face-score");
-        if (scoreEl) scoreEl.textContent = "—";
-        const fill = faceEl("face-gauge-fill");
-        if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
-        if (statePill) {
-            statePill.textContent = "Calibrating…";
-            statePill.classList.add("live");
-            statePill.classList.remove("on");
+
+        try {
+            if (!face.landmarker || !face.camera) {
+                await setupFaceForCurrentSource();
+            }
+
+            if (!face.landmarker) {
+                await ensureFaceLandmarker();
+                await initFaceMesh();
+            }
+
+            const attached = attachFaceSource();
+            const video = faceEl("face-video");
+            if (video && video.paused) {
+                try { video.play().catch(() => {}); } catch (_) {}
+            }
+
+            setFacePlaceholder(false);
+            resetFaceMetricsUI();
+            face.observer = new window.AnavayaFaceObservations.Engine();
+            face.analyzing = true;
+            face.calibrated = false;
+            face.stats = { blinks: 0, startedAt: Date.now() };
+            face.history = { lipOpen: [] };
+            face.activeCues.clear();
+            face.cueDurations = {};
+            face.gauge = 0;
+            face.audioSpeaking = false;
+            face.visualTalking = false;
+            face.speaking = false;
+            face.lastSpeakingSeenAt = 0;
+            face.sessionStartIso = new Date().toISOString();
+            attachSpeechMeter();
+
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<i data-lucide="play"></i> Start Analysis';
+            }
+            if (stopBtn) stopBtn.disabled = false;
+            const scoreEl = faceEl("face-score");
+            if (scoreEl) scoreEl.textContent = "—";
+            const fill = faceEl("face-gauge-fill");
+            if (fill) { fill.style.width = "0%"; fill.style.background = "var(--color-low)"; }
+            if (statePill) {
+                statePill.textContent = "Calibrating…";
+                statePill.classList.add("live");
+                statePill.classList.remove("on");
+            }
+            renderFaceCueChips();
+            syncMeetControls();
+            renderStage();
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            toast(`Chakshu AI: Live facial analysis active for ${subjectInfo().name}.`);
+        } catch (err) {
+            console.error("Failed to start facial analysis:", err);
+            toast("Could not start facial analysis: " + (err.message || "Model initialization failed"));
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i data-lucide="play"></i> Start Analysis';
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+            if (stopBtn) stopBtn.disabled = true;
         }
-        renderFaceCueChips();
-        syncMeetControls();
-        renderStage();
     }
 
     function stopFaceAnalysis(sendSummary = true) {
@@ -4199,9 +4298,51 @@
             face.history = { lipOpen: [], lipSamples: [] };
             face.activeCues.clear();
             face.calibrated = false;
+            face.alignmentHoldMs = 0;
             renderFaceLive(out);
+            sendAlignmentFeedback({
+                status: "searching",
+                quality: 0,
+                guidance: faces.length > 1 ? "Multiple faces in frame — isolate witness" : "Position face inside guide",
+                isOptimal: false
+            });
             return;
         }
+
+        // Biometric Alignment Engine & Stability Hold Gate (Option A)
+        let pose = null;
+        if (window.AnavayaFaceObservations && window.AnavayaFaceObservations.calculateBiometricPose) {
+            pose = window.AnavayaFaceObservations.calculateBiometricPose(faces[0]);
+            const now = Date.now();
+            const lastT = face._lastPoseT || now;
+            const dt = Math.min(500, Math.max(10, now - lastT));
+            face._lastPoseT = now;
+
+            if (pose.isOptimal) {
+                face.alignmentHoldMs = (face.alignmentHoldMs || 0) + dt;
+            } else {
+                face.alignmentHoldMs = Math.max(0, (face.alignmentHoldMs || 0) - dt * 2);
+            }
+            const holdProgress = Math.min(1, (face.alignmentHoldMs || 0) / 2000);
+
+            // Draw Biometric Alignment HUD on overlay canvas
+            window.AnavayaFaceObservations.drawBiometricAlignmentHUD(ctx, overlay.width, overlay.height, pose, holdProgress);
+
+            // Relay alignment feedback to mobile companion camera
+            sendAlignmentFeedback({
+                ...pose,
+                holdProgress
+            });
+
+            // Calibration Gate: 2.0s hold required before locking baseline
+            if (holdProgress < 1.0) {
+                setMetric(faceEl("face-state"), `Aligning: ${(2 * (1 - holdProgress)).toFixed(1)}s hold`);
+                setMetric(faceEl("fm-expression"), pose.guidance);
+                setMetric(faceEl("fm-confidence"), `Quality ${pose.quality}% · ${pose.guidance}`);
+                return;
+            }
+        }
+
         drawFaceOverlay(ctx, faces[0]);
         const video = faceEl("face-video");
         const ratio = video && video.videoWidth ? video.videoHeight / video.videoWidth : 1;
@@ -4481,6 +4622,74 @@
             document.execCommand("copy");
             document.body.removeChild(tmp);
             toast("Invite link copied");
+        }
+    }
+
+    async function getCompanionUrl() {
+        const inviteUrl = await buildInviteUrl(ROOM_ID);
+        return inviteUrl.replace(/\/court\/[^\/]+$/, `/court/${ROOM_ID}/companion`);
+    }
+
+    async function openCompanionModal() {
+        const modal = $("companion-modal");
+        if (!modal) return;
+        const companionUrl = await getCompanionUrl();
+        const input = $("companion-url-input");
+        if (input) input.value = companionUrl;
+
+        const qrBox = $("companion-qr-code");
+        if (qrBox && window.QRCode) {
+            qrBox.innerHTML = "";
+            new window.QRCode(qrBox, {
+                text: companionUrl,
+                width: 160,
+                height: 160,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: window.QRCode.CorrectLevel.M
+            });
+        }
+
+        const statusEl = $("companion-qr-status");
+        if (statusEl) {
+            statusEl.className = "companion-qr-status";
+            const lbl = $("companion-status-lbl");
+            if (lbl) lbl.textContent = "Waiting for phone to scan...";
+        }
+
+        modal.style.display = "flex";
+        modal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeCompanionModal() {
+        const modal = $("companion-modal");
+        if (!modal) return;
+        modal.style.display = "none";
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    async function copyCompanionLink() {
+        const input = $("companion-url-input");
+        const url = (input && input.value) ? input.value : await getCompanionUrl();
+        try {
+            await navigator.clipboard.writeText(url);
+            toast("Companion Cam link copied to clipboard");
+        } catch {
+            if (input) {
+                input.select();
+                document.execCommand("copy");
+                toast("Companion Cam link copied");
+            }
+        }
+    }
+
+    function sendAlignmentFeedback(alignment) {
+        if (face.source && face.source !== "self" && state.ws && state.ws.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({
+                type: "alignment_feedback",
+                target_participant_id: face.source,
+                alignment
+            }));
         }
     }
 

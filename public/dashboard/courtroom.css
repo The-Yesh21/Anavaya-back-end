@@ -2833,3 +2833,239 @@ body::before {
         animation: none !important;
     }
 }
+
+/* ============================================================
+   Chakshu AI — Mobile Companion Camera Modal & Styles
+   ============================================================ */
+.face-btn.companion-btn {
+    background: rgba(201, 162, 39, 0.15);
+    border-color: rgba(201, 162, 39, 0.5);
+    color: var(--color-accent, #c9a227);
+    font-weight: 600;
+}
+.face-btn.companion-btn:hover {
+    background: rgba(201, 162, 39, 0.25);
+    border-color: var(--color-accent, #c9a227);
+    color: #ffffff;
+}
+
+.companion-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 12, 20, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 16px;
+    animation: companionFadeIn 0.25s ease-out;
+}
+
+@keyframes companionFadeIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.companion-modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    background: #0f172a;
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(201, 162, 39, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.companion-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.companion-header-text {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.companion-badge-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(201, 162, 39, 0.18);
+    border: 1px solid rgba(201, 162, 39, 0.4);
+    color: var(--color-accent, #c9a227);
+}
+.companion-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0 0 2px 0;
+}
+.companion-modal-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 0;
+}
+.companion-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.companion-close-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.companion-modal-body {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    padding: 24px;
+}
+@media (max-width: 600px) {
+    .companion-modal-body {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+.companion-qr-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+.companion-qr-box {
+    width: 180px;
+    height: 180px;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.companion-qr-box canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+.companion-qr-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    color: #cbd5e1;
+    transition: all 0.3s ease;
+}
+.companion-qr-status.connected {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #10b981;
+}
+
+.status-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+    animation: statusPulse 1.8s infinite;
+}
+.companion-qr-status.connected .status-pulse-dot {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.companion-instructions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.companion-instructions h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-accent, #c9a227);
+    margin: 0 0 10px 0;
+}
+.companion-instructions ol {
+    margin: 0 0 16px 20px;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #cbd5e1;
+}
+.companion-instructions li {
+    margin-bottom: 8px;
+}
+.companion-instructions strong {
+    color: #ffffff;
+}
+
+.companion-link-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px;
+}
+.companion-link-field input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 6px 8px;
+    outline: none;
+}
+.companion-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(201, 162, 39, 0.2);
+    border: 1px solid rgba(201, 162, 39, 0.4);
+    color: var(--color-accent, #c9a227);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.companion-copy-btn:hover {
+    background: rgba(201, 162, 39, 0.35);
+    color: #ffffff;
+}
+

@@ -2398,6 +2398,24 @@ def serve_courtroom(room_id: str):
     return FileResponse(COURTROOM_HTML)
 
 
+@app.get("/court/{room_id}/companion")
+def serve_court_companion_cam(room_id: str):
+    """Serve the zero-install mobile companion camera client for a specific room."""
+    companion_html = os.path.join(STATIC_DIR, "companion-cam.html")
+    if not os.path.exists(companion_html):
+        raise HTTPException(status_code=404, detail="companion-cam.html is missing from static/.")
+    return FileResponse(companion_html)
+
+
+@app.get("/companion")
+def serve_companion_cam(room: str = ""):
+    """Serve the zero-install mobile companion camera client."""
+    companion_html = os.path.join(STATIC_DIR, "companion-cam.html")
+    if not os.path.exists(companion_html):
+        raise HTTPException(status_code=404, detail="companion-cam.html is missing from static/.")
+    return FileResponse(companion_html)
+
+
 def _lan_invite_url(request: Request, room_id: str) -> str:
     """Invite URL reachable from other devices on the LAN.
 
@@ -3504,8 +3522,8 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                 })
                 continue
 
-            # --- WebRTC signaling relay (targeted, not broadcast) ------------
-            if mtype in ("sdp_offer", "sdp_answer", "ice_candidate"):
+            # --- WebRTC signaling & alignment feedback relay (targeted, not broadcast) --
+            if mtype in ("sdp_offer", "sdp_answer", "ice_candidate", "alignment_feedback"):
                 target = msg.get("target_participant_id")
                 target_ws = sockets.get(target)
                 if target_ws is not None:
@@ -3513,6 +3531,7 @@ async def courtroom_socket(websocket: WebSocket, room_id: str):
                         "type": mtype,
                         "from_participant_id": bound_participant_id,
                         "data": msg.get("data"),
+                        "alignment": msg.get("alignment"),
                     })
                 continue
 

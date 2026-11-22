@@ -32,7 +32,8 @@ COURTROOMS_DIR = "case_priority_system/courtrooms"
 UNIQUE_ROLES = ("Judge",)
 COUNSEL_ROLES = ("Defence", "Prosecution")
 WITNESS_ROLE = "Witness"
-ALL_ROLES = ("Judge", "Defence", "Prosecution", WITNESS_ROLE)
+COMPANION_ROLE = "Companion"
+ALL_ROLES = ("Judge", "Defence", "Prosecution", WITNESS_ROLE, COMPANION_ROLE)
 
 # Spoken statements arrive as ONE push-to-talk clip per press. A speaker who
 # pauses, or who releases the key mid-sentence, produces several short clips
@@ -59,6 +60,7 @@ ROLE_LABELS = {
     "Defence": "Defence Counsel",
     "Prosecution": "Prosecution Counsel",
     "Witness": "Witness",
+    "Companion": "Companion Camera",
 }
 
 
