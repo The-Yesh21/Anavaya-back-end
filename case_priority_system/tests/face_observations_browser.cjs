@@ -25,6 +25,12 @@ const modelSmoke = process.argv.includes('--model-smoke');
                 const html = fs.readFileSync(path.join(staticDir, 'courtroom.html'), 'utf8');
                 return route.fulfill({ contentType: 'text/html', body: html });
             }
+            const exactFile = path.join(staticDir, url.pathname);
+            if (fs.existsSync(exactFile) && fs.statSync(exactFile).isFile()) {
+                const ext = path.extname(exactFile);
+                const mime = ext === '.js' ? 'application/javascript' : ext === '.css' ? 'text/css' : ext === '.wasm' ? 'application/wasm' : 'application/octet-stream';
+                return route.fulfill({ contentType: mime, body: fs.readFileSync(exactFile) });
+            }
             const filename = path.join(staticDir, path.basename(url.pathname));
             if (fs.existsSync(filename) && /\.(js|css)$/.test(filename)) return route.fulfill({ contentType: filename.endsWith('.js') ? 'application/javascript' : 'text/css', body: fs.readFileSync(filename) });
             return route.fulfill({ body: '' });
