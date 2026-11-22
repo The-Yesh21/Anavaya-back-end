@@ -69,6 +69,7 @@
         iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
         localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
+        companionCameraActive: false, // mobile phone companion camera serving as high-definition witness feed
         peers: new Map(),          // participant_id -> { pc, audio, videoTrack, status, … }
         pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
     };
@@ -551,6 +552,20 @@
                 state.me = msg.me;
                 state.sessionToken = msg.session_token || "";
                 state.participants = msg.room.participants;
+
+                // Check if a Companion camera is already present in the room
+                const existingCompanion = state.participants.find(p => p.role === "Companion");
+                if (existingCompanion) {
+                    if (state.localStream) {
+                        state.localStream.getVideoTracks().forEach(t => { t.enabled = false; });
+                    }
+                    if (typeof face !== "undefined" && face && face.ownStream) {
+                        try { face.ownStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+                        face.ownStream = null;
+                    }
+                    state.companionCameraActive = true;
+                }
+
                 enterCourtroom();
                 renderCourt();
                 renderTranscript(msg.room.transcript);
@@ -570,12 +585,25 @@
                 break;
             }
             case "participant_joined": {
+                // Check if joining participant is a mobile Companion Camera
+                const isCompanion = msg.participant && msg.participant.role === "Companion";
+                if (isCompanion) {
+                    // Mobile phone provides HD witness feed; turn off local webcam to cut encoder load
+                    if (state.localStream) {
+                        state.localStream.getVideoTracks().forEach(t => { t.enabled = false; });
+                    }
+                    if (typeof face !== "undefined" && face && face.ownStream) {
+                        try { face.ownStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+                        face.ownStream = null;
+                    }
+                    state.companionCameraActive = true;
+                }
+
                 state.participants.push(msg.participant);
                 renderCourt();
                 appendTranscript(msg.transcript_entry);
 
-                // Check if joining participant is a mobile Companion Camera
-                if (msg.participant && msg.participant.role === "Companion") {
+                if (isCompanion) {
                     const statusEl = $("companion-qr-status");
                     if (statusEl) {
                         statusEl.className = "companion-qr-status connected";
@@ -600,8 +628,33 @@
                 break;
             }
             case "participant_left": {
+                const leavingParticipant = state.participants.find(p => p.participant_id === msg.participant_id);
+                const wasCompanion = (leavingParticipant && leavingParticipant.role === "Companion") ||
+                    (state.companionCameraActive && (!msg.room || !msg.room.participants || !msg.room.participants.some(p => p.role === "Companion")));
+
                 state.participants = msg.room.participants;
                 closePeer(msg.participant_id);
+
+                if (wasCompanion) {
+                    // Re-enable the laptop local video track
+                    if (state.localStream) {
+                        state.localStream.getVideoTracks().forEach(t => { t.enabled = true; });
+                    }
+                    state.companionCameraActive = false;
+                    if (typeof face !== "undefined" && face) {
+                        face.source = "self";
+                        if (typeof populateFaceSourceSelect === "function") populateFaceSourceSelect();
+                        if (typeof setupFaceForCurrentSource === "function") setupFaceForCurrentSource();
+                    }
+                    const statusEl = $("companion-qr-status");
+                    if (statusEl) {
+                        statusEl.className = "companion-qr-status";
+                        const lbl = $("companion-status-lbl");
+                        if (lbl) lbl.textContent = "Waiting for phone to scan...";
+                    }
+                    toast("Mobile companion disconnected. Restored laptop webcam.");
+                }
+
                 renderCourt();
                 // The leave system-entry was already broadcast + persisted.
                 if (msg.room.transcript && msg.room.transcript.length) {
@@ -2020,7 +2073,8 @@
         for (const p of ordered) {
             const isMe = p.participant_id === state.me?.participant_id;
             const displayRole = isMe ? state.me.display_role : displayRoleFor(p);
-            const camOff = isMe && !state.videoEnabled;
+            const companionStandby = isMe && state.companionCameraActive;
+            const camOff = isMe && !state.videoEnabled && !companionStandby;
             const initials = (p.name || "?").trim().charAt(0).toUpperCase();
             const role = p.role || "Witness";
             const isMuted = isMe ? !state.micEnabled : false;
@@ -2029,7 +2083,7 @@
                 ((isMe && face.source === "self") || (!isMe && face.source === p.participant_id));
 
             const tile = document.createElement("div");
-            tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "") + (isTargetOfAnalysis ? " analyzing-face" : "");
+            tile.className = "stage-tile" + (isMe ? " is-me" : "") + (camOff ? " cam-off" : "") + (companionStandby ? " companion-standby" : "") + (isTargetOfAnalysis ? " analyzing-face" : "");
             tile.dataset.pid = p.participant_id;
             tile.innerHTML = `
                 <div class="stage-overlay">
@@ -2043,6 +2097,14 @@
                     <div class="cam-off-avatar role-border-${role}">${initials}</div>
                     <span class="cam-off-pill">Camera off</span>
                 </div>
+                ${companionStandby ? `
+                <div class="stage-companion-standby">
+                    <div class="companion-standby-badge">
+                        <span class="companion-standby-dot"></span>
+                        <span class="companion-standby-text">📱 Phone Camera Active (4K/1080p) · Laptop Webcam Standby (Load Reduced)</span>
+                    </div>
+                </div>
+                ` : ""}
                 ${isJudge ? `
                     <button type="button" class="stage-face-trigger ${isTargetOfAnalysis ? "active" : ""}" title="${isTargetOfAnalysis ? "Chakshu AI analyzing face (click to stop)" : `Analyze ${escapeHtml(p.name)}'s visible facial actions`}" data-pid="${p.participant_id}">
                         <i data-lucide="scan-face"></i>
