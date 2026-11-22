@@ -30,7 +30,14 @@ python case_priority_system/scripts/test_ollama.py          # Ollama connectivit
 
 ### Tests / e2e checks
 
-No unit-test framework. The end-to-end scripts at repo root boot the server and exercise the API (they snapshot/restore Excel + case index, then clean up created cases):
+Safe regression suites run from the repo root:
+```powershell
+python -m unittest discover -s case_priority_system/tests -v
+node _courtroom_face_check.cjs
+```
+The face check uses synthetic fixtures and a mocked backend; it requires installed `playwright-core` and Chrome (`CHROME` can override its executable path). It tests software behavior, not human emotion accuracy. The Live Courtroom camera reports observable facial actions and approximate eye measurements, not internal stress, emotion or credibility. See [the facial-analysis review](docs/COURTROOM_FACE_ANALYSIS_REVIEW.md).
+
+The end-to-end scripts at repo root boot the server and exercise the API (they mutate local records; inspect their isolation/cleanup before execution):
 ```powershell
 python test_case_workflow_e2e.py     # Create-Case workflow: create → upload → analyze → sessions → fact-check → dossier
 python test_courtroom_e2e.py         # Live Courtroom WebSocket signaling + rooms
