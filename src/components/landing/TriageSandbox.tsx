@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Clock,
   FileText,
+  FileUp,
   Gavel,
   Scale,
   Sparkles,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { Reveal } from "./Reveal";
 import { APP_URL } from "./constants";
+import { EvidenceUploadLoader } from "../ui/EvidenceUploadLoader";
 
 export type SeverityType = "No Injury" | "Minor" | "Major / Fatal";
 export type VulnerabilityType = "Standard / Corporate" | "Impoverished / Undertrial" | "Child / Exploited";
@@ -110,6 +112,8 @@ export function TriageSandbox() {
   const [severity, setSeverity] = useState<SeverityType>("Major / Fatal");
   const [vulnerability, setVulnerability] = useState<VulnerabilityType>("Child / Exploited");
   const [imbalance, setImbalance] = useState<ImbalanceType>("Severe Asymmetry");
+  const [isEvidenceLoaderOpen, setIsEvidenceLoaderOpen] = useState(false);
+  const [extraEvidenceCount, setExtraEvidenceCount] = useState(0);
 
   // Load a preset
   const handleSelectPreset = (p: CasePreset) => {
@@ -373,11 +377,11 @@ export function TriageSandbox() {
         <Reveal>
           <div className="text-center">
             <span className="eyebrow">Interactive Simulator</span>
-            <h2 className="font-display mx-auto mt-4 max-w-3xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            <h2 className="heading-section mx-auto mt-4 max-w-3xl text-foreground">
               Experience the Engine:{" "}
-              <span className="text-gradient-gold">Watch the Docket Leap</span>
+              <span className="text-glass">Watch the Docket Leap</span>
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-[1rem] leading-[1.7] text-muted-foreground">
+            <p className="body-2 mx-auto mt-4 max-w-2xl text-muted-foreground">
               Select a scenario or adjust the legal facts below to see how Anavaya's deterministic Decision Tree
               instantly rescues urgent cases from years of static filing backlogs.
             </p>
@@ -707,7 +711,7 @@ export function TriageSandbox() {
                 </div>
 
                 {/* Anavaya Dynamic Priority */}
-                <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-primary/[0.08] p-4 shadow-[0_0_20px_-6px_color-mix(in_oklab,var(--primary)_25%,transparent)]">
+                <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-surface p-4 shadow-xs">
                   <div className="flex items-center justify-between text-xs font-semibold text-primary">
                     <span className="flex items-center gap-1.5">
                       <Zap className="h-3.5 w-3.5" aria-hidden="true" />
@@ -717,7 +721,7 @@ export function TriageSandbox() {
                       Instant Leap
                     </span>
                   </div>
-                  <p className="font-display text-gradient-gold mt-3 text-xl font-bold">
+                  <p className="font-display text-glass-gold mt-3 text-xl font-bold">
                     Position #{triageResult.docketPosition}
                   </p>
                   <p className="mt-1 text-xs font-medium text-foreground">
@@ -729,11 +733,22 @@ export function TriageSandbox() {
                 </div>
               </div>
 
-              {/* Bottom Quick Test Drive Button */}
-              <div className="mt-6 flex items-center justify-between border-t border-border/70 pt-4">
-                <span className="text-xs text-muted-foreground">
-                  Want to test real FIRs and evidence files?
-                </span>
+              {/* Bottom Quick Test Drive Button & Evidence Upload Loader Trigger */}
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEvidenceLoaderOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/20 hover:border-primary active:scale-95 shadow-xs cursor-pointer"
+                >
+                  <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Upload More Evidence to Case</span>
+                  {extraEvidenceCount > 0 && (
+                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[0.625rem] text-primary-foreground font-mono font-bold">
+                      +{extraEvidenceCount} Attached
+                    </span>
+                  )}
+                </button>
+
                 <a
                   href={APP_URL}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary transition-transform hover:translate-x-0.5 hover:text-primary/90"
@@ -746,6 +761,14 @@ export function TriageSandbox() {
           </div>
         </div>
       </div>
+
+      {/* Physics-Based Zero-G Evidence Upload Loader Modal */}
+      <EvidenceUploadLoader
+        isOpen={isEvidenceLoaderOpen}
+        onClose={() => setIsEvidenceLoaderOpen(false)}
+        caseTitle={PRESETS.find((p) => p.id === selectedPresetId)?.title || "Active Case Dossier"}
+        onComplete={() => setExtraEvidenceCount((prev) => prev + 3)}
+      />
     </section>
   );
 }
