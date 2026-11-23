@@ -369,30 +369,42 @@ const SideRays = ({
   });
 
   useEffect(() => {
-    const container = containerRef.current;
-    const canvas = canvasRef.current;
-    if (!container || !canvas) return;
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
 
-    const gl = canvas.getContext('webgl2', {
-      alpha: true,
-      premultipliedAlpha: true,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      powerPreference: 'high-performance'
-    });
-    const shader = gl ? link(gl) : null;
-    if (!gl || !shader) return;
+    let preloaderPending = false;
+    try {
+      preloaderPending = sessionStorage.getItem('anvaya-preloader-seen') !== '1';
+    } catch {
+      preloaderPending = false;
+    }
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const vao = gl.createVertexArray();
-    const size = { width: 1, height: 1 };
-    const pointer = { x: 0, y: 0, inside: false };
-    const aim = { value: 0, velocity: 0 };
-    const focus = { angle: 0, strength: 0 };
-    let time = Math.random() * 100;
-    let reveal = settingsRef.current.intro && !reduced && generation === 0 ? 0 : 1;
-    let raf = 0;
+    const init = () => {
+      if (cancelled) return;
+      const container = containerRef.current;
+      const canvas = canvasRef.current;
+      if (!container || !canvas) return;
+
+      const gl = canvas.getContext('webgl2', {
+        alpha: true,
+        premultipliedAlpha: true,
+        antialias: false,
+        depth: false,
+        stencil: false,
+        powerPreference: 'high-performance'
+      });
+      const shader = gl ? link(gl) : null;
+      if (!gl || !shader) return;
+
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const vao = gl.createVertexArray();
+      const size = { width: 1, height: 1 };
+      const pointer = { x: 0, y: 0, inside: false };
+      const aim = { value: 0, velocity: 0 };
+      const focus = { angle: 0, strength: 0 };
+      let time = Math.random() * 100;
+      let reveal = settingsRef.current.intro && !reduced && generation === 0 ? 0 : 1;
+      let raf = 0;
     let last = 0;
     let visible = true;
     let pageVisible = document.visibilityState !== 'hidden';
@@ -556,7 +568,7 @@ const SideRays = ({
     resize();
     wake();
 
-    return () => {
+    cleanup = () => {
       cancelAnimationFrame(raf);
       wakeRef.current = null;
       resizeObserver.disconnect();
@@ -573,7 +585,32 @@ const SideRays = ({
         gl.deleteProgram(shader.program);
       }
     };
-  }, [generation]);
+  };
+
+  if (preloaderPending) {
+    let fired = false;
+    const onDone = () => {
+      if (fired || cancelled) return;
+      fired = true;
+      window.removeEventListener('anvaya:preloader-done', onDone);
+      init();
+    };
+    window.addEventListener('anvaya:preloader-done', onDone);
+    const timer = window.setTimeout(onDone, 4500);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('anvaya:preloader-done', onDone);
+      window.clearTimeout(timer);
+      cleanup?.();
+    };
+  } else {
+    init();
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }
+}, [generation]);
 
   return (
     <div ref={containerRef} className={`side-rays${className ? ` ${className}` : ''}`} style={style}>
