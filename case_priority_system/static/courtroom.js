@@ -4165,6 +4165,9 @@
 
             setFacePlaceholder(false);
             resetFaceMetricsUI();
+            if (window.TrialEmotionInference && !window.TrialEmotionInference.isLoaded) {
+                window.TrialEmotionInference.loadModel("/trial_emotion_classifier.json").catch(() => {});
+            }
             face.observer = new window.AnavayaFaceObservations.Engine();
             face.analyzing = true;
             face.calibrated = false;
@@ -4410,6 +4413,19 @@
         const ratio = video && video.videoWidth ? video.videoHeight / video.videoWidth : 1;
         const out = ingestFaceSignals(extractFaceSignals(faces[0], ratio), extractFaceBlendshapes(results));
         renderFaceLive(out);
+
+        if (pose && out.emotion) {
+            sendAlignmentFeedback({
+                ...pose,
+                holdProgress: 1.0,
+                emotion: {
+                    label: out.emotion.label,
+                    confidence: out.emotion.confidence,
+                    stressIndex: out.emotion.stressIndex,
+                    color: out.emotion.color
+                }
+            });
+        }
     }
 
     function ingestFaceSignals(sig, blend = {}) {
@@ -4425,6 +4441,14 @@
         face.cueDurations = face.observer.summary().counters;
         face.stats.blinks = face.observer.blinks;
         face.gauge = out.activity;
+
+        // Neural Machine Learning Trial Emotion & Cognitive Load Classifier
+        if (window.TrialEmotionInference && out.status === "ready") {
+            out.emotion = window.TrialEmotionInference.predict(blend, sig, out.blinkRate, sig.gazeX);
+        } else {
+            out.emotion = null;
+        }
+
         return out;
     }
 
@@ -4443,29 +4467,88 @@
             if (!keys.some(key => out.actions[key] != null)) return "Unavailable";
             return out.active.filter(key => keys.includes(key)).map(key => labels[key]).join(", ") || "No sustained action";
         };
-        setMetric(faceEl("face-state"), out.status === "calibrating" ? `Calibrating ${out.progress}%` : ready ? "Observing" : "Tracking unavailable");
-        setMetric(faceEl("fm-expression"), ready ? out.activity === null ? "Expression data unavailable" : out.active.map(k => labels[k]).join(", ") || "No sustained action" : "Not assessable");
-        setMetric(faceEl("fm-stress-val"), "Not measurable from video");
+
+        const emotion = out.emotion || null;
+
+        setMetric(faceEl("face-state"), out.status === "calibrating" ? `Calibrating ${out.progress}%` : ready ? (emotion ? `Observing · ${emotion.label}` : "Observing") : "Tracking unavailable");
+        
+        if (ready && emotion) {
+            setMetric(faceEl("fm-expression"), `${emotion.label} (${emotion.confidence}%)`);
+            setMetric(faceEl("fm-stress-val"), `${emotion.stressIndex}% · ${emotion.stressIndex >= 65 ? "High Strain" : emotion.stressIndex >= 35 ? "Moderate Load" : "Composed Baseline"}`);
+            setMetric(faceEl("face-score"), `${emotion.stressIndex}/100`);
+            const fill = faceEl("face-gauge-fill");
+            if (fill) {
+                fill.style.width = `${emotion.stressIndex}%`;
+                fill.style.background = emotion.color;
+            }
+            setMetric(faceEl("fes-primary-badge"), `${emotion.label} (Confidence ${emotion.confidence}%)`);
+
+            // Update 8-class spectrum bars
+            document.querySelectorAll(".fes-bar-row").forEach(row => {
+                const emKey = row.dataset.emotion;
+                const prob = emotion.probabilities ? emotion.probabilities[emKey] : null;
+                const pct = prob != null ? Math.round(prob * 100) : null;
+                const fillEl = row.querySelector(".fes-bar-fill");
+                if (fillEl) {
+                    fillEl.style.width = `${pct || 0}%`;
+                    fillEl.style.boxShadow = emKey === emotion.emotion ? `0 0 8px ${emotion.color}` : "none";
+                }
+                const pctEl = row.querySelector(".fes-bar-pct");
+                if (pctEl) pctEl.textContent = pct != null ? `${pct}%` : "—";
+            });
+
+            // Stage Tile HUD
+            document.querySelectorAll(".stage-face-hud.visible").forEach(hud => {
+                const scoreEl = hud.querySelector(".face-hud-score");
+                if (scoreEl) scoreEl.textContent = `${emotion.stressIndex}%`;
+                const labelEl = hud.querySelector(".face-hud-label");
+                if (labelEl) labelEl.textContent = emotion.label;
+                const levelCls = emotion.stressIndex >= 65 ? "level-high" : emotion.stressIndex >= 35 ? "level-med" : "level-low";
+                hud.className = `stage-face-hud visible ${levelCls}`;
+            });
+
+            // Micro-leakage alert
+            if (emotion.leakage && emotion.leakage.detected && emotion.leakage.type) {
+                const leakLabel = window.TRIAL_EMOTION_META && window.TRIAL_EMOTION_META[emotion.leakage.type]
+                    ? window.TRIAL_EMOTION_META[emotion.leakage.type].label
+                    : emotion.leakage.type;
+                const chipKey = `leak_${emotion.leakage.type}`;
+                face.activeCues.add(chipKey);
+                if (!CUE_LABELS[chipKey]) {
+                    CUE_LABELS[chipKey] = {
+                        label: `Micro-leakage: ${leakLabel}`,
+                        icon: "zap",
+                        sev: "severe"
+                    };
+                }
+            }
+        } else {
+            setMetric(faceEl("fm-expression"), ready ? (out.active.map(k => labels[k]).join(", ") || "No sustained action") : "Not assessable");
+            setMetric(faceEl("fm-stress-val"), ready ? "Calibrating model…" : "Awaiting face tracking");
+            setMetric(faceEl("face-score"), ready && out.activity !== null ? `${out.activity}/100` : "—");
+            const fill = faceEl("face-gauge-fill");
+            if (fill) { fill.style.width = `${ready ? out.activity || 0 : 0}%`; fill.style.background = "var(--color-accent, #C9A227)"; }
+            setMetric(faceEl("fes-primary-badge"), ready ? "Independent action strengths; not probabilities" : out.reason);
+            document.querySelectorAll(".fes-bar-row").forEach(row => {
+                const value = ready ? out.actions[row.dataset.emotion] : null;
+                const fillEl = row.querySelector(".fes-bar-fill");
+                if (fillEl) fillEl.style.width = `${value || 0}%`;
+                const pctEl = row.querySelector(".fes-bar-pct");
+                if (pctEl) pctEl.textContent = value == null ? "—" : `${value}`;
+            });
+            document.querySelectorAll(".stage-face-hud.visible").forEach(hud => {
+                setMetric(hud.querySelector(".face-hud-score"), "");
+                setMetric(hud.querySelector(".face-hud-label"), ready ? "Calibrating…" : "Tracking unavailable");
+                hud.className = "stage-face-hud visible level-low";
+            });
+        }
+
         setMetric(faceEl("fm-confidence"), out.reason);
         setMetric(faceEl("fm-blinks"), ready ? `${out.blinks} total · ${out.blinkRate === null ? "collecting rate" : out.blinkRate + "/min"}` : "—");
         setMetric(faceEl("fm-gaze"), ready ? out.gaze + " (approx.)" : "—");
         setMetric(faceEl("fm-speaking"), ready ? face.audioSpeaking ? "Audio activity" : face.visualTalking ? "Mouth movement" : "No speech activity detected" : "—");
         setMetric(faceEl("fm-lips"), ready && out.speaking ? "Articulation — excluded" : actionText(["mouth_open", "mouth_frown", "smile", "lip_press"]));
         setMetric(faceEl("fm-brows"), actionText(["brow_raise", "brow_lower"]));
-        setMetric(faceEl("face-score"), ready && out.activity !== null ? `${out.activity}/100` : "—");
-        const fill = faceEl("face-gauge-fill");
-        if (fill) { fill.style.width = `${ready ? out.activity || 0 : 0}%`; fill.style.background = "var(--color-accent, #C9A227)"; }
-        setMetric(faceEl("fes-primary-badge"), ready ? "Independent action strengths; not probabilities" : out.reason);
-        document.querySelectorAll(".fes-bar-row").forEach(row => {
-            const value = ready ? out.actions[row.dataset.emotion] : null;
-            row.querySelector(".fes-bar-fill").style.width = `${value || 0}%`;
-            row.querySelector(".fes-bar-pct").textContent = value == null ? "—" : `${value}`;
-        });
-        document.querySelectorAll(".stage-face-hud.visible").forEach(hud => {
-            setMetric(hud.querySelector(".face-hud-score"), "");
-            setMetric(hud.querySelector(".face-hud-label"), ready ? "Facial actions only" : "Tracking unavailable");
-            hud.className = "stage-face-hud visible level-low";
-        });
         renderFaceCueChips();
     }
 
