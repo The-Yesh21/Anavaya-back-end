@@ -13,6 +13,8 @@ import { SystemArchitecture } from "@/components/landing/SystemArchitecture";
 import { HowPriorityIsGiven } from "@/components/landing/HowPriorityIsGiven";
 import { ModelAccuracy } from "@/components/landing/ModelAccuracy";
 import { SiteHeader } from "@/components/landing/SiteHeader";
+import { ProgressiveSection } from "@/components/landing/ProgressiveSection";
+import { LoadBalancerHud } from "@/components/landing/LoadBalancerHud";
 
 const title = "Anavaya — AI-Powered Judicial Case Priority System";
 const description =
@@ -40,24 +42,73 @@ function Index() {
       </a>
       <SiteHeader />
       <main id="main" className="relative z-10">
+        {/* Above-the-fold Hero loads immediately */}
         <Hero />
-        <CaseFlow />
-        <ProblemBand />
-        <TriageSandbox />
-        <StatsBar />
-        <PriorityRoadmap />
-        <SystemArchitecture />
-        <HowPriorityIsGiven />
-        <ModelAccuracy />
-        <WhyItMatters />
-        <LawyerReviews />
-        <Features />
-        <TechWordmarkShowcase />
-        <TechStack />
-        <ClosingCTA />
-        <SiteFooter />
+
+        {/* Below-the-fold sections staged sequentially via Load Balancer */}
+        <ProgressiveSection id="case-flow" priority={1} minHeight={450} fallbackTitle="Case Flow Analysis">
+          <CaseFlow />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="problem-band" priority={2} minHeight={400} fallbackTitle="The Judicial Backlog">
+          <ProblemBand />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="triage-sandbox" priority={3} minHeight={600} fallbackTitle="Interactive Triage Sandbox">
+          <TriageSandbox />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="stats-bar" priority={4} minHeight={200} fallbackTitle="Constitutional Metrics">
+          <StatsBar />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="priority-roadmap" priority={5} minHeight={500} fallbackTitle="Triage Lifecycle">
+          <PriorityRoadmap />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="system-architecture" priority={6} minHeight={500} fallbackTitle="Explainable Architecture">
+          <SystemArchitecture />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="how-priority-is-given" priority={7} minHeight={500} fallbackTitle="Priority Decision Logic">
+          <HowPriorityIsGiven />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="model-accuracy" priority={8} minHeight={450} fallbackTitle="Extraction Accuracy">
+          <ModelAccuracy />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="why-it-matters" priority={9} minHeight={450} fallbackTitle="Why It Matters">
+          <WhyItMatters />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="lawyer-reviews" priority={10} minHeight={450} fallbackTitle="Bench & Bar Field Audits">
+          <LawyerReviews />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="features" priority={11} minHeight={500} fallbackTitle="Platform Capabilities">
+          <Features />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="tech-wordmark" priority={12} minHeight={350} fallbackTitle="Engine Anatomy">
+          <TechWordmarkShowcase />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="tech-stack" priority={13} minHeight={300} fallbackTitle="Technology Stack">
+          <TechStack />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="closing-cta" priority={14} minHeight={350} fallbackTitle="Case File Audit">
+          <ClosingCTA />
+        </ProgressiveSection>
+
+        <ProgressiveSection id="site-footer" priority={15} minHeight={200} fallbackTitle="Anavaya Court Systems">
+          <SiteFooter />
+        </ProgressiveSection>
       </main>
+
+      {/* Discreet Load Balancer Diagnostics & Telemetry HUD */}
+      <LoadBalancerHud />
     </>
   );
 }
-
