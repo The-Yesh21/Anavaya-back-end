@@ -635,6 +635,9 @@
                 updateGuidanceBannerUI("ALIGNING... POSITION FACE IN GUIDE", "searching", "🎯");
             } else if (pose.isOptimal) {
                 state.holdProgress = Math.min(1, state.holdProgress + 0.016 / 2.0);
+                if (feedback && feedback.emotion && state.holdProgress >= 0.85) {
+                    updateGuidanceBannerUI(`${feedback.emotion.label.toUpperCase()} · ${feedback.emotion.stressIndex}% STRESS`, "optimal", "🧠");
+                }
             } else {
                 state.holdProgress = Math.max(0, state.holdProgress - 0.05);
             }
