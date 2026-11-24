@@ -3,7 +3,7 @@
     const motion = window.matchMedia("(any-hover: hover) and (any-pointer: fine) and (prefers-reduced-motion: no-preference)");
     const targets = [
         ".stat-card", ".case-item", ".case-stack-card",
-        ".courtroom-card", ".triage-legend-item", ".tab-btn",
+        ".courtroom-card", ".tab-btn",
         ".create-case-btn", ".upload-btn", ".lobby-create-btn",
         ".case-action-btn", ".cc-open", ".cc-copy", ".landing-back-btn"
     ].join(",");

@@ -2981,11 +2981,10 @@ button, a, input, select {
     from { opacity: 0.65; transform: translateY(6px); }
 }
 .docket .stat-card:nth-child(2) { animation-delay: 55ms; }
-.docket .stat-card:nth-child(3) { animation-delay: 110ms; }
 
 .stats-container {
     display: grid;
-    grid-template-columns: 1fr 1.55fr 1.35fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
     gap: var(--space-5);
     align-items: stretch;
 }
@@ -3177,110 +3176,6 @@ button, a, input, select {
     font-variant-numeric: tabular-nums;
 }
 
-/* Priority mix: donut + clickable legend, side by side */
-.triage-donut-card { min-width: 0; }
-.donut-body {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: var(--space-6);
-    padding-top: var(--space-4);
-    min-width: 0;
-}
-.donut-wrap {
-    position: relative;
-    width: 112px;
-    height: 112px;
-    flex-shrink: 0;
-    filter: drop-shadow(0 4px 10px rgba(80, 60, 20, 0.08));
-}
-.donut-chart { width: 100%; height: 100%; }
-.donut-track {
-    fill: none;
-    stroke: color-mix(in srgb, var(--bg-well) 85%, transparent);
-    stroke-width: 12;
-}
-.donut-arc {
-    fill: none;
-    stroke-width: 12;
-    stroke-linecap: round;
-    transform: rotate(-90deg);
-    transform-origin: 60px 60px;
-    transition: stroke-dasharray 0.8s var(--ease-spring), stroke-dashoffset 0.8s var(--ease-spring);
-}
-.arc-high { stroke: var(--color-high); filter: drop-shadow(0 0 3px rgba(179, 64, 46, 0.4)); }
-.arc-medium { stroke: var(--color-medium); filter: drop-shadow(0 0 3px rgba(194, 86, 6, 0.4)); }
-.arc-low { stroke: var(--color-low); filter: drop-shadow(0 0 3px rgba(78, 122, 102, 0.4)); }
-.donut-center {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-}
-.donut-center strong {
-    font-family: var(--font-heading);
-    font-size: 26px;
-    font-weight: 850;
-    color: var(--text-primary);
-    line-height: 1;
-}
-.donut-center span {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    font-weight: 700;
-}
-
-.triage-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    min-width: 0;
-}
-.triage-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 7px 14px;
-    border: 1px solid var(--border-color-subtle);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-align: left;
-    cursor: pointer;
-    box-shadow: var(--shadow-xs);
-    transition: all 0.25s var(--ease-spring);
-}
-.triage-legend-item:hover {
-    background: var(--bg-card-hover);
-    border-color: var(--border-color-glow);
-    transform: translateX(3px);
-    box-shadow: var(--shadow-soft);
-}
-.triage-legend-item.active {
-    background: color-mix(in srgb, var(--gold-500) 12%, var(--bg-card));
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(168, 126, 47, 0.2), var(--shadow-soft);
-    color: var(--text-primary);
-}
-.legend-name { flex: 1; }
-/* Scoped through .stat-card: the generic `.stat-card strong` rule out-specifies a
-   bare class, so the count keeps its own size. */
-.stat-card .legend-count {
-    font-family: var(--font-heading);
-    font-size: 17px;
-    color: var(--text-primary);
-    font-variant-numeric: tabular-nums;
-}
 .legend-swatch {
     width: 10px;
     height: 10px;
@@ -4177,7 +4072,6 @@ button, a, input, select {
     .case-detail-right { position: static; }
     .tree-node-panel { width: 240px; }
     .stats-container { grid-template-columns: 1fr 1fr; }
-    .category-card { grid-column: 1 / -1; }
     .tree-layout { flex-direction: column; }
     .tree-node-panel { width: 100%; max-height: 220px; }
 }
@@ -4211,10 +4105,6 @@ button, a, input, select {
 
 @media (max-width: 599px) {
     .stats-container { grid-template-columns: 1fr; }
-    .category-card { grid-column: auto; }
-    /* The donut sits above its legend instead of beside it. */
-    .donut-body { flex-direction: column; align-items: stretch; gap: var(--space-4); }
-    .donut-wrap { align-self: center; }
     .docket-head { min-height: 112px; padding: var(--space-4); }
     .docket-files { height: 64px; }
     .docket-file-front { padding: var(--space-2); }
@@ -4735,7 +4625,7 @@ button, a, input, select {
 /* Confine the pointer highlight to the border so labels stay legible. */
 @media (any-hover: hover) and (any-pointer: fine) and (prefers-reduced-motion: no-preference) {
     :where(.stat-card, .case-item, .case-stack-card, .courtroom-card,
-        .triage-legend-item, .tab-btn, .create-case-btn, .upload-btn,
+        .tab-btn, .create-case-btn, .upload-btn,
         .lobby-create-btn, .case-action-btn, .cc-open, .cc-copy, .landing-back-btn) {
         position: relative;
     }

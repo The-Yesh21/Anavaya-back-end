@@ -80,9 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Stats elements
     const statTotalVal = document.getElementById("stat-total-val");
-    const statHighVal = document.getElementById("stat-high-val");
-    const statMediumVal = document.getElementById("stat-medium-val");
-    const statLowVal = document.getElementById("stat-low-val");
 
     // Tabs logic
     const tabButtons = document.querySelectorAll(".tab-btn");
@@ -306,11 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Stats calculations — counts, donut, category bars
-    const donutTotalVal = document.getElementById("donut-total-val");
-    const arcHigh = document.getElementById("arc-high");
-    const arcMedium = document.getElementById("arc-medium");
-    const arcLow = document.getElementById("arc-low");
+    // Stats calculations — counts and category bars
     const categoryBarsEl = document.getElementById("category-bars");
     const docketNoteEl = document.getElementById("docket-note");
     const mixStripEl = document.getElementById("mix-strip");
@@ -326,12 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const low = casesOnly.filter(c => c.Predicted_Priority === "Low").length;
 
         statTotalVal.textContent = total;
-        if (donutTotalVal) donutTotalVal.textContent = total;
-        statHighVal.textContent = high;
-        statMediumVal.textContent = medium;
-        statLowVal.textContent = low;
 
-        renderDonut(high, medium, low, total);
         renderMixBand(high, medium, low, total);
         renderCategoryBars(casesOnly);
         if (docketNoteEl) {
@@ -347,9 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // The band strip inside "Total Handled": one proportional segment per
-    // priority, then the SHARE each band holds. The Priority Mix card reads the
-    // same counts as raw numbers, so the two cards never just echo each other.
+    // Show the share of cases in each priority band.
     function renderMixBand(high, medium, low, total) {
         const counts = [high, medium, low];
         const segs = ["mix-seg-high", "mix-seg-medium", "mix-seg-low"].map((id) => document.getElementById(id));
@@ -369,22 +355,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     + `${name} <strong>${pct}%</strong></li>`;
             }).join("");
         }
-    }
-
-    function renderDonut(high, medium, low, total) {
-        const arcs = [arcHigh, arcMedium, arcLow];
-        if (!arcs[0] || total === 0) return;
-        const C = 2 * Math.PI * 50;
-        const counts = [high, medium, low];
-        let offset = 0;
-        counts.forEach((n, i) => {
-            const frac = total > 0 ? n / total : 0;
-            arcs[i].style.strokeDasharray = `${frac * C} ${C}`;
-            arcs[i].style.strokeDashoffset = `${-offset * C}`;
-            // Round caps render dots on zero-length segments; use butt caps there.
-            arcs[i].style.strokeLinecap = frac === 0 ? "butt" : "round";
-            offset += frac;
-        });
     }
 
     function renderCategoryBars(cases) {
@@ -607,15 +577,6 @@ document.addEventListener("DOMContentLoaded", () => {
             searchInput.focus();
             searchInput.select();
         }
-    });
-
-    // Triage legend → click to filter the case list by priority
-    document.querySelectorAll(".triage-legend-item").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const p = btn.getAttribute("data-priority");
-            filterPriority.value = (filterPriority.value === p) ? "all" : p;
-            debouncedFilterCases();
-        });
     });
 
     // Arrow-key navigation through the case list

@@ -149,10 +149,6 @@
             <div class="cases-list case-document-list" id="cases-list-container" hidden></div>
         </section>
 
-        <!-- Docket overview — the triage band. One labelled section holding three
-             cards: the register size, the priority mix (also the quick filter) and
-             the category spread. Every card shares the same head + body shape, so
-             the three read as one instrument instead of three unrelated tiles. -->
         <section class="docket" aria-labelledby="docket-title">
             <div class="docket-head">
                 <div class="docket-heading">
@@ -192,48 +188,6 @@
                         <ul class="mix-key" id="mix-key" aria-label="Share of cases by priority"></ul>
                     </div>
                     <p class="card-foot"><i data-lucide="git-branch"></i> Ranked by the Decision Tree</p>
-                </article>
-
-                <!-- Priority mix — the donut doubles as the case-list filter -->
-                <article class="stat-card triage-donut-card">
-                    <div class="card-head">
-                        <span class="card-icon"><i data-lucide="chart-pie"></i></span>
-                        <div class="card-head-text">
-                            <h3 class="card-title">Priority Mix</h3>
-                            <p class="card-caption">Select a band to filter the register</p>
-                        </div>
-                    </div>
-                    <div class="donut-body">
-                        <div class="donut-wrap">
-                            <svg class="donut-chart" id="priority-donut-svg" viewBox="0 0 120 120" role="img" aria-label="Priority distribution of every case on record">
-                                <circle class="donut-track" cx="60" cy="60" r="50"></circle>
-                                <circle class="donut-arc arc-high" id="arc-high" cx="60" cy="60" r="50"></circle>
-                                <circle class="donut-arc arc-medium" id="arc-medium" cx="60" cy="60" r="50"></circle>
-                                <circle class="donut-arc arc-low" id="arc-low" cx="60" cy="60" r="50"></circle>
-                            </svg>
-                            <div class="donut-center">
-                                <strong id="donut-total-val">0</strong>
-                                <span>cases</span>
-                            </div>
-                        </div>
-                        <div class="triage-legend">
-                            <button class="triage-legend-item" data-priority="High" title="Filter the case list by High priority">
-                                <span class="legend-swatch swatch-high"></span>
-                                <span class="legend-name">High</span>
-                                <strong class="legend-count" id="stat-high-val">0</strong>
-                            </button>
-                            <button class="triage-legend-item" data-priority="Medium" title="Filter the case list by Medium priority">
-                                <span class="legend-swatch swatch-medium"></span>
-                                <span class="legend-name">Medium</span>
-                                <strong class="legend-count" id="stat-medium-val">0</strong>
-                            </button>
-                            <button class="triage-legend-item" data-priority="Low" title="Filter the case list by Low priority">
-                                <span class="legend-swatch swatch-low"></span>
-                                <span class="legend-name">Low</span>
-                                <strong class="legend-count" id="stat-low-val">0</strong>
-                            </button>
-                        </div>
-                    </div>
                 </article>
 
                 <!-- Category spread — ranked, so the busiest area reads first -->
