@@ -1,147 +1,198 @@
-import { useEffect, useState } from "react";
-import { FileText, ScanText, BrainCircuit, GitBranch, ScrollText } from "lucide-react";
-import { Reveal, useInView } from "./Reveal";
+import { useState } from "react";
+import { ArrowDown, Braces, Clock3, FileUp, GitBranch, ScanText, Scale } from "lucide-react";
+import { Reveal } from "./Reveal";
+import "./priority-roadmap.css";
 
 const stages = [
-  { icon: FileText, label: "Document in" },
-  { icon: ScanText, label: "Text extracted" },
-  { icon: BrainCircuit, label: "Facts perceived" },
-  { icon: GitBranch, label: "Tree decides" },
-  { icon: ScrollText, label: "Priority scored" },
-];
+  {
+    icon: FileUp,
+    label: "Document intake",
+    output: "Evidence on file",
+    description: "The dashboard sends filings to FastAPI and attaches the originals to the case.",
+    stack: ["FastAPI", "Multipart upload", "Case registry"],
+  },
+  {
+    icon: ScanText,
+    label: "Text extraction",
+    output: "Readable exhibits",
+    description: "Text is read directly from PDFs. OCR handles supported scanned exhibits.",
+    stack: ["PyMuPDF", "pypdf", "EasyOCR"],
+  },
+  {
+    icon: Braces,
+    label: "Fact extraction",
+    output: "Merged case features",
+    description:
+      "Ollama extracts and summarizes facts. The case pipeline normalizes and merges features across exhibits.",
+    stack: ["Ollama", "Qwen 2.5 3B", "Deterministic feature merge"],
+  },
+  {
+    icon: GitBranch,
+    label: "Priority decision",
+    output: "High, Medium, or Low",
+    description:
+      "The CART Decision Tree alone assigns priority. Its branch trace records how it reached the result.",
+    stack: ["scikit-learn CART", "Categorical features", "TF-IDF"],
+  },
+  {
+    icon: Scale,
+    label: "Statutory sections",
+    output: "IPC and related provisions",
+    description:
+      "The report extracts cited IPC sections and flags potentially relevant provisions using rules based on the recorded case facts.",
+    stack: ["Python rules", "Citation matching", "Statutory registry"],
+  },
+  {
+    icon: Clock3,
+    label: "Turnaround time",
+    output: "Hearing and disposal targets",
+    description:
+      "Priority sets the recommended hearing and disposal windows. Evidence count informs the estimated number of hearings.",
+    stack: ["Priority tier rules", "Evidence count", "Delay risk assessment"],
+  },
+] as const;
 
 const outcomes = [
-  { label: "High", color: "var(--priority-high)", note: "Life, liberty, or bodily harm at stake" },
-  { label: "Medium", color: "var(--priority-medium)", note: "Rights or property harm, no immediate danger" },
-  { label: "Low", color: "var(--priority-low)", note: "Routine civil, procedural, or administrative" },
-];
+  {
+    label: "High",
+    color: "var(--priority-high)",
+    note: "Life, liberty, or bodily harm at stake",
+    hearing: "24–72 hours",
+    disposal: "30–90 days",
+  },
+  {
+    label: "Medium",
+    color: "var(--priority-medium)",
+    note: "Rights or property harm without immediate danger",
+    hearing: "7–14 days",
+    disposal: "90–180 days",
+  },
+  {
+    label: "Low",
+    color: "var(--priority-low)",
+    note: "Routine civil, procedural, or administrative",
+    hearing: "30–60 days",
+    disposal: "180–365 days",
+  },
+] as const;
 
-/** Animated roadmap: a case travelling the pipeline until a priority score is assigned. */
 export function PriorityRoadmap() {
-  const { ref, inView } = useInView<HTMLDivElement>(0.3);
-  const [active, setActive] = useState(-1);
-
-  useEffect(() => {
-    if (!inView) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setActive(stages.length);
-      return;
-    }
-    let step = 0;
-    setActive(0);
-    const id = setInterval(() => {
-      step = (step + 1) % (stages.length + 2);
-      setActive(step);
-    }, 1100);
-    return () => clearInterval(id);
-  }, [inView]);
-
-  const scored = active >= stages.length;
+  const [selected, setSelected] = useState(0);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [focused, setFocused] = useState<number | null>(null);
+  const active = hovered ?? focused ?? selected;
+  const stage = stages[active];
+  const StageIcon = stage.icon;
 
   return (
-    <section id="priority-roadmap" className="snap-section px-6 py-24 md:px-10">
+    <section aria-labelledby="roadmap-title" className="snap-section px-4 py-16 sm:px-8 md:px-10">
       <div className="mx-auto w-full max-w-6xl">
         <Reveal>
-          <p className="eyebrow">Architecture</p>
-          <h2 className="font-display mt-5 max-w-2xl text-4xl sm:text-5xl">
-            The roadmap a case travels to its <em className="emphasis">priority score</em>
+          <p className="eyebrow">Case roadmap</p>
+          <h2
+            id="roadmap-title"
+            className="font-display mt-2 text-3xl font-semibold text-foreground sm:text-4xl"
+          >
+            From filing to the next hearing
           </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Hover, focus, or tap a stage to see the technology behind it.
+          </p>
         </Reveal>
 
-        <div ref={ref} className="glass-panel mt-14 overflow-hidden rounded-2xl border border-border/80 p-7 shadow-[0_8px_32px_-8px_color-mix(in_oklab,var(--primary)_14%,transparent)] sm:p-10">
-          {/* Track */}
-          <div className="relative">
-            <span
-              aria-hidden="true"
-              className="absolute top-6 right-0 left-0 hidden h-px border-t border-dashed border-primary/35 md:block"
-            />
-            <ol className="relative grid gap-8 md:grid-cols-5 md:gap-4">
-              {stages.map((s, i) => {
-                const Icon = s.icon;
-                const on = i <= active;
-                return (
-                  <li key={s.label} className="flex items-center gap-4 md:flex-col md:text-center">
-                    <span
-                      className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border transition-all duration-500"
-                      style={{
-                        borderColor: on ? "var(--primary)" : "var(--border)",
-                        backgroundColor: on
-                          ? "color-mix(in oklab, var(--primary) 16%, transparent)"
-                          : "var(--surface)",
-                        boxShadow:
-                          i === active
-                            ? "0 0 25px 2px color-mix(in oklab, var(--primary) 50%, transparent)"
-                            : on
-                              ? "0 0 12px -2px color-mix(in oklab, var(--primary) 25%, transparent)"
-                              : "none",
-                        transform: i === active ? "scale(1.12)" : "scale(1)",
-                      }}
-                    >
-                      <Icon
-                        className="h-5 w-5 transition-colors duration-500"
-                        strokeWidth={1.7}
-                        style={{ color: on ? "var(--primary)" : "var(--muted-foreground)" }}
-                        aria-hidden="true"
-                      />
-                    </span>
-                    <p
-                      className="font-display text-base font-medium transition-opacity duration-500 md:mt-3"
-                      style={{ opacity: on ? 1 : 0.55 }}
-                    >
-                      {s.label}
-                    </p>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          {/* Outcomes */}
-          <div className="mt-12 grid gap-4 md:grid-cols-3">
-            {outcomes.map((o, i) => {
-              const lit = scored && i === 0;
-              return (
-                <div
-                  key={o.label}
-                  className="relative overflow-hidden rounded-xl border p-5 transition-all duration-700"
-                  style={{
-                    borderColor: lit ? o.color : "var(--border)",
-                    backgroundColor: lit
-                      ? `color-mix(in oklab, ${o.color} 12%, transparent)`
-                      : "var(--surface)",
-                    boxShadow: lit
-                      ? `0 8px 24px -4px color-mix(in oklab, ${o.color} 30%, transparent)`
-                      : "none",
-                    opacity: scored ? (lit ? 1 : 0.55) : 0.8,
+        <Reveal delay={80} className="glass-panel mt-5 rounded-2xl border border-border p-3 sm:p-5">
+          <ol
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
+            aria-label="Case processing stages"
+          >
+            {stages.map(({ icon: Icon, label, output }, index) => (
+              <li key={label} className="min-w-0">
+                <button
+                  type="button"
+                  aria-pressed={index === selected}
+                  aria-controls="roadmap-stage-detail"
+                  data-active={index === active}
+                  className="roadmap-stage flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:min-h-28"
+                  onPointerEnter={(event) => {
+                    if (event.pointerType !== "touch") setHovered(index);
                   }}
+                  onPointerLeave={() => setHovered(null)}
+                  onFocus={() => setFocused(index)}
+                  onBlur={() => setFocused(null)}
+                  onClick={() => setSelected(index)}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="relative flex h-3 w-3">
-                      {lit && (
-                        <span
-                          className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
-                          style={{ backgroundColor: o.color }}
-                        />
-                      )}
-                      <span
-                        className="relative inline-flex h-3 w-3 rounded-full"
-                        style={{ backgroundColor: o.color }}
-                        aria-hidden="true"
-                      />
-                    </span>
-                    <p className="font-display text-lg font-semibold">{o.label} priority</p>
-                  </div>
-                  <p className="mt-2 text-[0.9375rem] leading-[1.65] text-muted-foreground">{o.note}</p>
-                </div>
-              );
-            })}
+                  <Icon
+                    className="roadmap-stage-icon mb-1 size-4 text-primary"
+                    aria-hidden="true"
+                  />
+                  <span className="text-sm leading-4 font-semibold text-foreground">{label}</span>
+                  <span className="text-xs leading-4 text-muted-foreground">{output}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+
+          <div
+            id="roadmap-stage-detail"
+            className="roadmap-detail relative mt-3 overflow-hidden rounded-xl border border-border bg-secondary px-3 py-3 sm:px-4"
+            role="region"
+            aria-label="Stage technology"
+          >
+            <div key={stage.label} className="roadmap-detail-content flex items-start gap-3">
+              <StageIcon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">{stage.label}</h3>
+                <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
+                  {stage.description}
+                </p>
+                <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Technology">
+                  {stage.stack.map((technology, index) => (
+                    <li
+                      key={technology}
+                      style={{ animationDelay: `${index * 45}ms` }}
+                      className="roadmap-tech rounded-md border border-border bg-card px-2 py-0.5 font-mono text-xs text-foreground"
+                    >
+                      {technology}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
 
-          <p className="mt-8 text-[0.9375rem] leading-[1.7] text-muted-foreground">
-            The same document always walks the same path — so the same score comes out every time, and every
-            branch taken can be shown to the bench.
-          </p>
-        </div>
+          <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <ArrowDown className="size-4 text-primary" aria-hidden="true" />
+            Turnaround time (TAT) recommendations
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {outcomes.map((outcome) => (
+              <article
+                key={outcome.label}
+                className="rounded-xl border border-border bg-card px-3 py-2.5"
+              >
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ backgroundColor: outcome.color }}
+                    aria-hidden="true"
+                  />
+                  {outcome.label} priority
+                </h3>
+                <p className="mt-1 text-xs leading-4 text-muted-foreground">{outcome.note}</p>
+                <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">First hearing</dt>
+                    <dd className="font-semibold text-foreground">{outcome.hearing}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Target disposal</dt>
+                    <dd className="font-semibold text-foreground">{outcome.disposal}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   );
