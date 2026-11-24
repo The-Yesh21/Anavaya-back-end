@@ -40,11 +40,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =================================================================
-    // 1. CASES REGISTRY (sidebar section)
-    // =================================================================
+    // 1. CASE STACK
+    // =====================================================================
     const registryList = $("cases-registry-list");
+    const stackControls = $("case-stack-controls");
+    const stackSelect = $("case-stack-select");
+    const prevCase = $("case-stack-prev");
+    const nextCase = $("case-stack-next");
     let registryCases = [];
-    let expandedCaseId = null;
+    let visibleCases = [];
+    let frontCaseId = "";
 
     async function fetchRegistry() {
         try {
@@ -52,143 +57,95 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) throw new Error("registry fetch failed");
             registryCases = await res.json();
             renderRegistry();
-        } catch (err) {
-            if (registryList) registryList.innerHTML =
-                `<div class="loader" style="color:#B3402E">Cases unavailable — start the backend.</div>`;
+        } catch (_) {
+            if (!registryCases.length) registryList.textContent = "Case files are unavailable.";
         }
     }
 
     function renderRegistry() {
-        if (!registryList) return;
-        if (!registryCases.length) {
-            registryList.innerHTML = `<div class="registry-empty">No cases yet — click “Create New Case” above.</div>`;
+        const query = $("search-input").value.toLowerCase().trim();
+        const priority = $("filter-priority").value;
+        const category = $("filter-category").value;
+        const rowsByCase = new Map();
+        for (const row of UI.getCasesData()) {
+            if (!rowsByCase.has(row.Case_ID)) rowsByCase.set(row.Case_ID, []);
+            rowsByCase.get(row.Case_ID).push(row);
+        }
+        visibleCases = registryCases.filter(c => {
+            const rows = rowsByCase.get(c.case_id) || [];
+            const summary = rows.find(r => r.Document_Type?.toLowerCase() === "whole case") || rows[0];
+            const searchable = [c.case_id, c.title, ...(c.documents || []).map(d => d.filename),
+                ...rows.map(r => r.Main_Parties)];
+            return (priority === "all" || (c.case_level_priority || c.aggregate_priority) === priority) &&
+                (category === "all" || summary?.Category === category) &&
+                searchable.some(value => String(value || "").toLowerCase().includes(query));
+        });
+        const index = Math.max(0, visibleCases.findIndex(c => c.case_id === frontCaseId));
+        frontCaseId = visibleCases[index]?.case_id || "";
+        stackControls.hidden = !visibleCases.length;
+        stackSelect.innerHTML = visibleCases.map(c =>
+            `<option value="${esc(c.case_id)}">${esc(c.title || c.case_id)}</option>`).join("");
+        stackSelect.value = frontCaseId;
+        prevCase.disabled = nextCase.disabled = visibleCases.length < 2;
+        if (!visibleCases.length) {
+            registryList.innerHTML = `<p class="loader">${registryCases.length ? "No cases match these filters." : "No case files yet."}</p>`;
             return;
         }
-        registryList.innerHTML = registryCases.map((c) => {
-            const open = expandedCaseId === c.case_id;
-            const docs = (c.documents || []).map((d) => `
-                <li class="registry-doc" data-case="${esc(c.case_id)}" data-doc="${esc(d.doc_id)}"
-                    data-filename="${esc(d.filename)}" title="Select this document">
-                    <i data-lucide="file-text"></i>
-                    <span>${esc(d.filename)}</span>
-                    ${d.priority ? prioBadge(d.priority) : ""}
-                </li>`).join("");
-            return `
-            <div class="registry-case ${open ? "open" : ""}" data-case-id="${esc(c.case_id)}">
-                <div class="registry-case-head">
-                    <div class="registry-case-title">
-                        <strong>${esc(c.title || c.case_id)}</strong>
-                        <span class="registry-case-id">${esc(c.case_id)}</span>
-                    </div>
-                    <div class="registry-case-meta">
-                        ${prioBadge(c.aggregate_priority)}
-                        <span class="registry-doc-count">${(c.documents || []).length} docs</span>
-                        <i data-lucide="chevron-down" class="registry-chevron"></i>
-                    </div>
-                    <button class="registry-case-delete" data-case-id="${esc(c.case_id)}" title="Delete this case and all its evidence"><i data-lucide="trash-2"></i></button>
-                </div>
-                <ul class="registry-docs">${docs || `<li class="registry-doc-empty">No documents yet</li>`}</ul>
-            </div>`;
+        const count = Math.min(4, visibleCases.length);
+        registryList.style.setProperty("--stack-layers", count - 1);
+        registryList.innerHTML = Array.from({ length: count }, (_, layer) => {
+            const c = visibleCases[(index + layer) % visibleCases.length];
+            const title = c.title || c.case_id;
+            const documents = c.document_count ?? c.documents?.length ?? 0;
+            return `<button type="button" class="case-stack-card${layer === 0 ? " is-front" : ""}" data-case-id="${esc(c.case_id)}"
+                    style="--layer:${layer}" aria-label="Open ${esc(title)}" title="${esc(title)}">
+                    <span class="case-stack-label"><strong>${esc(title)}</strong><span>${esc(c.case_id)}</span></span>
+                    <span class="case-stack-body">
+                        ${prioBadge(c.case_level_priority || c.aggregate_priority)}
+                        <span>${documents} ${documents === 1 ? "document" : "documents"}</span>
+                        <span class="case-stack-open">Open case <i data-lucide="arrow-up-right"></i></span>
+                    </span>
+                </button>`;
         }).join("");
         if (typeof lucide !== "undefined") lucide.createIcons();
-
-        // Delete button on each registry card.
-        registryList.querySelectorAll(".registry-case-delete").forEach((btn) => {
-            btn.addEventListener("click", async (e) => {
-                e.stopPropagation();
-                const caseId = btn.getAttribute("data-case-id");
-                if (!confirm(`Permanently delete case ${caseId} and all its evidence? This cannot be undone.`)) return;
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
-                if (typeof lucide !== "undefined") lucide.createIcons();
-                try {
-                    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, { method: "DELETE" });
-                    if (!res.ok) {
-                        const err = await res.json().catch(() => ({}));
-                        throw new Error(err.detail || "Delete failed");
-                    }
-                    fetchRegistry();
-                    try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
-                    // If this case was the currently open one, close the workspace.
-                    if (currentWorkspaceCaseId === caseId) {
-                        $("case-workspace").style.display = "none";
-                        $("case-workspace-empty").style.display = "block";
-                        setAnalysisWholeCaseVisible(false);
-                        currentWorkspaceCaseId = null;
-                        UI.setCurrentCaseId("");
-                    }
-                } catch (err) {
-                    alert("Failed to delete case: " + err.message);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i data-lucide="trash-2"></i>';
-                    if (typeof lucide !== "undefined") lucide.createIcons();
-                }
-            });
-        });
-
-        // Head click → expand + open the case workspace. The Analysis tab leads
-        // with the CASE-level verdict (the whole-case analysis), so we do NOT
-        // auto-select a single document — the officer must never mistake one
-        // piece of evidence for the case decision. Clicking a document (the doc
-        // list below, or a sidebar row) still opens its evidence-level analysis.
-        registryList.querySelectorAll(".registry-case-head").forEach((head) => {
-            head.addEventListener("click", async (e) => {
-                const card = head.closest(".registry-case");
-                const caseId = card.getAttribute("data-case-id");
-                expandedCaseId = expandedCaseId === caseId ? null : caseId;
-                UI.setCurrentCaseId(caseId);
-                renderRegistry();
-                await openCaseWorkspace(caseId);
-                let hasAnalysis = false;
-                try {
-                    const caseRes = await fetch(`/api/cases/${encodeURIComponent(caseId)}`);
-                    if (caseRes.ok) {
-                        const caseData = await caseRes.json();
-                        hasAnalysis = (caseData.documents || []).some((d) => d.priority);
-                    }
-                } catch (_) { /* non-fatal */ }
-                // Evidence analysed → open the case verdict. Nothing analysed yet
-                // → stay on the Case tab so the officer can upload + run it.
-                // Selecting the case's WHOLE-CASE Excel row is what feeds the
-                // Decision Tree tab: without it `selectedCase` stays null and
-                // the tree draws no active path / shows no case priority.
-                if (hasAnalysis) {
-                    const row = UI.getCasesData().find((r) =>
-                        r.Case_ID === caseId &&
-                        String(r.Document_Type || "").toLowerCase() === "whole case");
-                    if (row) UI.selectCaseFn(row);
-                }
-                const tabBtn = document.querySelector(
-                    `.tab-btn[data-tab='${hasAnalysis ? "details-tab" : "case-tab"}']`);
-                if (tabBtn) tabBtn.click();
-            });
-        });
-        // Doc click → select the matching Excel row if present
-        registryList.querySelectorAll(".registry-doc").forEach((li) => {
-            li.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const filename = li.getAttribute("data-filename");
-                const row = UI.getCasesData().find((r) => r.Case_File === filename);
-                if (row) {
-                    UI.selectCaseFn(row);
-                } else {
-                    UI.setCurrentCaseId(li.getAttribute("data-case"));
-                    alert("This document has not been analysed yet — open the case and run “Analyze the evidence” from the Case tab.");
-                }
-                // Keep the Case workspace on the same case.
-                const docCaseId = li.getAttribute("data-case");
-                if (docCaseId) openCaseWorkspace(docCaseId);
-                // Clicking a document takes the officer straight to the case's
-                // Analysis tab: whole-case verdict on top, then evidence
-                // weights and the Decision Tree path underneath.
-                const analysisTabBtn = document.querySelector(".tab-btn[data-tab='details-tab']");
-                if (analysisTabBtn) analysisTabBtn.click();
-            });
-        });
     }
 
-    const refreshCasesBtn = $("refresh-cases-btn");
-    if (refreshCasesBtn) refreshCasesBtn.addEventListener("click", () => fetchRegistry());
+    function moveStack(offset) {
+        const index = visibleCases.findIndex(c => c.case_id === frontCaseId);
+        if (visibleCases.length < 2) return;
+        frontCaseId = visibleCases[(index + offset + visibleCases.length) % visibleCases.length].case_id;
+        renderRegistry();
+    }
+
+    prevCase.addEventListener("click", () => moveStack(-1));
+    nextCase.addEventListener("click", () => moveStack(1));
+    stackSelect.addEventListener("change", () => {
+        frontCaseId = stackSelect.value;
+        renderRegistry();
+    });
+    registryList.addEventListener("click", async event => {
+        const card = event.target.closest(".case-stack-card");
+        if (!card) return;
+        const id = card.dataset.caseId;
+        frontCaseId = id;
+        renderRegistry();
+        UI.clearSelectedCase();
+        $("tab-case").click();
+        const pending = openCaseWorkspace(id);
+        $("workspace-title").focus({ preventScroll: true });
+        $("main-content").scrollIntoView({ block: "start" });
+        const data = await pending;
+        if (!data || currentWorkspaceCaseId !== id) return;
+
+        const row = UI.getCasesData().find(r => r.Case_ID === id && r.Document_Type?.toLowerCase() === "whole case");
+        if (row) await UI.selectCaseFn(row, { openAnalysis: false, savedPath: data.case_level?.path_steps });
+    });
+    UI.renderCaseStack = renderRegistry;
+    UI.refreshCaseStack = fetchRegistry;
+    $("refresh-cases-btn").addEventListener("click", () => {
+        fetchRegistry();
+        UI.refreshCases().catch(() => {});
+    });
 
     // =================================================================
     // 2. CREATE NEW CASE (single step: name OR FIR OR auto-assigned ID)
@@ -298,16 +255,23 @@ document.addEventListener("DOMContentLoaded", () => {
 async function openCaseWorkspace(caseId) {
         currentWorkspaceCaseId = caseId;
         UI.setCurrentCaseId(caseId);
+        setAnalysisWholeCaseVisible(false);
         $("case-workspace-empty").style.display = "none";
         $("case-workspace").style.display = "block";
+        $("workspace-title").textContent = "Loading case…";
+        $("active-workspace-label").textContent = caseId;
+        $("workspace-doc-list").textContent = "Loading evidence…";
         try {
             const c = await fetchCaseDetail(caseId);
             // Stale-response guard: ignore a slower fetch for a case the
             // officer has already navigated away from.
             if (currentWorkspaceCaseId !== caseId) return;
             renderCaseWorkspace(c);
+            $("active-workspace-label").textContent = c.title || c.case_id;
+            return c;
         } catch (err) {
             if (currentWorkspaceCaseId !== caseId) return;
+            $("workspace-title").textContent = "Case unavailable";
             const docListEl = $("workspace-doc-list");
             if (docListEl) {
                 docListEl.innerHTML = `<div class="loader" style="color:#B3402E">${esc(err.message)}</div>`;
@@ -389,6 +353,7 @@ async function openCaseWorkspace(caseId) {
         docListEl.innerHTML = "";
         const fragment = document.createDocumentFragment();
         docs.forEach((d) => {
+            const row = UI.getCasesData().find(r => r.Case_ID === caseId && r.Case_File === d.filename);
             const item = document.createElement("div");
             item.className = `ws-doc-item ${d.priority ? "" : "pending"}`;
             item.setAttribute("data-doc-id", d.doc_id || "");
@@ -396,16 +361,17 @@ async function openCaseWorkspace(caseId) {
                 <div class="ws-doc-main">
                     <i data-lucide="file-text"></i>
                     <div class="ws-doc-info">
-                        <strong>${esc(d.filename)}</strong>
+                        ${row ? `<button type="button" class="ws-doc-analysis">${esc(d.filename)}</button>` : `<strong>${esc(d.filename)}</strong>`}
                         <span class="ws-doc-meta">${esc(d.doc_type)} · ${esc((d.uploaded_at || "").replace("T", " ").slice(0, 16))}</span>
                     </div>
                 </div>
                 <div class="ws-doc-side">
                     ${d.priority ? prioBadge(d.priority) : `<span class="ws-doc-pending">Analysis pending</span>`}
-                    <a class="ws-doc-download" href="/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(d.doc_id)}/download" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
+                    <a class="ws-doc-download" href="${esc(window.AnavayaNode.apiUrl(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(d.doc_id)}/download`))}" title="Download ${esc(d.filename)}" download><i data-lucide="download"></i></a>
                     <button class="ws-doc-delete" data-doc-id="${esc(d.doc_id)}" data-filename="${esc(d.filename)}" title="Delete ${esc(d.filename)}"><i data-lucide="trash-2"></i></button>
                 </div>`;
 
+            item.querySelector(".ws-doc-analysis")?.addEventListener("click", () => UI.selectCaseFn(row));
             const delBtn = item.querySelector(".ws-doc-delete");
             if (delBtn) {
                 delBtn.addEventListener("click", async () => {
@@ -525,6 +491,7 @@ async function openCaseWorkspace(caseId) {
             const data = await res.json();
             if (data.has_analysis) cl = data;
         } catch (_) { /* panel stays with what the case payload carries */ }
+        if (currentWorkspaceCaseId !== c.case_id) return;
         // Fallback: the case detail payload itself carries case_level.
         if (!cl && c.case_level && c.case_level.priority) {
             cl = {
@@ -538,6 +505,9 @@ async function openCaseWorkspace(caseId) {
                 corroboration_text: c.case_level.corroboration_text || "",
                 report_pdf: c.case_level.report_pdf || "",
                 constitutional: c.case_level.constitutional || {},
+                turnaround_time: c.case_level.turnaround_time,
+                statutory_sections: c.case_level.statutory_sections,
+                delay_precedents: c.case_level.delay_precedents,
             };
         }
         if (!cl) {
@@ -621,6 +591,8 @@ async function openCaseWorkspace(caseId) {
         const reportBtn = $("case-level-report-btn");
         reportBtn.href = `/api/cases/${encodeURIComponent(c.case_id)}/case-report.pdf`;
         reportBtn.style.display = "inline-flex";
+
+        renderCasePathTrace(c.case_level?.path_steps, cl.priority);
 
         // Evidence & weight + decision-path trace come from the one-call
         // insights endpoint (deterministic: merge provenance + tree trace).
@@ -1348,6 +1320,7 @@ async function openCaseWorkspace(caseId) {
             $("case-workspace-empty").style.display = "block";
             setAnalysisWholeCaseVisible(false);
             currentWorkspaceCaseId = null;
+            $("active-workspace-label").textContent = "";
             UI.setCurrentCaseId("");
             fetchRegistry();
             try { await UI.refreshCases(); } catch (_) { /* non-fatal */ }
@@ -1491,7 +1464,7 @@ async function openCaseWorkspace(caseId) {
     // =================================================================
     function setupWorkflowTabDebouncing() {
         const inputs = document.querySelectorAll(
-            ".tab-content input, .tab-content select, #cases-sidebar input, #cases-sidebar select"
+            ".tab-content input, .tab-content select"
         );
         inputs.forEach((input) => {
             if (input.type === "file" || input.type === "submit" || input.type === "button") return;

@@ -58,7 +58,12 @@ document.addEventListener("DOMContentLoaded", () => {
         getCurrentCaseId: () => currentCaseId,
         refreshCases: () => fetchCases(),
         refreshStats: () => { updateStats(casesData); populateFilters(casesData); renderCasesList(casesData); },
-        selectCaseFn: (c) => selectCase(c),
+        selectCaseFn: (c, options) => selectCase(c, options),
+        clearSelectedCase: () => {
+            selectedCase = null;
+            showEmptyDetail();
+            document.getElementById("path-trace-wrap").style.display = "none";
+        },
         escHtml: escHtml,
         debounce: debounce,
         renderCases: (cases) => renderCasesList(cases),
@@ -242,7 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
             globalTreeData = await res.json();
             document.getElementById("tree-loading").style.display = "none";
         } catch (err) {
-            document.getElementById("tree-loading").innerHTML = `<span style="color: #B3402E">Failed to load global decision tree structure.</span>`;
+            document.getElementById("tree-loading").innerHTML = `<span style="color: #B3402E">Connect the live backend to view the full decision tree.</span>`;
             throw err;
         }
     }
@@ -407,7 +412,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Filter grouped CASES (not raw rows): the query also matches any
         // evidence row's text, while priority/category match the case's own
         // (whole-case) verdict.
-        const filtered = groupBoardCases(cases).filter(c => {
+        window.AnavayaUI.renderCaseStack?.();
+        const filtered = cases.filter(c => !c.Case_ID).filter(c => {
             const evRows = c._evidence_rows || [];
             const matchesQuery = query === "" || [
                 c.Case_File, c.Main_Parties, c.Plain_Language_Summary,
@@ -420,15 +426,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return matchesQuery && matchesPriority && matchesCategory;
         });
 
+        casesListContainer.hidden = filtered.length === 0;
         casesListContainer.innerHTML = "";
-        if (filtered.length === 0) {
-            casesListContainer.innerHTML = `<div class="empty-cases">
-                <i data-lucide="scale" style="width:28px;height:28px;color:#C9A24B;"></i>
-                <p>No cases yet. Upload a case PDF above to get an instant priority and report.</p>
-            </div>`;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-            return;
-        }
+        if (filtered.length === 0) return;
 
         const fragment = document.createDocumentFragment();
         filtered.forEach(c => {
@@ -472,7 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
             openBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 selectCase(c);
-                closeSidebar();
+                document.getElementById("main-content").scrollIntoView({ block: "start" });
             });
             removeBtn.addEventListener("click", async (e) => {
                 e.stopPropagation();
@@ -501,12 +501,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     alert("Delete failed: " + err.message);
                 }
             });
-            item.addEventListener("click", () => { selectCase(c); closeSidebar(); });
+            item.addEventListener("click", () => { selectCase(c); document.getElementById("main-content").scrollIntoView({ block: "start" }); });
             item.addEventListener("keydown", (e) => {
                 if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     selectCase(c);
-                    closeSidebar();
+                    document.getElementById("main-content").scrollIntoView({ block: "start" });
                 }
             });
             fragment.appendChild(item);
@@ -549,6 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
             e.preventDefault();
+            searchInput.scrollIntoView({ block: "center" });
             searchInput.focus();
             searchInput.select();
         }
@@ -574,24 +575,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (idx === -1) items[0].focus();
         else if (items[next]) items[next].focus();
     });
-
-    // Mobile sidebar drawer
-    const sidebarEl = document.getElementById("cases-sidebar");
-    const sidebarToggleBtn = document.getElementById("sidebar-toggle-btn");
-    const sidebarCloseBtn = document.getElementById("sidebar-close-btn");
-    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
-
-    function openSidebar() {
-        if (sidebarEl) sidebarEl.classList.add("open");
-        if (sidebarBackdrop) sidebarBackdrop.classList.add("show");
-    }
-    function closeSidebar() {
-        if (sidebarEl) sidebarEl.classList.remove("open");
-        if (sidebarBackdrop) sidebarBackdrop.classList.remove("show");
-    }
-    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener("click", openSidebar);
-    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener("click", closeSidebar);
-    if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
 
     // Drag & drop upload
     const uploadZone = document.getElementById("upload-zone");
@@ -842,6 +825,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderCasesList(casesData);
             
             // Automatically select and display the newly analyzed case
+            window.AnavayaUI.refreshCaseStack?.();
             await selectCase(newCase);
             
             // Switch to the first tab (details) to view the analysis results immediately
@@ -883,9 +867,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Case Selection
-    async function selectCase(c) {
+    async function selectCase(c, { openAnalysis = true, savedPath } = {}) {
         const detailsTabBtn = document.querySelector('.tab-btn[data-tab="details-tab"]');
-        if (detailsTabBtn && !detailsTabBtn.classList.contains('active')) {
+        if (openAnalysis && detailsTabBtn && !detailsTabBtn.classList.contains('active')) {
             activateTab(detailsTabBtn);
         }
         selectedCase = c;
@@ -1227,10 +1211,14 @@ document.addEventListener("DOMContentLoaded", () => {
         stepsContainer.innerHTML = `<div class="loader">Tracing decision path...</div>`;
 
         try {
-            const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}/decision-path`);
-            if (!res.ok) throw new Error("Path fetch failed");
-            const pathInfo = await res.json();
-            
+            let pathInfo = savedPath;
+            if (!pathInfo?.steps?.length) {
+                const res = await fetch(`/api/cases/${encodeURIComponent(c.Case_File)}/decision-path`);
+                if (!res.ok) throw new Error("Path fetch failed");
+                pathInfo = await res.json();
+            }
+            if (selectedCase !== c) return;
+
             activePathInfo = pathInfo;
             activePathNodes = pathInfo.path_node_ids || [];
             activePathEffects = {};
@@ -1276,6 +1264,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 treeRenderPending = true;
             }
         } catch (err) {
+            if (selectedCase !== c) return;
             stepsContainer.innerHTML = `<div class="loader" style="color: #B3402E">Error loading path trace steps.</div>`;
             console.error(err);
         }
@@ -1991,6 +1980,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 opt.value = c.case_id;
                 opt.textContent = `${c.case_id} — ${c.title} (${c.document_count} doc${c.document_count === 1 ? "" : "s"})`;
                 newRoomCase.appendChild(opt);
+            }
+            if ([...newRoomCase.options].some(option => option.value === currentCaseId)) {
+                newRoomCase.value = currentCaseId;
             }
         } catch (e) {
             console.warn("Case registry unavailable for courtroom lobby:", e);

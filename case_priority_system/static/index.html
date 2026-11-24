@@ -68,9 +68,6 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle case list" title="Toggle case list">
-                <i data-lucide="panel-left"></i>
-            </button>
             <a href="/landing/" class="header-logo" title="Back to Landing Page">
                 <div class="logo-icon">
                     <!-- The Anavaya mark (same scales-of-justice as the favicon),
@@ -114,6 +111,44 @@
                 </button>
             </div>
         </header>
+
+        <section class="case-browser" id="case-browser" aria-labelledby="case-browser-title">
+            <div class="case-browser-tools">
+                <h2 id="case-browser-title">Case files</h2>
+                <div class="search-box">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="search" id="search-input" aria-label="Search cases" placeholder="Search cases or evidence">
+                </div>
+                <div class="filter-row">
+                    <select id="filter-priority" aria-label="Filter by priority">
+                        <option value="all">All priorities</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                    <select id="filter-category" aria-label="Filter by category">
+                        <option value="all">All categories</option>
+                    </select>
+                    <button class="icon-btn" id="refresh-cases-btn" title="Refresh cases" aria-label="Refresh cases"><i data-lucide="refresh-cw"></i></button>
+                </div>
+                <div class="upload-section" id="upload-zone">
+                    <button class="create-case-btn" id="create-case-btn"><i data-lucide="folder-plus"></i> Create case</button>
+                    <label for="pdf-file-input" class="upload-btn"><i data-lucide="upload"></i> Upload document</label>
+                    <input type="file" id="pdf-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" hidden>
+                </div>
+            </div>
+            <div class="case-deck">
+                <div id="cases-registry-list" class="case-stack" aria-label="Case stack">
+                    <p class="loader">Loading cases…</p>
+                </div>
+                <div class="case-stack-controls" id="case-stack-controls" hidden>
+                    <button id="case-stack-prev" type="button" class="case-stack-nav" aria-label="Previous case">‹</button>
+                    <select id="case-stack-select" aria-label="Choose a case to bring forward"></select>
+                    <button id="case-stack-next" type="button" class="case-stack-nav" aria-label="Next case">›</button>
+                </div>
+            </div>
+            <div class="cases-list case-document-list" id="cases-list-container" hidden></div>
+        </section>
 
         <!-- Docket overview — the triage band. One labelled section holding three
              cards: the register size, the priority mix (also the quick filter) and
@@ -220,67 +255,12 @@
 
         <!-- Main Body Grid -->
         <main class="dashboard-grid" id="main-content">
-            <!-- Sidebar: Case Selector -->
-            <section class="cases-sidebar" id="cases-sidebar">
-                <div class="sidebar-header">
-                    <div class="sidebar-title-row">
-                        <h2>Case Documents</h2>
-                        <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close case list"><i data-lucide="x"></i></button>
-                    </div>
-                    <div class="search-box">
-                        <i data-lucide="search" class="search-icon"></i>
-                        <input type="text" id="search-input" placeholder="Search parties or files...">
-                    </div>
-                    <div class="filter-row">
-                        <select id="filter-priority">
-                            <option value="all">All Priorities</option>
-                            <option value="High">High Only</option>
-                            <option value="Medium">Medium Only</option>
-                            <option value="Low">Low Only</option>
-                        </select>
-                        <select id="filter-category">
-                            <option value="all">All Categories</option>
-                        </select>
-                        <button class="clear-all-btn" id="clear-all-btn" title="Remove all cases"><i data-lucide="trash"></i> Clear All</button>
-                    </div>
-                    <!-- Cases Registry (Create New Case workflow) -->
-                    <div class="sidebar-cases-block">
-                        <div class="sidebar-cases-header">
-                            <h3><i data-lucide="folder-kanban"></i> Cases</h3>
-                            <button class="icon-btn" id="refresh-cases-btn" title="Refresh cases" aria-label="Refresh cases"><i data-lucide="refresh-cw"></i></button>
-                        </div>
-                        <div id="cases-registry-list" class="cases-registry-list">
-                            <div class="loader">Loading cases…</div>
-                        </div>
-                    </div>
-
-                    <!-- Upload Case Document Section (drag & drop zone) -->
-                    <div class="upload-section" id="upload-zone">
-                        <button class="create-case-btn" id="create-case-btn">
-                            <i data-lucide="folder-plus"></i> Create New Case
-                        </button>
-                        <label for="pdf-file-input" class="upload-btn">
-                            <i data-lucide="upload"></i> Upload Case Document
-                        </label>
-                        <input type="file" id="pdf-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display: none;">
-                        <p class="upload-hint">Create a case to attach multiple documents (FIR, reports…), then run lie-detection fact-checking against them.</p>
-                    </div>
-                </div>
-                <div class="cases-list" id="cases-list-container">
-                    <div class="cases-skeleton" id="cases-skeleton" aria-hidden="true">
-                        <div class="skeleton-row"></div>
-                        <div class="skeleton-row"></div>
-                        <div class="skeleton-row"></div>
-                        <div class="skeleton-row"></div>
-                        <div class="skeleton-row"></div>
-                        <div class="skeleton-row"></div>
-                    </div>
-                </div>
-            </section>
-            <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-
             <!-- Main Panel: Case Details & Tree Visualizer -->
             <section class="details-panel">
+                <div class="case-workspace-nav">
+                    <a href="#case-browser"><i data-lucide="arrow-up"></i> Case files</a>
+                    <span id="active-workspace-label"></span>
+                </div>
                 <!-- Navigation Tabs -->
                 <div class="tab-header" role="tablist" aria-label="Dashboard sections">
                     <button class="tab-btn active" data-tab="case-tab" role="tab" id="tab-case" aria-controls="case-tab" aria-selected="true"><i data-lucide="folder-kanban"></i> Case</button>
@@ -295,7 +275,7 @@
                         <div id="case-workspace-empty" class="empty-state">
                             <div class="empty-icon"><i data-lucide="folder-kanban"></i></div>
                             <h3>No Case Open</h3>
-                            <p>Create a new case — a name or an FIR report is all you need — or pick one from the Cases list on the left to open its workspace.</p>
+                            <p>Create a new case — a name or an FIR report is all you need — or pick a file from the stack above to open its workspace.</p>
                             <button class="create-case-btn" id="workspace-new-case-btn" style="width:auto; padding:10px 24px; margin:14px auto 0;">
                                 <i data-lucide="folder-plus"></i> Create New Case
                             </button>
@@ -307,7 +287,7 @@
                                     <span id="workspace-case-id" class="workspace-case-id"></span>
                                     <span id="workspace-source" class="workspace-source"></span>
                                 </div>
-                                <h2 id="workspace-title">Case</h2>
+                                <h2 id="workspace-title" tabindex="-1">Case</h2>
                                 <p id="workspace-rationale" class="workspace-rationale"></p>
                                 <div class="workspace-actions">
                                     <button class="lobby-create-btn" id="workspace-analyze-btn" style="width:auto;"><i data-lucide="sparkles"></i> Analyze All Documents</button>
