@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#070b12">
     <title>Chakshu AI — Mobile Optical Feed</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,160 +45,39 @@
         }
         #app-root {
             position: relative;
-            width: 100vw;
+            width: 100%;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: auto;
         }
 
-        /* Top Luxury Judicial Navigation Header */
         .companion-header {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 35;
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
-            padding-top: max(12px, env(safe-area-inset-top));
-            background: linear-gradient(180deg, rgba(7, 11, 18, 0.94) 0%, rgba(7, 11, 18, 0.75) 75%, rgba(7, 11, 18, 0) 100%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .brand-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: radial-gradient(circle at top left, rgba(201, 162, 39, 0.25) 0%, rgba(201, 162, 39, 0.08) 100%);
-            border: 1px solid rgba(201, 162, 39, 0.45);
-            box-shadow: 0 0 16px var(--accent-gold-glow);
-            font-size: 17px;
-            flex-shrink: 0;
-        }
-        .header-titles {
-            display: flex;
-            flex-direction: column;
+            gap: 6px 12px;
+            padding: max(8px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+                8px max(14px, env(safe-area-inset-left));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.09);
         }
         .header-title {
             font-family: var(--font-display);
             font-weight: 800;
-            font-size: 14px;
-            letter-spacing: -0.01em;
-            color: #ffffff;
+            font-size: 16px;
+        }
+        .camera-status {
             display: flex;
             align-items: center;
-            gap: 6px;
+            flex-wrap: wrap;
+            gap: 6px 10px;
         }
-        .header-title-pill {
-            font-size: 9px;
-            font-weight: 800;
-            text-transform: uppercase;
-            padding: 1px 6px;
-            border-radius: 4px;
-            background: rgba(201, 162, 39, 0.2);
-            color: var(--accent-gold);
-            border: 1px solid rgba(201, 162, 39, 0.4);
-            letter-spacing: 0.05em;
-        }
-        .header-telemetry {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 2px;
-        }
-        .telemetry-tag {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.07);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        #resolution-tag {
             color: var(--text-muted);
-            letter-spacing: -0.02em;
+            font: 500 11px var(--font-mono);
         }
-        .telemetry-tag.active {
-            color: var(--accent-gold);
-            border-color: rgba(201, 162, 39, 0.4);
-        }
-        .telemetry-tag.ping {
-            color: var(--cyan);
-            border-color: rgba(56, 189, 248, 0.35);
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Voice Coach Header Toggle */
-        .voice-coach-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            height: 34px;
-            padding: 0 12px;
-            border-radius: 17px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(201, 162, 39, 0.4);
-            color: #f1f5f9;
-            font-size: 11px;
-            font-weight: 700;
-            cursor: pointer;
-            backdrop-filter: blur(8px);
-            transition: all 0.25s ease;
-        }
-        .voice-coach-btn.active {
-            background: rgba(201, 162, 39, 0.16);
-            border-color: rgba(201, 162, 39, 0.7);
-            color: #fef08a;
-            box-shadow: 0 0 14px rgba(201, 162, 39, 0.25);
-        }
-        .voice-coach-btn.muted {
-            background: rgba(15, 23, 42, 0.65);
-            border-color: rgba(148, 163, 184, 0.25);
-            color: var(--text-muted);
-        }
-        .voice-waves {
-            display: inline-flex;
-            align-items: center;
-            gap: 2.5px;
-            height: 14px;
-        }
-        .voice-waves .wave-bar {
-            width: 2.5px;
-            height: 6px;
-            background: currentColor;
-            border-radius: 2px;
-            transition: height 0.2s ease;
-        }
-        .voice-coach-btn.speaking .voice-waves .wave-bar:nth-child(1) {
-            animation: voiceWave 0.7s ease-in-out infinite;
-        }
-        .voice-coach-btn.speaking .voice-waves .wave-bar:nth-child(2) {
-            animation: voiceWave 0.7s ease-in-out infinite 0.15s;
-        }
-        .voice-coach-btn.speaking .voice-waves .wave-bar:nth-child(3) {
-            animation: voiceWave 0.7s ease-in-out infinite 0.3s;
-        }
-        @keyframes voiceWave {
-            0%, 100% { height: 4px; }
-            50% { height: 14px; }
-        }
-
         .status-pill {
             display: inline-flex;
             align-items: center;
@@ -234,9 +113,10 @@
         /* Video Stage and Overlay */
         .stage-container {
             position: relative;
-            flex: 1;
+            flex: 1 0 0;
             width: 100%;
-            height: 100%;
+            min-height: 120px;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -261,19 +141,13 @@
             z-index: 10;
         }
 
-        /* Center / Top High-Contrast Guidance Banner */
         .guidance-banner {
-            position: absolute;
-            top: calc(max(14px, env(safe-area-inset-top)) + 60px);
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 32px);
-            max-width: 440px;
-            z-index: 25;
+            flex: 0 0 auto;
+            margin: 8px 12px 0;
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 10px 16px;
+            padding: 8px 10px;
             background: rgba(10, 14, 23, 0.92);
             border: 1.5px solid rgba(201, 162, 39, 0.5);
             border-radius: 16px;
@@ -345,43 +219,28 @@
             font-size: 14px;
             font-weight: 800;
             letter-spacing: 0.02em;
-            text-transform: uppercase;
             color: #ffffff;
-            line-height: 1.25;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
         }
 
-        /* Bottom Luxury Controls Bar */
         .companion-footer {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 35;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            padding-bottom: max(16px, env(safe-area-inset-bottom));
-            background: linear-gradient(0deg, rgba(7, 11, 18, 0.95) 0%, rgba(7, 11, 18, 0.8) 75%, rgba(7, 11, 18, 0) 100%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 8px max(12px, env(safe-area-inset-right))
+                max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
         }
         .cam-controls {
             display: flex;
-            align-items: center;
-            gap: 10px;
+            gap: 6px;
         }
         .btn-ctrl {
+            flex: 1 1 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 7px;
-            height: 42px;
-            padding: 0 16px;
+            min-width: 0;
+            min-height: 44px;
+            padding: 4px;
             border-radius: 21px;
             background: rgba(15, 23, 42, 0.88);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -410,18 +269,6 @@
         .btn-icon {
             font-size: 15px;
         }
-        .quality-tag {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--accent-gold);
-            letter-spacing: 0.04em;
-            background: rgba(201, 162, 39, 0.12);
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(201, 162, 39, 0.35);
-        }
-
         /* Error / Permission Modal */
         #permission-card {
             position: absolute;
@@ -431,7 +278,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 24px;
+            padding: 16px;
+            overflow: auto;
             background: rgba(7, 11, 18, 0.97);
             text-align: center;
         }
@@ -475,34 +323,13 @@
 </head>
 <body>
     <div id="app-root">
-        <!-- Top Navigation Header -->
         <header class="companion-header">
-            <div class="header-brand">
-                <div class="brand-badge">⚖️</div>
-                <div class="header-titles">
-                    <div class="header-title">
-                        <span>Chakshu AI • Mobile Optical Feed</span>
-                        <span class="header-title-pill">4K LIVE</span>
-                    </div>
-                    <div class="header-telemetry">
-                        <span id="telemetry-fps-res" class="telemetry-tag active">1080p 60FPS</span>
-                        <span id="telemetry-ping" class="telemetry-tag ping">24ms latency</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="header-actions">
-                <button type="button" id="header-voice-btn" class="voice-coach-btn active" title="Toggle Voice Alignment Coaching">
-                    <span class="voice-waves">
-                        <span class="wave-bar"></span>
-                        <span class="wave-bar"></span>
-                        <span class="wave-bar"></span>
-                    </span>
-                    <span id="header-voice-label">🔊 Voice Guide (On)</span>
-                </button>
-                <div id="status-badge" class="status-pill">
-                    <span class="status-dot"></span>
-                    <span id="status-text">Connecting...</span>
+            <h1 class="header-title">Phone camera</h1>
+            <div class="camera-status">
+                <span id="resolution-tag"></span>
+                <div id="status-badge" class="status-pill" role="status">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span id="status-text">Starting camera…</span>
                 </div>
             </div>
         </header>
@@ -510,24 +337,23 @@
         <!-- Video & HUD Stage -->
         <main class="stage-container">
             <video id="mobile-video" autoplay playsinline muted></video>
-            <canvas id="mobile-hud"></canvas>
-
-            <!-- Prominent High-Contrast Guidance Banner -->
-            <div id="guidance-banner" class="guidance-banner searching">
-                <div class="guidance-icon-box" id="guidance-icon">🎯</div>
-                <div class="guidance-body">
-                    <span class="guidance-category" id="guidance-category">Biometric Face Alignment</span>
-                    <span class="guidance-text" id="guidance-text">ALIGNING... POSITION FACE IN GUIDE</span>
-                </div>
-            </div>
+            <canvas id="mobile-hud" aria-hidden="true"></canvas>
         </main>
+
+        <div id="guidance-banner" class="guidance-banner searching">
+            <div class="guidance-icon-box" id="guidance-icon">🎯</div>
+            <div class="guidance-body">
+                <span class="guidance-category" id="guidance-category">Framing guide</span>
+                <span class="guidance-text" id="guidance-text">Position your face inside the guide</span>
+            </div>
+        </div>
 
         <!-- Bottom Controls -->
         <footer class="companion-footer">
             <div class="cam-controls">
                 <button type="button" id="flip-cam-btn" class="btn-ctrl" title="Switch between front and rear cameras">
                     <span class="btn-icon">↻</span>
-                    <span>Switch Camera</span>
+                    <span>Flip camera</span>
                 </button>
                 <button type="button" id="torch-btn" class="btn-ctrl" title="Toggle flashlight / torch">
                     <span class="btn-icon">⚡</span>
@@ -538,14 +364,13 @@
                     <span id="footer-voice-label">Voice Guide</span>
                 </button>
             </div>
-            <div class="quality-tag" id="resolution-tag">1080p 60FPS</div>
         </footer>
 
         <!-- Permissions Card -->
         <div id="permission-card">
             <div class="perm-icon">📷</div>
             <h2 class="perm-title">Camera Permission Required</h2>
-            <p class="perm-desc">Chakshu AI requires mobile camera access to stream high-definition testimony video directly into the courtroom trial mesh.</p>
+            <p class="perm-desc">Allow camera access to send video to the courtroom.</p>
             <button type="button" id="grant-btn" class="btn-grant">Enable Camera</button>
         </div>
     </div>

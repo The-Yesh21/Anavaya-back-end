@@ -2,7 +2,7 @@
  * Chakshu AI — Mobile Companion Camera Client
  * Connects mobile phone camera directly into the Courtroom WebRTC mesh as a high-definition stream.
  * Renders real-time Biometric Face Alignment HUD receiving guidance feedback from the desktop judge station.
- * Upgraded with luxury dark judicial HUD, live telemetry, torch toggle, and Web Speech API voice coaching.
+ * Provides framing guidance, a torch toggle, and voice coaching.
  */
 (() => {
     "use strict";
@@ -26,8 +26,6 @@
     const flipCamBtn = document.getElementById("flip-cam-btn");
     const torchBtn = document.getElementById("torch-btn");
     const torchLabel = document.getElementById("torch-label");
-    const headerVoiceBtn = document.getElementById("header-voice-btn");
-    const headerVoiceLabel = document.getElementById("header-voice-label");
     const footerVoiceBtn = document.getElementById("footer-voice-btn");
     const footerVoiceIcon = document.getElementById("footer-voice-icon");
     const footerVoiceLabel = document.getElementById("footer-voice-label");
@@ -36,8 +34,6 @@
     const guidanceCategory = document.getElementById("guidance-category");
     const guidanceText = document.getElementById("guidance-text");
     const resTag = document.getElementById("resolution-tag");
-    const telemetryFpsRes = document.getElementById("telemetry-fps-res");
-    const telemetryPing = document.getElementById("telemetry-ping");
     const permCard = document.getElementById("permission-card");
     const grantBtn = document.getElementById("grant-btn");
 
@@ -76,12 +72,7 @@
 
         // Hardware Controls State
         torchActive: false,
-        torchSupported: false,
-
-        // Telemetry State
-        currentRes: "1080p 60FPS",
-        currentFps: 60,
-        currentPingMs: 24
+        torchSupported: false
     };
 
     function setStatus(text, type = "default") {
@@ -109,12 +100,6 @@
     window.addEventListener("touchstart", unlockAudioPlayback, { once: true, passive: true });
 
     function updateVoiceUI() {
-        if (headerVoiceBtn) {
-            headerVoiceBtn.className = "voice-coach-btn " + (state.voiceEnabled ? "active" : "muted") + (state.speaking ? " speaking" : "");
-            if (headerVoiceLabel) {
-                headerVoiceLabel.textContent = state.voiceEnabled ? "🔊 Voice Guide (On)" : "🔇 Voice Guide (Off)";
-            }
-        }
         if (footerVoiceBtn) {
             footerVoiceBtn.className = "btn-ctrl " + (state.voiceEnabled ? "active" : "");
             if (footerVoiceIcon) {
@@ -236,7 +221,7 @@
         }
         // 6. Searching
         else {
-            updateGuidanceBannerUI("ALIGNING... POSITION FACE IN GUIDE", "searching", "🎯", "Biometric Face Alignment");
+            updateGuidanceBannerUI("Position your face inside the guide", "searching", "🎯", "Biometric Face Alignment");
         }
     }
 
@@ -285,43 +270,6 @@
             updateTorchUI();
         }
     }
-
-    // =========================================================================
-    // TELEMETRY & NETWORK STATS
-    // =========================================================================
-    async function refreshTelemetry() {
-        if (!state.peers || state.peers.size === 0) {
-            if (telemetryPing) telemetryPing.textContent = "24ms latency";
-            return;
-        }
-
-        for (const [, peer] of state.peers) {
-            if (!peer.pc) continue;
-            try {
-                const stats = await peer.pc.getStats();
-                stats.forEach(report => {
-                    if (report.type === "candidate-pair" && report.state === "succeeded") {
-                        if (typeof report.currentRoundTripTime === "number") {
-                            state.currentPingMs = Math.max(8, Math.round(report.currentRoundTripTime * 1000));
-                        }
-                    }
-                    if (report.type === "outbound-rtp" && report.kind === "video") {
-                        if (typeof report.framesPerSecond === "number" && report.framesPerSecond > 0) {
-                            state.currentFps = Math.round(report.framesPerSecond);
-                        }
-                    }
-                });
-            } catch (_) {}
-        }
-
-        if (telemetryPing) {
-            telemetryPing.textContent = `${state.currentPingMs}ms latency`;
-        }
-        if (telemetryFpsRes) {
-            telemetryFpsRes.textContent = state.currentRes;
-        }
-    }
-    setInterval(refreshTelemetry, 2000);
 
     // =========================================================================
     // ICE CONFIG & CAMERA
@@ -377,14 +325,12 @@
             const videoTrack = stream.getVideoTracks()[0];
             if (videoTrack) {
                 const settings = videoTrack.getSettings ? videoTrack.getSettings() : {};
-                const w = settings.width || 1920;
-                const h = settings.height || 1080;
-                const fps = Math.round(settings.frameRate || 60);
-                const is4K = (w >= 3840 || h >= 2160);
-                state.currentRes = is4K ? `4K ${fps}FPS` : `${w}x${h} ${fps}FPS`;
-
-                if (resTag) resTag.textContent = state.currentRes;
-                if (telemetryFpsRes) telemetryFpsRes.textContent = state.currentRes;
+                if (resTag) {
+                    const fps = settings.frameRate ? ` · ${Math.round(settings.frameRate)} fps` : "";
+                    resTag.textContent = settings.width && settings.height
+                        ? `${settings.width}×${settings.height}${fps}`
+                        : "";
+                }
 
                 // Update tracks in existing peer connections
                 state.peers.forEach(({ pc }) => {
@@ -652,7 +598,7 @@
                     isOptimal: false
                 };
                 state.holdProgress = 0;
-                updateGuidanceBannerUI("ALIGNING... POSITION FACE IN GUIDE", "searching", "🎯");
+                updateGuidanceBannerUI("Position your face inside the guide", "searching", "🎯");
             } else if (pose.isOptimal) {
                 state.holdProgress = Math.min(1, state.holdProgress + 0.016 / 2.0);
                 if (feedback && feedback.emotion && state.holdProgress >= 0.85) {
@@ -693,10 +639,6 @@
         });
     }
 
-    if (headerVoiceBtn) {
-        headerVoiceBtn.addEventListener("click", toggleVoiceGuide);
-    }
-
     if (footerVoiceBtn) {
         footerVoiceBtn.addEventListener("click", toggleVoiceGuide);
     }
@@ -708,7 +650,7 @@
         });
     }
 
-    window.addEventListener("resize", resizeCanvas);
+    if (hudCanvas) new ResizeObserver(resizeCanvas).observe(hudCanvas.parentElement);
 
     // Boot
     async function boot() {
