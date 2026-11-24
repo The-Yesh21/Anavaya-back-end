@@ -2213,9 +2213,11 @@ body {
   }
 }
 
-/* ScrollExpand-style frame, driven by dashboard readiness. */
+/* ScrollExpand-style frame, driven by wheel or touch progress. */
+.dashboard-intro-active { overflow: hidden; }
 .docket-intro {
     --intro-inset-x: 21%;
+    --intro-progress: 0;
     position: fixed;
     inset: 0;
     z-index: 10000;
@@ -2226,17 +2228,26 @@ body {
     pointer-events: none;
     animation: docket-intro-expire 1ms 5s step-end forwards;
 }
+.docket-intro.is-interactive {
+    pointer-events: auto;
+    touch-action: pinch-zoom;
+    animation: none;
+}
 .docket-intro-frame {
     position: absolute;
     inset: 0;
     overflow: hidden;
-    clip-path: inset(24% var(--intro-inset-x) round 20px);
+    clip-path: inset(
+        calc(24% * (1 - var(--intro-progress)))
+        calc(var(--intro-inset-x) * (1 - var(--intro-progress)))
+        round calc(20px * (1 - var(--intro-progress)))
+    );
     background: var(--docket-ink);
 }
 .docket-intro-art {
     position: absolute;
     inset: 0;
-    transform: scale(1.25);
+    transform: scale(calc(1.25 - 0.25 * var(--intro-progress)));
     background:
         repeating-linear-gradient(90deg, transparent 0 79px, #c5a05919 79px 80px),
         repeating-linear-gradient(0deg, transparent 0 31px, #c5a05919 31px 32px);
@@ -2292,20 +2303,36 @@ body {
     color: var(--docket-caption);
     font-size: 0.875rem;
 }
-.docket-intro.is-opening {
-    animation: docket-intro-clear 620ms var(--ease-out) both;
+#docket-intro-enter {
+    justify-self: center;
+    min-height: 44px;
+    margin-top: 4px;
+    padding: 8px 16px;
+    border: 1px solid var(--docket-gold);
+    border-radius: 8px;
+    background: var(--docket-ink);
+    color: var(--docket-paper);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+#docket-intro-enter:is(:hover, :focus-visible) {
+    background: var(--docket-paper);
+    color: var(--docket-ink);
+}
+.docket-intro.is-interactive.is-opening {
+    animation: docket-intro-clear 600ms var(--ease-out) both;
 }
 .is-opening .docket-intro-frame {
-    animation: docket-intro-expand 450ms var(--ease-out) both;
+    transition: clip-path 430ms var(--ease-out);
 }
 .is-opening .docket-intro-art {
-    animation: docket-intro-pullback 450ms var(--ease-out) both;
+    transition: transform 430ms var(--ease-out);
 }
 .is-opening .docket-intro-title {
     animation: docket-intro-lift 310ms var(--ease-out) both;
 }
-@keyframes docket-intro-expand { to { clip-path: inset(0 round 0); } }
-@keyframes docket-intro-pullback { to { transform: scale(1); } }
 @keyframes docket-intro-lift { to { opacity: 0; transform: translateY(-24px); } }
 @keyframes docket-intro-clear {
     0%, 55% { opacity: 1; }
@@ -2318,7 +2345,8 @@ body {
     .docket-intro-page { top: 55%; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .docket-intro { display: none; }
+    .docket-intro-frame { clip-path: inset(0); }
+    .docket-intro-art { transform: none; }
 }
 
 /* ============================================================

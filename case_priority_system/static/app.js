@@ -184,18 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
         const intro = document.getElementById("global-preloader");
-        function revealDashboard() {
-            if (document.documentElement.classList.contains("dashboard-ready")) return;
-            document.documentElement.classList.add("dashboard-ready");
-            if (!intro) return;
-            if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-                intro.remove();
-                return;
-            }
-            intro.classList.add("is-opening");
-            setTimeout(() => intro.remove(), 620);
-        }
-        const introDeadline = setTimeout(revealDashboard, 2200);
+        if (intro) setupDashboardIntro(intro);
         try {
             // The decision tree is fetched lazily on the first Tree-tab
             // activation (see tab handler), so the initial page load only
@@ -207,9 +196,74 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
-            clearTimeout(introDeadline);
-            revealDashboard();
         }
+    }
+
+    function setupDashboardIntro(intro) {
+        const root = document.documentElement;
+        const dashboard = document.querySelector(".app-container");
+        const enter = document.getElementById("docket-intro-enter");
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+        let progress = 0;
+        let touchY;
+        let opening = false;
+
+        function enterDashboard() {
+            if (opening) return;
+            opening = true;
+            const finish = () => {
+                intro.remove();
+                dashboard.inert = false;
+                root.classList.remove("dashboard-intro-active");
+                root.classList.add("dashboard-ready");
+                document.getElementById("case-browser-title").focus({ preventScroll: true });
+            };
+            if (reduced.matches) {
+                finish();
+                return;
+            }
+            intro.classList.add("is-opening");
+            intro.style.setProperty("--intro-progress", "1");
+            setTimeout(finish, 600);
+        }
+
+        function advance(delta) {
+            if (opening) return;
+            if (reduced.matches && delta > 0) {
+                enterDashboard();
+                return;
+            }
+            progress = Math.max(0, Math.min(1, progress + delta));
+            if (progress >= 1) enterDashboard();
+            else intro.style.setProperty("--intro-progress", progress.toFixed(3));
+        }
+
+        intro.addEventListener("wheel", event => {
+            if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+            event.preventDefault();
+            const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
+            advance(pixels / 340);
+        }, { passive: false });
+        intro.addEventListener("touchstart", event => {
+            touchY = event.touches.length === 1 ? event.touches[0].clientY : undefined;
+        }, { passive: true });
+        intro.addEventListener("touchmove", event => {
+            if (touchY === undefined || event.touches.length !== 1) return;
+            const y = event.touches[0].clientY;
+            advance((touchY - y) / 140);
+            touchY = y;
+        }, { passive: true });
+        enter.addEventListener("click", enterDashboard);
+        intro.addEventListener("keydown", event => {
+            if (event.key !== "ArrowDown" && event.key !== "PageDown") return;
+            event.preventDefault();
+            enterDashboard();
+        });
+
+        intro.classList.add("is-interactive");
+        dashboard.inert = true;
+        root.classList.add("dashboard-intro-active");
+        enter.focus({ preventScroll: true });
     }
 
     async function fetchCases() {

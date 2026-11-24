@@ -46,10 +46,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <!-- Skip link for keyboard users -->
-    <a class="skip-link" href="#main-content">Skip to main content</a>
-
-    <div id="global-preloader" class="docket-intro" role="status">
+    <div id="global-preloader" class="docket-intro" role="dialog" aria-modal="true" aria-labelledby="docket-intro-name">
         <div class="docket-intro-frame" aria-hidden="true">
             <div class="docket-intro-art">
                 <span class="docket-intro-page"></span>
@@ -60,12 +57,14 @@
             </div>
         </div>
         <div class="docket-intro-title">
-            <strong>Anavaya</strong>
-            <span>Opening the case docket</span>
+            <strong id="docket-intro-name">Anavaya</strong>
+            <span>Scroll down or swipe up to enter</span>
+            <button type="button" id="docket-intro-enter">Enter dashboard</button>
         </div>
     </div>
 
     <div class="app-container">
+        <a class="skip-link" href="#main-content">Skip to main content</a>
         <!-- Header -->
         <header class="app-header">
             <a href="/landing/" class="header-logo" title="Back to Landing Page">
@@ -114,7 +113,7 @@
 
         <section class="case-browser" id="case-browser" aria-labelledby="case-browser-title">
             <div class="case-browser-tools">
-                <h2 id="case-browser-title">Case files</h2>
+                <h2 id="case-browser-title" tabindex="-1">Case files</h2>
                 <div class="search-box">
                     <i data-lucide="search" class="search-icon"></i>
                     <input type="search" id="search-input" aria-label="Search cases" placeholder="Search cases or evidence">
