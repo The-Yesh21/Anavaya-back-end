@@ -25,6 +25,16 @@ body {
     line-height: 1.5;
     position: relative;
     padding: 24px;
+    isolation: isolate;
+}
+
+.dashboard-particles {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* App Layout */

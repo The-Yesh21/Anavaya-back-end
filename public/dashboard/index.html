@@ -46,6 +46,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
+    <canvas class="dashboard-particles" data-ambient-particles="dashboard" aria-hidden="true"></canvas>
     <div id="global-preloader" class="docket-intro" role="dialog" aria-modal="true" aria-labelledby="docket-intro-name">
         <div class="docket-intro-frame" aria-hidden="true">
             <div class="docket-intro-art">
@@ -840,5 +841,9 @@
     <script src="case-workflow.js"></script>
     <script src="case-chat.js"></script>
     <script src="border-glow.js"></script>
+    <script type="module">
+        import { mountParticles } from "./assets/ambient-particles.js";
+        mountParticles(document.querySelector("[data-ambient-particles]"), { waitForDashboard: true });
+    </script>
 </body>
 </html>

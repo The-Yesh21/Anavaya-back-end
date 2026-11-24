@@ -14,6 +14,7 @@ import { ModelAccuracy } from "@/components/landing/ModelAccuracy";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { ProgressiveSection } from "@/components/landing/ProgressiveSection";
 import { LoadBalancerHud } from "@/components/landing/LoadBalancerHud";
+import { AmbientParticles } from "@/components/ui/AmbientParticles";
 
 const title = "Anavaya — AI-Powered Judicial Case Priority System";
 const description =
@@ -39,6 +40,7 @@ function Index() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
+      <AmbientParticles />
       <SiteHeader />
       <main id="main" className="relative z-10">
         {/* Above-the-fold Hero loads immediately */}
