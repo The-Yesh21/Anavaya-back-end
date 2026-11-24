@@ -157,6 +157,13 @@ tunnel.
 
 ### Option B — self-hosted with nginx (no Cloudflare, no third-party tunnel)
 
+Run `powershell.exe -ExecutionPolicy Bypass -File deploy/start-anavaya.ps1 -NoWait`
+from the repo root to launch the stack with the Ollama monitor. The monitor
+checks Ollama every 10 seconds and restarts it after an exit. It stays running
+after the launcher closes and writes restart events to
+`C:\nginx\logs\ollama-monitor.log`. The compiled launcher must be rebuilt to
+include launcher script changes.
+
 > **One-click launcher (this machine):** `C:\nginx\Anavaya-Remote.exe` (source:
 > `deploy/start-anavaya.ps1`) starts backend + nginx + **ngrok** + the landing
 > page in one go, prints the public links, and opens the browser. It uses a

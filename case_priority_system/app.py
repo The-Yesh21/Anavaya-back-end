@@ -1548,25 +1548,27 @@ def _cached_gpu_info():
 def get_gpu_status():
     """GPU / LLM status for the dashboard header badge.
 
-    The CUDA query is cached after the first call; the LLM-mode flag follows
-    the resolver's own caching (in auto mode it re-probes while disabled, so
-    a badge fetch may add a sub-second localhost check when Ollama is down).
+    The CUDA query is cached. Ollama reachability is checked on each request
+    because inference may be configured even when the daemon is down.
     """
     try:
         from case_priority_system.scripts.inference_pipeline import (
             llm_extraction_enabled,
+            _ollama_reachable,
             OLLAMA_MODEL,
             OLLAMA_URL,
         )
     except ImportError:
         from scripts.inference_pipeline import (  # type: ignore
             llm_extraction_enabled,
+            _ollama_reachable,
             OLLAMA_MODEL,
             OLLAMA_URL,
         )
     info = _cached_gpu_info()
     return {
         "llm_mode": "enabled" if llm_extraction_enabled() else "disabled",
+        "ollama_reachable": _ollama_reachable(),
         "gpu": info["gpu"],
         "gpu_vram_mb": info["gpu_vram_mb"],
         "model": OLLAMA_MODEL,

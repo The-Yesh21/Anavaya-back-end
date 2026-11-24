@@ -1437,36 +1437,46 @@ async function openCaseWorkspace(caseId) {
         const textEl = $("gpu-badge-text");
         if (!badge || !textEl) return;
         try {
-            // Check Ollama daemon status first
-            const ollamaRes = await fetch("/api/ollama/status");
-            if (!ollamaRes.ok) throw new Error("status fetch failed");
-            const ollamaSt = await ollamaRes.json();
-            if (!ollamaSt.daemon_running) {
-                textEl.textContent = `Ollama: starting…`;
-                badge.classList.remove("gpu-on");
-                badge.hidden = false;
-                // Retry in 5s
-                setTimeout(loadGpuBadge, 5000);
-                return;
-            }
-            // GPU status
-            const gpuRes = await fetch("/api/gpu-status");
+            const gpuRes = await fetch("/api/gpu-status", {
+                cache: "no-store",
+                signal: AbortSignal.timeout(6000)
+            });
             if (!gpuRes.ok) throw new Error("gpu status failed");
             const st = await gpuRes.json();
+            // Older tunnel backends report daemon health on a separate endpoint.
+            let reachable = st.ollama_reachable;
+            if (reachable === undefined) {
+                const response = await fetch("/api/ollama/status", {
+                    cache: "no-store",
+                    signal: AbortSignal.timeout(6000)
+                });
+                if (!response.ok) throw new Error("Ollama status failed");
+                reachable = (await response.json()).daemon_running;
+            }
             const parts = [];
-            if (st.gpu) {
+            if (reachable && st.gpu) {
                 const gpuShort = String(st.gpu)
                     .replace(/^NVIDIA GeForce /, "")
                     .replace(/^NVIDIA /, "");
                 parts.push(gpuShort);
             }
-            parts.push(st.model || "LLM");
-            parts.push(st.llm_mode === "enabled" ? "GPU inference" : "rule-based");
+            if (reachable) {
+                parts.push(st.model || "Ollama");
+                parts.push(st.llm_mode === "enabled" ? (st.gpu ? "GPU inference" : "LLM inference") : "rule-based");
+            } else {
+                parts.push("Ollama offline");
+            }
             textEl.textContent = parts.join(' · ');
-            badge.classList.toggle("gpu-on", st.llm_mode === "enabled");
+            badge.classList.toggle("gpu-on", reachable && st.llm_mode === "enabled");
             badge.hidden = false;
-        } catch (e) {
-            badge.hidden = true;
+        } catch (_) {
+            textEl.textContent = "Live AI offline";
+            badge.classList.remove("gpu-on");
+            badge.hidden = false;
+        } finally {
+            if (window.AnavayaNode?.getBackendUrl() || !/^\/dashboard(?:\/|$)/.test(window.location.pathname)) {
+                setTimeout(loadGpuBadge, 15000);
+            }
         }
     }
 
