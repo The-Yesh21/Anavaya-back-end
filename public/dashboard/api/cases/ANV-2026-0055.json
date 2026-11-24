@@ -1,0 +1,2101 @@
+{
+  "case_id": "ANV-2026-0055",
+  "title": "E01",
+  "created_at": "2026-11-23T00:31:49",
+  "created_by": "Officer",
+  "source": "FIR_UPLOADED",
+  "documents": [
+    {
+      "doc_id": "d_4e7cd559",
+      "filename": "E01.pdf",
+      "doc_type": "FIR",
+      "uploaded_at": "2026-11-23T00:31:49",
+      "analysis": {
+        "main_parties": "Dev Malik, Nila Sen",
+        "crime_type": "Violent",
+        "case_category": "Criminal/Violent",
+        "severity": "Major",
+        "vulnerability": "Low",
+        "influence": "Low",
+        "plain_summary": "Dev Malik allegedly assaulted Nila Sen by pushing her and blocking her exit. Both parties were injured. The assault is considered major due to the serious injury and hospitalization. The case raises questions under Article 21 (right to life and personal liberty) and Article 14 (equality before law). The relief sought is for Nila Sen to be compensated for her injuries and for Dev Malik to be held accountable for his actions.",
+        "text_excerpt": "WC-026 | FICTIONAL MOCK TRIAL EXHIBIT\nE01 | Incident intake and conflicting statements\nAssault allegations | Victim evidence | Bodily injury\nIntake officer R. Iyer recorded separate accounts on 14 November 2026 at 20:18 and\n20:33. Nila Sen reported Dev Malik blocked her exit and shoved her. ·I never crossed\nthe blue line into the west corridor.· She reported pushing once when he advanced\nagain. Dev Malik stated: ·I was by the bench. She pushed me without warning. I never\ntouched her.· The officer recorded both accounts as allegations. Both parties were\ninjured in the reported assault. Dev was taken for hospital treatment. The exercise\nuses the signed intake copies.\n",
+        "_constitutional": {
+          "constitutional_rights_engaged": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "primary": true,
+              "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm.",
+              "precedents": []
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "primary": true,
+              "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+              "precedents": []
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "primary": true,
+              "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+              "precedents": []
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "primary": false,
+              "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is.",
+              "precedents": []
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            }
+          ],
+          "constitutional_rights_detail": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+              "principles": [
+                "Right to life includes right to live with dignity",
+                "Right to a speedy trial",
+                "Right to health and medical care",
+                "Right to fair procedure",
+                "Right to safety and security",
+                "Due process and procedural fairness"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+              "principles": [
+                "Right to be informed of grounds of arrest",
+                "Right to consult a lawyer",
+                "Safeguards against arbitrary detention",
+                "Preventive detention procedural safeguards"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+              "principles": [
+                "No ex post facto criminal law",
+                "No double jeopardy",
+                "Protection against self-incrimination"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+              "principles": [
+                "Equality before law",
+                "Equal protection of laws",
+                "Reasonable classification is permitted",
+                "Anti-arbitrariness"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Abolition of untouchability",
+                "Enforcement of disabilities is an offence",
+                "Protection of SC/ST communities"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Prohibition of human trafficking",
+                "Prohibition of forced labour and begar"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+              "principles": [
+                "No child labour below 14 in hazardous work",
+                "Protection of children from exploitation"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+              "principles": [
+                "Free legal aid",
+                "Equal opportunity in the legal system",
+                "Justice for the economically disadvantaged"
+              ],
+              "primary": false
+            }
+          ],
+          "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+          "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+          "severity_constitutional_analysis": {
+            "article": "Article 21",
+            "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+            "urgency": "High — bodily integrity and dignity are seriously compromised."
+          },
+          "vulnerability_constitutional_analysis": {
+            "groups": [
+              "Corporate entities",
+              "Well-established businesses",
+              "Government bodies",
+              "Public sector undertakings",
+              "High net-worth individuals",
+              "Professional litigants"
+            ],
+            "constitutional_protection": "Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.",
+            "judicial_duty": "Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required."
+          },
+          "influence_constitutional_analysis": {
+            "description": "Individuals, small businesses, or parties of comparable standing",
+            "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+            "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+          },
+          "applicable_doctrines": [
+            {
+              "name": "Doctrine of Proportionality",
+              "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+              "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+            },
+            {
+              "name": "Doctrine of Parens Patriae",
+              "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+              "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+            },
+            {
+              "name": "Rule of Law",
+              "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+              "application": "Foundational principle engaged in every challenge to executive or legislative action."
+            }
+          ],
+          "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+          "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Dev Malik, Nila Sen\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** Dev Malik allegedly assaulted Nila Sen by pushing her and blocking her exit. Both parties were injured. The assault is considered major due to the serious injury and hospitalization. The case raises questions under Article 21 (right to life and personal liberty) and Article 14 (equality before law). The relief sought is for Nila Sen to be compensated for her injuries and for Dev Malik to be held accountable for his actions.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = Low, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+          "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+        },
+        "report_pdf": "case_priority_system\\reports\\ANV-2026-0055_d_4e7cd559_E01_report.pdf"
+      },
+      "priority": "High",
+      "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_4e7cd559_E01_decision_report.md"
+    },
+    {
+      "doc_id": "d_cdd40932",
+      "filename": "E02.pdf",
+      "doc_type": "Other",
+      "uploaded_at": "2026-11-23T00:32:55",
+      "analysis": {
+        "main_parties": "Dev Malik, Nila Sen",
+        "crime_type": "Violent",
+        "case_category": "Criminal/Violent",
+        "severity": "Major",
+        "vulnerability": "Low",
+        "influence": "Low",
+        "plain_summary": "Dev Malik and Nila Sen alleged assault and bodily injury. Dr. P. Bose confirmed a displaced cheekbone fracture and bruising. The case involves constitutional questions under Article 21 (right to life and personal liberty) and Article 14 (equality before law). The relief sought is for compensation and medical treatment.",
+        "text_excerpt": "WC-026 | FICTIONAL MOCK TRIAL EXHIBIT\nE02 | Hospital injury report\nAssault allegations | Victim evidence | Bodily injury\nClinician Dr. P. Bose examined Dev Malik and Nila Sen on 14 November 2026. Dev: CT\nconfirmed a displaced cheekbone fracture after blunt impact. Surgery was performed\nthe next morning. Major injury. Nila: bruising and tenderness of the left wrist. No\nfracture on X-ray. The findings are compatible with the reported fall and shove\nrespectively. The clinical findings do not establish the order of force. Both\nexamination entries are included in the stipulated clinical extract.\n",
+        "_constitutional": {
+          "constitutional_rights_engaged": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "primary": true,
+              "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm.",
+              "precedents": []
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "primary": true,
+              "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+              "precedents": []
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "primary": true,
+              "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+              "precedents": []
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "primary": false,
+              "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is.",
+              "precedents": []
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            }
+          ],
+          "constitutional_rights_detail": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+              "principles": [
+                "Right to life includes right to live with dignity",
+                "Right to a speedy trial",
+                "Right to health and medical care",
+                "Right to fair procedure",
+                "Right to safety and security",
+                "Due process and procedural fairness"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+              "principles": [
+                "Right to be informed of grounds of arrest",
+                "Right to consult a lawyer",
+                "Safeguards against arbitrary detention",
+                "Preventive detention procedural safeguards"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+              "principles": [
+                "No ex post facto criminal law",
+                "No double jeopardy",
+                "Protection against self-incrimination"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+              "principles": [
+                "Equality before law",
+                "Equal protection of laws",
+                "Reasonable classification is permitted",
+                "Anti-arbitrariness"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Abolition of untouchability",
+                "Enforcement of disabilities is an offence",
+                "Protection of SC/ST communities"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Prohibition of human trafficking",
+                "Prohibition of forced labour and begar"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+              "principles": [
+                "No child labour below 14 in hazardous work",
+                "Protection of children from exploitation"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+              "principles": [
+                "Free legal aid",
+                "Equal opportunity in the legal system",
+                "Justice for the economically disadvantaged"
+              ],
+              "primary": false
+            }
+          ],
+          "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+          "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+          "severity_constitutional_analysis": {
+            "article": "Article 21",
+            "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+            "urgency": "High — bodily integrity and dignity are seriously compromised."
+          },
+          "vulnerability_constitutional_analysis": {
+            "groups": [
+              "Corporate entities",
+              "Well-established businesses",
+              "Government bodies",
+              "Public sector undertakings",
+              "High net-worth individuals",
+              "Professional litigants"
+            ],
+            "constitutional_protection": "Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.",
+            "judicial_duty": "Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required."
+          },
+          "influence_constitutional_analysis": {
+            "description": "Individuals, small businesses, or parties of comparable standing",
+            "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+            "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+          },
+          "applicable_doctrines": [
+            {
+              "name": "Doctrine of Proportionality",
+              "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+              "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+            },
+            {
+              "name": "Doctrine of Parens Patriae",
+              "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+              "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+            },
+            {
+              "name": "Rule of Law",
+              "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+              "application": "Foundational principle engaged in every challenge to executive or legislative action."
+            }
+          ],
+          "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+          "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Dev Malik, Nila Sen\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** Dev Malik and Nila Sen alleged assault and bodily injury. Dr. P. Bose confirmed a displaced cheekbone fracture and bruising. The case involves constitutional questions under Article 21 (right to life and personal liberty) and Article 14 (equality before law). The relief sought is for compensation and medical treatment.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = Low, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+          "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+        },
+        "report_pdf": "case_priority_system\\reports\\ANV-2026-0055_d_cdd40932_E02_report.pdf"
+      },
+      "priority": "High",
+      "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_cdd40932_E02_decision_report.md"
+    },
+    {
+      "doc_id": "d_f05dcfc7",
+      "filename": "E03.pdf",
+      "doc_type": "Other",
+      "uploaded_at": "2026-11-23T00:32:55",
+      "analysis": {
+        "main_parties": "Victim, Assailant",
+        "crime_type": "Violent",
+        "case_category": "Criminal/Violent",
+        "severity": "Major",
+        "vulnerability": "Low",
+        "influence": "Low",
+        "plain_summary": "The victim, Dev, reported an assault by an unknown assailant in the west corridor of the building. The scene examiner, S. Menon, inspected the area and identified a fixed bench as the only object seen making contact with the victim's face. The case seeks relief under Article 21 for the victim's right to life and personal liberty.",
+        "text_excerpt": "WC-026 | FICTIONAL MOCK TRIAL EXHIBIT\nE03 | Scene inspection report\nAssault allegations | Victim evidence | Bodily injury\nScene examiner S. Menon inspected the west corridor on 14 November 2026 at 21:10. The\nblue stripe marks the entrance from the lobby. The side exit is down the corridor,\nbeside a fixed bench. The bench is the only object seen making contact with Dev's\nface in the later footage. Inspection sketch, lobby to exit: lobby / BLUE STRIPE /\ncorridor / fixed bench beside side exit. Measurements and identifiers are stipulated.\nThe inspection establishes layout for the reported assault and does not identify the\nfirst person to use force.\n",
+        "_constitutional": {
+          "constitutional_rights_engaged": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "primary": true,
+              "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm.",
+              "precedents": []
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "primary": true,
+              "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+              "precedents": []
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "primary": true,
+              "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+              "precedents": []
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "primary": false,
+              "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is.",
+              "precedents": []
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            }
+          ],
+          "constitutional_rights_detail": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+              "principles": [
+                "Right to life includes right to live with dignity",
+                "Right to a speedy trial",
+                "Right to health and medical care",
+                "Right to fair procedure",
+                "Right to safety and security",
+                "Due process and procedural fairness"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+              "principles": [
+                "Right to be informed of grounds of arrest",
+                "Right to consult a lawyer",
+                "Safeguards against arbitrary detention",
+                "Preventive detention procedural safeguards"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+              "principles": [
+                "No ex post facto criminal law",
+                "No double jeopardy",
+                "Protection against self-incrimination"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+              "principles": [
+                "Equality before law",
+                "Equal protection of laws",
+                "Reasonable classification is permitted",
+                "Anti-arbitrariness"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Abolition of untouchability",
+                "Enforcement of disabilities is an offence",
+                "Protection of SC/ST communities"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Prohibition of human trafficking",
+                "Prohibition of forced labour and begar"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+              "principles": [
+                "No child labour below 14 in hazardous work",
+                "Protection of children from exploitation"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+              "principles": [
+                "Free legal aid",
+                "Equal opportunity in the legal system",
+                "Justice for the economically disadvantaged"
+              ],
+              "primary": false
+            }
+          ],
+          "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+          "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+          "severity_constitutional_analysis": {
+            "article": "Article 21",
+            "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+            "urgency": "High — bodily integrity and dignity are seriously compromised."
+          },
+          "vulnerability_constitutional_analysis": {
+            "groups": [
+              "Corporate entities",
+              "Well-established businesses",
+              "Government bodies",
+              "Public sector undertakings",
+              "High net-worth individuals",
+              "Professional litigants"
+            ],
+            "constitutional_protection": "Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.",
+            "judicial_duty": "Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required."
+          },
+          "influence_constitutional_analysis": {
+            "description": "Individuals, small businesses, or parties of comparable standing",
+            "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+            "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+          },
+          "applicable_doctrines": [
+            {
+              "name": "Doctrine of Proportionality",
+              "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+              "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+            },
+            {
+              "name": "Doctrine of Parens Patriae",
+              "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+              "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+            },
+            {
+              "name": "Rule of Law",
+              "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+              "application": "Foundational principle engaged in every challenge to executive or legislative action."
+            }
+          ],
+          "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+          "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Victim, Assailant\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** The victim, Dev, reported an assault by an unknown assailant in the west corridor of the building. The scene examiner, S. Menon, inspected the area and identified a fixed bench as the only object seen making contact with the victim's face. The case seeks relief under Article 21 for the victim's right to life and personal liberty.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = Low, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+          "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+        },
+        "report_pdf": "case_priority_system\\reports\\ANV-2026-0055_d_f05dcfc7_E03_report.pdf"
+      },
+      "priority": "High",
+      "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_f05dcfc7_E03_decision_report.md"
+    },
+    {
+      "doc_id": "d_6b9a055a",
+      "filename": "E04.pdf",
+      "doc_type": "Other",
+      "uploaded_at": "2026-11-23T00:32:55",
+      "analysis": {
+        "main_parties": "Nila Sen, Unknown Male",
+        "crime_type": "Violent",
+        "case_category": "Criminal/Violent",
+        "severity": "Major",
+        "vulnerability": "Low",
+        "influence": "Low",
+        "plain_summary": "In this emergency call, Nila Sen reported an assault by an unknown male at the west exit. The assault resulted in bodily injury and required an ambulance. The case involves a violent crime with serious injury, engaging Article 21 of the Constitution.",
+        "text_excerpt": "WC-026 | FICTIONAL MOCK TRIAL EXHIBIT\nE04 | Emergency call transcript extract\nAssault allegations | Victim evidence | Bodily injury\nDispatcher archive CALL-WC-014. 19:12:08, caller Nila Sen: ·I'm by the west exit.\nHe's blocking it.· 19:12:10, caller: ·Please move. Let me pass.· 19:12:17, dispatcher\nnotes a loud impact. 19:12:21, caller: ·He's fallen. Send an ambulance.· The call\nremains connected through dispatch. The incident was reported as an assault with an\ninjury. The certified archive excerpt is stipulated. No speaker identification other\nthan the operator and identified caller is asserted.\n",
+        "_constitutional": {
+          "constitutional_rights_engaged": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "primary": true,
+              "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm.",
+              "precedents": []
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "primary": true,
+              "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+              "precedents": []
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "primary": true,
+              "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+              "precedents": []
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "primary": false,
+              "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is.",
+              "precedents": []
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            }
+          ],
+          "constitutional_rights_detail": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+              "principles": [
+                "Right to life includes right to live with dignity",
+                "Right to a speedy trial",
+                "Right to health and medical care",
+                "Right to fair procedure",
+                "Right to safety and security",
+                "Due process and procedural fairness"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+              "principles": [
+                "Right to be informed of grounds of arrest",
+                "Right to consult a lawyer",
+                "Safeguards against arbitrary detention",
+                "Preventive detention procedural safeguards"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+              "principles": [
+                "No ex post facto criminal law",
+                "No double jeopardy",
+                "Protection against self-incrimination"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+              "principles": [
+                "Equality before law",
+                "Equal protection of laws",
+                "Reasonable classification is permitted",
+                "Anti-arbitrariness"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Abolition of untouchability",
+                "Enforcement of disabilities is an offence",
+                "Protection of SC/ST communities"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Prohibition of human trafficking",
+                "Prohibition of forced labour and begar"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+              "principles": [
+                "No child labour below 14 in hazardous work",
+                "Protection of children from exploitation"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+              "principles": [
+                "Free legal aid",
+                "Equal opportunity in the legal system",
+                "Justice for the economically disadvantaged"
+              ],
+              "primary": false
+            }
+          ],
+          "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+          "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+          "severity_constitutional_analysis": {
+            "article": "Article 21",
+            "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+            "urgency": "High — bodily integrity and dignity are seriously compromised."
+          },
+          "vulnerability_constitutional_analysis": {
+            "groups": [
+              "Corporate entities",
+              "Well-established businesses",
+              "Government bodies",
+              "Public sector undertakings",
+              "High net-worth individuals",
+              "Professional litigants"
+            ],
+            "constitutional_protection": "Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.",
+            "judicial_duty": "Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required."
+          },
+          "influence_constitutional_analysis": {
+            "description": "Individuals, small businesses, or parties of comparable standing",
+            "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+            "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+          },
+          "applicable_doctrines": [
+            {
+              "name": "Doctrine of Proportionality",
+              "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+              "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+            },
+            {
+              "name": "Doctrine of Parens Patriae",
+              "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+              "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+            },
+            {
+              "name": "Rule of Law",
+              "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+              "application": "Foundational principle engaged in every challenge to executive or legislative action."
+            }
+          ],
+          "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+          "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Nila Sen, Unknown Male\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** In this emergency call, Nila Sen reported an assault by an unknown male at the west exit. The assault resulted in bodily injury and required an ambulance. The case involves a violent crime with serious injury, engaging Article 21 of the Constitution.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = Low, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+          "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+        },
+        "report_pdf": "case_priority_system\\reports\\ANV-2026-0055_d_6b9a055a_E04_report.pdf"
+      },
+      "priority": "High",
+      "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_6b9a055a_E04_decision_report.md"
+    },
+    {
+      "doc_id": "d_fd68da99",
+      "filename": "E05.pdf",
+      "doc_type": "Other",
+      "uploaded_at": "2026-11-23T00:32:55",
+      "analysis": {
+        "main_parties": "Nila Sen, Dev Malik",
+        "crime_type": "Violent",
+        "case_category": "Criminal/Violent",
+        "severity": "Major",
+        "vulnerability": "Low",
+        "influence": "Low",
+        "plain_summary": "Nila Sen and Dev Malik are involved in an assault case. Nila Sen was allegedly pushed and shoved by Dev Malik, resulting in Dev Malik falling and hitting his face. The case raises questions about the right to life and personal liberty under Article 21 of the Indian Constitution. The incident involves physical harm and is classified under the Criminal/Violent category due to the violent nature of the assault.",
+        "text_excerpt": "WC-026 | FICTIONAL MOCK TRIAL EXHIBIT\nE05 | CCTV review and frame log\nAssault allegations | Victim evidence | Bodily injury\nRecorder export WC-CAM2-014. Times adjusted per E06. 19:12:06, Nila Sen crosses the\nblue entrance line with both feet. 19:12:11, Dev Malik steps across the side exit.\n19:12:13, Dev shoves Nila. 19:12:15, Dev advances again. 19:12:16, Nila pushes Dev\nonce. 19:12:17, Dev falls backward and strikes his face against the fixed bench.\n19:12:18, Nila steps back and makes no further contact. The export is silent and the\nframe sequence is continuous. This simulated frame log stands in for the stipulated\nfootage during the performance.\n",
+        "_constitutional": {
+          "constitutional_rights_engaged": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "primary": true,
+              "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm.",
+              "precedents": []
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "primary": true,
+              "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+              "precedents": []
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "primary": true,
+              "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+              "precedents": []
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "primary": false,
+              "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is.",
+              "precedents": []
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            }
+          ],
+          "constitutional_rights_detail": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+              "principles": [
+                "Right to life includes right to live with dignity",
+                "Right to a speedy trial",
+                "Right to health and medical care",
+                "Right to fair procedure",
+                "Right to safety and security",
+                "Due process and procedural fairness"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+              "principles": [
+                "Right to be informed of grounds of arrest",
+                "Right to consult a lawyer",
+                "Safeguards against arbitrary detention",
+                "Preventive detention procedural safeguards"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+              "principles": [
+                "No ex post facto criminal law",
+                "No double jeopardy",
+                "Protection against self-incrimination"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+              "principles": [
+                "Equality before law",
+                "Equal protection of laws",
+                "Reasonable classification is permitted",
+                "Anti-arbitrariness"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Abolition of untouchability",
+                "Enforcement of disabilities is an offence",
+                "Protection of SC/ST communities"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Prohibition of human trafficking",
+                "Prohibition of forced labour and begar"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+              "principles": [
+                "No child labour below 14 in hazardous work",
+                "Protection of children from exploitation"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+              "principles": [
+                "Free legal aid",
+                "Equal opportunity in the legal system",
+                "Justice for the economically disadvantaged"
+              ],
+              "primary": false
+            }
+          ],
+          "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+          "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+          "severity_constitutional_analysis": {
+            "article": "Article 21",
+            "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+            "urgency": "High — bodily integrity and dignity are seriously compromised."
+          },
+          "vulnerability_constitutional_analysis": {
+            "groups": [
+              "Corporate entities",
+              "Well-established businesses",
+              "Government bodies",
+              "Public sector undertakings",
+              "High net-worth individuals",
+              "Professional litigants"
+            ],
+            "constitutional_protection": "Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.",
+            "judicial_duty": "Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required."
+          },
+          "influence_constitutional_analysis": {
+            "description": "Individuals, small businesses, or parties of comparable standing",
+            "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+            "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+          },
+          "applicable_doctrines": [
+            {
+              "name": "Doctrine of Proportionality",
+              "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+              "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+            },
+            {
+              "name": "Doctrine of Parens Patriae",
+              "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+              "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+            },
+            {
+              "name": "Rule of Law",
+              "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+              "application": "Foundational principle engaged in every challenge to executive or legislative action."
+            }
+          ],
+          "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+          "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Nila Sen, Dev Malik\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** Nila Sen and Dev Malik are involved in an assault case. Nila Sen was allegedly pushed and shoved by Dev Malik, resulting in Dev Malik falling and hitting his face. The case raises questions about the right to life and personal liberty under Article 21 of the Indian Constitution. The incident involves physical harm and is classified under the Criminal/Violent category due to the violent nature of the assault.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = Low, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** Low\nThis indicates: ['Corporate entities', 'Well-established businesses', 'Government bodies', 'Public sector undertakings', 'High net-worth individuals', 'Professional litigants']\n\n**Constitutional Protection:** Article 14 guarantees equal protection of laws. These parties are expected to have access to legal representation and the ability to present their case effectively.\n\n**Judicial Duty:** Standard procedural fairness applies. No special accommodation beyond ordinary courtesies is required.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+          "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+        },
+        "report_pdf": "case_priority_system\\reports\\ANV-2026-0055_d_fd68da99_E05_report.pdf"
+      },
+      "priority": "High",
+      "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_fd68da99_E05_decision_report.md"
+    },
+    {
+      "doc_id": "d_4ae439e6",
+      "filename": "E06.pdf",
+      "doc_type": "Other",
+      "uploaded_at": "2026-11-23T00:32:55",
+      "analysis": {
+        "main_parties": "Victim, Records custodian A. Nair, Mock court",
+        "crime_type": "Violent",
+        "case_category": "Criminal/Violent",
+        "severity": "Major",
+        "vulnerability": "High",
+        "influence": "Low",
+        "plain_summary": "The mock trial involves an assault case where the victim, a minor, suffered serious bodily injury. The dispute centers around the custody and accuracy of digital evidence. The parties seek to establish the validity of the evidence and the accuracy of the clock adjustments. This case falls under the Criminal/Violent category as it involves physical harm to a vulnerable victim.",
+        "text_excerpt": "WC-026 | FICTIONAL MOCK TRIAL EXHIBIT\nE06 | Digital evidence custody and clock report\nAssault allegations | Victim evidence | Bodily injury\nRecords custodian A. Nair exported WC-CAM2-014 from the centre recorder and CALL-\nWC-014 from the dispatcher archive on 15 November 2026. The working copies traveled\ntogether under packet seal WC-06 to the mock court. The recorder's displayed time was\ntwo seconds fast against the dispatcher clock in the recorded clock check. Subtract\ntwo seconds from displayed camera timestamps. E05 uses adjusted times. The adjusted\ncamera fall aligns with the 19:12:17 impact in E04. The exhibits document the timing\nof the reported assault and injury. The parties stipulate to continuity, clock\nadjustment and custody for this simulation.\n",
+        "_constitutional": {
+          "constitutional_rights_engaged": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "primary": true,
+              "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm. A vulnerable person is involved — like a child, an elderly person, or someone from a disadvantaged community. The government has a special duty to protect them.",
+              "precedents": []
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "primary": true,
+              "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+              "precedents": []
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "primary": true,
+              "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+              "precedents": []
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "primary": false,
+              "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is. A vulnerable person is involved — like a child, an elderly person, or someone from a disadvantaged community. The government has a special duty to protect them.",
+              "precedents": []
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "primary": false,
+              "why_applies": "",
+              "precedents": []
+            }
+          ],
+          "constitutional_rights_detail": [
+            {
+              "article": "Article 21",
+              "title": "Protection of Life and Personal Liberty",
+              "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+              "principles": [
+                "Right to life includes right to live with dignity",
+                "Right to a speedy trial",
+                "Right to health and medical care",
+                "Right to fair procedure",
+                "Right to safety and security",
+                "Due process and procedural fairness"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 22",
+              "title": "Protection Against Arrest and Detention",
+              "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+              "principles": [
+                "Right to be informed of grounds of arrest",
+                "Right to consult a lawyer",
+                "Safeguards against arbitrary detention",
+                "Preventive detention procedural safeguards"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 20",
+              "title": "Protection in Respect of Conviction for Offences",
+              "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+              "principles": [
+                "No ex post facto criminal law",
+                "No double jeopardy",
+                "Protection against self-incrimination"
+              ],
+              "primary": true
+            },
+            {
+              "article": "Article 14",
+              "title": "Equality Before Law",
+              "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+              "principles": [
+                "Equality before law",
+                "Equal protection of laws",
+                "Reasonable classification is permitted",
+                "Anti-arbitrariness"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 17",
+              "title": "Abolition of Untouchability",
+              "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Abolition of untouchability",
+                "Enforcement of disabilities is an offence",
+                "Protection of SC/ST communities"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 23",
+              "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+              "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+              "principles": [
+                "Prohibition of human trafficking",
+                "Prohibition of forced labour and begar"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 24",
+              "title": "Prohibition of Employment of Children in Factories",
+              "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+              "principles": [
+                "No child labour below 14 in hazardous work",
+                "Protection of children from exploitation"
+              ],
+              "primary": false
+            },
+            {
+              "article": "Article 39A",
+              "title": "Equal Justice and Free Legal Aid",
+              "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+              "principles": [
+                "Free legal aid",
+                "Equal opportunity in the legal system",
+                "Justice for the economically disadvantaged"
+              ],
+              "primary": false
+            }
+          ],
+          "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+          "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+          "severity_constitutional_analysis": {
+            "article": "Article 21",
+            "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+            "urgency": "High — bodily integrity and dignity are seriously compromised."
+          },
+          "vulnerability_constitutional_analysis": {
+            "groups": [
+              "Minors / Children",
+              "Pregnant Women",
+              "Elderly / Senior Citizens",
+              "Disabled Persons",
+              "Scheduled Castes (SC)",
+              "Scheduled Tribes (ST)",
+              "Other Backward Classes (OBC)",
+              "Adivasis / Tribals",
+              "Dalits",
+              "Economically Weaker Sections (EWS)",
+              "Below Poverty Line (BPL)",
+              "Daily Wage Workers",
+              "Agricultural Labourers",
+              "Domestic Workers",
+              "Migrant Workers",
+              "Unorganised Sector Workers",
+              "Bonded Labourers",
+              "Sex Workers",
+              "Human Trafficking Survivors",
+              "Refugees / Asylum Seekers",
+              "Homeless Persons",
+              "Orphans",
+              "Single Mothers / Widows",
+              "Persons in Custody",
+              "Victims of Domestic Violence",
+              "Victims of Sexual Assault",
+              "Victims of Torture"
+            ],
+            "constitutional_protection": "Articles 14, 15, 15(3), 15(4), 15(5), 16(4), 17, 23, 24, 39, 39A, 41, 46, and the Directive Principles under Part IV mandate special protection for vulnerable groups. The Doctrine of Parens Patriae obligates the state to act as guardian for those who cannot protect themselves.",
+            "judicial_duty": "The court must adopt a protective, sensitised approach. Vulnerable litigants are entitled to: (a) in-camera proceedings where appropriate, (b) assistance of counsel if unrepresented, (c) protection from intimidation, (d) expedited hearings to prevent secondary trauma, and (e) rehabilitation and compensation directions where applicable."
+          },
+          "influence_constitutional_analysis": {
+            "description": "Individuals, small businesses, or parties of comparable standing",
+            "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+            "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+          },
+          "applicable_doctrines": [
+            {
+              "name": "Doctrine of Proportionality",
+              "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+              "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+            },
+            {
+              "name": "Doctrine of Parens Patriae",
+              "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+              "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+            },
+            {
+              "name": "Rule of Law",
+              "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+              "application": "Foundational principle engaged in every challenge to executive or legislative action."
+            }
+          ],
+          "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Vulnerability Analysis — Special State Obligation:** A vulnerable party is involved. The Doctrine of Parens Patriae and Articles 15(3), 15(4), 39, and 39A impose a heightened duty on the state to protect the vulnerable. This factor strongly supports High priority to prevent further harm or injustice.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+          "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Victim, Records custodian A. Nair, Mock court\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** The mock trial involves an assault case where the victim, a minor, suffered serious bodily injury. The dispute centers around the custody and accuracy of digital evidence. The parties seek to establish the validity of the evidence and the accuracy of the clock adjustments. This case falls under the Criminal/Violent category as it involves physical harm to a vulnerable victim.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = High, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** High\nThis indicates: ['Minors / Children', 'Pregnant Women', 'Elderly / Senior Citizens', 'Disabled Persons', 'Scheduled Castes (SC)', 'Scheduled Tribes (ST)', 'Other Backward Classes (OBC)', 'Adivasis / Tribals', 'Dalits', 'Economically Weaker Sections (EWS)', 'Below Poverty Line (BPL)', 'Daily Wage Workers', 'Agricultural Labourers', 'Domestic Workers', 'Migrant Workers', 'Unorganised Sector Workers', 'Bonded Labourers', 'Sex Workers', 'Human Trafficking Survivors', 'Refugees / Asylum Seekers', 'Homeless Persons', 'Orphans', 'Single Mothers / Widows', 'Persons in Custody', 'Victims of Domestic Violence', 'Victims of Sexual Assault', 'Victims of Torture']\n\n**Constitutional Protection:** Articles 14, 15, 15(3), 15(4), 15(5), 16(4), 17, 23, 24, 39, 39A, 41, 46, and the Directive Principles under Part IV mandate special protection for vulnerable groups. The Doctrine of Parens Patriae obligates the state to act as guardian for those who cannot protect themselves.\n\n**Judicial Duty:** The court must adopt a protective, sensitised approach. Vulnerable litigants are entitled to: (a) in-camera proceedings where appropriate, (b) assistance of counsel if unrepresented, (c) protection from intimidation, (d) expedited hearings to prevent secondary trauma, and (e) rehabilitation and compensation directions where applicable.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+          "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 2 — High Vulnerability → Elevated Priority (Doctrine of Parens Patriae):** The state has a special duty to protect vulnerable persons. Articles 15, 39, and 39A require the court to ensure that vulnerable litigants are not disadvantaged by delay.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+        },
+        "report_pdf": "case_priority_system\\reports\\ANV-2026-0055_d_4ae439e6_E06_report.pdf"
+      },
+      "priority": "High",
+      "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_4ae439e6_E06_decision_report.md"
+    }
+  ],
+  "aggregate_priority": "High",
+  "aggregate_rationale": "Case-level priority High — the Decision Tree run ONCE on the merged features of all 6 analysed document(s) (severity Major, vulnerability High, category Criminal/Violent). Per-document breakdown (detail only, not the decision): E01.pdf (FIR): High; E02.pdf (Other): High; E03.pdf (Other): High; E04.pdf (Other): High; E05.pdf (Other): High; E06.pdf (Other): High.",
+  "case_level": {
+    "priority": "High",
+    "priority_justification": "The Decision Tree assigns High priority from the worst facts across all 6 analysed document(s), not from any single one. Worst injury on record: Major (driven by E01.pdf, E02.pdf, E03.pdf). Vulnerability of the parties: High (driven by E06.pdf). Power imbalance (influence): Low (driven by E01.pdf, E02.pdf, E03.pdf). Case category: Criminal/Violent — the majority classification, mapped to the model's “Violent” case type (driven by E01.pdf, E02.pdf, E03.pdf).",
+    "rationale": "Case-level priority High — the Decision Tree run ONCE on the merged features of all 6 analysed document(s) (severity Major, vulnerability High, category Criminal/Violent).",
+    "features": {
+      "main_parties": "Dev Malik, Nila Sen, Victim, Assailant, Unknown Male, Records custodian A. Nair, Mock court",
+      "crime_type": "Violent",
+      "case_category": "Criminal/Violent",
+      "severity": "Major",
+      "vulnerability": "High",
+      "influence": "Low",
+      "plain_summary": "This case file brings together 6 documents (FIR, 5 × Other) and is assessed as a single matter of Criminal/Violent with major injury indicated, involving vulnerable parties. The evidence on record consists of “E01.pdf” (FIR; Criminal/Violent; Major severity; assessed High priority); “E02.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E03.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E04.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E05.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E06.pdf” (Other; Criminal/Violent; Major severity; assessed High priority). Cross-comparison finds 9 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “E01.pdf” and “E02.pdf” share dates and parties."
+    },
+    "merge_info": {
+      "severity": {
+        "value": "Major",
+        "rule": "worst value wins",
+        "sources": [
+          "E01.pdf",
+          "E02.pdf",
+          "E03.pdf",
+          "E04.pdf",
+          "E05.pdf",
+          "E06.pdf"
+        ]
+      },
+      "vulnerability": {
+        "value": "High",
+        "rule": "highest value wins",
+        "sources": [
+          "E06.pdf"
+        ]
+      },
+      "influence": {
+        "value": "Low",
+        "rule": "highest value wins",
+        "sources": [
+          "E01.pdf",
+          "E02.pdf",
+          "E03.pdf",
+          "E04.pdf",
+          "E05.pdf",
+          "E06.pdf"
+        ]
+      },
+      "case_category": {
+        "value": "Criminal/Violent",
+        "rule": "majority vote (ties → more serious)",
+        "sources": [
+          "E01.pdf",
+          "E02.pdf",
+          "E03.pdf"
+        ]
+      },
+      "crime_type": {
+        "value": "Violent",
+        "rule": "majority vote (ties → more serious)",
+        "sources": [
+          "E01.pdf",
+          "E02.pdf",
+          "E03.pdf"
+        ]
+      },
+      "document_count": 6
+    },
+    "corroboration": {
+      "pairs": [
+        {
+          "a": "E01.pdf",
+          "b": "E02.pdf",
+          "shared": [
+            "dates",
+            "parties"
+          ],
+          "shared_dates": [
+            "2026-11-14"
+          ],
+          "shared_places": [],
+          "shared_parties": [
+            "Dev Malik",
+            "Nila Sen"
+          ]
+        },
+        {
+          "a": "E01.pdf",
+          "b": "E03.pdf",
+          "shared": [
+            "dates"
+          ],
+          "shared_dates": [
+            "2026-11-14"
+          ],
+          "shared_places": [],
+          "shared_parties": []
+        },
+        {
+          "a": "E01.pdf",
+          "b": "E04.pdf",
+          "shared": [
+            "parties"
+          ],
+          "shared_dates": [],
+          "shared_places": [],
+          "shared_parties": [
+            "Nila Sen"
+          ]
+        },
+        {
+          "a": "E01.pdf",
+          "b": "E05.pdf",
+          "shared": [
+            "parties"
+          ],
+          "shared_dates": [],
+          "shared_places": [],
+          "shared_parties": [
+            "Dev Malik",
+            "Nila Sen"
+          ]
+        },
+        {
+          "a": "E02.pdf",
+          "b": "E03.pdf",
+          "shared": [
+            "dates"
+          ],
+          "shared_dates": [
+            "2026-11-14"
+          ],
+          "shared_places": [],
+          "shared_parties": []
+        },
+        {
+          "a": "E02.pdf",
+          "b": "E04.pdf",
+          "shared": [
+            "parties"
+          ],
+          "shared_dates": [],
+          "shared_places": [],
+          "shared_parties": [
+            "Nila Sen"
+          ]
+        },
+        {
+          "a": "E02.pdf",
+          "b": "E05.pdf",
+          "shared": [
+            "parties"
+          ],
+          "shared_dates": [],
+          "shared_places": [],
+          "shared_parties": [
+            "Dev Malik",
+            "Nila Sen"
+          ]
+        },
+        {
+          "a": "E03.pdf",
+          "b": "E06.pdf",
+          "shared": [
+            "parties"
+          ],
+          "shared_dates": [],
+          "shared_places": [],
+          "shared_parties": [
+            "Victim"
+          ]
+        },
+        {
+          "a": "E04.pdf",
+          "b": "E05.pdf",
+          "shared": [
+            "parties"
+          ],
+          "shared_dates": [],
+          "shared_places": [],
+          "shared_parties": [
+            "Nila Sen"
+          ]
+        }
+      ],
+      "standalone": [],
+      "total_links": 9
+    },
+    "corroboration_text": "- **E01.pdf** and **E02.pdf** corroborate each other: shared date(s) 2026-11-14; party/parties Dev Malik, Nila Sen.\n- **E01.pdf** and **E03.pdf** corroborate each other: shared date(s) 2026-11-14.\n- **E01.pdf** and **E04.pdf** corroborate each other: shared party/parties Nila Sen.\n- **E01.pdf** and **E05.pdf** corroborate each other: shared party/parties Dev Malik, Nila Sen.\n- **E02.pdf** and **E03.pdf** corroborate each other: shared date(s) 2026-11-14.\n- **E02.pdf** and **E04.pdf** corroborate each other: shared party/parties Nila Sen.\n- **E02.pdf** and **E05.pdf** corroborate each other: shared party/parties Dev Malik, Nila Sen.\n- **E03.pdf** and **E06.pdf** corroborate each other: shared party/parties Victim.\n- **E04.pdf** and **E05.pdf** corroborate each other: shared party/parties Nila Sen.",
+    "per_document": [
+      {
+        "filename": "E01.pdf",
+        "doc_type": "FIR",
+        "priority": "High"
+      },
+      {
+        "filename": "E02.pdf",
+        "doc_type": "Other",
+        "priority": "High"
+      },
+      {
+        "filename": "E03.pdf",
+        "doc_type": "Other",
+        "priority": "High"
+      },
+      {
+        "filename": "E04.pdf",
+        "doc_type": "Other",
+        "priority": "High"
+      },
+      {
+        "filename": "E05.pdf",
+        "doc_type": "Other",
+        "priority": "High"
+      },
+      {
+        "filename": "E06.pdf",
+        "doc_type": "Other",
+        "priority": "High"
+      }
+    ],
+    "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_whole_case_decision_report.md",
+    "path_steps": {
+      "path_node_ids": [
+        0,
+        28,
+        29,
+        30
+      ],
+      "leaf_id": 30,
+      "steps": [
+        {
+          "node_id": 0,
+          "type": "decision",
+          "title": "Split on Broad case type: Violent",
+          "condition": "Broad case type is 'Violent'",
+          "case_value": "Yes",
+          "result": "Yes",
+          "direction": "right",
+          "effect": "raised",
+          "branch_priorities": {
+            "left": "Medium",
+            "right": "High"
+          },
+          "counterfactual_note": "One categorical value is replaced while preserving one-hot validity; when several alternatives exist, the first encoder category is used. This is a model sensitivity probe, not a causal claim."
+        },
+        {
+          "node_id": 28,
+          "type": "decision",
+          "title": "Split on Severity: No Injury",
+          "condition": "Severity is 'No Injury'",
+          "case_value": "No",
+          "result": "No",
+          "direction": "left",
+          "effect": "raised",
+          "branch_priorities": {
+            "left": "High",
+            "right": "Medium"
+          },
+          "counterfactual_note": "One categorical value is replaced while preserving one-hot validity; when several alternatives exist, the first encoder category is used. This is a model sensitivity probe, not a causal claim."
+        },
+        {
+          "node_id": 29,
+          "type": "decision",
+          "title": "Split on Severity: Minor",
+          "condition": "Severity is 'Minor'",
+          "case_value": "No",
+          "result": "No",
+          "direction": "left",
+          "effect": "raised",
+          "branch_priorities": {
+            "left": "High",
+            "right": "Medium"
+          },
+          "counterfactual_note": "One categorical value is replaced while preserving one-hot validity; when several alternatives exist, the first encoder category is used. This is a model sensitivity probe, not a causal claim."
+        },
+        {
+          "node_id": 30,
+          "type": "leaf",
+          "title": "Final Priority: High",
+          "condition": "The case reached this Decision Tree leaf.",
+          "case_value": "915 training samples reached this leaf",
+          "result": "High",
+          "direction": "final",
+          "effect": "outcome"
+        }
+      ],
+      "feature_scores": [
+        {
+          "feature": "case_category",
+          "label": "Legal category",
+          "value": "Criminal/Violent"
+        },
+        {
+          "feature": "crime_type",
+          "label": "Broad case type",
+          "value": "Violent"
+        },
+        {
+          "feature": "severity",
+          "label": "Severity",
+          "value": "Major"
+        },
+        {
+          "feature": "vulnerability",
+          "label": "Vulnerability",
+          "value": "High"
+        },
+        {
+          "feature": "influence",
+          "label": "Influence / power imbalance",
+          "value": "Low"
+        }
+      ],
+      "text_keywords": [
+        {
+          "keyword": "major",
+          "weight": 0.5245
+        },
+        {
+          "keyword": "violent",
+          "weight": 0.5011
+        },
+        {
+          "keyword": "high",
+          "weight": 0.4539
+        },
+        {
+          "keyword": "criminal",
+          "weight": 0.3851
+        },
+        {
+          "keyword": "parties",
+          "weight": 0.2312
+        },
+        {
+          "keyword": "record",
+          "weight": 0.1611
+        },
+        {
+          "keyword": "victim",
+          "weight": 0.0997
+        },
+        {
+          "keyword": "assault",
+          "weight": 0.0862
+        }
+      ]
+    },
+    "constitutional": {
+      "constitutional_rights_engaged": [
+        {
+          "article": "Article 21",
+          "title": "Protection of Life and Personal Liberty",
+          "primary": true,
+          "why_applies": "Someone has been badly hurt or their life is in danger. Article 21 says every person has the right to live with dignity. When someone is seriously injured, the government must act fast — make sure they get medical help and hold the person responsible for the harm. A vulnerable person is involved — like a child, an elderly person, or someone from a disadvantaged community. The government has a special duty to protect them.",
+          "precedents": []
+        },
+        {
+          "article": "Article 22",
+          "title": "Protection Against Arrest and Detention",
+          "primary": true,
+          "why_applies": "Someone has been arrested. Article 22 says they must be told why, allowed to talk to a lawyer, and not kept in jail forever without a proper hearing. It protects people from being locked up without reason.",
+          "precedents": []
+        },
+        {
+          "article": "Article 20",
+          "title": "Protection in Respect of Conviction for Offences",
+          "primary": true,
+          "why_applies": "This is a criminal case. Article 20 protects the accused person from being treated unfairly. It says: you cannot be punished for something that was not a crime when you did it, you cannot be tried twice for the same offence, and you cannot be forced to confess.",
+          "precedents": []
+        },
+        {
+          "article": "Article 14",
+          "title": "Equality Before Law",
+          "primary": false,
+          "why_applies": "This is a criminal case. Article 14 says everyone must be treated the same way by the law — the person accused and the victim both deserve to be treated fairly. The court cannot take sides based on who someone is. A vulnerable person is involved — like a child, an elderly person, or someone from a disadvantaged community. The government has a special duty to protect them.",
+          "precedents": []
+        },
+        {
+          "article": "Article 17",
+          "title": "Abolition of Untouchability",
+          "primary": false,
+          "why_applies": "",
+          "precedents": []
+        },
+        {
+          "article": "Article 23",
+          "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+          "primary": false,
+          "why_applies": "",
+          "precedents": []
+        },
+        {
+          "article": "Article 24",
+          "title": "Prohibition of Employment of Children in Factories",
+          "primary": false,
+          "why_applies": "",
+          "precedents": []
+        },
+        {
+          "article": "Article 39A",
+          "title": "Equal Justice and Free Legal Aid",
+          "primary": false,
+          "why_applies": "",
+          "precedents": []
+        }
+      ],
+      "constitutional_rights_detail": [
+        {
+          "article": "Article 21",
+          "title": "Protection of Life and Personal Liberty",
+          "text": "No person shall be deprived of his life or personal liberty except according to procedure established by law.",
+          "principles": [
+            "Right to life includes right to live with dignity",
+            "Right to a speedy trial",
+            "Right to health and medical care",
+            "Right to fair procedure",
+            "Right to safety and security",
+            "Due process and procedural fairness"
+          ],
+          "primary": true
+        },
+        {
+          "article": "Article 22",
+          "title": "Protection Against Arrest and Detention",
+          "text": "No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.",
+          "principles": [
+            "Right to be informed of grounds of arrest",
+            "Right to consult a lawyer",
+            "Safeguards against arbitrary detention",
+            "Preventive detention procedural safeguards"
+          ],
+          "primary": true
+        },
+        {
+          "article": "Article 20",
+          "title": "Protection in Respect of Conviction for Offences",
+          "text": "No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.",
+          "principles": [
+            "No ex post facto criminal law",
+            "No double jeopardy",
+            "Protection against self-incrimination"
+          ],
+          "primary": true
+        },
+        {
+          "article": "Article 14",
+          "title": "Equality Before Law",
+          "text": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+          "principles": [
+            "Equality before law",
+            "Equal protection of laws",
+            "Reasonable classification is permitted",
+            "Anti-arbitrariness"
+          ],
+          "primary": false
+        },
+        {
+          "article": "Article 17",
+          "title": "Abolition of Untouchability",
+          "text": "Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.",
+          "principles": [
+            "Abolition of untouchability",
+            "Enforcement of disabilities is an offence",
+            "Protection of SC/ST communities"
+          ],
+          "primary": false
+        },
+        {
+          "article": "Article 23",
+          "title": "Prohibition of Traffic in Human Beings and Forced Labour",
+          "text": "Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.",
+          "principles": [
+            "Prohibition of human trafficking",
+            "Prohibition of forced labour and begar"
+          ],
+          "primary": false
+        },
+        {
+          "article": "Article 24",
+          "title": "Prohibition of Employment of Children in Factories",
+          "text": "No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.",
+          "principles": [
+            "No child labour below 14 in hazardous work",
+            "Protection of children from exploitation"
+          ],
+          "primary": false
+        },
+        {
+          "article": "Article 39A",
+          "title": "Equal Justice and Free Legal Aid",
+          "text": "The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.",
+          "principles": [
+            "Free legal aid",
+            "Equal opportunity in the legal system",
+            "Justice for the economically disadvantaged"
+          ],
+          "primary": false
+        }
+      ],
+      "state_duty_analysis": "The State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.",
+      "priority_rationale": "Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.",
+      "severity_constitutional_analysis": {
+        "article": "Article 21",
+        "analysis": "The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.",
+        "urgency": "High — bodily integrity and dignity are seriously compromised."
+      },
+      "vulnerability_constitutional_analysis": {
+        "groups": [
+          "Minors / Children",
+          "Pregnant Women",
+          "Elderly / Senior Citizens",
+          "Disabled Persons",
+          "Scheduled Castes (SC)",
+          "Scheduled Tribes (ST)",
+          "Other Backward Classes (OBC)",
+          "Adivasis / Tribals",
+          "Dalits",
+          "Economically Weaker Sections (EWS)",
+          "Below Poverty Line (BPL)",
+          "Daily Wage Workers",
+          "Agricultural Labourers",
+          "Domestic Workers",
+          "Migrant Workers",
+          "Unorganised Sector Workers",
+          "Bonded Labourers",
+          "Sex Workers",
+          "Human Trafficking Survivors",
+          "Refugees / Asylum Seekers",
+          "Homeless Persons",
+          "Orphans",
+          "Single Mothers / Widows",
+          "Persons in Custody",
+          "Victims of Domestic Violence",
+          "Victims of Sexual Assault",
+          "Victims of Torture"
+        ],
+        "constitutional_protection": "Articles 14, 15, 15(3), 15(4), 15(5), 16(4), 17, 23, 24, 39, 39A, 41, 46, and the Directive Principles under Part IV mandate special protection for vulnerable groups. The Doctrine of Parens Patriae obligates the state to act as guardian for those who cannot protect themselves.",
+        "judicial_duty": "The court must adopt a protective, sensitised approach. Vulnerable litigants are entitled to: (a) in-camera proceedings where appropriate, (b) assistance of counsel if unrepresented, (c) protection from intimidation, (d) expedited hearings to prevent secondary trauma, and (e) rehabilitation and compensation directions where applicable."
+      },
+      "influence_constitutional_analysis": {
+        "description": "Individuals, small businesses, or parties of comparable standing",
+        "constitutional_concern": "Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.",
+        "countermeasure": "Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures."
+      },
+      "applicable_doctrines": [
+        {
+          "name": "Doctrine of Proportionality",
+          "description": "Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.",
+          "application": "Used to assess whether the priority assigned is proportionate to the gravity of the rights violation."
+        },
+        {
+          "name": "Doctrine of Parens Patriae",
+          "description": "The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.",
+          "application": "Critical for cases involving vulnerable victims — the state must act as guardian."
+        },
+        {
+          "name": "Rule of Law",
+          "description": "Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.",
+          "application": "Foundational principle engaged in every challenge to executive or legislative action."
+        }
+      ],
+      "balancing_analysis": "**Primary Interest — Right to Life & Bodily Integrity (Article 21):** The severity level 'Major' indicates that the right to life or physical integrity has been seriously compromised. Under Article 21, this is the weightiest constitutional interest and must take precedence over all other considerations. The state's duty to protect life is non-derogable and non-delegable.\n\n**Assessment:** The High priority correctly reflects the primacy of Article 21 rights. This is constitutionally appropriate and proportionate to the gravity of the harm.\n\n**Vulnerability Analysis — Special State Obligation:** A vulnerable party is involved. The Doctrine of Parens Patriae and Articles 15(3), 15(4), 39, and 39A impose a heightened duty on the state to protect the vulnerable. This factor strongly supports High priority to prevent further harm or injustice.\n\n**Category-Specific Analysis — Criminal/Violent:** This category involves the most serious engagement of constitutional rights — the right to life, liberty, and safety of persons. The High priority assigned is constitutionally mandated.",
+      "state_perspective_opinion": "## STATE'S CONSTITUTIONAL ASSESSMENT\n(Neutral, Unbiased Analysis from the Perspective of the Judiciary)\n\nThis assessment is prepared from the standpoint of an impartial state adjudicating disputes under the Constitution of India. The analysis identifies the constitutional rights engaged, the state's corresponding duties, and the appropriate priority that a fair and unbiased judiciary should accord to this matter.\n\n### I. SUBJECT MATTER\n\n**Parties:** Dev Malik, Nila Sen, Victim, Assailant, Unknown Male, Records custodian A. Nair, Mock court\n\n**Legal Category:** Criminal/Violent\n\n**Brief Description:** This case file brings together 6 documents (FIR, 5 × Other) and is assessed as a single matter of Criminal/Violent with major injury indicated, involving vulnerable parties. The evidence on record consists of “E01.pdf” (FIR; Criminal/Violent; Major severity; assessed High priority); “E02.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E03.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E04.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E05.pdf” (Other; Criminal/Violent; Major severity; assessed High priority); “E06.pdf” (Other; Criminal/Violent; Major severity; assessed High priority). Cross-comparison finds 9 corroborating links between the documents (shared dates, places or parties), which strengthens the consistency of the record. For example, “E01.pdf” and “E02.pdf” share dates and parties.\n\n**Extracted Parameters:** Severity = Major, Vulnerability = High, Influence/ Power Imbalance = Low\n\n### II. CONSTITUTIONAL RIGHTS ENGAGED\n\nThe following constitutional provisions are relevant to this matter:\n\n- ****[PRIMARY]** Article 21 — Protection of Life and Personal Liberty**: No person shall be deprived of his life or personal liberty except according to procedure established by law.\n  - Key principles: Right to life includes right to live with dignity, Right to a speedy trial, Right to health and medical care, Right to fair procedure, Right to safety and security, Due process and procedural fairness\n- ****[PRIMARY]** Article 22 — Protection Against Arrest and Detention**: No person who is arrested shall be detained in custody without being informed of the grounds of arrest, nor shall he be denied the right to consult and be defended by a legal practitioner of his choice. Every person detained under preventive detention must be informed of the grounds of detention.\n  - Key principles: Right to be informed of grounds of arrest, Right to consult a lawyer, Safeguards against arbitrary detention, Preventive detention procedural safeguards\n- ****[PRIMARY]** Article 20 — Protection in Respect of Conviction for Offences**: No person shall be convicted of any offence except for violation of a law in force at the time of the act. No person shall be prosecuted and punished for the same offence more than once. No person accused of any offence shall be compelled to be a witness against himself.\n  - Key principles: No ex post facto criminal law, No double jeopardy, Protection against self-incrimination\n- ****[SECONDARY]** Article 14 — Equality Before Law**: The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.\n  - Key principles: Equality before law, Equal protection of laws, Reasonable classification is permitted, Anti-arbitrariness\n- ****[SECONDARY]** Article 17 — Abolition of Untouchability**: Untouchability is abolished and its practice in any form is forbidden. The enforcement of any disability arising out of untouchability shall be an offence punishable in accordance with law.\n  - Key principles: Abolition of untouchability, Enforcement of disabilities is an offence, Protection of SC/ST communities\n- ****[SECONDARY]** Article 23 — Prohibition of Traffic in Human Beings and Forced Labour**: Traffic in human beings and begar and other similar forms of forced labour are prohibited. Any contravention of this provision shall be an offence punishable in accordance with law.\n  - Key principles: Prohibition of human trafficking, Prohibition of forced labour and begar\n- ****[SECONDARY]** Article 24 — Prohibition of Employment of Children in Factories**: No child below the age of fourteen years shall be employed to work in any factory or mine or engaged in any other hazardous employment.\n  - Key principles: No child labour below 14 in hazardous work, Protection of children from exploitation\n- ****[SECONDARY]** Article 39A — Equal Justice and Free Legal Aid**: The State shall secure that the operation of the legal system promotes justice on a basis of equal opportunity, and shall provide free legal aid to ensure that no citizen is denied opportunities to secure justice due to economic or other disability.\n  - Key principles: Free legal aid, Equal opportunity in the legal system, Justice for the economically disadvantaged\n\n\n\n### III. SEVERITY & URGENCY ASSESSMENT\n\n**Primary Article:** Article 21\n\n**Analysis:** The right to life under Article 21 includes the right to live with dignity and the right to health. Major injuries — especially those requiring hospitalisation, causing permanent disability, or posing life-threatening complications — constitute a serious interference with personal liberty and bodily integrity. The State must ensure prompt access to medical care, investigation of the incident, and accountability. Each day of delay risks permanent aggravation of the harm.\n\n**Urgency Classification:** High — bodily integrity and dignity are seriously compromised.\n\n### IV. STATE'S DUTY UNDER THE CONSTITUTION\n\nThe State has a non-derogable duty under Article 21 to protect the right to life and personal liberty of every person. In violent crimes, the judiciary must ensure: (a) immediate protection of the victim and witnesses, (b) preservation of evidence, (c) expeditious trial to prevent secondary victimisation, and (d) enforcement of the victim's right to a speedy trial as an integral part of Article 21.\n\n### V. VULNERABILITY & POWER BALANCE ASSESSMENT\n\n**Vulnerability Level:** High\nThis indicates: ['Minors / Children', 'Pregnant Women', 'Elderly / Senior Citizens', 'Disabled Persons', 'Scheduled Castes (SC)', 'Scheduled Tribes (ST)', 'Other Backward Classes (OBC)', 'Adivasis / Tribals', 'Dalits', 'Economically Weaker Sections (EWS)', 'Below Poverty Line (BPL)', 'Daily Wage Workers', 'Agricultural Labourers', 'Domestic Workers', 'Migrant Workers', 'Unorganised Sector Workers', 'Bonded Labourers', 'Sex Workers', 'Human Trafficking Survivors', 'Refugees / Asylum Seekers', 'Homeless Persons', 'Orphans', 'Single Mothers / Widows', 'Persons in Custody', 'Victims of Domestic Violence', 'Victims of Sexual Assault', 'Victims of Torture']\n\n**Constitutional Protection:** Articles 14, 15, 15(3), 15(4), 15(5), 16(4), 17, 23, 24, 39, 39A, 41, 46, and the Directive Principles under Part IV mandate special protection for vulnerable groups. The Doctrine of Parens Patriae obligates the state to act as guardian for those who cannot protect themselves.\n\n**Judicial Duty:** The court must adopt a protective, sensitised approach. Vulnerable litigants are entitled to: (a) in-camera proceedings where appropriate, (b) assistance of counsel if unrepresented, (c) protection from intimidation, (d) expedited hearings to prevent secondary trauma, and (e) rehabilitation and compensation directions where applicable.\n\n**Influence Level:** Low\nIndividuals, small businesses, or parties of comparable standing\n\n**Constitutional Concern:** Parties are of broadly comparable standing. Article 14 equality concerns are less acute, though the court must still ensure procedural fairness.\n\n**Recommended Countermeasure:** Standard procedural safeguards apply. The court should proceed with the matter in regular course, without special countermeasures.\n\n### VI. APPLICABLE CONSTITUTIONAL DOCTRINES & PRINCIPLES\n\n- **Doctrine of Proportionality**: Any state action restricting rights must be proportionate to the aim sought — it must be necessary, suitable, and not excessive.\n  - Application to this case: Used to assess whether the priority assigned is proportionate to the gravity of the rights violation.\n\n- **Doctrine of Parens Patriae**: The state has a duty to protect those who cannot protect themselves, such as minors, disabled persons, and the mentally ill.\n  - Application to this case: Critical for cases involving vulnerable victims — the state must act as guardian.\n\n- **Rule of Law**: Every person, including the State, is subject to the law; no one is above it. Government action must have legal authority.\n  - Application to this case: Foundational principle engaged in every challenge to executive or legislative action.\n\n\n\n### VII. PRIORITY ASSESSMENT & JUSTIFICATION\n\n**Assigned Priority:** High\n\n**Category Rationale:** Cases involving violent crime directly implicate the most fundamental right under the Constitution — the right to life. The state's failure to accord such cases the highest priority would constitute a violation of its affirmative obligation under Article 21 to protect life and ensure access to justice.\n\n\n\n### VIII. FINAL OBSERVATION\n\nFrom the perspective of an unbiased state adjudicating under the Constitution of India, this matter has been assigned **High Priority**. \n\nThis is constitutionally appropriate and reflects the gravity of the rights engaged. The court is directed to list this matter expeditiously, ensuring that no procedural delay undermines the constitutional rights at stake. The State must accord this case the attention and resources commensurate with its priority level.",
+      "priority_rules_detailed": "**RULE 1 — Major Injury → High Priority (Article 21):** Bodily integrity and the right to health under Article 21 are seriously compromised. Strong urgency is constitutionally required.\n\n**RULE 2 — High Vulnerability → Elevated Priority (Doctrine of Parens Patriae):** The state has a special duty to protect vulnerable persons. Articles 15, 39, and 39A require the court to ensure that vulnerable litigants are not disadvantaged by delay.\n\n**RULE 4 — Violent Crime → Article 21 Primacy:** Criminal matters involving violence directly implicate the right to life and personal liberty. The state's duty under Article 21 requires urgent judicial attention.\n\n\n**FINAL DETERMINATION:** Based on the above constitutional rules and the extracted case features, the priority assigned is **High**. This determination represents the impartial state's assessment of the urgency required to ensure that constitutional rights are protected and justice is delivered without undue delay."
+    },
+    "delay_precedents": [
+      {
+        "id": "bachpan_bachao_andolan_2013",
+        "case_title": "Bachpan Bachao Andolan v. Union of India",
+        "citation": "(2011) 5 SCC 1 / (2013) 5 SCC 1",
+        "court": "Supreme Court of India (Altamas Kabir, C.J.)",
+        "year": 2013,
+        "priority_level": "High",
+        "applicable_categories": [
+          "Criminal/Violent",
+          "Constitutional/Writ",
+          "General Civil"
+        ],
+        "cost_category": "Irreversible Child Trafficking & Loss of Missing Children",
+        "toll_type": "life_safety",
+        "delay_period": "Systemic Inaction on Missing Children Reports",
+        "factual_delay": "Over 100,000 children were going missing annually across India without formal FIR registration or investigation. Police routinely treated child disappearance as runaway cases, waiting days or weeks while children were trafficked, forced into child labour, or subjected to sexual exploitation.",
+        "human_or_economic_toll": "Catastrophic human toll: thousands of children were permanently lost to their families, forced into illegal organ trade, bonded labour, or commercial sexual exploitation simply because initial hours and days were lost to administrative inaction.",
+        "judicial_ruling": "The Supreme Court issued mandatory constitutional directions under Article 21 and Article 39(f): whenever a child goes missing, an FIR under Section 363 IPC (kidnapping) MUST be registered immediately with a presumption of trafficking. The Court ruled that time is of the essence and missing child matters demand the highest judicial and police urgency.",
+        "priority_mandate": "Establishes that cases involving missing children, child safety, kidnapping, or abduction must receive immediate Top-tier High Priority triage: every hour of procedural delay permanently endangers a child's life and liberty.",
+        "anavaya_project_reason": "This landmark ruling defines Anavaya's protective mandate for children. Under legacy paper queues, missing child reports languished for days as un-triaged complaints while children disappeared into trafficking networks. Anavaya immediately escalates missing child and kidnapping cases to urgent High Priority upon intake, enforcing the Supreme Court's mandate so search operations and judicial oversight activate without delay."
+      },
+      {
+        "id": "hussainara_khatoon_1979",
+        "case_title": "Hussainara Khatoon & Ors. v. Home Secretary, State of Bihar",
+        "citation": "(1980) 1 SCC 81; AIR 1979 SC 1360",
+        "court": "Supreme Court of India (P.N. Bhagwati, J.)",
+        "year": 1979,
+        "priority_level": "High",
+        "applicable_categories": [
+          "Criminal/Violent",
+          "Constitutional/Writ"
+        ],
+        "cost_category": "Thousands of Lives Extinguished in Prison",
+        "toll_type": "life_liberty",
+        "delay_period": "Decades of Undertrial Incarceration",
+        "factual_delay": "A series of investigative reports uncovered thousands of impoverished undertrials who had been kept in detention for 5 to 12 years awaiting trial — periods far exceeding the maximum statutory prison terms they could have received even if convicted.",
+        "human_or_economic_toll": "Mass destruction of human potential: thousands of citizens died, lost sanity, or contracted chronic illnesses behind bars simply because court dockets were backlogged and their cases were never listed for hearing.",
+        "judicial_ruling": "Justice Bhagwati held that the Right to a Speedy Trial is an integral fundamental right under Article 21. The Court ruled that an overburdened judicial system has a constitutional obligation to triage and release those whose trials are unreasonably delayed.",
+        "priority_mandate": "Affirms why criminal matters and fundamental liberty deprivations demand top-tier prioritization: allowing a matter touching liberty to drift in the queue turns the justice system into an engine of punishment without guilt.",
+        "anavaya_project_reason": "This case is the foundation of Anavaya's mission. Under legacy FIFO queues, impoverished citizens spent up to 12 years in pre-trial detention for minor offenses simply because their files were never listed. Anavaya enforces Article 21 by automatically escalating undertrial and liberty matters to the top of the judicial docket upon intake."
+      },
+      {
+        "id": "rudal_sah_1983",
+        "case_title": "Rudal Sah v. State of Bihar",
+        "citation": "(1983) 4 SCC 141; AIR 1983 SC 1086",
+        "court": "Supreme Court of India (Constitution Bench)",
+        "year": 1983,
+        "priority_level": "High",
+        "applicable_categories": [
+          "Criminal/Violent",
+          "Constitutional/Writ",
+          "General Civil"
+        ],
+        "cost_category": "Loss of Human Liberty & 14 Years of Life",
+        "toll_type": "life_liberty",
+        "delay_period": "14 Years Post-Acquittal Custody",
+        "factual_delay": "The petitioner was formally acquitted of criminal charges by the Sessions Court in 1968, yet remained languishing in prison for an additional 14 years due to bureaucratic ignorance, procedural inertia, and the trial court's failure to audit release warrants.",
+        "human_or_economic_toll": "An innocent man was robbed of 14 prime years of his life, youth, family ties, and sanity. By the time the Supreme Court intervened via habeas corpus, the petitioner was physically and psychologically devastated.",
+        "judicial_ruling": "Chief Justice Y.V. Chandrachud pioneered constitutional tort damages under Article 32, ruling that the State cannot plead procedural administrative backlog when Article 21 personal liberty is annihilated. The Court ordered exemplary monetary compensation.",
+        "priority_mandate": "Mandates immediate High Priority triage for cases involving detention, liberty, or severe physical harm: procedural ignorance in liberty matters cannot be undone, and post-facto compensation can never restore stolen years.",
+        "anavaya_project_reason": "Anavaya was engineered so no human being is ever forgotten behind prison bars after acquittal. In the legacy system, release orders were buried under un-triaged paper dockets for 14 years. Anavaya's automated intake classifies liberty deprivations as urgent High Priority on Day 1, ensuring prompt judicial release before stolen years become an irreversible tragedy."
+      }
+    ],
+    "statutory_sections": [
+      {
+        "section": "IPC Section 323 (IPC 1860)",
+        "statute": "Indian Penal Code, 1860",
+        "title": "Punishment for Voluntarily Causing Hurt",
+        "category": "Criminal/IPC",
+        "classification": "Non-Cognizable · Bailable · Any Magistrate",
+        "severity_weight": "Minor / Bodily Harm",
+        "statutory_mandate": "Punishment: Imprisonment up to 1 year, or Fine up to ₹1,000, or both. Whoever voluntarily causes hurt shall be punished with imprisonment of either description for a term which may extend to one year, or with fine up to one thousand rupees.",
+        "inference_ground": "Voluntarily causing bodily hurt to complainant"
+      },
+      {
+        "section": "IPC Section 325 (IPC 1860)",
+        "statute": "Indian Penal Code, 1860",
+        "title": "Punishment for Voluntarily Causing Grievous Hurt",
+        "category": "Criminal/IPC",
+        "classification": "Cognizable · Bailable · Any Magistrate",
+        "severity_weight": "Major / Bone Fracture / Permanent Damage",
+        "statutory_mandate": "Punishment: Imprisonment up to 7 years + Fine. Whoever voluntarily causes grievous hurt shall be punished with imprisonment of either description for a term which may extend to seven years, and shall also be liable to fine.",
+        "inference_ground": "Voluntarily causing grievous hurt resulting in severe injuries"
+      },
+      {
+        "section": "IPC Section 341 (IPC 1860)",
+        "statute": "Indian Penal Code, 1860",
+        "title": "Punishment for Wrongful Restraint",
+        "category": "Criminal/IPC",
+        "classification": "Cognizable · Bailable · Any Magistrate",
+        "severity_weight": "Procedural / Confinement",
+        "statutory_mandate": "Punishment: Simple Imprisonment up to 1 month, or Fine up to ₹500, or both. Whoever wrongfully restrains any person shall be punished with simple imprisonment for a term which may extend to one month, or with fine up to five hundred rupees.",
+        "inference_ground": "Wrongful restraint by blocking exit"
+      },
+      {
+        "section": "IPC Section 354 (IPC 1860)",
+        "statute": "Indian Penal Code, 1860",
+        "title": "Assault or Criminal Force to Woman with Intent to Outrage Modesty",
+        "category": "Criminal/IPC",
+        "classification": "Cognizable · Non-Bailable · Any Magistrate",
+        "severity_weight": "Major / Gender Trauma",
+        "statutory_mandate": "Punishment: Imprisonment of 1 to 5 years + Fine. Whoever assaults or uses criminal force to any woman, intending to outrage or knowing it to be likely that he will thereby outrage her modesty.",
+        "inference_ground": "Assault or criminal force on woman"
+      },
+      {
+        "section": "IPC Section 506 (IPC 1860)",
+        "statute": "Indian Penal Code, 1860",
+        "title": "Punishment for Criminal Intimidation",
+        "category": "Criminal/IPC",
+        "classification": "Non-Cognizable (Part I) / Cognizable (Part II) · Bailable (Part I) / Non-Bailable (Part II) · Any Magistrate / Magistrate 1st Class",
+        "severity_weight": "Coercive / Threat to Person or Life",
+        "statutory_mandate": "Punishment: Imprisonment up to 2 years, or up to 7 years + Fine (if threat of death). Whoever commits the offence of criminal intimidation shall be punished with imprisonment up to 2 years, or up to 7 years if threat is to cause death or grievous hurt.",
+        "inference_ground": "Criminal intimidation and physical threats"
+      }
+    ],
+    "ipc_sections": [
+      {
+        "section": "IPC Section 323",
+        "section_number": "323",
+        "title": "Punishment for Voluntarily Causing Hurt",
+        "statute": "Indian Penal Code, 1860",
+        "offense_description": "Whoever voluntarily causes hurt shall be punished with imprisonment of either description for a term which may extend to one year, or with fine up to one thousand rupees.",
+        "cognizability": "Non-Cognizable",
+        "bailability": "Bailable",
+        "triable_by": "Any Magistrate",
+        "punishment": "Imprisonment up to 1 year, or Fine up to ₹1,000, or both",
+        "bns_equivalent": "Section 115(2) BNS 2023",
+        "severity_level": "Minor / Bodily Harm",
+        "inference_ground": "Voluntarily causing bodily hurt to complainant"
+      },
+      {
+        "section": "IPC Section 325",
+        "section_number": "325",
+        "title": "Punishment for Voluntarily Causing Grievous Hurt",
+        "statute": "Indian Penal Code, 1860",
+        "offense_description": "Whoever voluntarily causes grievous hurt shall be punished with imprisonment of either description for a term which may extend to seven years, and shall also be liable to fine.",
+        "cognizability": "Cognizable",
+        "bailability": "Bailable",
+        "triable_by": "Any Magistrate",
+        "punishment": "Imprisonment up to 7 years + Fine",
+        "bns_equivalent": "Section 117(2) BNS 2023",
+        "severity_level": "Major / Bone Fracture / Permanent Damage",
+        "inference_ground": "Voluntarily causing grievous hurt resulting in severe injuries"
+      },
+      {
+        "section": "IPC Section 341",
+        "section_number": "341",
+        "title": "Punishment for Wrongful Restraint",
+        "statute": "Indian Penal Code, 1860",
+        "offense_description": "Whoever wrongfully restrains any person shall be punished with simple imprisonment for a term which may extend to one month, or with fine up to five hundred rupees.",
+        "cognizability": "Cognizable",
+        "bailability": "Bailable",
+        "triable_by": "Any Magistrate",
+        "punishment": "Simple Imprisonment up to 1 month, or Fine up to ₹500, or both",
+        "bns_equivalent": "Section 126(2) BNS 2023",
+        "severity_level": "Procedural / Confinement",
+        "inference_ground": "Wrongful restraint by blocking exit"
+      },
+      {
+        "section": "IPC Section 354",
+        "section_number": "354",
+        "title": "Assault or Criminal Force to Woman with Intent to Outrage Modesty",
+        "statute": "Indian Penal Code, 1860",
+        "offense_description": "Whoever assaults or uses criminal force to any woman, intending to outrage or knowing it to be likely that he will thereby outrage her modesty.",
+        "cognizability": "Cognizable",
+        "bailability": "Non-Bailable",
+        "triable_by": "Any Magistrate",
+        "punishment": "Imprisonment of 1 to 5 years + Fine",
+        "bns_equivalent": "Section 74 BNS 2023",
+        "severity_level": "Major / Gender Trauma",
+        "inference_ground": "Assault or criminal force on woman"
+      },
+      {
+        "section": "IPC Section 506",
+        "section_number": "506",
+        "title": "Punishment for Criminal Intimidation",
+        "statute": "Indian Penal Code, 1860",
+        "offense_description": "Whoever commits the offence of criminal intimidation shall be punished with imprisonment up to 2 years, or up to 7 years if threat is to cause death or grievous hurt.",
+        "cognizability": "Non-Cognizable (Part I) / Cognizable (Part II)",
+        "bailability": "Bailable (Part I) / Non-Bailable (Part II)",
+        "triable_by": "Any Magistrate / Magistrate 1st Class",
+        "punishment": "Imprisonment up to 2 years, or up to 7 years + Fine (if threat of death)",
+        "bns_equivalent": "Section 351(2) & 351(3) BNS 2023",
+        "severity_level": "Coercive / Threat to Person or Life",
+        "inference_ground": "Criminal intimidation and physical threats"
+      }
+    ],
+    "turnaround_time": {
+      "priority_tier": "High",
+      "recommended_hearing_window": "Within 24 to 72 Hours",
+      "recommended_hearing_days": 3,
+      "target_disposal_window": "30 to 90 Days",
+      "target_disposal_days": 90,
+      "statutory_benchmark": "CrPC §167 & §437/439 Statutory Bail Standards · Special Fast-Track Trial Benchmark (90 Days)",
+      "target_hearing_sessions": "4–6 Structured Sessions",
+      "loss_category": "Irreversible Loss of Liberty & Bodily Integrity",
+      "loss_risk_level": "Critical / Imminent",
+      "projected_loss_if_delayed": "Prolonged pendency risks unconstitutional undertrial incarceration beyond statutory threshold (CrPC §436A / BNSS §479), severe bodily trauma, witness coercion, and irrecoverable digital/forensic evidence spoilage.",
+      "loss_mitigation_benefit": "Immediate listing within 72 hours halts ongoing bodily/liberty damage, secures interim bail/protection, and prevents institutional delay from degenerating into human tragedy.",
+      "mitigation_percentage": "94%",
+      "action_directive": "Emergency Hearing Scheduled in Next Immediate Court Session",
+      "urgency_pill": "IMMEDIATE_ACTION"
+    },
+    "case_gist": "Dev Malik allegedly assaulted Nila Sen by pushing her and blocking her exit. Both parties were injured. The assault is considered major due to the serious injury and hospitalization. The case is supported by 5 corroborating records on file (supporting exhibits), establishing the investigative timeline and witness corroboration. On the merged evidence the matter is classified as Criminal/Violent (violent case type). Names appearing across the documents: Dev Malik, Nila Sen, Victim, Assailant, Unknown Male.",
+    "report_pdf": "case_priority_system/reports\\ANV-2026-0055_whole_case_report.pdf",
+    "computed_at": "2026-11-23T00:33:40"
+  },
+  "sessions": []
+}

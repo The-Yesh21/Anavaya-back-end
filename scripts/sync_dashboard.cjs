@@ -29,12 +29,22 @@ function copyDirRecursive(src, dest) {
 copyDirRecursive(srcStatic, destDashboard);
 
 // Only these demonstration records are intended for the public offline dashboard.
-// The four exhibition IDs are defined in ingest_showcase_cases.py.
+// Add approved demos here and run scripts/export_public_board.py before publishing.
 const publicCaseIds = require('./public_case_ids.json');
 const srcCases = path.join(repoRoot, 'case_priority_system', 'cases');
 const apiDir = path.join(destDashboard, 'api');
 const detailsDir = path.join(apiDir, 'cases');
 const registry = [];
+const boardRows = JSON.parse(fs.readFileSync(path.join(apiDir, 'cases.json'), 'utf8'));
+const publicCaseSet = new Set(publicCaseIds);
+const boardFilesByCase = new Map();
+for (const row of boardRows) {
+  if (!publicCaseSet.has(row.Case_ID)) {
+    throw new Error('Public board contains a case outside the allowlist: ' + row.Case_ID);
+  }
+  if (!boardFilesByCase.has(row.Case_ID)) boardFilesByCase.set(row.Case_ID, new Set());
+  boardFilesByCase.get(row.Case_ID).add(row.Case_File);
+}
 fs.mkdirSync(detailsDir, { recursive: true });
 
 function writeJson(filename, data) {
@@ -46,6 +56,11 @@ for (const id of publicCaseIds) {
   const publishedRecord = path.join(detailsDir, id + '.json');
   const record = JSON.parse(fs.readFileSync(fs.existsSync(localRecord) ? localRecord : publishedRecord, 'utf8'));
   if (record.case_id !== id) throw new Error('Public case ID mismatch: ' + id);
+  for (const document of record.documents) {
+    if (document.analysis && !boardFilesByCase.get(id)?.has(document.filename)) {
+      throw new Error(`Public board is missing ${id}/${document.filename}. Run python scripts/export_public_board.py and commit the refreshed snapshot.`);
+    }
+  }
   const documents = record.documents.map(({ doc_id, filename, doc_type, uploaded_at, priority, decision_report }) =>
     ({ doc_id, filename, doc_type, uploaded_at, priority, decision_report })
   );

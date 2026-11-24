@@ -1,4 +1,8 @@
-"""Refresh the Vercel document feed from the local workbook before release."""
+"""Refresh the public dashboard after adding an approved demo case to public_case_ids.json.
+
+Run this from the repository root, then run node scripts/sync_dashboard.cjs.
+Commit the allowlist, board, registry, and generated public case detail together.
+"""
 import json
 from pathlib import Path
 

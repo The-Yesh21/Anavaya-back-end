@@ -1,5 +1,66 @@
 [
   {
+    "case_id": "ANV-2026-0055",
+    "title": "E01",
+    "created_at": "2026-11-23T00:31:49",
+    "created_by": "Officer",
+    "source": "FIR_UPLOADED",
+    "aggregate_priority": "High",
+    "case_level_priority": "High",
+    "document_count": 6,
+    "session_count": 0,
+    "documents": [
+      {
+        "doc_id": "d_4e7cd559",
+        "filename": "E01.pdf",
+        "doc_type": "FIR",
+        "uploaded_at": "2026-11-23T00:31:49",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_4e7cd559_E01_decision_report.md"
+      },
+      {
+        "doc_id": "d_cdd40932",
+        "filename": "E02.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-23T00:32:55",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_cdd40932_E02_decision_report.md"
+      },
+      {
+        "doc_id": "d_f05dcfc7",
+        "filename": "E03.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-23T00:32:55",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_f05dcfc7_E03_decision_report.md"
+      },
+      {
+        "doc_id": "d_6b9a055a",
+        "filename": "E04.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-23T00:32:55",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_6b9a055a_E04_decision_report.md"
+      },
+      {
+        "doc_id": "d_fd68da99",
+        "filename": "E05.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-23T00:32:55",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_fd68da99_E05_decision_report.md"
+      },
+      {
+        "doc_id": "d_4ae439e6",
+        "filename": "E06.pdf",
+        "doc_type": "Other",
+        "uploaded_at": "2026-11-23T00:32:55",
+        "priority": "High",
+        "decision_report": "case_priority_system/decision_graphs\\ANV-2026-0055_d_4ae439e6_E06_decision_report.md"
+      }
+    ]
+  },
+  {
     "case_id": "ANV-2026-0053",
     "title": "Global Container Lines Ltd. v. Commissioner of Customs (Nhava Sheva)",
     "created_at": "2026-11-16T01:07:12",
