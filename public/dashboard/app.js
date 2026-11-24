@@ -173,6 +173,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Fetch and Initialize App Data
     async function init() {
+        if (/^\/dashboard(?:\/|$)/.test(window.location.pathname)) {
+            document.querySelectorAll(".header-logo, #landing-back-btn").forEach(link => {
+                link.href = "/";
+            });
+        }
         try {
             // The decision tree is fetched lazily on the first Tree-tab
             // activation (see tab handler), so the initial page load only
@@ -186,6 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             // Hide global page preloader
             const preloader = document.getElementById("global-preloader");
+            document.documentElement.classList.add("dashboard-ready");
             if (preloader) {
                 preloader.style.opacity = "0";
                 preloader.style.visibility = "hidden";

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Anavaya Dashboard — White & Gold light theme
+   Anavaya Dashboard — Case docket
    Design tokens live in tokens.css (imported FIRST — single source of
    truth shared with Case Workflow and Courtroom).
    ===================================================================== */
@@ -27,67 +27,6 @@ body {
     padding: 24px;
 }
 
-/* Paper Noise overlay */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    opacity: 0.035;
-    z-index: 9999;
-    pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    mix-blend-mode: multiply;
-}
-
-/* Organic Floating Background Blobs */
-.organic-blob {
-    position: absolute;
-    width: 350px;
-    height: 350px;
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-    filter: blur(80px);
-    opacity: 0.08;
-    z-index: -1;
-    pointer-events: none;
-    animation: blob-float 22s infinite ease-in-out alternate;
-}
-.organic-blob.color-1 {
-    background-color: var(--color-primary);
-    top: 15%;
-    left: 5%;
-}
-.organic-blob.color-2 {
-    background-color: var(--color-secondary);
-    bottom: 20%;
-    right: 8%;
-    animation-delay: -5s;
-    border-radius: 40% 60% 70% 30% / 50% 60% 30% 70%;
-}
-.organic-blob.color-3 {
-    background-color: var(--color-accent);
-    top: 55%;
-    left: 42%;
-    width: 280px;
-    height: 280px;
-    animation-delay: -11s;
-    border-radius: 50% 50% 30% 70% / 40% 40% 60% 60%;
-}
-
-@keyframes blob-float {
-    0% {
-        transform: translate(0, 0) scale(1) rotate(0deg);
-    }
-    50% {
-        transform: translate(40px, -60px) scale(1.12) rotate(90deg);
-    }
-    100% {
-        transform: translate(-30px, 30px) scale(0.9) rotate(180deg);
-    }
-}
-
 /* App Layout */
 .app-container {
     max-width: 1600px;
@@ -106,8 +45,7 @@ body::before {
     padding: 14px 28px;
     background: color-mix(in srgb, var(--bg-card) 85%, transparent);
     border: 1.5px solid var(--border-color);
-    border-radius: 99px; /* Floating pill */
-    backdrop-filter: blur(12px);
+    border-radius: var(--radius-card);
     box-shadow: var(--shadow-soft);
     z-index: 100;
 }
@@ -187,58 +125,6 @@ body::before {
     gap: 20px;
 }
 
-.stat-card {
-    background: var(--bg-card);
-    border: 1.5px solid var(--border-color);
-    padding: 24px;
-    box-shadow: var(--shadow-soft);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Organic Asymmetry for Stats Cards */
-.stat-card:nth-child(1) { border-radius: 2rem 2.8rem 2.2rem 2.6rem / 2.4rem 2rem 2.8rem 2.2rem; }
-.stat-card:nth-child(2) { border-radius: 2.6rem 2.2rem 2.8rem 2rem / 2.2rem 2.8rem 2rem 2.6rem; }
-.stat-card:nth-child(3) { border-radius: 2.2rem 2.8rem 2rem 2.6rem / 2.8rem 2.2rem 2.6rem 2rem; }
-.stat-card:nth-child(4) { border-radius: 2.8rem 2rem 2.6rem 2.2rem / 2rem 2.6rem 2.2rem 2.8rem; }
-
-.stat-card::after {
-    content: '';
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    filter: blur(24px);
-    opacity: 0.12;
-    pointer-events: none;
-}
-
-.stat-card.total::after { background-color: var(--color-secondary); }
-.stat-card.priority-high::after { background-color: var(--color-high); }
-.stat-card.priority-medium::after { background-color: var(--color-medium); }
-.stat-card.priority-low::after { background-color: var(--color-low); }
-
-.stat-card:hover {
-    transform: translateY(-4px) rotate(1.2deg);
-    border-color: var(--border-color-glow);
-    box-shadow: 0 14px 28px -6px rgba(168, 126, 47, 0.22);
-}
-
-.stat-card:nth-child(even):hover {
-    transform: translateY(-4px) rotate(-1.2deg);
-}
-
-/* Headings and values inside a stat card are styled together in the docket block
-   below (see .card-title / .stat-value-row), where the whole card anatomy lives
-   in one place. Only the register card's own accent stays here. */
-.stat-card.total strong { color: var(--text-primary); }
-
 /* Main Content Grid */
 .dashboard-grid {
     display: grid;
@@ -252,7 +138,7 @@ body::before {
 .cases-sidebar {
     background: var(--bg-card);
     border: 1.5px solid var(--border-color);
-    border-radius: 2.5rem;
+    border-radius: var(--radius-card);
     display: flex;
     flex-direction: column;
     max-height: 850px;
@@ -532,7 +418,7 @@ body::before {
 .details-panel {
     background: var(--bg-card);
     border: 1.5px solid var(--border-color);
-    border-radius: 2.5rem;
+    border-radius: var(--radius-card);
     display: flex;
     flex-direction: column;
     height: 850px;
@@ -606,6 +492,7 @@ body::before {
 
 .tab-content.active {
     display: block;
+    animation: docket-panel-in 220ms var(--ease-out);
 }
 
 /* Empty State Styling */
@@ -3004,40 +2891,98 @@ button, a, input, select {
     flex-direction: column;
     gap: var(--space-4);
 }
+/* The docket opens on a single, decorative filing motion. */
 .docket-head {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: var(--space-4);
-    flex-wrap: wrap;
-    padding: 0 var(--space-2);
-}
-.docket-kicker {
-    display: block;
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-primary-dark);
-    margin-bottom: 2px;
+    min-height: 132px;
+    overflow: hidden;
+    padding: var(--space-5) var(--space-8);
+    border: 1px solid var(--docket-hero-border);
+    border-radius: var(--radius-card);
+    background: var(--docket-ink);
+    color: var(--docket-paper);
 }
 .docket-heading h2 {
     font-family: var(--font-heading);
-    font-size: 21px;
-    font-weight: 700;
-    line-height: 1.15;
-    color: var(--text-primary);
+    font-size: clamp(2.25rem, 4vw, 3rem);
+    font-weight: 600;
+    line-height: 1;
+    text-wrap: balance;
 }
 .docket-note {
-    padding: 6px 14px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--bg-card) 75%, transparent);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-secondary);
+    margin-top: var(--space-3);
+    color: var(--docket-caption);
+    font-size: 0.875rem;
     font-variant-numeric: tabular-nums;
 }
+.docket-files {
+    position: relative;
+    width: clamp(90px, 19vw, 212px);
+    height: 88px;
+    pointer-events: none;
+}
+.docket-file {
+    position: absolute;
+    right: 8%;
+    bottom: 7px;
+    width: 78%;
+    height: 82%;
+    border: 1px solid var(--docket-file-border);
+    border-radius: 4px 8px 8px 4px;
+    box-shadow: 0 5px 12px #070a14a0;
+    transform: translateX(var(--file-x)) rotate(var(--file-angle));
+}
+.dashboard-ready .docket-file { animation: docket-file-in 620ms var(--ease-out) both; }
+.docket-file-back {
+    --file-x: -18%;
+    --file-angle: -13deg;
+    background: #77684f;
+}
+.docket-file-middle {
+    --file-x: 7%;
+    --file-angle: 10deg;
+    background: var(--docket-gold);
+}
+.dashboard-ready .docket-file-middle { animation-delay: 75ms; }
+.docket-file-front {
+    --file-x: 0%;
+    --file-angle: -2deg;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--docket-paper);
+}
+.dashboard-ready .docket-file-front { animation-delay: 150ms; }
+.docket-file-rules {
+    width: 45%;
+    height: 4px;
+    background: #82735a;
+    box-shadow: 0 -9px #b4a58a, 0 9px #b4a58a;
+}
+.docket-file-seal {
+    width: 26%;
+    aspect-ratio: 1;
+    border: 3px double var(--docket-crimson);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--docket-crimson) 10%, transparent);
+}
+.dashboard-ready .docket-file-seal { animation: docket-seal-in 360ms 580ms var(--ease-out) both; }
+@keyframes docket-file-in {
+    from { opacity: 0; transform: translate3d(var(--file-x), -18px, 0) rotate(0); }
+}
+@keyframes docket-seal-in {
+    from { opacity: 0; transform: scale(1.45) rotate(-12deg); }
+}
+@keyframes docket-panel-in {
+    from { opacity: 0.65; transform: translateY(6px); }
+}
+.docket .stat-card:nth-child(2) { animation-delay: 55ms; }
+.docket .stat-card:nth-child(3) { animation-delay: 110ms; }
 
 .stats-container {
     display: grid;
@@ -3047,25 +2992,22 @@ button, a, input, select {
 }
 
 .stat-card {
-    border-radius: var(--radius-organic) !important;
+    border-radius: var(--radius-card);
     padding: var(--space-5) var(--space-6);
     gap: 0;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    background: linear-gradient(165deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 85%, var(--gold-50)) 100%);
+    background: var(--bg-card);
     border: 1.5px solid var(--border-color);
-    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    box-shadow: var(--shadow-soft);
+    animation: docket-panel-in 420ms var(--ease-out) backwards;
     transition: transform 0.3s var(--ease-spring), border-color 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring);
 }
-:root[data-theme="dark"] .stat-card {
-    background: linear-gradient(165deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 80%, #000) 100%);
-    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
 .stat-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
     border-color: var(--border-color-glow);
-    box-shadow: var(--shadow-panel), var(--border-glow-gold);
+    box-shadow: var(--shadow-panel);
 }
 
 /* Card head: tinted icon chip + title/caption */
@@ -4274,7 +4216,9 @@ button, a, input, select {
     /* The donut sits above its legend instead of beside it. */
     .donut-body { flex-direction: column; align-items: stretch; gap: var(--space-4); }
     .donut-wrap { align-self: center; }
-    .docket-head { flex-direction: column; align-items: flex-start; }
+    .docket-head { min-height: 112px; padding: var(--space-4); }
+    .docket-files { height: 64px; }
+    .docket-file-front { padding: var(--space-2); }
     .stat-value-row strong { font-size: 46px; }
     .cat-bar-row { grid-template-columns: 18px minmax(0, 1fr) 60px 24px; }
     /* Phone header: hamburger + wordmark on line one, the whole action cluster
@@ -4282,7 +4226,7 @@ button, a, input, select {
        set a ~450px min width and the page scrolled sideways; the badge is now the
        flexible item that gives way (its text ellipsises) instead of wrapping the
        cluster onto a third line. */
-    .app-header { border-radius: 2rem; padding: 12px 16px; flex-wrap: wrap; row-gap: 8px; }
+    .app-header { padding: 12px 16px; flex-wrap: wrap; row-gap: 8px; }
     .header-logo { flex: 1; min-width: 0; }
     .header-actions { flex: 1 0 100%; min-width: 0; justify-content: space-between; gap: var(--space-2); }
     .system-cluster { flex: 1; min-width: 0; flex-wrap: nowrap; }
@@ -4778,4 +4722,13 @@ button, a, input, select {
     .pipeline-step .step-name {
         font-size: 0.62rem;
     }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-ready .docket-file, .dashboard-ready .docket-file-seal,
+    .docket .stat-card, .tab-content.active {
+        animation: none;
+    }
+    .docket .stat-card:hover { transform: none; }
 }

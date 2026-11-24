@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dashboard-theme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,11 +67,6 @@
         </div>
     </div>
 
-    <!-- Background organic blobs for wabi-sabi atmosphere -->
-    <div class="organic-blob color-1"></div>
-    <div class="organic-blob color-2"></div>
-    <div class="organic-blob color-3"></div>
-
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
@@ -97,7 +92,7 @@
                 </div>
                 <div class="logo-text">
                     <h1>Anavaya</h1>
-                    <span>Judicial Case priority prediction engine</span>
+                    <span>Judicial case workbench</span>
                 </div>
             </a>
             <div class="header-actions">
@@ -129,10 +124,17 @@
         <section class="docket" aria-labelledby="docket-title">
             <div class="docket-head">
                 <div class="docket-heading">
-                    <span class="docket-kicker">Docket overview</span>
-                    <h2 id="docket-title">Triage at a glance</h2>
+                    <h2 id="docket-title">Case docket</h2>
+                    <p class="docket-note" id="docket-note">Reading the register…</p>
                 </div>
-                <p class="docket-note" id="docket-note">Reading the register…</p>
+                <div class="docket-files" aria-hidden="true">
+                    <span class="docket-file docket-file-back"></span>
+                    <span class="docket-file docket-file-middle"></span>
+                    <span class="docket-file docket-file-front">
+                        <span class="docket-file-rules"></span>
+                        <span class="docket-file-seal"></span>
+                    </span>
+                </div>
             </div>
 
             <div class="stats-container">

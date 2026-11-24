@@ -271,6 +271,53 @@
 .theme-toggle-btn svg { width: 18px; height: 18px; }
 
 /* Respect reduced-motion: kill animation/floating, keep only essential fades */
+/* Landing-page colors for the dashboard. The courtroom uses its shared defaults. */
+:root.dashboard-theme {
+    --docket-ink: #1e2029;
+    --docket-paper: #faf7f0;
+    --docket-gold: #c5a059;
+    --docket-crimson: #e11d48;
+    --docket-caption: #e6d5b7;
+    --docket-hero-border: #393b46;
+    --docket-file-border: #302c35;
+
+    --bg-app: var(--docket-paper);
+    --bg-card: #fffdf9;
+    --bg-card-hover: #f9f3e8;
+    --bg-well: #f1ece2;
+    --surface-color: #fbf8f0;
+    --bg-color: #f1ece2;
+    --text-primary: #18181b;
+    --text-secondary: #48434a;
+    --text-muted: #6c6258;
+    --gold-500: var(--docket-gold);
+    --color-primary: var(--docket-ink);
+    --color-primary-dark: #3a3944;
+    --color-primary-fg: #fffdf9;
+    --color-high: #ad1537;
+    --color-high-bg: #fce9ee;
+    --color-high-border: #e4a6b5;
+    --radius-card: 12px;
+}
+
+:root.dashboard-theme[data-theme="dark"] {
+    --bg-app: #13141b;
+    --bg-card: var(--docket-ink);
+    --bg-card-hover: #2a2c37;
+    --bg-well: #191a22;
+    --surface-color: #232530;
+    --bg-color: #191a22;
+    --text-primary: #f4e8d1;
+    --text-secondary: #dfd7c9;
+    --text-muted: #b0a79c;
+    --color-primary: var(--docket-gold);
+    --color-primary-dark: #e3c78d;
+    --color-primary-fg: #15151b;
+    --color-high: #fb829d;
+    --color-high-bg: #412534;
+    --color-high-border: #8a4256;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
