@@ -1702,7 +1702,6 @@ async def chat_with_case_ai(case_identifier: str, payload: CaseChatRequest):
         # Check Excel by Case_File or Case_ID
         if os.path.exists(EXCEL_PATH):
             try:
-                import asyncio
                 df = await asyncio.to_thread(pd.read_excel, EXCEL_PATH)
                 match = df[df["Case_File"] == case_identifier]
                 if match.empty and "Case_ID" in df.columns:
