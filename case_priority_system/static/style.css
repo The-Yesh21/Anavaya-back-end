@@ -4703,3 +4703,28 @@ button, a, input, select {
     }
     .docket .stat-card:hover { transform: none; }
 }
+
+/* Confine the pointer highlight to the border so labels stay legible. */
+@media (any-hover: hover) and (any-pointer: fine) and (prefers-reduced-motion: no-preference) {
+    :where(.stat-card, .case-item, .registry-case, .registry-doc, .courtroom-card,
+        .triage-legend-item, .tab-btn, .create-case-btn, .upload-btn,
+        .lobby-create-btn, .case-action-btn, .cc-open, .cc-copy, .landing-back-btn) {
+        position: relative;
+    }
+
+    [data-border-glow]:hover::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        padding: 2px;
+        pointer-events: none;
+        opacity: var(--border-glow-strength, 0);
+        background: conic-gradient(from calc(var(--border-glow-angle) - 55deg),
+            transparent, var(--docket-crimson) 32deg, var(--docket-gold) 55deg,
+            var(--docket-gold) 70deg, transparent 110deg);
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+    }
+}
