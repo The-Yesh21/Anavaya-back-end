@@ -69,7 +69,7 @@
         iEnded: false,            // this client clicked End Session (Judge) — return to dashboard after adjournment
         localStream: null,         // local audio + video, shared with every peer + the self-view
         localStreamPromise: null,   // in-flight getUserMedia (dedupes concurrent requests)
-        companionCameraActive: false, // mobile phone companion camera serving as high-definition witness feed
+        companionCameraActive: null, // participant ID of the phone whose video is playing
         peers: new Map(),          // participant_id -> { pc, audio, videoTrack, status, … }
         pendingOfferTargets: new Set(), // pids we still need to offer to once our stream is ready
     };
@@ -553,19 +553,6 @@
                 state.sessionToken = msg.session_token || "";
                 state.participants = msg.room.participants;
 
-                // Check if a Companion camera is already present in the room
-                const existingCompanion = state.participants.find(p => p.role === "Companion");
-                if (existingCompanion) {
-                    if (state.localStream) {
-                        state.localStream.getVideoTracks().forEach(t => { t.enabled = false; });
-                    }
-                    if (typeof face !== "undefined" && face && face.ownStream) {
-                        try { face.ownStream.getTracks().forEach(t => t.stop()); } catch (_) {}
-                        face.ownStream = null;
-                    }
-                    state.companionCameraActive = true;
-                }
-
                 enterCourtroom();
                 renderCourt();
                 renderTranscript(msg.room.transcript);
@@ -585,75 +572,28 @@
                 break;
             }
             case "participant_joined": {
-                // Check if joining participant is a mobile Companion Camera
-                const isCompanion = msg.participant && msg.participant.role === "Companion";
-                if (isCompanion) {
-                    // Mobile phone provides HD witness feed; turn off local webcam to cut encoder load
-                    if (state.localStream) {
-                        state.localStream.getVideoTracks().forEach(t => { t.enabled = false; });
-                    }
-                    if (typeof face !== "undefined" && face && face.ownStream) {
-                        try { face.ownStream.getTracks().forEach(t => t.stop()); } catch (_) {}
-                        face.ownStream = null;
-                    }
-                    state.companionCameraActive = true;
-                }
-
                 state.participants.push(msg.participant);
                 renderCourt();
                 appendTranscript(msg.transcript_entry);
+                updateCompanionStatus();
 
-                if (isCompanion) {
-                    const statusEl = $("companion-qr-status");
-                    if (statusEl) {
-                        statusEl.className = "companion-qr-status connected";
-                        const lbl = $("companion-status-lbl");
-                        if (lbl) lbl.textContent = "Phone Connected (4K Feed Active)";
-                    }
-                    toast("📱 Mobile Companion Camera joined! Switching feed to high-definition mobile stream...");
-                    populateFaceSourceSelect();
-                    const sel = faceEl("face-source");
-                    if (sel) sel.value = msg.participant.participant_id;
-                    face.source = msg.participant.participant_id;
-                    resetFaceMetricsUI();
-                    setupFaceForCurrentSource().then(() => {
-                        if (state.me && state.me.role === "Judge" && !face.analyzing) {
-                            startFaceAnalysis();
-                        }
-                    });
-                }
                 // The NEW participant initiates the offer; existing peers just
                 // wait for it. So here we do NOT initiate — we only prepare an
                 // RTCPeerConnection entry when the offer arrives.
                 break;
             }
             case "participant_left": {
-                const leavingParticipant = state.participants.find(p => p.participant_id === msg.participant_id);
-                const wasCompanion = (leavingParticipant && leavingParticipant.role === "Companion") ||
-                    (state.companionCameraActive && (!msg.room || !msg.room.participants || !msg.room.participants.some(p => p.role === "Companion")));
-
                 state.participants = msg.room.participants;
                 closePeer(msg.participant_id);
 
-                if (wasCompanion) {
-                    // Re-enable the laptop local video track
-                    if (state.localStream) {
-                        state.localStream.getVideoTracks().forEach(t => { t.enabled = true; });
-                    }
-                    state.companionCameraActive = false;
-                    if (typeof face !== "undefined" && face) {
-                        face.source = "self";
-                        if (typeof populateFaceSourceSelect === "function") populateFaceSourceSelect();
-                        if (typeof setupFaceForCurrentSource === "function") setupFaceForCurrentSource();
-                    }
-                    const statusEl = $("companion-qr-status");
-                    if (statusEl) {
-                        statusEl.className = "companion-qr-status";
-                        const lbl = $("companion-status-lbl");
-                        if (lbl) lbl.textContent = "Waiting for phone to scan...";
-                    }
-                    toast("Mobile companion disconnected. Restored laptop webcam.");
+                if (state.companionCameraActive === msg.participant_id) {
+                    state.companionCameraActive = null;
+                    state.localStream?.getVideoTracks().forEach(track => {
+                        track.enabled = state.videoEnabled;
+                    });
+                    toast("Phone camera disconnected.");
                 }
+                updateCompanionStatus();
 
                 renderCourt();
                 // The leave system-entry was already broadcast + persisted.
@@ -1477,6 +1417,11 @@
                 peer.videoTrack = event.track;
                 const v = videoElFor(remotePid);
                 const stream = new MediaStream([event.track]);
+                if (state.participants.some(p => p.participant_id === remotePid && p.role === "Companion")) {
+                    v.addEventListener("playing", () => {
+                        if (v.srcObject === stream) activateCompanionCamera(remotePid);
+                    }, { once: true });
+                }
                 v.srcObject = stream;
                 v.play().catch(() => {});
                 // Keep this tile's video alive: if the tile goes black while the
@@ -2101,7 +2046,7 @@
                 <div class="stage-companion-standby">
                     <div class="companion-standby-badge">
                         <span class="companion-standby-dot"></span>
-                        <span class="companion-standby-text">📱 Phone Camera Active (4K/1080p) · Laptop Webcam Standby (Load Reduced)</span>
+                        <span class="companion-standby-text">Phone camera active · Laptop camera on standby</span>
                     </div>
                 </div>
                 ` : ""}
@@ -4775,6 +4720,34 @@
         return inviteUrl.replace(/\/court\/[^\/]+$/, `/court/${ROOM_ID}/companion`);
     }
 
+    function updateCompanionStatus() {
+        const status = $("companion-qr-status");
+        const label = $("companion-status-lbl");
+        if (!status || !label) return;
+        status.classList.toggle("connected", Boolean(state.companionCameraActive));
+        if (state.companionCameraActive) label.textContent = "Phone video connected";
+        else if (state.participants.some(p => p.role === "Companion")) {
+            label.textContent = "Phone joined. Waiting for video…";
+        } else label.textContent = "Waiting for phone to scan…";
+    }
+
+    function activateCompanionCamera(pid) {
+        if (state.companionCameraActive === pid) return;
+        state.companionCameraActive = pid;
+        state.localStream?.getVideoTracks().forEach(track => { track.enabled = false; });
+        updateCompanionStatus();
+        renderStage();
+        if (state.me?.role !== "Judge") return;
+        populateFaceSourceSelect();
+        const select = faceEl("face-source");
+        if (select) select.value = pid;
+        face.source = pid;
+        resetFaceMetricsUI();
+        setupFaceForCurrentSource().then(() => {
+            if (face.source === pid && !face.analyzing) startFaceAnalysis();
+        });
+    }
+
     async function openCompanionModal() {
         const modal = $("companion-modal");
         if (!modal) return;
@@ -4795,12 +4768,7 @@
             });
         }
 
-        const statusEl = $("companion-qr-status");
-        if (statusEl) {
-            statusEl.className = "companion-qr-status";
-            const lbl = $("companion-status-lbl");
-            if (lbl) lbl.textContent = "Waiting for phone to scan...";
-        }
+        updateCompanionStatus();
 
         modal.style.display = "flex";
         modal.setAttribute("aria-hidden", "false");

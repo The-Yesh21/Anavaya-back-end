@@ -48,7 +48,7 @@
         ws: null,
         sessionToken: "",
         myId: "",
-        peers: new Map(), // pid -> { pc, dc }
+        peers: new Map(), // pid -> { pc, iceCandidates }
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" }
@@ -361,7 +361,7 @@
                 facingMode: state.facingMode,
                 width: { ideal: 1920, max: 3840 },
                 height: { ideal: 1080, max: 2160 },
-                frameRate: { ideal: 60, min: 30 }
+                frameRate: { ideal: 30 }
             }
         };
 
@@ -399,7 +399,7 @@
             }
 
             inspectTorchSupport();
-            setStatus("Camera Ready", "online");
+            if (!state.ws) connectSignaling();
         } catch (err) {
             console.error("Camera access failed:", err);
             if (permCard) permCard.classList.add("active");
@@ -432,13 +432,15 @@
         ws.onmessage = async (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                handleSignalingMessage(msg);
+                await handleSignalingMessage(msg);
             } catch (e) {
-                console.error("Signaling parse error:", e);
+                console.error("Companion signaling error:", e);
             }
         };
 
         ws.onclose = () => {
+            for (const { pc } of state.peers.values()) pc.close();
+            state.peers.clear();
             console.warn("WebSocket closed. Reconnecting in 3s...");
             setStatus("Disconnected", "default");
             setTimeout(connectSignaling, 3000);
@@ -454,7 +456,7 @@
             case "room_state": {
                 state.myId = msg.me ? msg.me.participant_id : "";
                 state.sessionToken = msg.session_token || "";
-                setStatus("Connected • Active", "online");
+                setStatus("Joined · Connecting video", "online");
 
                 // As newcomer, initiate WebRTC offer to all existing participants (Judge, etc.)
                 const participants = msg.room && msg.room.participants ? msg.room.participants : [];
@@ -478,6 +480,7 @@
                 const remotePid = msg.from_participant_id;
                 const pc = getOrCreatePeerConnection(remotePid);
                 await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+                await flushIceCandidates(remotePid);
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 state.ws.send(JSON.stringify({
@@ -485,7 +488,6 @@
                     target_participant_id: remotePid,
                     data: answer
                 }));
-                setStatus("Streaming Live", "streaming");
                 break;
             }
 
@@ -494,21 +496,24 @@
                 const peer = state.peers.get(remotePid);
                 if (peer && peer.pc) {
                     await peer.pc.setRemoteDescription(new RTCSessionDescription(msg.data));
-                    setStatus("Streaming Live", "streaming");
+                    await flushIceCandidates(remotePid);
                 }
                 break;
             }
 
             case "ice_candidate": {
                 const remotePid = msg.from_participant_id;
-                const peer = state.peers.get(remotePid);
-                if (peer && peer.pc && msg.data) {
-                    try {
-                        await peer.pc.addIceCandidate(new RTCIceCandidate(msg.data));
-                    } catch (e) {
-                        console.warn("Error adding ICE candidate:", e);
-                    }
-                }
+                if (!remotePid || !msg.data) break;
+                getOrCreatePeerConnection(remotePid);
+                state.peers.get(remotePid).iceCandidates.push(msg.data);
+                await flushIceCandidates(remotePid);
+                break;
+            }
+
+            case "participant_left": {
+                const peer = state.peers.get(msg.participant_id);
+                if (peer) peer.pc.close();
+                state.peers.delete(msg.participant_id);
                 break;
             }
 
@@ -519,6 +524,18 @@
                     processAlignmentFeedback(msg.alignment);
                 }
                 break;
+            }
+        }
+    }
+
+    async function flushIceCandidates(remotePid) {
+        const peer = state.peers.get(remotePid);
+        if (!peer?.pc.remoteDescription) return;
+        for (const candidate of peer.iceCandidates.splice(0)) {
+            try {
+                await peer.pc.addIceCandidate(candidate);
+            } catch (error) {
+                console.warn("Error adding ICE candidate:", error);
             }
         }
     }
@@ -549,7 +566,10 @@
         pc.onconnectionstatechange = () => {
             console.log(`Peer ${remotePid} connection state:`, pc.connectionState);
             if (pc.connectionState === "connected") {
-                setStatus("Streaming Live (4K)", "streaming");
+                setStatus("Video connected", "streaming");
+            } else if (pc.connectionState === "failed" &&
+                ![...state.peers.values()].some(peer => peer.pc.connectionState === "connected")) {
+                setStatus("Video connection failed", "default");
             }
         };
 
@@ -568,7 +588,7 @@
             };
         };
 
-        state.peers.set(remotePid, { pc });
+        state.peers.set(remotePid, { pc, iceCandidates: [] });
         return pc;
     }
 
@@ -696,7 +716,6 @@
         updateVoiceUI();
         await loadIceConfig();
         await initCamera();
-        connectSignaling();
         renderHUD();
     }
 
