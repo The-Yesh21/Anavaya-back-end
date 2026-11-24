@@ -9,7 +9,6 @@ import { Features, TechStack } from "@/components/landing/Features";
 import { TechWordmarkShowcase } from "@/components/landing/TechWordmarkShowcase";
 import { ClosingCTA, SiteFooter } from "@/components/landing/Closing";
 import { PriorityRoadmap } from "@/components/landing/PriorityRoadmap";
-import { SystemArchitecture } from "@/components/landing/SystemArchitecture";
 import { HowPriorityIsGiven } from "@/components/landing/HowPriorityIsGiven";
 import { ModelAccuracy } from "@/components/landing/ModelAccuracy";
 import { SiteHeader } from "@/components/landing/SiteHeader";
@@ -64,10 +63,6 @@ function Index() {
 
         <ProgressiveSection id="priority-roadmap" priority={5} minHeight={500} fallbackTitle="Triage Lifecycle">
           <PriorityRoadmap />
-        </ProgressiveSection>
-
-        <ProgressiveSection id="system-architecture" priority={6} minHeight={500} fallbackTitle="Explainable Architecture">
-          <SystemArchitecture />
         </ProgressiveSection>
 
         <ProgressiveSection id="how-priority-is-given" priority={7} minHeight={500} fallbackTitle="Priority Decision Logic">

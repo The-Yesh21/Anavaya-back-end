@@ -6,7 +6,6 @@ import { APP_URL } from "./constants";
 /** Kept in document order so tab order and visual order agree. */
 const links = [
   { href: "#triage-sandbox", label: "Simulator" },
-  { href: "#architecture", label: "Architecture" },
   { href: "#how-priority-is-given", label: "Model Logic" },
   { href: "#accuracy", label: "Transformation" },
   { href: "#why", label: "Why it matters" },

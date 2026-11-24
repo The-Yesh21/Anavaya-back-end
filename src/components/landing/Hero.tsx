@@ -142,12 +142,6 @@ export function Hero() {
                   →
                 </span>
               </a>
-              <a
-                href="#architecture"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/[0.04] px-7 py-3.5 text-sm font-semibold text-primary backdrop-blur-sm transition-all duration-300 hover:border-primary/60 hover:bg-primary/10 hover:-translate-y-0.5 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                View Architecture
-              </a>
             </div>
           </Reveal>
         </div>
