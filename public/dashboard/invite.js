@@ -6,7 +6,15 @@
    and fail to connect ("This site can't be reached").
    ============================================================ */
 
+function courtroomUrl(roomId) {
+    return window.AnavayaNode?.apiUrl(`/court/${encodeURIComponent(roomId)}`) ||
+        `/court/${encodeURIComponent(roomId)}`;
+}
+
 async function buildInviteUrl(roomId) {
+    const roomUrl = courtroomUrl(roomId);
+    if (window.AnavayaNode?.getBackendUrl()) return roomUrl;
+
     const origin = window.location.origin;
     const hostname = window.location.hostname;
     const isLoopback = !hostname
@@ -16,7 +24,7 @@ async function buildInviteUrl(roomId) {
         || hostname === "0.0.0.0";
 
     // Already reachable from other devices (LAN IP, domain, ...) — use as-is.
-    if (!isLoopback) return `${origin}/court/${roomId}`;
+    if (!isLoopback) return origin + roomUrl;
 
     try {
         const res = await fetch("/api/court/invite-info");
@@ -26,7 +34,7 @@ async function buildInviteUrl(roomId) {
             if (ip && ip !== "127.0.0.1") {
                 const scheme = window.location.protocol === "https:" ? "https:" : "http:";
                 const port = window.location.port ? `:${window.location.port}` : "";
-                return `${scheme}//${ip}${port}/court/${roomId}`;
+                return `${scheme}//${ip}${port}${roomUrl}`;
             }
         }
     } catch (e) {
@@ -34,7 +42,7 @@ async function buildInviteUrl(roomId) {
     }
 
     // Fallback: keep the current origin.
-    return `${origin}/court/${roomId}`;
+    return origin + roomUrl;
 }
 
 /* ============================================================

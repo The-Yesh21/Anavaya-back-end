@@ -22,11 +22,31 @@
     },
     {
       "source": "/courtroom",
-      "destination": "/dashboard/courtroom.html"
+      "destination": "/dashboard/courtroom"
     },
     {
-      "source": "/court/:roomId*",
-      "destination": "/dashboard/courtroom.html"
+      "source": "/court/:roomId/companion",
+      "destination": "/dashboard/companion-cam"
+    },
+    {
+      "source": "/court/:roomId",
+      "destination": "/dashboard/courtroom"
+    },
+    {
+      "source": "/:file(courtroom\\.js|courtroom\\.css|companion-cam\\.js|node-status\\.js|node-status\\.css|tokens\\.css|tailwind-init\\.js|qrcode\\.min\\.js|invite\\.js|face-observations\\.js|trial-emotion-inference\\.js|trial_emotion_classifier\\.json)",
+      "destination": "/dashboard/:file"
+    },
+    {
+      "source": "/mediapipe/:file*",
+      "destination": "/dashboard/mediapipe/:file*"
+    },
+    {
+      "source": "/vendor/lottie.min.js",
+      "destination": "/dashboard/vendor/lottie.min.js"
+    },
+    {
+      "source": "/assets/:file(talking\\.gif|courtroom-countdown\\.json)",
+      "destination": "/dashboard/assets/:file"
     }
   ]
 }

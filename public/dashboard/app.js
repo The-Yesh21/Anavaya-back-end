@@ -2019,7 +2019,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const isActive = r.active;
             const statusClass = r.phase === "Concluded" ? "priority-low" : "priority-high";
             const phaseLabel = r.phase || "Opening";
-            const inviteUrl = `${window.location.origin}/court/${r.room_id}`;
+            const openUrl = courtroomUrl(r.room_id);
             return `
             <div class="courtroom-card ${isActive ? "" : "inactive"}">
                 <div class="cc-header">
@@ -2033,7 +2033,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ${r.case_id ? `<span class="cc-linked-case" title="Linked case file — the trial runs with this case's evidence context"><i data-lucide="folder-open"></i> ${escapeHtml(r.case_id)}</span>` : ""}
                 </div>
                 <div class="cc-actions">
-                    <button class="cc-open" onclick="window.open('${inviteUrl}','_blank')"><i data-lucide="door-open"></i> Open Trial</button>
+                    <a class="cc-open" href="${escapeHtml(openUrl)}" target="_blank" rel="noopener"><i data-lucide="door-open"></i> Open Trial</a>
                     <button class="cc-copy" data-invite-room="${r.room_id}"><i data-lucide="link"></i> Invite Link</button>
                     <a class="cc-transcript" href="/api/court/rooms/${r.room_id}/transcript" download><i data-lucide="download"></i> Transcript</a>
                     <button class="cc-delete" data-delete-room="${r.room_id}" title="Delete this trial session and its recordings" aria-label="Delete room ${r.room_id}"><i data-lucide="trash-2"></i> Delete</button>
@@ -2107,7 +2107,7 @@ document.addEventListener("DOMContentLoaded", () => {
             successText.textContent = `Room ${room.room_id} created — "${room.case_title}"`;
             lobbyCreateForm.style.display = "none";
             lobbySuccess.style.display = "block";
-            openRoomBtn.onclick = () => window.open(`/court/${room.room_id}`, "_blank");
+            openRoomBtn.onclick = () => window.open(courtroomUrl(room.room_id), "_blank", "noopener");
             copyRoomInviteBtn.onclick = async () => {
                 const url = await buildInviteUrl(room.room_id);
                 try {
