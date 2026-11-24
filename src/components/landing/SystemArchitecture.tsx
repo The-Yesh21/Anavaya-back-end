@@ -5,22 +5,22 @@ const stages = [
   {
     icon: Server,
     title: "Case intake",
-    description: "The dashboard sends evidence to FastAPI over HTTP.",
+    description: "Dashboard uploads reach FastAPI.",
   },
   {
     icon: ScanText,
     title: "Evidence extraction",
-    description: "PDF parsing, OCR, and Ollama turn exhibits into case features.",
+    description: "PDF parsing, OCR, and Ollama extract features.",
   },
   {
     icon: GitBranch,
     title: "CART Decision Tree",
-    description: "Merged case features determine one priority.",
+    description: "Scores the merged case features.",
   },
   {
     icon: FileStack,
     title: "Case records",
-    description: "The dashboard shows the verdict, decision path, and PDF report.",
+    description: "Verdict, decision path, and PDF report.",
   },
 ] as const;
 
@@ -29,20 +29,20 @@ export function SystemArchitecture() {
     <section
       id="architecture"
       aria-labelledby="architecture-title"
-      className="snap-section px-4 pt-20 pb-5 sm:px-8 md:px-10 md:pb-10"
+      className="snap-section px-4 pt-20 pb-3 sm:px-8 md:px-10 md:pb-10"
     >
       <div className="mx-auto w-full max-w-6xl">
         <Reveal className="text-center">
           <p className="eyebrow">System architecture</p>
           <h2
             id="architecture-title"
-            className="font-display mt-2 text-3xl font-semibold text-balance text-foreground sm:text-4xl"
+            className="font-display mt-1 text-2xl font-semibold text-balance text-foreground sm:mt-2 sm:text-4xl"
           >
             From evidence to verdict
           </h2>
         </Reveal>
 
-        <Reveal delay={80} className="mt-4 sm:mt-6">
+        <Reveal delay={80} className="mt-3 sm:mt-6">
           <figure aria-label="Anavaya case and courtroom architecture">
             <ol className="grid gap-3 lg:grid-cols-4 lg:gap-6" aria-label="Case priority pipeline">
               {stages.map(({ icon: Icon, title, description }, index) => {
@@ -51,7 +51,7 @@ export function SystemArchitecture() {
                 return (
                   <li
                     key={title}
-                    className={`relative flex items-start gap-3 rounded-xl border px-3 py-2.5 lg:flex-col lg:p-4 ${isTree ? "border-accent bg-accent/10" : "border-border bg-card"}`}
+                    className={`relative flex items-start gap-3 rounded-xl border px-3 py-1.5 lg:flex-col lg:p-4 ${isTree ? "border-accent bg-accent/10" : "border-border bg-card"}`}
                   >
                     <Icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
                     <div className="min-w-0">
@@ -82,18 +82,18 @@ export function SystemArchitecture() {
               })}
             </ol>
 
-            <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-secondary px-3 py-2.5 lg:mt-4 lg:items-center lg:px-4">
+            <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-secondary px-3 py-1.5 lg:mt-4 lg:items-center lg:px-4 lg:py-2.5">
               <Video className="mt-0.5 size-5 shrink-0 text-primary lg:mt-0" aria-hidden="true" />
               <div className="lg:flex lg:items-baseline lg:gap-3">
                 <h3 className="shrink-0 text-sm font-semibold text-foreground">Live courtroom</h3>
                 <p className="text-xs leading-4 text-muted-foreground">
-                  FastAPI coordinates rooms over WebSocket, WebRTC carries media, and Whisper transcribes speech.
+                  WebSocket rooms, WebRTC media, and Whisper transcripts.
                 </p>
               </div>
             </div>
 
-            <figcaption className="mt-3 text-center text-xs text-muted-foreground sm:mt-4">
-              The LLM extracts and summarizes. Only the Decision Tree assigns priority.
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground sm:mt-4">
+              The LLM extracts and summarizes. The Decision Tree alone assigns priority.
             </figcaption>
           </figure>
         </Reveal>
