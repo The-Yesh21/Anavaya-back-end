@@ -247,89 +247,61 @@ Thank you!`
     // ========================================================================
     const originalFetch = window.fetch;
     window.fetch = async function (input, init) {
-        let url = typeof input === "string" ? input : (input && input.url ? input.url : "");
-        const isApi = typeof url === "string" && (url.startsWith("/api/") || url.includes("/api/"));
+        const request = input instanceof Request ? input : null;
+        const url = new URL(request ? request.url : input, window.location.href);
+        if (!url.pathname.startsWith("/api/")) return originalFetch(input, init);
 
-        if (isApi) {
-            const backendBase = AnavayaNode.getBackendUrl();
-            if (backendBase) {
-                // If endpoint starts with /api/, rewrite to custom backend
-                const cleanEndpoint = url.startsWith("http") ? new URL(url).pathname : url;
-                const rewritten = backendBase.replace(/\/+$/, "") + cleanEndpoint;
-                init = init || {};
-                init.headers = init.headers || {};
-                if (init.headers instanceof Headers) {
-                    init.headers.set("ngrok-skip-browser-warning", "1");
-                } else if (Array.isArray(init.headers)) {
-                    init.headers.push(["ngrok-skip-browser-warning", "1"]);
-                } else {
-                    init.headers["ngrok-skip-browser-warning"] = "1";
-                }
-                if (typeof input === "string") {
-                    input = rewritten;
-                } else if (input && input.url) {
-                    input = new Request(rewritten, init || input);
-                }
-            }
+        const endpoint = url.pathname;
+        const method = (init?.method || request?.method || "GET").toUpperCase();
+        const backendBase = AnavayaNode.getBackendUrl();
+        if (backendBase) {
+            const rewritten = backendBase.replace(/\/+$/, "") + endpoint + url.search;
+            const headers = new Headers(init?.headers || request?.headers);
+            headers.set("ngrok-skip-browser-warning", "1");
+            input = request ? new Request(rewritten, request) : rewritten;
+            init = { ...init, headers };
         }
 
+        let response;
+        let failure;
         try {
-            const res = await originalFetch.apply(this, [input, init]);
-            // If the server answered 502/503/504 on a static host without backend:
-            // Note: 404 is a valid REST response (e.g. non-existent case, room check)
-            // and should NOT be intercepted or trigger standby modals.
-            if (!res.ok && isApi && res.status >= 502 && res.status <= 504) {
-                throw new Error(`HTTP ${res.status} from backend on ${url}`);
-            }
-            return res;
+            response = await originalFetch(input, init);
+            const isGatewayFailure = response.status >= 502 && response.status <= 504;
+            const isStaticPage = !response.headers.get("content-type")?.includes("json") &&
+                (response.status === 404 || response.status === 405 ||
+                    response.headers.get("content-type")?.includes("text/html"));
+            if (!isGatewayFailure && !isStaticPage) return response;
+            if (isGatewayFailure) failure = new Error(`HTTP ${response.status} from backend on ${endpoint}`);
         } catch (err) {
-            // Check if this is an API call on a static host without active backend
-            if (isApi) {
-                const endpoint = typeof url === "string" ? (url.startsWith("http") ? new URL(url).pathname : url) : "";
-
-                // 1. Fallback for case-registry
-                if (endpoint === "/api/case-registry" || endpoint.endsWith("/api/case-registry")) {
-                    try {
-                        const fallbackRes = await originalFetch("/dashboard/api/case-registry.json");
-                        if (fallbackRes.ok) return fallbackRes;
-                    } catch (_) {}
-                }
-
-                // 2. Fallback for /api/cases
-                if (endpoint === "/api/cases" || endpoint.endsWith("/api/cases")) {
-                    try {
-                        const fallbackRes = await originalFetch("/dashboard/api/cases.json");
-                        if (fallbackRes.ok) return fallbackRes;
-                    } catch (_) {}
-                }
-
-                // 3. Fallback for /api/delay-precedents
-                if (endpoint === "/api/delay-precedents" || endpoint.endsWith("/api/delay-precedents")) {
-                    try {
-                        const fallbackRes = await originalFetch("/dashboard/api/delay-precedents.json");
-                        if (fallbackRes.ok) return fallbackRes;
-                    } catch (_) {}
-                }
-
-                // 4. Fallback for /api/cases/{caseId}
-                const caseMatch = endpoint.match(/\/api\/cases\/([A-Za-z0-9_-]+)$/);
-                if (caseMatch) {
-                    const cid = caseMatch[1];
-                    try {
-                        const fallbackRes = await originalFetch(`/dashboard/api/cases/${cid}.json`);
-                        if (fallbackRes.ok) return fallbackRes;
-                    } catch (_) {}
-                }
-
-                // 5. Active triggers for Chatbot & Courtroom
-                if (endpoint.includes("/chat")) {
-                    AnavayaNode.showStandbyModal("Case AI Copilot (Ollama Qwen 2.5)");
-                } else if (endpoint.includes("/court/")) {
-                    AnavayaNode.showStandbyModal("Live Virtual Courtroom (WebRTC & Whisper GPU)");
-                }
-            }
-            throw err;
+            failure = err;
         }
+
+        if (method === "GET") {
+            const caseMatch = endpoint.match(/^\/api\/cases\/([A-Za-z0-9_-]+)$/);
+            const demoAsset = {
+                "/api/case-registry": "case-registry.json",
+                "/api/cases": "cases.json",
+                "/api/delay-precedents": "delay-precedents.json"
+            }[endpoint] || (caseMatch && `cases/${caseMatch[1]}.json`);
+            if (demoAsset) {
+                try {
+                    const fallback = await originalFetch(`/dashboard/api/${demoAsset}`);
+                    if (fallback.ok && fallback.headers.get("content-type")?.includes("json")) return fallback;
+                } catch (_) {}
+            }
+        }
+
+        if (endpoint.includes("/chat")) {
+            AnavayaNode.showStandbyModal("Case AI Copilot (Ollama Qwen 2.5)");
+        } else if (endpoint.startsWith("/api/court/")) {
+            AnavayaNode.showStandbyModal("Live Virtual Courtroom (WebRTC & Whisper GPU)");
+        } else if (!["GET", "HEAD", "OPTIONS"].includes(method) &&
+            (endpoint === "/api/upload" || endpoint === "/api/cases" || endpoint.startsWith("/api/cases/"))) {
+            AnavayaNode.showStandbyModal("Live Case Workspace");
+        }
+
+        if (failure) throw failure;
+        return response;
     };
 
     window.AnavayaNode = AnavayaNode;
