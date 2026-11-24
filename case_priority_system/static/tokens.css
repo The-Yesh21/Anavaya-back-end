@@ -301,21 +301,30 @@
 }
 
 :root.dashboard-theme[data-theme="dark"] {
-    --bg-app: #13141b;
-    --bg-card: var(--docket-ink);
-    --bg-card-hover: #2a2c37;
-    --bg-well: #191a22;
-    --surface-color: #232530;
-    --bg-color: #191a22;
-    --text-primary: #f4e8d1;
-    --text-secondary: #dfd7c9;
-    --text-muted: #b0a79c;
-    --color-primary: var(--docket-gold);
-    --color-primary-dark: #e3c78d;
-    --color-primary-fg: #15151b;
-    --color-high: #fb829d;
-    --color-high-bg: #412534;
-    --color-high-border: #8a4256;
+    --docket-ink: #14233a;
+    --docket-gold: #e2bd7c;
+    --docket-hero-border: #40516a;
+    --bg-app: #0b1322;
+    --bg-card: #142035;
+    --bg-card-hover: #23354d;
+    --bg-well: #0e1829;
+    --surface-color: #1b2a40;
+    --bg-color: #101c2e;
+    --text-primary: #faf2e5;
+    --text-secondary: #d4dce8;
+    --text-muted: #aebbd0;
+    --border-color: #364760;
+    --border-color-subtle: #2c3d56;
+    --border-color-glow: #788ba7;
+    --color-primary: #e3c58e;
+    --color-primary-dark: #f0d7a8;
+    --color-primary-fg: #172234;
+    --color-accent: #283750;
+    --color-accent-fg: #edcea0;
+    --color-high: #ffa6b0;
+    --color-high-bg: #432638;
+    --color-high-border: #8b4e62;
+    --focus-ring: 0 0 0 3px #b4c9eb65;
 }
 
 @media (prefers-reduced-motion: reduce) {

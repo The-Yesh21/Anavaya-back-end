@@ -441,9 +441,9 @@ body {
 /* Tab Header Navigation Pill */
 .tab-header {
     display: flex;
-    background: color-mix(in srgb, var(--bg-well) 65%, transparent);
-    border: 1.5px solid var(--border-color);
-    border-radius: 99px;
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
     padding: 5px;
     gap: 6px;
     margin-bottom: 24px;
@@ -456,7 +456,7 @@ body {
     padding: 11px 20px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 99px;
+    border-radius: 8px;
     color: var(--text-secondary);
     font-family: var(--font-heading);
     font-weight: 750;
@@ -482,10 +482,9 @@ body {
 }
 
 .tab-btn.active {
-    color: var(--color-primary-fg);
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    box-shadow: var(--shadow-soft), 0 0 16px rgba(168, 126, 47, 0.28);
+    color: var(--color-primary-dark);
+    background: var(--surface-color);
+    border-color: color-mix(in srgb, var(--docket-gold) 55%, var(--border-color));
 }
 
 .tab-content-container {

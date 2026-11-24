@@ -405,9 +405,9 @@
 .case-workspace-hero {
     position: relative;
     padding: 26px 28px;
-    border-radius: 2.2rem 2rem 2.4rem 1.8rem / 2rem 2.4rem 1.8rem 2.2rem;
-    border: 1.5px solid var(--border-color);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 95%, transparent), color-mix(in srgb, var(--bg-well) 55%, transparent));
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border-color);
+    background: var(--surface-color);
     box-shadow: var(--shadow-soft);
     margin-bottom: 18px;
 }
@@ -423,9 +423,9 @@
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.06em;
-    color: var(--color-primary);
-    background: var(--color-low-bg);
-    border: 1px solid var(--color-low-border);
+    color: var(--text-secondary);
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
     padding: 4px 12px;
     border-radius: 99px;
 }
@@ -444,6 +444,32 @@
     max-width: 720px;
 }
 .workspace-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.workspace-actions :is(.lobby-create-btn, .lobby-delete-btn),
+.lobby-create-btn.case-ai-action,
+.workspace-card .lobby-create-btn {
+    min-height: 44px;
+    border-radius: 9px;
+    box-shadow: none;
+}
+.lobby-create-btn.case-ai-action {
+    color: var(--text-primary);
+    background: var(--bg-well);
+    border: 1px solid var(--border-color);
+}
+.lobby-create-btn.case-ai-action:hover:not(:disabled) {
+    background: var(--bg-card-hover);
+    border-color: var(--docket-gold);
+}
+.workspace-actions .lobby-delete-btn {
+    color: var(--color-high);
+    background: transparent;
+    border: 1px solid var(--color-high-border);
+}
+.workspace-actions .lobby-delete-btn:hover:not(:disabled) { background: var(--color-high-bg); }
+.case-workspace-hero .priority-pill { box-shadow: none; }
+.case-workspace-hero .priority-pill.high { color: var(--color-high); background: var(--color-high-bg); }
+.case-workspace-hero .priority-pill.medium { color: var(--color-medium); background: var(--color-medium-bg); }
+.case-workspace-hero .priority-pill.low { color: var(--color-low); background: var(--color-low-bg); }
 .workspace-columns {
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
@@ -453,9 +479,34 @@
 @media (max-width: 899px) {
     .workspace-columns { grid-template-columns: 1fr; }
 }
-.workspace-card { padding: 20px; }
-.workspace-card .wizard-dropzone { margin-bottom: 12px; }
+.card.workspace-card {
+    padding: 20px;
+    border-radius: var(--radius-card);
+    background: var(--bg-well);
+}
+.workspace-card .panel-header h2 svg { color: var(--color-primary-dark); }
+.workspace-card .wizard-dropzone {
+    margin-bottom: 12px;
+    border: 1px dashed var(--border-color-glow);
+    border-radius: var(--radius-card);
+    background: var(--surface-color);
+    color: var(--text-secondary);
+    animation: none;
+    box-shadow: none;
+}
+.workspace-card .wizard-dropzone:is(:hover, .drag-over) { border-color: var(--color-primary); }
+.workspace-card .wizard-dropzone svg { color: var(--color-primary-dark); }
 .workspace-card .lobby-field { margin-bottom: 12px; }
+.workspace-card .lobby-field select {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font: inherit;
+}
 
 /* Whole-Case Analysis block in the Analysis tab (moved out of the Case tab). */
 .analysis-whole-case { margin-bottom: 18px; }
@@ -510,10 +561,9 @@
     justify-content: space-between;
     gap: 12px;
     padding: 13px 16px;
-    border: 1.5px solid var(--border-color);
-    border-radius: 1.2rem;
-    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-    box-shadow: var(--shadow-xs);
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: var(--bg-card);
     transition: all 0.25s var(--ease-spring);
     flex-shrink: 0;
 }

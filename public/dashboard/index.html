@@ -245,7 +245,7 @@
                                 <p id="workspace-rationale" class="workspace-rationale"></p>
                                 <div class="workspace-actions">
                                     <button class="lobby-create-btn" id="workspace-analyze-btn" style="width:auto;"><i data-lucide="sparkles"></i> Analyze All Documents</button>
-                                    <button class="lobby-create-btn" id="workspace-chat-btn" style="width:auto; background: linear-gradient(135deg, #24211D, #181614); border: 1px solid rgba(201,162,75,0.6);"><i data-lucide="bot"></i> Ask Case AI</button>
+                                    <button class="lobby-create-btn case-ai-action" id="workspace-chat-btn"><i data-lucide="bot"></i> Ask Case AI</button>
                                     <button class="lobby-delete-btn" id="workspace-delete-btn" style="width:auto;"><i data-lucide="trash-2"></i> Delete Case</button>
                                 </div>
                             </div>
@@ -264,8 +264,7 @@
                                         <h2><i data-lucide="cloud-upload"></i> Upload Evidence</h2>
                                     </div>
                                     <div class="wizard-dropzone" id="workspace-doc-drop">
-                                        <!-- Evidence going up — animated brand art for the drop target. -->
-                                        <img class="dz-gif" src="assets/evidence-upload.gif" alt="" aria-hidden="true" draggable="false" loading="lazy" decoding="async">
+                                        <i data-lucide="file-up" aria-hidden="true"></i>
                                         <p>Drop PDF or image files here or click to browse</p>
                                     </div>
                                     <input type="file" id="workspace-doc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple style="display:none;">
@@ -350,7 +349,7 @@
                                         <a id="case-level-report-btn" class="lobby-create-btn case-level-report-btn" href="#" download>
                                             <i data-lucide="file-down"></i> Whole-Case PDF Report
                                         </a>
-                                        <button id="case-level-chat-btn" class="lobby-create-btn" style="background: linear-gradient(135deg, #24211D, #181614); border: 1px solid rgba(201,162,75,0.6);">
+                                        <button id="case-level-chat-btn" class="lobby-create-btn case-ai-action">
                                             <i data-lucide="bot"></i> Ask Case AI
                                         </button>
                                     </div>
