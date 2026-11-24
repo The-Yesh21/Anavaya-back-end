@@ -47,7 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const stackSelect = $("case-stack-select");
     const prevCase = $("case-stack-prev");
     const nextCase = $("case-stack-next");
+    const backCase = $("case-stack-back");
     let registryCases = [];
+    let caseOrder = [];
     let visibleCases = [];
     let frontCaseId = "";
 
@@ -56,6 +58,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch("/api/case-registry");
             if (!res.ok) throw new Error("registry fetch failed");
             registryCases = await res.json();
+            const ids = registryCases.map(c => c.case_id);
+            const knownIds = new Set(caseOrder);
+            const currentIds = new Set(ids);
+            caseOrder = [...ids.filter(id => !knownIds.has(id)), ...caseOrder.filter(id => currentIds.has(id))];
             renderRegistry();
         } catch (_) {
             if (!registryCases.length) registryList.textContent = "Case files are unavailable.";
@@ -71,7 +77,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!rowsByCase.has(row.Case_ID)) rowsByCase.set(row.Case_ID, []);
             rowsByCase.get(row.Case_ID).push(row);
         }
-        visibleCases = registryCases.filter(c => {
+        const casesById = new Map(registryCases.map(c => [c.case_id, c]));
+        visibleCases = caseOrder.map(id => casesById.get(id)).filter(c => {
             const rows = rowsByCase.get(c.case_id) || [];
             const summary = rows.find(r => r.Document_Type?.toLowerCase() === "whole case") || rows[0];
             const searchable = [c.case_id, c.title, ...(c.documents || []).map(d => d.filename),
@@ -86,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
         stackSelect.innerHTML = visibleCases.map(c =>
             `<option value="${esc(c.case_id)}">${esc(c.title || c.case_id)}</option>`).join("");
         stackSelect.value = frontCaseId;
-        prevCase.disabled = nextCase.disabled = visibleCases.length < 2;
+        prevCase.disabled = nextCase.disabled = backCase.disabled = visibleCases.length < 2;
         if (!visibleCases.length) {
             registryList.innerHTML = `<p class="loader">${registryCases.length ? "No cases match these filters." : "No case files yet."}</p>`;
             return;
@@ -97,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const c = visibleCases[(index + layer) % visibleCases.length];
             const title = c.title || c.case_id;
             const documents = c.document_count ?? c.documents?.length ?? 0;
-            return `<button type="button" class="case-stack-card${layer === 0 ? " is-front" : ""}" data-case-id="${esc(c.case_id)}"
+            return `<button type="button" class="case-stack-card${layer === 0 ? " is-front" : ""}" data-case-id="${esc(c.case_id)}" draggable="false"
                     style="--layer:${layer}" aria-label="Open ${esc(title)}" title="${esc(title)}">
                     <span class="case-stack-label">
                         <i data-lucide="folder-closed" aria-hidden="true"></i>
@@ -123,6 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     prevCase.addEventListener("click", () => moveStack(-1));
     nextCase.addEventListener("click", () => moveStack(1));
+    backCase.addEventListener("click", () => sendCaseToBack(frontCaseId));
     stackSelect.addEventListener("change", () => {
         frontCaseId = stackSelect.value;
         renderRegistry();
@@ -131,6 +139,78 @@ document.addEventListener("DOMContentLoaded", () => {
     const deckMotion = window.matchMedia("(any-pointer: fine) and (any-hover: hover) and (prefers-reduced-motion: no-preference)");
     let tiltFrame = 0;
     let deckPointer;
+    let drag;
+    let suppressClick = false;
+
+    function sendCaseToBack(id) {
+        if (visibleCases.length < 2 || !visibleCases.some(c => c.case_id === id)) return;
+        const front = visibleCases.findIndex(c => c.case_id === frontCaseId);
+        const ids = visibleCases.map(c => c.case_id);
+        const rotated = [...ids.slice(front), ...ids.slice(0, front)].filter(caseId => caseId !== id);
+        rotated.push(id);
+        const visibleIds = new Set(ids);
+        let next = 0;
+        caseOrder = caseOrder.map(caseId => visibleIds.has(caseId) ? rotated[next++] : caseId);
+        frontCaseId = rotated[0];
+        renderRegistry();
+    }
+
+    registryList.addEventListener("pointerdown", event => {
+        if (!event.isPrimary || event.button !== 0 || drag) return;
+        suppressClick = false;
+        const card = event.target.closest(".case-stack-card");
+        if (!card || visibleCases.length < 2 || card.classList.contains("is-tossing")) return;
+        if (event.pointerType === "touch" && !event.target.closest(".case-stack-label")) return;
+        drag = { card, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    });
+
+    window.addEventListener("pointermove", event => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const { card, x, y } = drag;
+        const dx = event.clientX - x;
+        const dy = event.clientY - y;
+        if (!drag.moved && Math.hypot(dx, dy) < 9) return;
+        if (!drag.moved) {
+            if (!card.isConnected) {
+                drag = null;
+                return;
+            }
+            drag.moved = true;
+            if (event.pointerType !== "touch") card.setPointerCapture(event.pointerId);
+            card.classList.add("is-dragging");
+            resetDeckTilt();
+        }
+        card.style.translate = `${dx}px ${dy}px`;
+    }, { passive: true });
+
+    function finishDrag(event) {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const { card, moved, x, y } = drag;
+        drag = null;
+        if (!moved) return;
+        suppressClick = true;
+        card.classList.remove("is-dragging");
+        if (event.type !== "pointerup" || Math.hypot(event.clientX - x, event.clientY - y) < 28) {
+            card.style.removeProperty("translate");
+            return;
+        }
+
+        const id = card.dataset.caseId;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            sendCaseToBack(id);
+            return;
+        }
+        card.classList.add("is-tossing");
+        card.animate([
+            { translate: card.style.translate, opacity: 1 },
+            { translate: `${event.clientX - x}px ${event.clientY - y - 48}px`, opacity: 0 }
+        ], { duration: 180, easing: "ease-out", fill: "forwards" }).finished.then(() => {
+            if (card.isConnected) sendCaseToBack(id);
+        }, () => {});
+    }
+    window.addEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", finishDrag);
+    registryList.addEventListener("lostpointercapture", finishDrag);
     function resetDeckTilt() {
         if (tiltFrame) cancelAnimationFrame(tiltFrame);
         tiltFrame = 0;
@@ -138,7 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
         registryList.style.removeProperty("--deck-y");
     }
     registryList.addEventListener("pointermove", event => {
-        if (!deckMotion.matches || event.pointerType === "touch" || !visibleCases.length) return;
+        if (drag?.moved || !deckMotion.matches || event.pointerType === "touch" || !visibleCases.length) return;
         deckPointer = event;
         if (tiltFrame) return;
         tiltFrame = requestAnimationFrame(() => {
@@ -155,6 +235,10 @@ document.addEventListener("DOMContentLoaded", () => {
     deckMotion.addEventListener("change", resetDeckTilt);
 
     registryList.addEventListener("click", async event => {
+        if (suppressClick && event.detail > 0) {
+            suppressClick = false;
+            return;
+        }
         const card = event.target.closest(".case-stack-card");
         if (!card) return;
         const id = card.dataset.caseId;

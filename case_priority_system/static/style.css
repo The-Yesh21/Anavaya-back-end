@@ -4724,6 +4724,16 @@ button, a, input, select {
 }
 .case-stack-card:is(:hover, :focus-visible) { border-color: var(--docket-gold); }
 .case-stack-card:focus-visible { outline: 2px solid var(--docket-gold); outline-offset: -3px; }
+.case-stack:has(:where(.case-stack-card:nth-child(2))) .case-stack-card {
+    cursor: grab;
+    user-select: none;
+}
+.case-stack-card.is-dragging, .case-stack-card.is-tossing {
+    z-index: 6;
+    cursor: grabbing;
+    border-color: var(--docket-gold);
+    box-shadow: 0 24px 36px -12px #0a0918d0;
+}
 .case-stack-label {
     display: flex;
     align-items: center;
@@ -4732,6 +4742,7 @@ button, a, input, select {
     min-height: 26px;
     padding-inline: 4px;
     line-height: 1.2;
+    touch-action: none;
 }
 .case-stack-label svg { width: 17px; height: 17px; flex: none; color: var(--docket-gold); }
 .case-stack-label strong {
@@ -4789,7 +4800,7 @@ button, a, input, select {
 .case-stack-open svg, .case-workspace-nav svg { width: 16px; height: 16px; }
 .case-stack-controls {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
     gap: var(--space-2);
     margin-top: var(--space-3);
 }
@@ -4805,6 +4816,7 @@ button, a, input, select {
     font: inherit;
 }
 .case-stack-nav { font-size: 1.5rem; cursor: pointer; }
+.case-stack-nav svg { display: block; width: 17px; height: 17px; margin: auto; }
 .case-stack-nav:disabled { opacity: 0.45; cursor: default; }
 .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
 .dashboard-grid .details-panel { min-width: 0; height: auto; min-height: 460px; }
