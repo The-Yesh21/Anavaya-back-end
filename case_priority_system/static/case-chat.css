@@ -395,6 +395,18 @@
     margin-bottom: 0;
 }
 
+.chat-bubble .chat-reply-heading {
+    margin: 1em 0 0.35em;
+    color: inherit;
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.chat-bubble .chat-reply-heading:first-child {
+    margin-top: 0;
+}
+
 .chat-bubble strong {
     color: #1A1816;
     font-weight: 600;

@@ -411,54 +411,36 @@
      */
     function formatMarkdown(text) {
         if (!text) return "";
-        let escaped = escapeHtml(text);
-
-        // Bold **text**
-        escaped = escaped.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-
-        // Italic *text*
-        escaped = escaped.replace(/\*(.*?)\*/g, "<em>$1</em>");
-
-        // Code `text`
-        escaped = escaped.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-        // Bullet lists: lines starting with "- " or "* "
-        const lines = escaped.split("\n");
-        let html = "";
-        let inList = false;
-
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (line.startsWith("- ") || line.startsWith("* ")) {
-                if (!inList) {
-                    html += "<ul>";
-                    inList = true;
-                }
-                html += `<li>${line.substring(2)}</li>`;
-            } else if (/^\d+\.\s/.test(line)) {
-                if (!inList) {
-                    html += "<ol>";
-                    inList = true;
-                }
-                const content = line.replace(/^\d+\.\s/, "");
-                html += `<li>${content}</li>`;
-            } else {
-                if (inList) {
-                    html += "</ul>";
-                    inList = false;
-                }
-                if (line.length > 0) {
-                    html += `<p>${line}</p>`;
-                }
+        const inline = (line) => escapeHtml(line).replace(
+            /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|\[(DOC-\d+|EXHIBIT-[^\]]+|FIR-\d+)\]/gi,
+            (_, code, bold, italic, exhibit) => {
+                if (code) return `<code>${code}</code>`;
+                if (bold) return `<strong>${bold}</strong>`;
+                if (italic) return `<em>${italic}</em>`;
+                return `<span class="exhibit-tag">${exhibit}</span>`;
             }
-        }
-        if (inList) {
-            html += "</ul>";
-        }
+        );
 
-        // Highlight Exhibit citations like [EXHIBIT-1], [DOC-01]
-        html = html.replace(/\[(DOC-\d+|EXHIBIT-[^\]]+|FIR-\d+)\]/gi, '<span class="exhibit-tag">$1</span>');
+        let html = "";
+        let list = null;
+        for (const rawLine of text.split(/\r?\n/)) {
+            const line = rawLine.trim();
+            if (!line) continue;
 
+            const heading = line.match(/^(?:(?:\d+[.)]|[-*])\s+)?\\?#{1,6}\s+(.+)$/);
+            const item = heading ? null : line.match(/^(\d+[.)]|[-*])\s+(.+)$/);
+            const nextList = item ? (/^\d/.test(item[1]) ? "ol" : "ul") : null;
+            if (list !== nextList) {
+                if (list) html += `</${list}>`;
+                if (nextList) html += `<${nextList}>`;
+                list = nextList;
+            }
+
+            if (heading) html += `<h3 class="chat-reply-heading">${inline(heading[1])}</h3>`;
+            else if (item) html += `<li>${inline(item[2])}</li>`;
+            else html += `<p>${inline(line)}</p>`;
+        }
+        if (list) html += `</${list}>`;
         return html;
     }
 

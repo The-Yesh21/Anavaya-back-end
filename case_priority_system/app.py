@@ -1754,7 +1754,11 @@ async def chat_with_case_ai(case_identifier: str, payload: CaseChatRequest):
         "2. When discussing facts or testimony, cite the specific evidence document or exhibit where relevant (e.g. 'Exhibit P-1', 'Evidence_02 / CCTV Log').\n"
         "3. Invariant: Case priority is assigned objectively by the CART Decision Tree triage model, not by the LLM.\n"
         "4. If a requested detail is not found in the evidence dossier, state clearly: 'This detail is not recorded in the available exhibits.'\n"
-        "5. Be concise, direct, professional, and well-structured with markdown bullets."
+        "5. Answer the question directly, usually in 120 words or fewer. For a case overview, "
+        "start with one plain-language sentence, then give up to four short bullets for the key facts "
+        "and evidence. Include the recorded priority once if relevant. Use a separate short heading "
+        "only when it helps. Put headings on their own lines. Skip boilerplate and unrelated statutes. "
+        "End on a complete sentence."
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -1780,7 +1784,7 @@ async def chat_with_case_ai(case_identifier: str, payload: CaseChatRequest):
                     "stream": False,
                     "options": {
                         "temperature": 0.2,
-                        "num_predict": 450,
+                        "num_predict": 300,
                     },
                 },
                 timeout=60,
