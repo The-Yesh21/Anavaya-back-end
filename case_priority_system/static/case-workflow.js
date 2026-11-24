@@ -99,7 +99,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const documents = c.document_count ?? c.documents?.length ?? 0;
             return `<button type="button" class="case-stack-card${layer === 0 ? " is-front" : ""}" data-case-id="${esc(c.case_id)}"
                     style="--layer:${layer}" aria-label="Open ${esc(title)}" title="${esc(title)}">
-                    <span class="case-stack-label"><strong>${esc(title)}</strong><span>${esc(c.case_id)}</span></span>
+                    <span class="case-stack-label">
+                        <i data-lucide="folder-closed" aria-hidden="true"></i>
+                        <strong>${esc(title)}</strong>
+                        <span>${esc(c.case_id)}</span>
+                    </span>
                     <span class="case-stack-body">
                         ${prioBadge(c.case_level_priority || c.aggregate_priority)}
                         <span>${documents} ${documents === 1 ? "document" : "documents"}</span>
@@ -123,6 +127,33 @@ document.addEventListener("DOMContentLoaded", () => {
         frontCaseId = stackSelect.value;
         renderRegistry();
     });
+
+    const deckMotion = window.matchMedia("(any-pointer: fine) and (any-hover: hover) and (prefers-reduced-motion: no-preference)");
+    let tiltFrame = 0;
+    let deckPointer;
+    function resetDeckTilt() {
+        if (tiltFrame) cancelAnimationFrame(tiltFrame);
+        tiltFrame = 0;
+        registryList.style.removeProperty("--deck-x");
+        registryList.style.removeProperty("--deck-y");
+    }
+    registryList.addEventListener("pointermove", event => {
+        if (!deckMotion.matches || event.pointerType === "touch" || !visibleCases.length) return;
+        deckPointer = event;
+        if (tiltFrame) return;
+        tiltFrame = requestAnimationFrame(() => {
+            tiltFrame = 0;
+            const { left, top, width, height } = registryList.getBoundingClientRect();
+            if (!width || !height) return;
+            const normalize = value => Math.max(-1, Math.min(1, value * 2 - 1));
+            registryList.style.setProperty("--deck-x", normalize((deckPointer.clientX - left) / width).toFixed(3));
+            registryList.style.setProperty("--deck-y", normalize((deckPointer.clientY - top) / height).toFixed(3));
+        });
+    }, { passive: true });
+    registryList.addEventListener("pointerleave", resetDeckTilt);
+    registryList.addEventListener("pointercancel", resetDeckTilt);
+    deckMotion.addEventListener("change", resetDeckTilt);
+
     registryList.addEventListener("click", async event => {
         const card = event.target.closest(".case-stack-card");
         if (!card) return;
