@@ -178,6 +178,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 link.href = "/";
             });
         }
+        const intro = document.getElementById("global-preloader");
+        function revealDashboard() {
+            if (document.documentElement.classList.contains("dashboard-ready")) return;
+            document.documentElement.classList.add("dashboard-ready");
+            if (!intro) return;
+            if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+                intro.remove();
+                return;
+            }
+            intro.classList.add("is-opening");
+            setTimeout(() => intro.remove(), 620);
+        }
+        const introDeadline = setTimeout(revealDashboard, 2200);
         try {
             // The decision tree is fetched lazily on the first Tree-tab
             // activation (see tab handler), so the initial page load only
@@ -189,16 +202,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
-            // Hide global page preloader
-            const preloader = document.getElementById("global-preloader");
-            document.documentElement.classList.add("dashboard-ready");
-            if (preloader) {
-                preloader.style.opacity = "0";
-                preloader.style.visibility = "hidden";
-                setTimeout(() => {
-                    preloader.remove();
-                }, 500);
-            }
+            clearTimeout(introDeadline);
+            revealDashboard();
         }
     }
 

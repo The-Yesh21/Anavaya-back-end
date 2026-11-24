@@ -1821,85 +1821,6 @@ body {
     max-width: 440px;
     text-align: center;
 }
-/* Dominoes Spinner style */
-.spinner {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  margin-left: -75px; /* Offset the rightward offset of domino spans to center it */
-  margin-bottom: 20px;
-}
-
-.spinner span {
-  position: absolute;
-  top: 50%;
-  left: var(--left);
-  width: 35px;
-  height: 7px;
-  background: var(--color-primary);
-  animation: dominos 1s ease infinite;
-  box-shadow: 2px 2px 4px rgba(168, 126, 47, 0.15);
-  border-radius: 2px;
-}
-
-.spinner span:nth-child(1) {
-  --left: 80px;
-  animation-delay: 0.125s;
-}
-
-.spinner span:nth-child(2) {
-  --left: 70px;
-  animation-delay: 0.3s;
-}
-
-.spinner span:nth-child(3) {
-  left: 60px;
-  animation-delay: 0.425s;
-}
-
-.spinner span:nth-child(4) {
-  animation-delay: 0.54s;
-  left: 50px;
-}
-
-.spinner span:nth-child(5) {
-  animation-delay: 0.665s;
-  left: 40px;
-}
-
-.spinner span:nth-child(6) {
-  animation-delay: 0.79s;
-  left: 30px;
-}
-
-.spinner span:nth-child(7) {
-  animation-delay: 0.915s;
-  left: 20px;
-}
-
-.spinner span:nth-child(8) {
-  left: 10px;
-}
-
-@keyframes dominos {
-  50% {
-    opacity: 0.7;
-  }
-
-  75% {
-    -webkit-transform: rotate(90deg);
-    transform: rotate(90deg);
-  }
-
-  80% {
-    opacity: 1;
-  }
-}
-
 .loading-spinner-container h3 {
     font-family: var(--font-heading);
     color: var(--text-primary);
@@ -2292,62 +2213,112 @@ body {
   }
 }
 
-/* Global Page Preloader Styles */
-.preloader-overlay {
+/* ScrollExpand-style frame, driven by dashboard readiness. */
+.docket-intro {
+    --intro-inset-x: 21%;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: var(--bg-app);
+    inset: 0;
     z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.5s ease, visibility 0.5s ease;
-}
-
-.preloader-overlay::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    opacity: 0.035;
-    z-index: 10001;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: var(--bg-app);
     pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    mix-blend-mode: multiply;
+    animation: docket-intro-expire 1ms 5s step-end forwards;
 }
-
-.preloader-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
+.docket-intro-frame {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    clip-path: inset(24% var(--intro-inset-x) round 20px);
+    background: var(--docket-ink);
+}
+.docket-intro-art {
+    position: absolute;
+    inset: 0;
+    transform: scale(1.25);
+    background:
+        repeating-linear-gradient(90deg, transparent 0 79px, #c5a05919 79px 80px),
+        repeating-linear-gradient(0deg, transparent 0 31px, #c5a05919 31px 32px);
+}
+.docket-intro-page {
+    position: absolute;
+    left: calc(50% + min(10vw, 120px));
+    top: 51%;
+    width: clamp(96px, 17vw, 230px);
+    aspect-ratio: 1.4;
+    border: 1px solid var(--docket-gold);
+    border-radius: 4px 10px 10px 4px;
+    background: #66543b;
+    transform: rotate(-13deg) translate(-20%, 6%);
+    box-shadow: 0 12px 32px #070a1470;
+}
+.docket-intro-page:nth-child(2) {
+    background: var(--docket-gold);
+    transform: rotate(12deg) translate(12%, 12%);
+}
+.docket-intro-page:nth-child(3) {
+    background: var(--docket-paper);
+    transform: rotate(-3deg);
+}
+.docket-intro-page:nth-child(3)::before {
+    content: "";
+    position: absolute;
+    inset: 19% 24% 24% 13%;
+    background: repeating-linear-gradient(0deg, #82735a57 0 1px, transparent 1px 9px);
+}
+.docket-intro-seal {
+    position: absolute;
+    right: 11%;
+    bottom: 12%;
+    width: 26%;
+    aspect-ratio: 1;
+    border: 4px double var(--docket-crimson);
+    border-radius: 50%;
+    background: #e11d4812;
+}
+.docket-intro-title {
+    position: relative;
+    display: grid;
+    gap: 8px;
     text-align: center;
-    background: var(--bg-card);
-    border: 1.5px solid var(--border-color);
-    padding: 50px 60px;
-    border-radius: 2.5rem;
-    box-shadow: var(--shadow-float);
-    max-width: 480px;
+    color: var(--docket-paper);
+    text-shadow: 0 2px 16px var(--docket-ink);
 }
-
-.preloader-card h3 {
-    font-family: var(--font-heading);
-    color: var(--text-primary);
-    font-size: 24px;
-    font-weight: 800;
-    margin: 0;
+.docket-intro-title strong {
+    font: 600 clamp(2.25rem, 6vw, 4.5rem)/1 var(--font-heading);
 }
+.docket-intro-title span {
+    color: var(--docket-caption);
+    font-size: 0.875rem;
+}
+.docket-intro.is-opening {
+    animation: docket-intro-clear 620ms var(--ease-out) both;
+}
+.is-opening .docket-intro-frame {
+    animation: docket-intro-expand 450ms var(--ease-out) both;
+}
+.is-opening .docket-intro-art {
+    animation: docket-intro-pullback 450ms var(--ease-out) both;
+}
+.is-opening .docket-intro-title {
+    animation: docket-intro-lift 310ms var(--ease-out) both;
+}
+@keyframes docket-intro-expand { to { clip-path: inset(0 round 0); } }
+@keyframes docket-intro-pullback { to { transform: scale(1); } }
+@keyframes docket-intro-lift { to { opacity: 0; transform: translateY(-24px); } }
+@keyframes docket-intro-clear {
+    0%, 55% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+@keyframes docket-intro-expire { to { visibility: hidden; } }
 
-.preloader-card p {
-    color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 0;
+@media (max-width: 640px) {
+    .docket-intro { --intro-inset-x: 6%; }
+    .docket-intro-page { top: 55%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .docket-intro { display: none; }
 }
 
 /* ============================================================
