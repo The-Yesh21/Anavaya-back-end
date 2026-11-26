@@ -77,7 +77,7 @@ export function Hero() {
           <Reveal delay={120}>
             <h1 className="heading-hero text-foreground">
               Every Case Matters.
-              <span className="mt-2 block w-full max-w-xl h-16 sm:h-20 md:h-24 text-foreground dark:text-[#F4E8D1]">
+              <span className="mt-1 block h-12 w-full max-w-xl sm:h-16 md:h-20 text-foreground dark:text-[#F4E8D1]">
                 <TechText
                   text="Anavaya sorts it."
                   fontFamily='"Inter Tight", ui-sans-serif, system-ui, sans-serif'
@@ -102,37 +102,13 @@ export function Hero() {
           </Reveal>
 
           <Reveal delay={240}>
-            <p className="body-1 mt-7 max-w-xl text-muted-foreground">
-              Behind every case file is a{" "}
-              <span className="font-semibold text-foreground">human life on hold</span>.
-              When millions wait in the shadows of judicial delay, Anavaya ensures that urgent cries for{" "}
-              <span className="font-semibold text-foreground">liberty, protection, and fundamental rights</span>{" "}
-              are never buried in paper —{" "}
-              <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">
-                triaging cases in seconds with the living conscience of the Constitution of India.
-              </span>
+            <p className="body-1 prose-justify mt-5 max-w-xl text-muted-foreground">
+              Anavaya helps court staff triage filings and review the evidence and decision path behind each priority.
             </p>
           </Reveal>
 
-          <Reveal delay={310}>
-            <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs font-medium text-foreground/80">
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-surface/80 px-2.5 py-1 backdrop-blur-xs">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Deterministic CART Tree
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-surface/80 px-2.5 py-1 backdrop-blur-xs">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Local GPU Inference
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-surface/80 px-2.5 py-1 backdrop-blur-xs">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Articles 21 &amp; 14 Audited
-              </span>
-            </div>
-          </Reveal>
-
           <Reveal delay={400}>
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div className="mt-7 flex flex-wrap gap-4">
               <a
                 href={APP_URL}
                 className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary sm:w-auto px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-xs transition-all duration-300 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

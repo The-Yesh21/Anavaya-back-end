@@ -413,14 +413,11 @@ export function ModelAccuracy() {
         <Reveal>
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="eyebrow">Transformation & Measured Impact</p>
               <h2 className="heading-section mt-3 max-w-2xl text-foreground">
-                The Performance Leap:{" "}
-                <span className="text-glass">Static Backlog vs. Intelligent Triage</span>
+                Performance and model checks
               </h2>
               <p className="body-2 mt-3 max-w-2xl text-muted-foreground">
-                Moving Indian judicial administration from sluggish 45-day clerical backlogs to instant,
-                deterministic, and constitutionally grounded case prioritization.
+                Compare intake workflows or inspect the model evaluation.
               </p>
             </div>
 

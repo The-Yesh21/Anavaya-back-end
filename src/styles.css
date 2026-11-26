@@ -183,7 +183,7 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    font-size: 1.0625rem; /* 17px */
+    font-size: 1rem;
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
   }
@@ -263,8 +263,8 @@
 @utility heading-hero {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(2.75rem, 6.5vw, 5.75rem);
-  line-height: 0.92;
+  font-size: clamp(2.125rem, 6vw, 5rem);
+  line-height: 1.03;
   letter-spacing: -0.06em;
   text-wrap: balance;
 }
@@ -272,8 +272,8 @@
 @utility heading-section {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(2.1rem, 4.5vw, 3.75rem);
-  line-height: 0.94;
+  font-size: clamp(1.625rem, 4vw, 3.125rem);
+  line-height: 1.1;
   letter-spacing: -0.055em;
   text-wrap: balance;
 }
@@ -390,10 +390,19 @@
 
 @utility body-1 {
   font-family: var(--font-sans);
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.65;
-  font-weight: 600;
+  font-weight: 500;
   text-wrap: pretty;
+}
+
+@utility prose-justify {
+  text-align: start;
+  @media (min-width: 390px) {
+    text-align: justify;
+    hyphens: auto;
+    text-wrap: wrap;
+  }
 }
 
 @utility body-2 {
@@ -552,6 +561,10 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+@media (max-width: 767px) {
+  :is(.snap-section, .snap-section-loose) { min-height: 0; }
 }
 
 @utility snap-section-auto {

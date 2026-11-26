@@ -5,18 +5,12 @@ import {
   SlidersHorizontal,
   GitBranch,
   ShieldCheck,
-  CheckCircle2,
   Sparkles,
   ArrowRight,
   Code2,
-  Scale,
   Binary,
   Layers,
-  FileCode,
   Terminal,
-  AlertCircle,
-  HelpCircle,
-  TrendingUp,
 } from "lucide-react";
 import { Reveal } from "./Reveal";
 
@@ -223,7 +217,7 @@ export function HowPriorityIsGiven() {
     SCENARIOS.find((s) => s.id === activeScenarioId) ?? (SCENARIOS[0] as CaseScenario);
 
   return (
-    <section className="snap-section relative px-6 py-24 md:px-10">
+    <section className="snap-section relative px-6 py-16 md:px-10 md:py-24">
       <div className="mx-auto w-full max-w-6xl">
         {/* Section Header */}
         <Reveal>
@@ -234,36 +228,12 @@ export function HowPriorityIsGiven() {
               Two-Engine Architecture
             </span>
           </div>
-          <h2 className="font-display mt-4 max-w-3xl text-4xl sm:text-5xl font-bold tracking-tight">
-            How the priority is given by the <em className="emphasis">model</em>
+          <h2 className="heading-section mt-4 max-w-3xl">
+            How Anavaya assigns priority
           </h2>
-          <p className="mt-4 max-w-3xl text-lg text-muted-foreground leading-relaxed">
-            Courts cannot afford black-box AI guessing people's liberties. Anavaya pairs the natural-language comprehension of a local LLM with the 100% deterministic, auditable rules of a CART Decision Tree.
+          <p className="body-2 prose-justify mt-4 max-w-xl text-muted-foreground">
+            A local language model extracts facts from the filing. The Decision Tree uses those facts to assign priority and records each rule it applies.
           </p>
-        </Reveal>
-
-        {/* Founding Invariant Banner */}
-        <Reveal delay={100} className="mt-8">
-          <div className="glass-card relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-5 sm:p-6 shadow-xs">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <span className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-primary/50 bg-primary/15 text-primary shadow-xs">
-                <Scale className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
-              </span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-display text-base font-bold text-foreground">
-                    The Founding Judicial Invariant
-                  </span>
-                  <span className="rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-[0.7rem] font-bold tracking-wider uppercase text-primary">
-                    Non-Negotiable Rule
-                  </span>
-                </div>
-                <p className="mt-1 text-sm sm:text-[0.9375rem] text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">The LLM never decides priority.</strong> Local Ollama (Qwen 2.5) extracts and summarizes legal facts only. The <strong className="text-foreground">CART Decision Tree alone</strong> evaluates the mathematical feature splits to assign High, Medium, or Low priority. Every verdict is 100% deterministic, repeatable, and auditable by a judge under the Indian Evidence Act.
-                </p>
-              </div>
-            </div>
-          </div>
         </Reveal>
 
         {/* 4-Stage Architectural Pipeline */}
@@ -272,7 +242,7 @@ export function HowPriorityIsGiven() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">Pipeline Walkthrough</p>
-                <h3 className="font-display mt-1 text-2xl font-bold">The 4-Step Journey from Case PDF to Calendar Verdict</h3>
+                <h3 className="font-display mt-1 text-2xl font-bold">From filing to priority</h3>
               </div>
               <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Layers className="h-3.5 w-3.5 text-primary" /> Step-by-step verified
@@ -314,10 +284,10 @@ export function HowPriorityIsGiven() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">Interactive Inspection</p>
                 <h3 className="font-display mt-1 text-2xl sm:text-3xl font-bold">
-                  Live Case Trace: Watch the Model Assign Priority
+                  Trace a sample case
                 </h3>
                 <p className="mt-1.5 text-sm text-muted-foreground">
-                  Select a legal dispute scenario below to trace how raw text converts into Ollama features, vectorized numbers, and the final Decision Tree branch.
+                  Choose a case and follow it from the filing to the final decision.
                 </p>
               </div>
 
@@ -613,109 +583,6 @@ export function HowPriorityIsGiven() {
           </div>
         </div>
 
-        {/* Why Hybrid Architecture Wins: 3-Way Comparison Matrix */}
-        <div className="mt-16">
-          <Reveal delay={300}>
-            <div className="text-center">
-              <p className="eyebrow">Architectural Comparison</p>
-              <h3 className="font-display mt-2 text-2xl sm:text-3xl font-bold">
-                Why Hybrid AI + Decision Tree Beats Pure LLM
-              </h3>
-              <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-                Judicial priority is a matter of constitutional law and human rights. Here is why Anavaya’s architecture was deliberately chosen over raw generative AI.
-              </p>
-            </div>
-          </Reveal>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {/* Flawed Way: Pure LLM */}
-            <Reveal delay={350}>
-              <div className="glass-panel flex h-full flex-col justify-between rounded-xl border border-destructive/30 bg-destructive/[0.03] p-6">
-                <div>
-                  <div className="inline-flex rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-xs font-bold text-destructive">
-                    Pure Generative LLM
-                  </div>
-                  <h4 className="font-display mt-3 text-lg font-bold text-foreground">Stochastic &amp; Opaque</h4>
-                  <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <span className="text-destructive font-bold">✕</span>
-                      <span><strong>Hallucination risk:</strong> Can invent non-existent precedents or misinterpret urgency.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-destructive font-bold">✕</span>
-                      <span><strong>Non-deterministic:</strong> Identical case file can yield "High" on Monday and "Low" on Wednesday.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-destructive font-bold">✕</span>
-                      <span><strong>Inadmissible in court:</strong> Black-box neural activations cannot be mathematically audited under the Evidence Act.</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="mt-6 border-t border-destructive/20 pt-3 text-[0.7rem] text-destructive font-semibold">
-                  Unsuitable for sovereign judicial scheduling
-                </div>
-              </div>
-            </Reveal>
-
-            {/* Brittle Way: Pure Regex / Rule Engine */}
-            <Reveal delay={400}>
-              <div className="glass-panel flex h-full flex-col justify-between rounded-xl border border-border/80 bg-surface/50 p-6">
-                <div>
-                  <div className="inline-flex rounded-lg border border-border bg-surface-strong px-2.5 py-1 text-xs font-bold text-muted-foreground">
-                    Pure Regex / Keyword Engine
-                  </div>
-                  <h4 className="font-display mt-3 text-lg font-bold text-foreground">Rigid &amp; Fragile</h4>
-                  <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary font-bold">!</span>
-                      <span><strong>Blind to phrasing:</strong> Fails when legal complaints use regional dialects or colloquial police shorthand.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary font-bold">!</span>
-                      <span><strong>Negation blind:</strong> Triggers false alarms on phrases like <em>"no grievous injury occurred"</em>.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary font-bold">!</span>
-                      <span><strong>Zero narrative synthesis:</strong> Cannot discern whether an indigent person is the victim or the claimant.</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="mt-6 border-t border-border/60 pt-3 text-[0.7rem] text-muted-foreground font-semibold">
-                  Fails on real-world messy courtroom binders
-                </div>
-              </div>
-            </Reveal>
-
-            {/* Anavaya Way: Hybrid Architecture */}
-            <Reveal delay={450}>
-              <div className="glass-card relative flex h-full flex-col justify-between rounded-xl border border-primary/40 bg-card p-6 shadow-xs">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Anavaya Hybrid Pipeline
-                  </div>
-                  <h4 className="font-display mt-3 text-lg font-bold text-foreground">LLM Reader + CART Verifier</h4>
-                  <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span><strong className="text-foreground">Rich semantic reading:</strong> Local Ollama extracts nuanced facts from complex FIRs and petitions.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span><strong className="text-foreground">100% Deterministic:</strong> The CART Decision Tree guarantees identical cases always walk the exact same path.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span><strong className="text-foreground">Auditable in court:</strong> Generates a full mathematical DOT/Mermaid decision path for the Presiding Judge.</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="mt-6 border-t border-primary/30 pt-3 text-[0.7rem] text-primary font-bold">
-                  Certified for judicial accountability &amp; Article 21
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </div>
       </div>
     </section>
   );

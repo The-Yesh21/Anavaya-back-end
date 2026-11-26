@@ -6,33 +6,33 @@ const features = [
   {
     icon: Bot,
     title: "Hybrid AI Pipeline",
-    text: "LLM perceives facts; Decision Tree decides priority. Best of both worlds: rich extraction plus deterministic classification.",
+    text: "Extract facts from filings and see the rules behind each priority.",
   },
   {
     icon: Network,
     title: "Live D3.js Dashboard",
-    text: "Interactive decision tree visualization. Click any node to see how the model reasons through features to reach a priority.",
+    text: "Open any decision node to inspect its split and outcomes.",
   },
   {
     icon: FolderKanban,
     title: "Case Management",
-    text: "Create cases, attach multiple documents, analyze individually or all at once. Aggregate priority = highest document wins.",
+    text: "Attach multiple filings and run a single Decision Tree verdict across the combined evidence.",
   },
   {
     icon: Video,
     title: "Live Courtroom",
-    text: "WebRTC-powered mock courtroom with real-time speech transcription (Whisper ASR), multi-role simulation, and session export.",
+    text: "Run a mock trial with role-based video, transcription, and session export.",
   },
   {
     icon: FileText,
     title: "Auto-Generated Reports",
-    text: "PDF reports with constitutional analysis, decision path flowcharts (Mermaid), and priority justification — ready for judicial review.",
+    text: "Download the decision path and constitutional analysis as a PDF.",
   },
 ];
 
 export function Features() {
   return (
-    <section className="snap-section px-6 py-24 md:px-10">
+    <section className="snap-section px-6 py-16 md:px-10 md:py-24">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <div className="flex flex-wrap items-end justify-between gap-6">
@@ -42,18 +42,15 @@ export function Features() {
                 Key <span className="text-glass">features</span>
               </h2>
             </div>
-            <p className="body-2 max-w-sm text-muted-foreground">
-              Everything from intake to a judge-ready report, running entirely on hardware the court already owns.
-            </p>
           </div>
         </Reveal>
 
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => {
             const Icon = f.icon;
             return (
               <Reveal key={f.title} delay={i * 140}>
-                <div className="glass-card group relative h-full overflow-hidden rounded-2xl border border-border p-8 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-sm">
+                <div className="glass-card group relative h-full overflow-hidden rounded-2xl border border-border p-5 transition-all sm:p-7 duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-sm">
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-surface text-primary shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50">
                     <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
                   </span>

@@ -44,9 +44,9 @@ export function CaseFlow() {
     <section aria-labelledby="case-flow-heading" className="border-y border-border bg-secondary/40 px-5 py-16 md:px-10 md:py-24">
       <div ref={ref} className="mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <div>
-          <h2 id="case-flow-heading" className="font-display text-4xl leading-tight text-foreground md:text-5xl">One queue. Different cases.</h2>
-          <p className="mt-5 max-w-md leading-relaxed text-muted-foreground">In an arrival-order queue, a homicide report can sit behind a land dispute. Watch six sample files arrive together, then follow each one into its legal category.</p>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Category is one input. Anavaya’s decision tree also uses facts such as severity and vulnerability to assign priority.</p>
+          <h2 id="case-flow-heading" className="heading-section text-foreground">One queue. Different cases.</h2>
+          <p className="prose-justify mt-4 max-w-md leading-relaxed text-muted-foreground">Watch six filings arrive in order, then see how Anavaya groups them by legal category.</p>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">The Decision Tree weighs category alongside facts such as severity and vulnerability.</p>
         </div>
         <figure className="rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-5">
           <div className="flex items-center justify-between gap-3 border-b border-border px-2 pb-3">

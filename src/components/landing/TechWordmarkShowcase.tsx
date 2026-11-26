@@ -60,12 +60,11 @@ export function TechWordmarkShowcase() {
                 Constitutional Precision
               </span>
               <h2 className="heading-section mt-4 text-foreground">
-                Vector <span className="text-glass">rigor</span> in every character
+                Explore the Anavaya wordmark
               </h2>
             </div>
             <p className="body-2 max-w-md text-muted-foreground">
-              Every case on the docket is governed by strict constitutional boundaries. Explore
-              the typography of justice — drag glyphs to test spring physics, or hover to reveal vector paths.
+              Drag the letters or turn on guides to see how the wordmark is drawn.
             </p>
           </div>
         </Reveal>

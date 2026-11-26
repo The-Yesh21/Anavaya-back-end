@@ -4,26 +4,12 @@ import { APP_URL, GITHUB_URL } from "./constants";
 
 export function ClosingCTA() {
   return (
-    <section className="snap-section px-6 py-28 md:px-10">
-      <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-border bg-card px-8 py-20 text-center shadow-xs backdrop-blur-xl sm:px-14">
-        <Reveal>
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase text-primary shadow-xs">
-            <Scale className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-            Judicial Integrity
-          </span>
-        </Reveal>
-
+    <section className="px-6 py-16 md:px-10 md:py-24">
+      <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-border bg-card px-6 py-12 text-center shadow-xs backdrop-blur-xl sm:px-14 sm:py-16">
         <Reveal delay={120}>
-          <h2 className="heading-hero mt-7 text-foreground">
-            Justice shouldn't <span className="text-glass text-foreground">wait.</span>
+          <h2 className="heading-section text-foreground">
+            Try the judicial workbench
           </h2>
-        </Reveal>
-
-        <Reveal delay={200}>
-          <p className="body-1 mx-auto mt-6 max-w-xl text-muted-foreground">
-            Anavaya is open-source, runs locally on GPU or CPU, and keeps every case record strictly inside court
-            infrastructure. Zero cloud upload. Zero vendor lock-in.
-          </p>
         </Reveal>
 
         <Reveal delay={280}>
@@ -46,12 +32,6 @@ export function ClosingCTA() {
               View on GitHub →
             </a>
           </div>
-        </Reveal>
-
-        <Reveal delay={360}>
-          <p className="mt-12 text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-            Built for the Indian Judiciary · Grounded in Constitutional Doctrine
-          </p>
         </Reveal>
       </div>
     </section>

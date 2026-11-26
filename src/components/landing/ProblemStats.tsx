@@ -1,7 +1,7 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LandingDialog } from "./LandingDialog";
 import { useState } from "react";
-import { Clock, Gavel, Layers, Target, AlertTriangle, X, ShieldAlert, Scale } from "lucide-react";
+import { Clock, Gavel, Layers, Target, AlertTriangle, X, ShieldAlert } from "lucide-react";
 import { Reveal, CountUp } from "./Reveal";
 import { MODEL_METRICS } from "@/data/model-metrics";
 import { InfiniteSpiral, SpiralItem } from "@/components/ui/InfiniteSpiral";
@@ -171,7 +171,7 @@ export function ProblemBand() {
   const [selectedCase, setSelectedCase] = useState<HistoricDelayCase | null>(null);
 
   return (
-    <section id="problem" className="snap-section-loose relative isolate px-6 py-20 md:px-10">
+    <section id="problem" className="snap-section-loose relative isolate px-6 py-14 md:px-10 md:py-20">
       <div className="relative mx-auto max-w-6xl border-y border-border py-16 text-center">
         {/* Center accent notch */}
         <span
@@ -182,24 +182,19 @@ export function ProblemBand() {
         <Reveal>
           <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase text-rose-500 shadow-xs">
             <AlertTriangle className="h-3.5 w-3.5" />
-            The Human Cost of Delayed Justice
+            Historic court delays
           </div>
         </Reveal>
 
         <Reveal delay={120}>
           <h2 className="heading-section mx-auto mt-6 max-w-4xl text-balance text-foreground">
-            Over <span className="text-glass">5.1 crore cases</span> sit pending across Indian courts.
-            <span className="mt-2 block text-2xl sm:text-3xl font-display font-medium text-rose-500/90">
-              When Justice Is Delayed, Human Lives Are Stolen.
-            </span>
+            When a case waits
           </h2>
         </Reveal>
 
         <Reveal delay={200}>
-          <p className="body-1 mx-auto mt-6 max-w-2xl text-muted-foreground">
-            Court staff triage thousands of FIRs, complaints, and pleadings by hand every day. Urgency is
-            judged page by page, under intense pressure, with no structured record of why one file moved ahead of
-            another. Behind these statistics are real citizens whose lives disintegrated while waiting for their day in court.
+          <p className="body-1 prose-justify mx-auto mt-4 max-w-xl text-muted-foreground">
+            These cases show what can happen when an urgent filing goes years without review. Open a case to read its history and outcome.
           </p>
         </Reveal>
 
@@ -248,29 +243,12 @@ export function ProblemBand() {
                 <div className="pointer-events-none absolute bottom-4 inset-x-0 flex items-center justify-center">
                   <span className="rounded-full border border-primary/30 bg-background/90 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur-md flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                    Drag 3D helix or scroll to explore historic delay tragedies · Click card to inspect legal dossier
+                    Drag or scroll to browse cases. Select a card to read its history.
                   </span>
                 </div>
               </div>
             </div>
           )}
-        </Reveal>
-
-        {/* Constitutional Mitigation Callout */}
-        <Reveal delay={360}>
-          <div className="mt-12 mx-auto max-w-3xl rounded-xl border border-primary/30 bg-primary/[0.04] p-5 text-left backdrop-blur-xs">
-            <div className="flex items-start gap-3.5">
-              <Scale className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-foreground/90 space-y-1">
-                <p className="font-bold text-foreground">
-                  Why Anavaya Automates First-Pass Triage:
-                </p>
-                <p className="text-muted-foreground leading-relaxed">
-                  In every tragic case above, the fundamental flaw was not malice, but <em>ministerial invisibility</em>—liberty petitions lost under commercial filings, clerical defects halting hearings for decades, and forgotten undertrials with no voice. Anavaya ensures that urgent personal liberty triggers under Article 21 and vulnerability triggers leap to day-one judicial attention in under 2 seconds.
-                </p>
-              </div>
-            </div>
-          </div>
         </Reveal>
 
         <span
@@ -333,7 +311,7 @@ export function ProblemBand() {
                 <span className="font-bold text-foreground block text-xs uppercase tracking-wider text-rose-500 mb-1">
                   The Historic Record
                 </span>
-                <p className="text-foreground/90 leading-relaxed italic">
+                <p className="prose-justify text-foreground/90 leading-relaxed italic">
                   &ldquo;{selectedCase.fullDossier.narrative}&rdquo;
                 </p>
               </div>

@@ -633,6 +633,13 @@ body {
     font-weight: 750;
 }
 
+@media (min-width: 480px) {
+    :is(.summary-text, .justification-box, .why-card-narrative, .cl-case-desc, .ov-narrative) {
+        text-align: justify;
+        hyphens: auto;
+    }
+}
+
 .summary-text {
     font-size: 14.5px;
     color: var(--text-primary);
@@ -2930,7 +2937,7 @@ button, a, input, select {
 }
 .docket-heading h2 {
     font-family: var(--font-heading);
-    font-size: clamp(2.25rem, 4vw, 3rem);
+    font-size: clamp(1.625rem, 3vw, 2.5rem);
     font-weight: 600;
     line-height: 1;
     text-wrap: balance;
@@ -4132,7 +4139,8 @@ button, a, input, select {
     .docket-head { min-height: 112px; padding: var(--space-4); }
     .docket-files { height: 64px; }
     .docket-file-front { padding: var(--space-2); }
-    .stat-value-row strong { font-size: 46px; }
+    .stat-value-row strong { font-size: 2.125rem; }
+    .logo-text h1 { font-size: 1.25rem; }
     .cat-bar-row { grid-template-columns: 18px minmax(0, 1fr) 60px 24px; }
     .app-header {
         display: grid;
@@ -4682,7 +4690,7 @@ button, a, input, select {
 }
 .case-browser-tools { display: grid; gap: var(--space-3); min-width: 0; }
 .case-browser-tools h2 {
-    font: 600 clamp(2rem, 4vw, 3rem)/1.1 var(--font-heading);
+    font: 600 clamp(1.625rem, 3vw, 2.5rem)/1.15 var(--font-heading);
 }
 .case-browser .filter-row {
     display: grid;

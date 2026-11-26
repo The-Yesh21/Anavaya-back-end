@@ -1,7 +1,7 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LandingDialog } from "./LandingDialog";
 import { useState, useEffect } from "react";
-import { Scale, Star, ShieldCheck, X } from "lucide-react";
+import { Scale, Star, X } from "lucide-react";
 import { Reveal } from "./Reveal";
 import FolderFloat from "@/components/ui/FolderFloat";
 
@@ -145,7 +145,7 @@ export function LawyerReviews() {
   }, []);
 
   return (
-    <section id="reviews" className="snap-section-loose relative isolate px-6 py-28 md:px-10">
+    <section id="reviews" className="snap-section-loose relative isolate px-6 py-16 md:px-10 md:py-24">
       <div className="mx-auto max-w-6xl">
         {/* Section Header */}
         <div className="text-center">
@@ -158,18 +158,13 @@ export function LawyerReviews() {
 
           <Reveal delay={120}>
             <h2 className="heading-section mt-6 text-foreground">
-              Possible Uses in Chambers.
-              <span className="mt-2 block text-glass">
-                Fictional Perspectives.
-              </span>
+              Anavaya in chambers
             </h2>
           </Reveal>
 
           <Reveal delay={200}>
             <p className="body-1 mx-auto mt-6 max-w-2xl text-muted-foreground">
-              These fictional personas and quotes illustrate possible uses of Anavaya. They are not
-              testimonials, verified practitioner audits, or evidence of performance. Names, credentials,
-              timings, and outcomes in these scenarios are illustrative.
+              These fictional scenarios illustrate how advocates and court staff might use Anavaya.
             </p>
           </Reveal>
         </div>
@@ -222,22 +217,10 @@ export function LawyerReviews() {
               </div>
               <p className="mt-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                <span>Hover folder to release zero-g review notes · Drag pills freely · Click any note to inspect full chamber audit</span>
+                <span>Hover over the folder and select a note to read the scenario.</span>
               </p>
             </div>
           )}
-        </Reveal>
-
-        {/* Judicial Guarantee Badge */}
-        <Reveal delay={340}>
-          <div className="mt-14 mx-auto max-w-3xl rounded-xl border border-primary/30 bg-primary/[0.04] p-5 text-center backdrop-blur-xs">
-            <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-foreground/85">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span>
-                <strong>Foundational Invariant Verified by Testing Counsels:</strong> In every trial file, Anavaya extracts and summarizes only. The deterministic CART decision tree alone assigns priority, and the constitutional audit remains strictly rule-based.
-              </span>
-            </div>
-          </div>
         </Reveal>
 
         {/* Mini-Dialogue Box (Review Modal) */}
@@ -305,7 +288,7 @@ export function LawyerReviews() {
 
               {/* Full Testimonial / Audit Statement */}
               <div className="mt-5">
-                <blockquote className="relative text-sm sm:text-base leading-relaxed text-foreground/90 italic border-l-2 border-primary/60 pl-4 py-1">
+                <blockquote className="prose-justify relative text-sm sm:text-base leading-relaxed text-foreground/90 italic border-l-2 border-primary/60 pl-4 py-1">
                   &ldquo;{selectedReview.quote}&rdquo;
                 </blockquote>
               </div>

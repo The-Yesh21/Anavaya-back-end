@@ -373,18 +373,16 @@ export function TriageSandbox() {
   }, [category, severity, vulnerability, imbalance, selectedPresetId]);
 
   return (
-    <section className="snap-section-loose relative px-6 py-20 md:px-10">
+    <section className="snap-section-loose relative px-6 py-16 md:px-10 md:py-24">
       <div className="mx-auto w-full max-w-6xl">
         <Reveal>
           <div className="text-center">
             <span className="eyebrow">Interactive Simulator</span>
             <h2 className="heading-section mx-auto mt-4 max-w-3xl text-foreground">
-              Experience the Engine:{" "}
-              <span className="text-glass">Watch the Docket Leap</span>
+              Try case triage
             </h2>
             <p className="body-2 mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Select a scenario or adjust the legal facts below to see how Anavaya's deterministic Decision Tree
-              instantly rescues urgent cases from years of static filing backlogs.
+              Choose a sample case or change its facts to see how the priority changes.
             </p>
           </div>
         </Reveal>
