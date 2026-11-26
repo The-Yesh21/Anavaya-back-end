@@ -288,3 +288,58 @@
     animation: none;
   }
 }
+
+
+/* Stacked notes stay in the reading order below the open dossier. */
+.folder-float--stacked {
+  max-width: 100%;
+}
+
+.folder-float--stacked .folder-float__folder {
+  width: 100%;
+}
+
+.folder-float--stacked .folder-float__items {
+  position: static;
+  width: 100%;
+  height: auto;
+  display: none;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.folder-float--stacked[data-open] .folder-float__items {
+  display: grid;
+}
+
+.folder-float--stacked[data-open] .folder-float__items::before {
+  content: none;
+}
+
+.folder-float--stacked[data-open] .folder-float__item {
+  position: relative;
+  left: auto;
+  min-height: 44px;
+  height: auto;
+  padding: 8px 12px;
+  white-space: normal;
+  line-height: 1.3;
+  transform: none;
+  transition: none;
+}
+
+.folder-float--stacked .folder-float__drift {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .folder-float--stacked[data-open] .folder-float__item {
+    animation: folder-note-open 260ms var(--ff-ease-out) both;
+    animation-delay: calc(var(--i) * 40ms);
+  }
+}
+
+@keyframes folder-note-open {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

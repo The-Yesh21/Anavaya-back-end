@@ -33,7 +33,8 @@ export interface InfiniteSpiralProps {
   items?: (string | SpiralItem)[];
   speed?: number;
   direction?: 'up' | 'down';
-  animationMode?: 'auto' | 'drag' | 'scroll' | 'all';
+  animationMode?: 'auto' | 'drag' | 'scroll' | 'all' | 'manual';
+  manualPosition?: number;
   radius?: number;
   cardWidth?: number;
   cardHeight?: number;
@@ -59,6 +60,7 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
   speed = 0.55,
   direction = 'up',
   animationMode = 'all',
+  manualPosition = 0,
   radius = 200,
   cardWidth = 240,
   cardHeight = 150,
@@ -80,8 +82,8 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
-  const progressRef = useRef(0);
-  const targetProgressRef = useRef(0);
+  const progressRef = useRef(manualPosition);
+  const targetProgressRef = useRef(manualPosition);
   const autoSpeedRef = useRef(0);
   const hoveredRef = useRef(false);
   const visibleRef = useRef(true);
@@ -100,12 +102,17 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
   );
 
   useEffect(() => {
+    if (animationMode === 'manual') targetProgressRef.current = manualPosition;
+  }, [animationMode, manualPosition]);
+
+  useEffect(() => {
     const root = rootRef.current;
     if (!root || normalizedItems.length === 0) return;
 
     let frameId: number;
     let previousTime = performance.now();
     let bounds = root.getBoundingClientRect();
+    let lastDrawnPosition = Number.NaN;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const scrollEnabled = animationMode === 'scroll' || animationMode === 'all';
     const scrollSpeedMultiplier = Math.max(speed, 0) / 0.55;
@@ -113,6 +120,7 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
 
     const resizeObserver = new ResizeObserver(() => {
       bounds = root.getBoundingClientRect();
+      lastDrawnPosition = Number.NaN;
     });
     resizeObserver.observe(root);
 
@@ -153,13 +161,20 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
       targetProgressRef.current += autoSpeedRef.current * delta;
 
       const followBlend = 1 - Math.exp(-delta * (draggingRef.current ? 22 : 11));
-      progressRef.current += (targetProgressRef.current - progressRef.current) * followBlend;
+      progressRef.current += (targetProgressRef.current - progressRef.current) *
+        (reducedMotion.matches ? 1 : followBlend);
+
+      if (animationMode === 'manual' && Math.abs(progressRef.current - lastDrawnPosition) < 0.001) {
+        frameId = requestAnimationFrame(render);
+        return;
+      }
+      lastDrawnPosition = progressRef.current;
 
       const count = normalizedItems.length;
       const half = count / 2;
       const width = Math.max(bounds.width, 1);
       const height = Math.max(bounds.height, 1);
-      const fit = Math.min(1, width / (cardWidth * 2.5), height / (cardHeight * 2.2));
+      const fit = Math.min(1, width / (cardWidth * (animationMode === 'manual' ? 1.35 : 2.5)), height / (cardHeight * 2.2));
       const responsiveRadius = Math.min(radius, Math.max(80, width * 0.38)) * fit;
       const fadeStart = clamp(1 - edgeFade, 0, 0.98);
       const turnSize = Math.max(cardsPerTurn, 1);
@@ -260,15 +275,20 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
         dragMovedRef.current = false;
         lastPointerYRef.current = event.clientY;
         targetProgressRef.current = progressRef.current;
-        event.currentTarget.setPointerCapture(event.pointerId);
         event.currentTarget.style.cursor = 'grabbing';
       }}
       onPointerMove={(event) => {
         if (!draggingRef.current) return;
         const pointerDelta = event.clientY - lastPointerYRef.current;
         lastPointerYRef.current = event.clientY;
-        if (Math.abs(pointerDelta) > 0.5) dragMovedRef.current = true;
+        if (!dragMovedRef.current && Math.abs(pointerDelta) > 2) {
+          dragMovedRef.current = true;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }
         targetProgressRef.current -= pointerDelta / Math.max(verticalSpacing, 1);
+      }}
+      onPointerLeave={event => {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) stopDragging(event);
       }}
       onPointerUp={stopDragging}
       onPointerCancel={stopDragging}
@@ -341,12 +361,12 @@ export const InfiniteSpiral: React.FC<InfiniteSpiralProps> = ({
                       </p>
                     )}
                     {item.title && (
-                      <p className="font-display text-xs sm:text-sm font-bold text-foreground line-clamp-1 mt-0.5">
+                      <p className={`mt-0.5 font-display font-bold text-foreground ${animationMode === "manual" ? "line-clamp-2 text-sm" : "line-clamp-1 text-xs sm:text-sm"}`}>
                         {item.title}
                       </p>
                     )}
                     {item.description && (
-                      <p className="text-[0.6875rem] leading-snug text-muted-foreground line-clamp-2 mt-1">
+                      <p className={`mt-1 line-clamp-2 leading-snug text-muted-foreground ${animationMode === "manual" ? "text-xs" : "text-[0.6875rem]"}`}>
                         {item.description}
                       </p>
                     )}

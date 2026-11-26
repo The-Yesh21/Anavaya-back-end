@@ -42,6 +42,7 @@ export interface FolderFloatProps {
   stagger?: number;
   bounce?: number;
   className?: string;
+  stacked?: boolean;
   style?: React.CSSProperties;
 }
 
@@ -177,6 +178,7 @@ export function FolderFloat({
   stagger = 45,
   bounce = 0.3,
   className = '',
+  stacked = false,
   style
 }: FolderFloatProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -435,9 +437,47 @@ export function FolderFloat({
 
   const hover = trigger === 'hover';
 
+  const notes = (
+    <div ref={anchorRef} className="folder-float__items">
+      {list.map((item, i) => {
+        const p = pos[i] || { x: 0, y: 0, r: 0 };
+        return (
+          <button
+            key={`${item.value}-${i}`}
+            ref={el => {
+              pillRefs.current[i] = el;
+            }}
+            type="button"
+            className="folder-float__item"
+            tabIndex={open ? 0 : -1}
+            aria-hidden={!open}
+            data-pop={popped === i ? '' : undefined}
+            style={
+              {
+                '--i': i,
+                '--x': `${p.x.toFixed(1)}px`,
+                '--y': `${p.y.toFixed(1)}px`,
+                '--r': `${p.r.toFixed(2)}deg`
+              } as React.CSSProperties
+            }
+            onPointerDown={e => down(e, i)}
+            onPointerMove={e => move(e, i)}
+            onPointerUp={e => up(e, i, item)}
+            onPointerCancel={e => up(e, i, item)}
+            onClick={e => {
+              if (!world.current.live || e.detail === 0) pick(item, i);
+            }}
+          >
+            <span className="folder-float__drift">{item.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div
-      className={`folder-float${className ? ` ${className}` : ''}`}
+      className={`folder-float${stacked ? ' folder-float--stacked' : ''}${className ? ` ${className}` : ''}`}
       data-open={open ? '' : undefined}
       data-live={live ? '' : undefined}
       data-physics={physics ? '' : undefined}
@@ -480,41 +520,7 @@ export function FolderFloat({
         } as React.CSSProperties
       }
     >
-      <div ref={anchorRef} className="folder-float__items">
-        {list.map((item, i) => {
-          const p = pos[i] || { x: 0, y: 0, r: 0 };
-          return (
-            <button
-              key={`${item.value}-${i}`}
-              ref={el => {
-                pillRefs.current[i] = el;
-              }}
-              type="button"
-              className="folder-float__item"
-              tabIndex={open ? 0 : -1}
-              aria-hidden={!open}
-              data-pop={popped === i ? '' : undefined}
-              style={
-                {
-                  '--i': i,
-                  '--x': `${p.x.toFixed(1)}px`,
-                  '--y': `${p.y.toFixed(1)}px`,
-                  '--r': `${p.r.toFixed(2)}deg`
-                } as React.CSSProperties
-              }
-              onPointerDown={e => down(e, i)}
-              onPointerMove={e => move(e, i)}
-              onPointerUp={e => up(e, i, item)}
-              onPointerCancel={e => up(e, i, item)}
-              onClick={e => {
-                if (!world.current.live || e.detail === 0) pick(item, i);
-              }}
-            >
-              <span className="folder-float__drift">{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {!stacked && notes}
       <div className="folder-float__folder">
         <span className="folder-float__back" aria-hidden="true" />
         <span className="folder-float__paper" aria-hidden="true" />
@@ -530,6 +536,7 @@ export function FolderFloat({
           onClick={() => set(!open)}
         />
       </div>
+      {stacked && notes}
     </div>
   );
 }

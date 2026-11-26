@@ -168,7 +168,13 @@ const delayedJusticeCases: HistoricDelayCase[] = [
 
 export function ProblemBand() {
   const isMobile = useIsMobile({ includeTouch: true });
+  const [showCaseList, setShowCaseList] = useState(false);
+  const [spiralPosition, setSpiralPosition] = useState(0);
   const [selectedCase, setSelectedCase] = useState<HistoricDelayCase | null>(null);
+
+  const caseCount = delayedJusticeCases.length;
+  const currentIndex = ((spiralPosition % caseCount) + caseCount) % caseCount;
+  const currentCase = delayedJusticeCases[currentIndex];
 
   return (
     <section id="problem" className="snap-section-loose relative isolate px-6 py-14 md:px-10 md:py-20">
@@ -200,53 +206,73 @@ export function ProblemBand() {
 
         {/* React Bits InfiniteSpiral 3D Helix of Delayed Justice Records */}
         <Reveal delay={280}>
-          <ul className="mt-8 grid gap-3 sm:grid-cols-2 md:hidden pointer-coarse:grid" aria-label="Historic court delays">
-            {delayedJusticeCases.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCase(item)}
-                  className="flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <span className="text-xs font-semibold text-rose-500">{item.stat}</span>
-                  <span className="font-semibold text-foreground">{item.title}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {!isMobile && (
-            <div className="mt-12 hidden flex-col items-center justify-center md:flex pointer-coarse:hidden">
-              <div className="relative h-[480px] sm:h-[520px] w-full max-w-4xl overflow-hidden rounded-2xl border border-border/80 bg-background/50 shadow-inner">
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowCaseList(!showCaseList)}
+              className="min-h-11 rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4"
+            >
+              {showCaseList ? "Show case spiral" : "List historic cases"}
+            </button>
+          </div>
+          {showCaseList ? (
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2" aria-label="Historic court delays">
+              {delayedJusticeCases.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCase(item)}
+                    className="flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <span className="text-xs font-semibold text-rose-500">{item.stat}</span>
+                    <span className="font-semibold text-foreground">{item.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-2 flex flex-col items-center justify-center">
+              <div className={`relative w-full max-w-4xl overflow-hidden rounded-2xl border border-border/80 bg-background/50 shadow-inner ${isMobile ? "h-[310px]" : "h-[520px]"}`}>
                 <InfiniteSpiral
                   items={delayedJusticeCases}
                   speed={0.45}
                   direction="up"
-                  animationMode="all"
-                  radius={220}
+                  animationMode={isMobile ? "manual" : "all"}
+                  manualPosition={spiralPosition}
+                  radius={isMobile ? 76 : 220}
                   cardWidth={270}
                   cardHeight={165}
                   verticalSpacing={85}
                   perspective={1200}
                   cardsPerTurn={8}
-                  rotation={12}
+                  rotation={isMobile ? 0 : 12}
                   cardTilt={0}
                   cardRadius={14}
                   centerScale={1.16}
                   edgeFade={0.28}
-                  edgeBlur={5}
+                  edgeBlur={isMobile ? 1 : 5}
                   pauseOnHover={true}
-                  className="w-full h-full"
+                  className="h-full w-full min-h-0!"
                   onItemClick={(item) => setSelectedCase(item as HistoricDelayCase)}
                 />
 
                 {/* Helix Guidance Overlay */}
-                <div className="pointer-events-none absolute bottom-4 inset-x-0 flex items-center justify-center">
+                {!isMobile && <div className="pointer-events-none absolute bottom-4 inset-x-0 flex items-center justify-center">
                   <span className="rounded-full border border-primary/30 bg-background/90 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur-md flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
                     Drag or scroll to browse cases. Select a card to read its history.
                   </span>
-                </div>
+                </div>}
               </div>
+              {isMobile && currentCase && (
+                <div className="mt-3 flex w-full max-w-4xl items-center justify-between gap-2" aria-label="Case spiral controls">
+                  <button type="button" aria-label="Previous historic case" onClick={() => setSpiralPosition((position) => position - 1)} className="size-11 rounded-lg border border-border bg-card text-primary">‹</button>
+                  <button type="button" onClick={() => setSelectedCase(currentCase)} className="min-h-11 flex-1 rounded-lg border border-border bg-card px-2 text-sm font-semibold text-primary">
+                    Open case {currentIndex + 1} of {caseCount}
+                  </button>
+                  <button type="button" aria-label="Next historic case" onClick={() => setSpiralPosition((position) => position + 1)} className="size-11 rounded-lg border border-border bg-card text-primary">›</button>
+                </div>
+              )}
             </div>
           )}
         </Reveal>

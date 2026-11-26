@@ -124,6 +124,7 @@ const dossierItems = [
 
 export function LawyerReviews() {
   const isMobile = useIsMobile({ includeTouch: true });
+  const [showReviewList, setShowReviewList] = useState(false);
   const [selectedReview, setSelectedReview] = useState<LawyerReview | null>(null);
   const [isDark, setIsDark] = useState(false);
 
@@ -171,30 +172,41 @@ export function LawyerReviews() {
 
         {/* Matter.js Zero-Gravity Chamber Dossier */}
         <Reveal delay={260}>
-          <ul className="mt-8 grid gap-3 sm:grid-cols-2 md:hidden pointer-coarse:grid" aria-label="Illustrative review scenarios">
-            {reviews.map((review) => (
-              <li key={review.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedReview(review)}
-                  className="flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <span className="font-semibold text-foreground">{review.name}</span>
-                  <span className="text-xs text-muted-foreground">{review.testedFeature}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {!isMobile && (
-            <div className="mt-12 mb-4 hidden flex-col items-center justify-center md:flex pointer-coarse:hidden">
-              <div className="relative flex h-[320px] w-full max-w-2xl items-end justify-center pb-2">
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowReviewList(!showReviewList)}
+              className="min-h-11 rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4"
+            >
+              {showReviewList ? "Show review docket" : "List review scenarios"}
+            </button>
+          </div>
+          {showReviewList ? (
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2" aria-label="Illustrative review scenarios">
+              {reviews.map((review) => (
+                <li key={review.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReview(review)}
+                    className="flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <span className="font-semibold text-foreground">{review.name}</span>
+                    <span className="text-xs text-muted-foreground">{review.testedFeature}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-2 flex flex-col items-center justify-center">
+              <div className={`relative flex w-full max-w-2xl justify-center ${isMobile ? "pt-4" : "h-[320px] items-end pb-2"}`}>
                 <FolderFloat
                   items={dossierItems}
                   label="Chambers Dossier"
-                  sublabel="6 advocate audits"
-                  trigger="hover"
+                  sublabel={isMobile ? "Tap to open reviews" : "6 review scenarios"}
+                  trigger={isMobile ? "click" : "hover"}
+                  stacked={isMobile}
                   closeOnSelect={false}
-                  physics={true}
+                  physics={!isMobile}
                   drift={0.65}
                   onSelect={(value) => {
                     const rev = reviews.find((r) => r.id === value);
@@ -206,8 +218,8 @@ export function LawyerReviews() {
                   itemColor={isDark ? "#1E1E24" : "#FFFFFF"}
                   itemTextColor={isDark ? "#F4E8D1" : "#1E1B18"}
                   labelColor={isDark ? "#F4E8D1" : "#1E1B18"}
-                  width={250}
-                  height={168}
+                  width={isMobile ? 224 : 250}
+                  height={isMobile ? 145 : 168}
                   radius={16}
                   spread={230}
                   lift={34}
@@ -215,10 +227,11 @@ export function LawyerReviews() {
                   bounce={0.35}
                 />
               </div>
-              <p className="mt-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                <span>Hover over the folder and select a note to read the scenario.</span>
-              </p>
+              {!isMobile && (
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Hover over the folder and select a note to read the scenario.
+                </p>
+              )}
             </div>
           )}
         </Reveal>
