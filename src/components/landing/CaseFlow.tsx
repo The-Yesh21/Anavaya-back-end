@@ -51,7 +51,7 @@ export function CaseFlow() {
         <figure className="rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-5">
           <div className="flex items-center justify-between gap-3 border-b border-border px-2 pb-3">
             <figcaption className="font-semibold">{scene === "waiting" ? "1 · Arrival-order queue" : "2 · Anavaya sorts the files"}</figcaption>
-            <button type="button" onClick={() => setRun(n => n + 1)} className="case-replay rounded px-2 py-1 text-sm text-primary underline underline-offset-4">Replay</button>
+            <button type="button" onClick={() => setRun(n => n + 1)} className="case-replay min-h-11 rounded px-2 py-1 text-sm text-primary underline underline-offset-4">Replay</button>
           </div>
           <svg key={run} className="case-flow-board" data-scene={scene} data-started={inView} viewBox="0 0 520 328" role="img" aria-label="Six sample files accumulate in a queue, then move into criminal, property and land, general civil, and insolvency and debt groups.">
             <g className="flow-destinations">

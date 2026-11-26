@@ -531,7 +531,7 @@
 }
 
 /* Anchor targets clear the sticky header instead of hiding beneath it. */
-:where(section[id], footer[id]) {
+:where(section[id], footer[id], .progressive-section-wrapper[id], main[id]) {
   scroll-margin-top: 5.5rem;
 }
 

@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { LandingDialog } from "./LandingDialog";
+import { useState } from "react";
 import { Clock, Gavel, Layers, Target, AlertTriangle, X, ShieldAlert, Scale } from "lucide-react";
 import { Reveal, CountUp } from "./Reveal";
 import { MODEL_METRICS } from "@/data/model-metrics";
@@ -165,21 +167,8 @@ const delayedJusticeCases: HistoricDelayCase[] = [
 ];
 
 export function ProblemBand() {
+  const isMobile = useIsMobile({ includeTouch: true });
   const [selectedCase, setSelectedCase] = useState<HistoricDelayCase | null>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedCase(null);
-    };
-    if (selectedCase) {
-      window.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [selectedCase]);
 
   return (
     <section id="problem" className="snap-section-loose relative isolate px-6 py-20 md:px-10">
@@ -216,39 +205,55 @@ export function ProblemBand() {
 
         {/* React Bits InfiniteSpiral 3D Helix of Delayed Justice Records */}
         <Reveal delay={280}>
-          <div className="mt-12 flex flex-col items-center justify-center">
-            <div className="relative h-[480px] sm:h-[520px] w-full max-w-4xl overflow-hidden rounded-2xl border border-border/80 bg-background/50 shadow-inner">
-              <InfiniteSpiral
-                items={delayedJusticeCases}
-                speed={0.45}
-                direction="up"
-                animationMode="all"
-                radius={220}
-                cardWidth={270}
-                cardHeight={165}
-                verticalSpacing={85}
-                perspective={1200}
-                cardsPerTurn={8}
-                rotation={12}
-                cardTilt={0}
-                cardRadius={14}
-                centerScale={1.16}
-                edgeFade={0.28}
-                edgeBlur={5}
-                pauseOnHover={true}
-                className="w-full h-full"
-                onItemClick={(item) => setSelectedCase(item as HistoricDelayCase)}
-              />
+          <ul className="mt-8 grid gap-3 sm:grid-cols-2 md:hidden pointer-coarse:grid" aria-label="Historic court delays">
+            {delayedJusticeCases.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCase(item)}
+                  className="flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <span className="text-xs font-semibold text-rose-500">{item.stat}</span>
+                  <span className="font-semibold text-foreground">{item.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!isMobile && (
+            <div className="mt-12 hidden flex-col items-center justify-center md:flex pointer-coarse:hidden">
+              <div className="relative h-[480px] sm:h-[520px] w-full max-w-4xl overflow-hidden rounded-2xl border border-border/80 bg-background/50 shadow-inner">
+                <InfiniteSpiral
+                  items={delayedJusticeCases}
+                  speed={0.45}
+                  direction="up"
+                  animationMode="all"
+                  radius={220}
+                  cardWidth={270}
+                  cardHeight={165}
+                  verticalSpacing={85}
+                  perspective={1200}
+                  cardsPerTurn={8}
+                  rotation={12}
+                  cardTilt={0}
+                  cardRadius={14}
+                  centerScale={1.16}
+                  edgeFade={0.28}
+                  edgeBlur={5}
+                  pauseOnHover={true}
+                  className="w-full h-full"
+                  onItemClick={(item) => setSelectedCase(item as HistoricDelayCase)}
+                />
 
-              {/* Helix Guidance Overlay */}
-              <div className="pointer-events-none absolute bottom-4 inset-x-0 flex items-center justify-center">
-                <span className="rounded-full border border-primary/30 bg-background/90 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur-md flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                  Drag 3D helix or scroll to explore historic delay tragedies · Click card to inspect legal dossier
-                </span>
+                {/* Helix Guidance Overlay */}
+                <div className="pointer-events-none absolute bottom-4 inset-x-0 flex items-center justify-center">
+                  <span className="rounded-full border border-primary/30 bg-background/90 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur-md flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                    Drag 3D helix or scroll to explore historic delay tragedies · Click card to inspect legal dossier
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </Reveal>
 
         {/* Constitutional Mitigation Callout */}
@@ -261,7 +266,7 @@ export function ProblemBand() {
                   Why Anavaya Automates First-Pass Triage:
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  In every tragic case in the helix above, the fundamental flaw was not malice, but <em>ministerial invisibility</em>—liberty petitions lost under commercial filings, clerical defects halting hearings for decades, and forgotten undertrials with no voice. Anavaya ensures that urgent personal liberty triggers under Article 21 and vulnerability triggers leap to day-one judicial attention in under 2 seconds.
+                  In every tragic case above, the fundamental flaw was not malice, but <em>ministerial invisibility</em>—liberty petitions lost under commercial filings, clerical defects halting hearings for decades, and forgotten undertrials with no voice. Anavaya ensures that urgent personal liberty triggers under Article 21 and vulnerability triggers leap to day-one judicial attention in under 2 seconds.
                 </p>
               </div>
             </div>
@@ -276,29 +281,22 @@ export function ProblemBand() {
 
       {/* Historic Delay Case Detail Modal */}
       {selectedCase && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setSelectedCase(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-delay-case-title"
-        >
+        <LandingDialog titleId="modal-delay-case-title" onDismiss={() => setSelectedCase(null)}>
           <div
             className="relative w-full max-w-2xl rounded-2xl border border-rose-500/40 bg-surface p-6 sm:p-8 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setSelectedCase(null)}
-              className="absolute top-5 right-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/80 bg-background/80 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+              className="absolute top-5 right-5 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/80 bg-background/80 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
               aria-label="Close dossier"
             >
               <X className="h-4 w-4" />
             </button>
 
             {/* Header: Tag & Years Lost */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pr-8">
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-12">
               <span className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-rose-500">
                 {selectedCase.tag}
               </span>
@@ -330,7 +328,7 @@ export function ProblemBand() {
             </div>
 
             {/* Narrative Body */}
-            <div className="mt-4 max-h-[32vh] overflow-y-auto pr-1 text-xs sm:text-sm space-y-3">
+            <div className="mt-4 text-xs sm:text-sm space-y-3">
               <div className="border-l-2 border-rose-500/60 pl-3 py-0.5">
                 <span className="font-bold text-foreground block text-xs uppercase tracking-wider text-rose-500 mb-1">
                   The Historic Record
@@ -360,13 +358,13 @@ export function ProblemBand() {
               <button
                 type="button"
                 onClick={() => setSelectedCase(null)}
-                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer self-end sm:self-auto flex-shrink-0"
+                className="inline-flex items-center justify-center rounded-lg bg-primary min-h-11 px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer self-end sm:self-auto flex-shrink-0"
               >
                 Close Dossier
               </button>
             </div>
           </div>
-        </div>
+        </LandingDialog>
       )}
     </section>
   );

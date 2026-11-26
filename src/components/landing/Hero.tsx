@@ -31,7 +31,7 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="snap-section relative isolate items-center overflow-hidden px-6 pt-32 pb-24 md:px-10"
+      className="snap-section relative isolate items-center overflow-hidden px-4 pt-24 pb-14 sm:px-6 sm:pt-32 sm:pb-24 md:px-10"
     >
       {/* Subtle flat ambient background */}
       <div
@@ -61,7 +61,7 @@ export function Hero() {
         />
       </div>
 
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
         <div>
           <Reveal delay={0}>
             <span className="inline-flex items-center gap-2.5 rounded-full border border-primary/35 bg-primary/[0.08] px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase text-primary shadow-xs backdrop-blur-md transition-all hover:border-primary/60 hover:bg-primary/[0.12]">
@@ -135,7 +135,7 @@ export function Hero() {
             <div className="mt-10 flex flex-wrap gap-4">
               <a
                 href={APP_URL}
-                className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-xs transition-all duration-300 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary sm:w-auto px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-xs transition-all duration-300 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <span>Try Anavaya Now</span>
                 <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">

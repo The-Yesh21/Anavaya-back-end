@@ -1,3 +1,5 @@
+import { useIsMobile } from "@/hooks/use-mobile";
+import { LandingDialog } from "./LandingDialog";
 import { useState, useEffect } from "react";
 import { Scale, Star, ShieldCheck, X } from "lucide-react";
 import { Reveal } from "./Reveal";
@@ -121,6 +123,7 @@ const dossierItems = [
 ];
 
 export function LawyerReviews() {
+  const isMobile = useIsMobile({ includeTouch: true });
   const [selectedReview, setSelectedReview] = useState<LawyerReview | null>(null);
   const [isDark, setIsDark] = useState(false);
 
@@ -140,20 +143,6 @@ export function LawyerReviews() {
       window.removeEventListener("anavaya:themechange", updateTheme);
     };
   }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedReview(null);
-    };
-    if (selectedReview) {
-      window.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [selectedReview]);
 
   return (
     <section id="reviews" className="snap-section-loose relative isolate px-6 py-28 md:px-10">
@@ -187,40 +176,56 @@ export function LawyerReviews() {
 
         {/* Matter.js Zero-Gravity Chamber Dossier */}
         <Reveal delay={260}>
-          <div className="mt-12 mb-4 flex flex-col items-center justify-center">
-            <div className="relative flex h-[320px] w-full max-w-2xl items-end justify-center pb-2">
-              <FolderFloat
-                items={dossierItems}
-                label="Chambers Dossier"
-                sublabel="6 advocate audits"
-                trigger="hover"
-                closeOnSelect={false}
-                physics={true}
-                drift={0.65}
-                onSelect={(value) => {
-                  const rev = reviews.find((r) => r.id === value);
-                  if (rev) setSelectedReview(rev);
-                }}
-                folderColor={isDark ? "#27272A" : "#DCD1BC"}
-                frontColor={isDark ? "#3F3F46" : "#EDE3CF"}
-                paperColor={isDark ? "#C5A059" : "#FAF7F2"}
-                itemColor={isDark ? "#1E1E24" : "#FFFFFF"}
-                itemTextColor={isDark ? "#F4E8D1" : "#1E1B18"}
-                labelColor={isDark ? "#F4E8D1" : "#1E1B18"}
-                width={250}
-                height={168}
-                radius={16}
-                spread={230}
-                lift={34}
-                tilt={10}
-                bounce={0.35}
-              />
+          <ul className="mt-8 grid gap-3 sm:grid-cols-2 md:hidden pointer-coarse:grid" aria-label="Illustrative review scenarios">
+            {reviews.map((review) => (
+              <li key={review.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReview(review)}
+                  className="flex h-full w-full flex-col items-start gap-1 rounded-xl border border-border bg-card p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <span className="font-semibold text-foreground">{review.name}</span>
+                  <span className="text-xs text-muted-foreground">{review.testedFeature}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!isMobile && (
+            <div className="mt-12 mb-4 hidden flex-col items-center justify-center md:flex pointer-coarse:hidden">
+              <div className="relative flex h-[320px] w-full max-w-2xl items-end justify-center pb-2">
+                <FolderFloat
+                  items={dossierItems}
+                  label="Chambers Dossier"
+                  sublabel="6 advocate audits"
+                  trigger="hover"
+                  closeOnSelect={false}
+                  physics={true}
+                  drift={0.65}
+                  onSelect={(value) => {
+                    const rev = reviews.find((r) => r.id === value);
+                    if (rev) setSelectedReview(rev);
+                  }}
+                  folderColor={isDark ? "#27272A" : "#DCD1BC"}
+                  frontColor={isDark ? "#3F3F46" : "#EDE3CF"}
+                  paperColor={isDark ? "#C5A059" : "#FAF7F2"}
+                  itemColor={isDark ? "#1E1E24" : "#FFFFFF"}
+                  itemTextColor={isDark ? "#F4E8D1" : "#1E1B18"}
+                  labelColor={isDark ? "#F4E8D1" : "#1E1B18"}
+                  width={250}
+                  height={168}
+                  radius={16}
+                  spread={230}
+                  lift={34}
+                  tilt={10}
+                  bounce={0.35}
+                />
+              </div>
+              <p className="mt-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                <span>Hover folder to release zero-g review notes · Drag pills freely · Click any note to inspect full chamber audit</span>
+              </p>
             </div>
-            <p className="mt-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              <span>Hover folder to release zero-g review notes · Drag pills freely · Click any note to inspect full chamber audit</span>
-            </p>
-          </div>
+          )}
         </Reveal>
 
         {/* Judicial Guarantee Badge */}
@@ -237,29 +242,22 @@ export function LawyerReviews() {
 
         {/* Mini-Dialogue Box (Review Modal) */}
         {selectedReview && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
-            onClick={() => setSelectedReview(null)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-review-title"
-          >
+          <LandingDialog titleId="modal-review-title" onDismiss={() => setSelectedReview(null)}>
             <div
               className="relative w-full max-w-xl rounded-2xl border border-primary/40 bg-surface p-6 sm:p-8 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setSelectedReview(null)}
-                className="absolute top-5 right-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/80 bg-background/80 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute top-5 right-5 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/80 bg-background/80 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Close dialogue"
               >
                 <X className="h-4 w-4" />
               </button>
 
               {/* Modal Advocate Header */}
-              <div className="flex items-start gap-4 pr-8">
+              <div className="flex items-start gap-4 pr-12">
                 <div className="flex h-13 w-13 flex-shrink-0 items-center justify-center rounded-full border-2 border-primary/60 bg-primary/10 font-display text-lg font-bold text-primary shadow-sm">
                   {selectedReview.avatarInitials}
                 </div>
@@ -306,7 +304,7 @@ export function LawyerReviews() {
               </div>
 
               {/* Full Testimonial / Audit Statement */}
-              <div className="mt-5 max-h-[40vh] overflow-y-auto pr-1">
+              <div className="mt-5">
                 <blockquote className="relative text-sm sm:text-base leading-relaxed text-foreground/90 italic border-l-2 border-primary/60 pl-4 py-1">
                   &ldquo;{selectedReview.quote}&rdquo;
                 </blockquote>
@@ -325,13 +323,13 @@ export function LawyerReviews() {
                 <button
                   type="button"
                   onClick={() => setSelectedReview(null)}
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer self-end sm:self-auto"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary min-h-11 px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer self-end sm:self-auto"
                 >
                   Close Audit
                 </button>
               </div>
             </div>
-          </div>
+          </LandingDialog>
         )}
       </div>
     </section>

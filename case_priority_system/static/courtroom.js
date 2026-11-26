@@ -156,6 +156,18 @@
         renderRolePicker();
         els.joinForm.addEventListener("submit", onJoin);
         els.statementForm.addEventListener("submit", onStatement);
+        if (window.visualViewport) {
+            // Keep the dock above keyboards that resize only the visual viewport.
+            const syncKeyboardHeight = () => {
+                const viewport = window.visualViewport;
+                const typing = document.activeElement === els.statementInput && viewport.scale === 1;
+                if (typing) els.root.style.setProperty("--court-keyboard-height", `${viewport.height}px`);
+                else els.root.style.removeProperty("--court-keyboard-height");
+            };
+            window.visualViewport.addEventListener("resize", syncKeyboardHeight);
+            els.statementInput.addEventListener("focus", syncKeyboardHeight);
+            els.statementInput.addEventListener("blur", syncKeyboardHeight);
+        }
         els.copyInviteBtn.addEventListener("click", copyInvite);
         els.downloadTranscriptBtn.addEventListener("click", downloadTranscript);
         const pdfBtn = document.getElementById("download-transcript-pdf-btn");
@@ -199,7 +211,7 @@
             });
         }
 
-        els.joinName.focus();
+        if (!("ontouchstart" in window)) els.joinName.focus();
     }
 
     // Fetch room metadata to show in the join card + disable taken roles.
@@ -2811,9 +2823,7 @@
         // queued, and we say so instead of pretending the room heard it.
         applyMicGate();
         const deferred = await assertMicOnPeers();
-        els.pushToTalkBtn.classList.add("active");
-        els.pushToTalkBtn.innerHTML = '<i data-lucide="mic-off"></i> Recording…';
-        lucide.createIcons();
+        setPttLabel(true, "Recording…");
         setAsrStatus(deferred
             ? "Recording — release to send. Reconnecting your mic to the room…"
             : "Recording — release to send.");
@@ -2853,9 +2863,7 @@
         const elapsed = Date.now() - ptt.startedAt;
         // Belt-and-braces: recorder stopped without pttStop (edge cases).
         applyMicGate();
-        els.pushToTalkBtn.classList.remove("active");
-        els.pushToTalkBtn.innerHTML = '<i data-lucide="mic"></i> Hold to Talk';
-        lucide.createIcons();
+        setPttLabel(false);
 
         if (!chunks.length || elapsed < ptt.minMs) {
             setAsrStatus("");
@@ -3254,11 +3262,15 @@
     }
 
     function setPttLabel(active, text) {
-        if (!els.pushToTalkBtn) return;
-        els.pushToTalkBtn.classList.toggle("active", !!active);
-        els.pushToTalkBtn.innerHTML = active
-            ? `<i data-lucide="mic-off"></i> ${text}`
-            : '<i data-lucide="mic"></i> Hold to Talk';
+        const btn = els.pushToTalkBtn;
+        if (!btn) return;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-label", active ? text : "Hold to talk");
+        const icon = document.createElement("i");
+        icon.dataset.lucide = active ? "mic-off" : "mic";
+        btn.firstElementChild.replaceWith(icon);
+        btn.querySelector(".ptt-text").textContent = active ? text : "Hold Space to Speak";
+        btn.querySelector(".ptt-touch-text").textContent = active ? text : "Hold to Talk";
         lucide.createIcons();
     }
 

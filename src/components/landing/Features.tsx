@@ -32,7 +32,7 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="snap-section px-6 py-24 md:px-10">
+    <section className="snap-section px-6 py-24 md:px-10">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <div className="flex flex-wrap items-end justify-between gap-6">

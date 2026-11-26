@@ -1805,16 +1805,14 @@ body {
 /* Analysis Loading Overlay */
 .loading-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     background: color-mix(in srgb, var(--bg-app) 85%, transparent);
     backdrop-filter: blur(8px);
     z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding-block: 12px;
 }
 
 .loading-spinner-container {
@@ -2719,8 +2717,13 @@ body {
 /* Responsive */
 @media (max-width: 900px) {
     .courtroom-lobby-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
+    .lobby-form, .rooms-list { min-width: 0; max-width: 100%; }
+    .lobby-field :is(input, select) { min-width: 0; max-width: 100%; }
+    .rooms-list { max-height: none; }
+    .cc-header, .cc-meta { flex-wrap: wrap; }
+    .cc-title { white-space: normal; overflow-wrap: anywhere; }
 }
 
 /* ==========================================================================
@@ -4245,7 +4248,9 @@ button, a, input, select {
     max-width: 580px;
     width: 92%;
     text-align: center;
-    overflow: hidden;
+    max-height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
     backdrop-filter: blur(16px);
     transition: all 0.3s ease;
 }
@@ -4614,11 +4619,17 @@ button, a, input, select {
         width: 30px;
         height: 30px;
     }
+    .pipeline-stepper {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.25rem;
+    }
     .pipeline-step .step-sub {
         display: none;
     }
     .pipeline-step .step-name {
         font-size: 0.62rem;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 }
 
@@ -4839,9 +4850,50 @@ button, a, input, select {
 }
 
 @media (max-width: 720px) {
+    body { padding: 12px; }
     .case-browser { grid-template-columns: minmax(0, 1fr); }
     .case-stack { --stack-side-step: 5.5%; --stack-card-width: 81%; }
+    .case-stack-label { touch-action: pan-y; }
     .case-stack-label > span { display: none; }
+    .dashboard-grid .details-panel { padding: 12px; }
+    .tab-content-container { padding-inline-end: 0; }
+    .tab-header {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-bottom: var(--space-3);
+    }
+    .tab-btn, .tree-action-btn, .path-scope-switch-btn, .path-trace-toggle,
+    .case-browser .filter-row :is(select, button), .case-browser :is(.create-case-btn, .upload-btn) {
+        min-height: 44px;
+    }
+    .tab-btn { padding-inline: 4px; }
+    .header-actions :is(.theme-toggle-btn, .landing-back-btn), .path-trace-toggle {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .tree-controls, .path-trace-header, .path-trace-header-left, .path-trace-header-right {
+        flex-wrap: wrap;
+    }
+    .path-breadcrumb { overflow-wrap: anywhere; }
+    .lobby-field :is(input, select), .case-browser input[type="search"] {
+        min-width: 0;
+        max-width: 100%;
+        font-size: 1rem;
+    }
+    .lobby-create-card, .lobby-list-card { padding: 16px; }
+    .lobby-list-card h3 { padding-inline-end: 50px; }
+    .lobby-refresh-btn { top: 8px; right: 8px; width: 44px; height: 44px; }
+    .empty-state { padding: 24px 12px; }
+    .app-container { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
+    .tree-canvas-container { height: clamp(220px, 55svh, 420px); min-height: 0; }
+    #tree-svg { touch-action: none; }
+}
+
+@media (max-width: 720px) and (min-width: 440px) {
+    .tab-header { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 380px) {
     .case-stack { --stack-card-height: 182px; }

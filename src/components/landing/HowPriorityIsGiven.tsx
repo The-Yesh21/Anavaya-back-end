@@ -223,7 +223,7 @@ export function HowPriorityIsGiven() {
     SCENARIOS.find((s) => s.id === activeScenarioId) ?? (SCENARIOS[0] as CaseScenario);
 
   return (
-    <section id="how-priority-is-given" className="snap-section relative px-6 py-24 md:px-10">
+    <section className="snap-section relative px-6 py-24 md:px-10">
       <div className="mx-auto w-full max-w-6xl">
         {/* Section Header */}
         <Reveal>

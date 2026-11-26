@@ -81,7 +81,7 @@ export function PriorityRoadmap() {
   const [hovered, setHovered] = useState<number | null>(null);
   const [focused, setFocused] = useState<number | null>(null);
   const active = hovered ?? focused ?? selected;
-  const stage = stages[active];
+  const stage = stages[active] ?? stages[0];
   const StageIcon = stage.icon;
 
   return (

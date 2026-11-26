@@ -493,6 +493,7 @@
 
 .chat-input-area textarea {
     flex: 1;
+    min-width: 0;
     border: none;
     background: transparent;
     outline: none;
@@ -542,11 +543,37 @@
 .chat-input-hints {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
     font-size: 0.68rem;
     color: #9E9684;
     padding: 0 2px;
 }
+
+@media (max-width: 720px), (max-height: 500px) {
+    .case-chat-float-btn {
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        min-height: 44px;
+    }
+    .case-chat-drawer {
+        inset-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+        bottom: calc(var(--chat-viewport-bottom, 0px) + max(12px, env(safe-area-inset-bottom)));
+        width: auto;
+        max-width: none;
+        max-height: calc(var(--chat-viewport-height, 100dvh) - 24px);
+    }
+    .chat-drawer-header { padding: 8px 10px; }
+    .chat-header-title-row { flex-wrap: wrap; gap: 2px 6px; }
+    .chat-control-btn, .chat-send-btn { width: 44px; height: 44px; }
+    .chat-input-area textarea { font-size: 1rem; }
+}
+
+@media (pointer: coarse) {
+    .chat-input-hints > :first-child { display: none; }
+}
+
+.case-chat-drawer.chat-short-viewport :is(.chat-quick-chips, .chat-input-hints) { display: none; }
 
 .chat-input-hints .privacy-note {
     display: inline-flex;

@@ -36,9 +36,10 @@
         body {
             margin: 0;
             min-height: 100vh;
+            min-height: 100dvh;
             display: grid;
             place-items: center;
-            padding: 32px 20px;
+            padding: clamp(16px, 5vw, 32px) clamp(12px, 4vw, 20px);
             font-family: var(--font-body, 'Nunito', system-ui, -apple-system, sans-serif);
             color: var(--text-primary, #2C2416);
             background: var(--bg-color, #F7F3E8);
@@ -47,17 +48,17 @@
             width: 100%;
             max-width: 560px;
             text-align: center;
-            padding: 40px 36px 34px;
+            padding: clamp(18px, 5vw, 40px) clamp(16px, 5vw, 36px) clamp(18px, 5vw, 34px);
             border-radius: 1.6rem;
             border: 1.5px solid var(--border-color, rgba(0, 0, 0, 0.12));
             background: var(--surface-color, #FFFCF5);
             box-shadow: var(--shadow-soft, 0 18px 40px -22px rgba(0, 0, 0, 0.35));
         }
-        .nf-anim { width: 220px; height: 220px; margin: 0 auto 10px; }
+        .nf-anim { width: min(100%, 220px, 38vh); aspect-ratio: 1; margin: 0 auto 10px; }
         .nf-anim svg { width: 100% !important; height: 100% !important; display: block; }
         h1 {
             font-family: var(--font-heading, 'Fraunces', Georgia, serif);
-            font-size: 30px;
+            font-size: clamp(24px, 5vw, 30px);
             line-height: 1.2;
             margin: 0 0 12px;
             color: var(--text-primary, #2C2416);
@@ -74,6 +75,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            min-height: 44px;
             padding: 11px 22px;
             border-radius: 99px;
             border: 1.5px solid var(--border-color-glow, rgba(0, 0, 0, 0.2));
@@ -85,10 +87,16 @@
             transition: transform 0.2s ease, background 0.2s ease;
         }
         .nf-btn:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--gold-500, #C9A22B) 12%, transparent); }
+        .nf-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
         .nf-btn.primary {
             background: var(--color-primary, #8C6D18);
             border-color: var(--color-primary, #8C6D18);
             color: var(--color-primary-fg, #FFFCF5);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .nf-anim { display: none; }
+            .nf-btn { transition: none; }
+            .nf-btn:hover { transform: none; }
         }
     </style>
 </head>

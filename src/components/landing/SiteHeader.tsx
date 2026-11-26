@@ -7,9 +7,9 @@ import { APP_URL } from "./constants";
 const links = [
   { href: "#triage-sandbox", label: "Simulator" },
   { href: "#how-priority-is-given", label: "Model Logic" },
-  { href: "#accuracy", label: "Transformation" },
-  { href: "#why", label: "Why it matters" },
-  { href: "#reviews", label: "Advocate Reviews" },
+  { href: "#model-accuracy", label: "Transformation" },
+  { href: "#why-it-matters", label: "Why it matters" },
+  { href: "#lawyer-reviews", label: "Advocate Reviews" },
   { href: "#features", label: "Features" },
 ] as const;
 
@@ -59,10 +59,10 @@ export function SiteHeader() {
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-6 px-6 md:px-10">
+      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-3 px-4 sm:gap-6 sm:px-6 md:px-10">
         <Wordmark />
 
-        <nav aria-label="Sections" className="hidden items-center gap-1 lg:flex">
+        <nav aria-label="Sections" className="hidden items-center gap-1 xl:flex">
           {links.map((l) => (
             <a
               key={l.href}
@@ -92,7 +92,7 @@ export function SiteHeader() {
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}
-            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-primary/25 bg-surface/80 text-primary shadow-xs transition-all duration-300 hover:border-primary/60 hover:bg-primary/10 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:hidden"
+            className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-primary/25 bg-surface/80 text-primary shadow-xs transition-all duration-300 hover:border-primary/60 hover:bg-primary/10 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none xl:hidden"
           >
             {open ? (
               <X className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
@@ -107,7 +107,7 @@ export function SiteHeader() {
         <nav
           id="mobile-nav"
           aria-label="Sections"
-          className="border-t border-border/80 bg-background/90 px-6 py-5 shadow-2xl backdrop-blur-2xl lg:hidden"
+          className="max-h-[calc(100dvh_-_4.5rem)] overflow-y-auto overscroll-contain border-t border-border/80 bg-background/95 px-4 py-3 sm:px-6 shadow-2xl backdrop-blur-2xl xl:hidden"
         >
           <ul className="flex flex-col gap-1">
             {links.map((l) => (
@@ -115,10 +115,10 @@ export function SiteHeader() {
                 <a
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 text-[0.9375rem] font-medium text-foreground/85 transition-colors hover:bg-primary/[0.08] hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="flex min-h-11 cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 text-[0.9375rem] font-medium text-foreground/85 transition-colors hover:bg-primary/[0.08] hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   <span>{l.label}</span>
-                  <span className="text-primary/50 text-xs">↗</span>
+                  <span aria-hidden="true" className="text-primary/50 text-xs">↗</span>
                 </a>
               </li>
             ))}

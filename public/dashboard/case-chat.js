@@ -83,7 +83,7 @@
             const askBtn = e.target.closest("#workspace-chat-btn, #case-level-chat-btn, .ask-case-ai-btn");
             if (askBtn) {
                 e.preventDefault();
-                openChat();
+                openChat(undefined, askBtn);
             }
         });
 
@@ -199,11 +199,20 @@
         if (state.isOpen) {
             closeChat();
         } else {
-            openChat();
+            openChat(undefined, floatBtn);
         }
     }
 
-    function openChat(caseInfo) {
+    let chatTrigger = null;
+    const viewport = window.visualViewport;
+    function updateChatViewport() {
+        drawer.style.setProperty("--chat-viewport-height", `${viewport.height}px`);
+        const obscuredBottom = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+        drawer.style.setProperty("--chat-viewport-bottom", `${obscuredBottom}px`);
+        drawer.classList.toggle("chat-short-viewport", viewport.height < 350);
+    }
+
+    function openChat(caseInfo, trigger = document.activeElement) {
         if (caseInfo && caseInfo.caseId) {
             setActiveCase(caseInfo.caseId, caseInfo.caseTitle, caseInfo.priority, true);
         } else {
@@ -211,14 +220,26 @@
             setActiveCase(current.caseId, current.caseTitle, current.priority, true);
         }
 
+        const previousFocus = document.activeElement;
+        if (!state.isOpen) chatTrigger = trigger;
         state.isOpen = true;
         state.isMinimized = false;
         drawer.classList.add("open");
         drawer.classList.remove("minimized");
         drawer.setAttribute("aria-hidden", "false");
+        drawer.inert = false;
+        if (viewport) {
+            updateChatViewport();
+            viewport.addEventListener("resize", updateChatViewport);
+            viewport.addEventListener("scroll", updateChatViewport);
+        }
 
         setTimeout(() => {
-            if (inputText) inputText.focus();
+            if (!state.isOpen) return;
+            if (document.activeElement === previousFocus && !drawer.contains(previousFocus)) {
+                const initialFocus = window.matchMedia("(pointer: coarse)").matches ? btnClose : inputText;
+                initialFocus?.focus({ preventScroll: true });
+            }
             scrollChatToBottom();
         }, 150);
     }
@@ -226,7 +247,11 @@
     function closeChat() {
         state.isOpen = false;
         drawer.classList.remove("open");
+        if (drawer.contains(document.activeElement)) chatTrigger?.focus({ preventScroll: true });
         drawer.setAttribute("aria-hidden", "true");
+        drawer.inert = true;
+        viewport?.removeEventListener("resize", updateChatViewport);
+        viewport?.removeEventListener("scroll", updateChatViewport);
     }
 
     function toggleMinimize() {

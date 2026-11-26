@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, FileUp, Loader2, Scale, ShieldCheck, X } from 'lucide-react';
+import { useIsMobile } from "@/hooks/use-mobile";
+import { LandingDialog } from "../landing/LandingDialog";
 import { FolderFloat, FolderItemProp } from './FolderFloat';
 
 export interface EvidenceUploadLoaderProps {
@@ -35,6 +37,7 @@ export function EvidenceUploadLoader({
   evidenceItems = DEFAULT_EVIDENCE_ITEMS,
   onComplete,
 }: EvidenceUploadLoaderProps) {
+  const isMobile = useIsMobile({ includeTouch: true });
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(15);
   const [selectedExhibit, setSelectedExhibit] = useState<string | null>(null);
@@ -69,13 +72,8 @@ export function EvidenceUploadLoader({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-black/60 transition-all duration-300 animate-in fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="evidence-loader-title"
-    >
-      <div className="relative w-full max-w-xl rounded-2xl border border-primary/30 bg-[#16171F] p-6 sm:p-8 shadow-2xl overflow-hidden text-foreground">
+    <LandingDialog titleId="evidence-loader-title" onDismiss={onClose} className="max-w-xl">
+      <div className="relative w-full rounded-2xl border border-primary/30 bg-surface p-4 sm:p-8 shadow-2xl overflow-hidden text-foreground">
         {/* Ambient Top Glow */}
         <div
           aria-hidden="true"
@@ -83,16 +81,16 @@ export function EvidenceUploadLoader({
         />
 
         {/* Modal Header */}
-        <div className="flex items-start justify-between border-b border-border/60 pb-4">
+        <div className="flex items-start justify-between gap-2 border-b border-border/60 pb-4">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary border border-primary/25">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary border border-primary/25">
               <Scale className="h-4 w-4" />
             </span>
             <div>
               <h3 id="evidence-loader-title" className="text-sm font-semibold tracking-wide uppercase text-primary">
                 Evidence Docket Ingestion
               </h3>
-              <p className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-md">
+              <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                 {caseTitle}
               </p>
             </div>
@@ -100,7 +98,7 @@ export function EvidenceUploadLoader({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface hover:text-foreground transition-colors"
             aria-label="Close upload loader"
           >
             <X className="h-4 w-4" />
@@ -109,32 +107,54 @@ export function EvidenceUploadLoader({
 
         {/* Physics Floating Folder Centerpiece */}
         <div className="py-6 flex flex-col items-center justify-center min-h-[300px]">
-          <FolderFloat
-            items={evidenceItems}
-            label="Case Exhibits"
-            sublabel={`${evidenceItems.length} documents`}
-            defaultOpen={true}
-            trigger="click"
-            physics={true}
-            drift={0.6}
-            width={220}
-            height={155}
-            radius={14}
-            spread={180}
-            lift={28}
-            folderColor="#1E2029"
-            frontColor="#12131A"
-            paperColor="#FAF7F0"
-            itemColor="#FAF7F0"
-            itemTextColor="#14151B"
-            labelColor="#C9A227"
-            onSelect={(val) => setSelectedExhibit(val)}
-          />
+          <ul className="grid w-full gap-2 sm:grid-cols-2 md:hidden pointer-coarse:grid" aria-label="Case exhibits">
+            {evidenceItems.map((item, index) => {
+              const label = typeof item === "string" ? item : item.label;
+              const value = typeof item === "string" ? item : item.value;
+              return (
+                <li key={index}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedExhibit(value)}
+                    aria-pressed={selectedExhibit === value}
+                    className="min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-left text-sm aria-pressed:border-primary aria-pressed:text-primary"
+                  >
+                    {label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {!isMobile && (
+            <div className="hidden flex-col items-center md:flex pointer-coarse:hidden">
+              <FolderFloat
+                items={evidenceItems}
+                label="Case Exhibits"
+                sublabel={`${evidenceItems.length} documents`}
+                defaultOpen={true}
+                trigger="click"
+                physics={true}
+                drift={0.6}
+                width={220}
+                height={155}
+                radius={14}
+                spread={180}
+                lift={28}
+                folderColor="#1E2029"
+                frontColor="#12131A"
+                paperColor="#FAF7F0"
+                itemColor="#FAF7F0"
+                itemTextColor="#14151B"
+                labelColor="#C9A227"
+                onSelect={(val) => setSelectedExhibit(val)}
+              />
 
-          <p className="mt-3 text-[0.7rem] font-mono text-muted-foreground/80 flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#C9A227] animate-pulse" />
-            Zero-Gravity Evidence Cloud: Drag or throw floating exhibits
-          </p>
+              <p className="mt-3 text-[0.7rem] font-mono text-muted-foreground/80 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#C9A227] animate-pulse" />
+                Zero-Gravity Evidence Cloud: Drag or throw floating exhibits
+              </p>
+            </div>
+          )}
 
           {selectedExhibit && (
             <div className="mt-2 text-xs text-primary font-medium bg-primary/10 border border-primary/30 px-3 py-1 rounded-full animate-in zoom-in-95">
@@ -166,7 +186,7 @@ export function EvidenceUploadLoader({
           </div>
 
           {/* Step Badges */}
-          <div className="grid grid-cols-2 gap-2 pt-1 text-[0.68rem] text-muted-foreground font-mono">
+          <div className="grid gap-2 pt-1 sm:grid-cols-2 text-[0.68rem] text-muted-foreground font-mono">
             {PIPELINE_STEPS.map((step, idx) => {
               const StepIcon = step.icon;
               const isPast = idx < currentStep || isFinished;
@@ -183,7 +203,7 @@ export function EvidenceUploadLoader({
                   }`}
                 >
                   <StepIcon className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{step.label}</span>
+                  <span>{step.label}</span>
                 </div>
               );
             })}
@@ -196,14 +216,14 @@ export function EvidenceUploadLoader({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-md active:scale-95"
+              className="inline-flex items-center justify-center min-h-11 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-md active:scale-95"
             >
               Apply Evidence to Docket
             </button>
           </div>
         )}
       </div>
-    </div>
+    </LandingDialog>
   );
 }
 

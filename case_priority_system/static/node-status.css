@@ -27,12 +27,13 @@
     position: relative;
     width: 100%;
     max-width: 540px;
+    max-height: calc(100dvh - 32px);
     background: var(--surface, #FFFFFF);
     color: var(--text, #1E293B);
     border: 1px solid var(--border, #E2E8F0);
     border-radius: 16px;
     box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(201, 162, 39, 0.2);
-    overflow: hidden;
+    overflow: auto;
     transform: scale(0.95) translateY(8px);
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -211,6 +212,7 @@
 
 .node-tunnel-input {
     flex: 1;
+    min-width: 0;
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid var(--border, #CBD5E1);
@@ -218,6 +220,15 @@
     color: inherit;
     font-size: 12px;
     font-family: monospace;
+}
+
+@media (max-width: 540px) {
+    .node-modal-title { padding-inline-end: 42px; }
+    .node-modal-close-btn { width: 44px; height: 44px; }
+    .node-tunnel-form { flex-direction: column; }
+    .node-tunnel-input { font-size: 1rem; }
+    .node-tunnel-btn { min-height: 44px; }
+    .node-modal-footer { flex-wrap: wrap; gap: 8px; }
 }
 
 [data-theme="dark"] .node-tunnel-input {

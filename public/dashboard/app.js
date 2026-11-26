@@ -1704,6 +1704,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let cachedLayoutCaseFile = null;
     let cachedLayoutActiveNodesKey = null;
 
+    if (treeCanvasEl) {
+        const treeSizeObserver = new ResizeObserver(() => {
+            if (globalTreeData && isTreePanelVisible()) drawDecisionTree(globalTreeData);
+        });
+        treeSizeObserver.observe(treeCanvasEl);
+    }
+
     function isTreePanelVisible() {
         const treeTab = document.getElementById("tree-tab");
         const canvasContainer = document.querySelector(".tree-canvas-container");

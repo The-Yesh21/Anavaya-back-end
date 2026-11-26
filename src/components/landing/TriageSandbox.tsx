@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import {
   ArrowRight,
   Clock,
@@ -114,6 +114,7 @@ export function TriageSandbox() {
   const [imbalance, setImbalance] = useState<ImbalanceType>("Severe Asymmetry");
   const [isEvidenceLoaderOpen, setIsEvidenceLoaderOpen] = useState(false);
   const [extraEvidenceCount, setExtraEvidenceCount] = useState(0);
+  const handleEvidenceComplete = useCallback(() => setExtraEvidenceCount((count) => count + 3), []);
 
   // Load a preset
   const handleSelectPreset = (p: CasePreset) => {
@@ -372,7 +373,7 @@ export function TriageSandbox() {
   }, [category, severity, vulnerability, imbalance, selectedPresetId]);
 
   return (
-    <section id="triage-sandbox" className="snap-section-loose relative px-6 py-20 md:px-10">
+    <section className="snap-section-loose relative px-6 py-20 md:px-10">
       <div className="mx-auto w-full max-w-6xl">
         <Reveal>
           <div className="text-center">
@@ -738,7 +739,7 @@ export function TriageSandbox() {
                 <button
                   type="button"
                   onClick={() => setIsEvidenceLoaderOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/20 hover:border-primary active:scale-95 shadow-xs cursor-pointer"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/20 hover:border-primary active:scale-95 shadow-xs cursor-pointer"
                 >
                   <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Upload More Evidence to Case</span>
@@ -751,7 +752,7 @@ export function TriageSandbox() {
 
                 <a
                   href={APP_URL}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary transition-transform hover:translate-x-0.5 hover:text-primary/90"
+                  className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-primary transition-transform hover:translate-x-0.5 hover:text-primary/90"
                 >
                   Open Live Dashboard
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -767,7 +768,7 @@ export function TriageSandbox() {
         isOpen={isEvidenceLoaderOpen}
         onClose={() => setIsEvidenceLoaderOpen(false)}
         caseTitle={PRESETS.find((p) => p.id === selectedPresetId)?.title || "Active Case Dossier"}
-        onComplete={() => setExtraEvidenceCount((prev) => prev + 3)}
+        onComplete={handleEvidenceComplete}
       />
     </section>
   );

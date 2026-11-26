@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Anavaya — Live Courtroom</title>
     <!-- Theme boot — runs synchronously before any stylesheet is applied, so the
          page paints in the right theme with no flash. Saved choice wins; otherwise
@@ -164,16 +164,17 @@
                         <button type="button" id="control-cam-btn" class="control-circle-btn" title="Toggle Camera (or click tile camera)" aria-label="Toggle Camera">
                             <i data-lucide="video"></i>
                         </button>
-                        <button type="button" id="push-to-talk-btn" class="push-to-talk-btn control-ptt-pill" title="Hold the SPACE bar (or this button) to talk — the room hears you while you hold, and your words are recorded into the transcript">
+                        <button type="button" id="push-to-talk-btn" class="push-to-talk-btn control-ptt-pill" aria-label="Hold to talk" title="Hold the SPACE bar (or this button) to talk — the room hears you while you hold, and your words are recorded into the transcript">
                             <i data-lucide="mic"></i>
                             <span class="ptt-text">Hold Space to Speak</span>
+                            <span class="ptt-touch-text" aria-hidden="true">Hold to Talk</span>
                         </button>
                     </div>
 
                     <!-- Center group: Statement input pill with Send button -->
                     <div class="control-group-center">
                         <form id="statement-form" class="statement-form control-statement-form">
-                            <input type="text" id="statement-input" placeholder="State your argument for the record…" maxlength="500" autocomplete="off">
+                            <input type="text" id="statement-input" aria-label="Statement for the record" placeholder="State your argument for the record…" maxlength="500" autocomplete="off" enterkeyhint="send">
                             <button type="submit" class="speak-btn control-send-btn" title="Speak / Submit Statement" aria-label="Submit Statement">
                                 <i data-lucide="send"></i>
                             </button>

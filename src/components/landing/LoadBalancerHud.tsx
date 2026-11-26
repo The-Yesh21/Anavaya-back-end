@@ -15,13 +15,13 @@ export function LoadBalancerHud() {
   return (
     <aside
       aria-label="Load Balancer Telemetry"
-      className="fixed bottom-4 left-4 z-40 select-none font-mono text-[11px]"
+      className="relative z-10 mx-4 my-4 text-[11px] select-none font-mono lg:fixed lg:bottom-4 lg:left-4 lg:z-40 lg:m-0"
     >
       {collapsed ? (
         <button
           type="button"
           onClick={() => setCollapsed(false)}
-          className="group flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 shadow-lg backdrop-blur-md transition-all hover:border-primary/50 hover:bg-card/90"
+          className="group flex min-h-11 items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 shadow-lg backdrop-blur-md transition-all hover:border-primary/50 hover:bg-card/90"
         >
           <span className="relative flex h-2 w-2">
             {!allLoaded ? (
@@ -39,7 +39,7 @@ export function LoadBalancerHud() {
           <Cpu className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
         </button>
       ) : (
-        <div className="w-72 rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-2xl backdrop-blur-xl">
+        <div className="w-72 max-w-full rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center justify-between border-b border-border/50 pb-2">
             <div className="flex items-center gap-1.5 font-sans font-semibold text-xs text-foreground">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -48,7 +48,8 @@ export function LoadBalancerHud() {
             <button
               type="button"
               onClick={() => setCollapsed(true)}
-              className="text-muted-foreground transition hover:text-foreground"
+              aria-label="Collapse load balancer telemetry"
+              className="grid size-11 place-items-center rounded-lg text-muted-foreground transition hover:text-foreground"
             >
               <Minimize2 className="h-3 w-3" />
             </button>
