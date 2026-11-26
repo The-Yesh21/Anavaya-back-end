@@ -1637,15 +1637,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (zoomInBtn) zoomInBtn.addEventListener("click", () => treeZoomBy(1.3));
     if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => treeZoomBy(0.75));
-    if (fitBtn) fitBtn.addEventListener("click", () => {
-        const svgEl = document.getElementById("tree-svg");
-        if (svgEl && d3Zoom) d3.select(svgEl).transition().duration(300).call(d3Zoom.transform, d3.zoomIdentity.translate(20, 20).scale(0.85));
-    });
+    function fitDecisionTree(animate = false) {
+        const svg = d3.select("#tree-svg");
+        const graph = svg.select(".tree-main-group").node();
+        if (!graph || !d3Zoom || !isTreePanelVisible()) return;
+
+        const bounds = graph.getBBox();
+        if (!bounds.width || !bounds.height) return;
+        const banner = document.getElementById("tree-legend-case-active");
+        const top = banner.offsetHeight ? banner.offsetHeight + 28 : 18;
+        const width = treeCanvasEl.clientWidth;
+        const height = treeCanvasEl.clientHeight;
+        const availableHeight = Math.max(1, height - top - 18);
+        const scale = Math.min(1, (width - 36) / bounds.width, availableHeight / bounds.height);
+        const transform = d3.zoomIdentity.translate(
+            width / 2 - (bounds.x + bounds.width / 2) * scale,
+            top + availableHeight / 2 - (bounds.y + bounds.height / 2) * scale,
+        ).scale(scale);
+        svg.interrupt();
+        if (animate) {
+            svg.transition().duration(300).call(d3Zoom.transform, transform);
+        } else {
+            // A redraw can replace the graph while a D3 gesture still targets its old group.
+            graph.setAttribute("transform", transform);
+            svg.call(d3Zoom.transform, transform);
+        }
+    }
+    if (fitBtn) fitBtn.addEventListener("click", () => fitDecisionTree(true));
     if (pathOnlyBtn) pathOnlyBtn.addEventListener("click", () => {
         if (!treeCanvasEl) return;
         if (!activePathNodes.length) return; // nothing to isolate without a selected case
         const isPathOnly = treeCanvasEl.classList.toggle("path-only");
         pathOnlyBtn.classList.toggle("active", isPathOnly);
+        fitDecisionTree(true);
         if (typeof lucide !== "undefined") lucide.createIcons();
     });
     if (pathTraceToggle) pathTraceToggle.addEventListener("click", () => {
@@ -1734,8 +1758,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const width = canvasContainer.clientWidth;
         const height = canvasContainer.clientHeight;
+        const compact = width < 480;
         const currentCaseFile = selectedCase ? (selectedCase.Case_File || "") : "";
         const currentNodesKey = (activePathNodes || []).join(",");
+        if (!currentNodesKey) {
+            canvasContainer.classList.remove("path-only");
+            pathOnlyBtn?.classList.remove("active");
+        }
 
         // Cache tree layout when rendered for the active case: skip re-rendering if active case & dimensions have not changed
         if (cachedLayoutCaseFile === currentCaseFile &&
@@ -1751,6 +1780,7 @@ document.addEventListener("DOMContentLoaded", () => {
         d3.select(svgElement).selectAll("*").remove();
 
         const svg = d3.select(svgElement)
+            .classed("tree-compact", compact)
             .attr("viewBox", `0 0 ${width} ${height}`)
             .attr("width", "100%")
             .attr("height", "100%");
@@ -1762,7 +1792,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Pan/Zoom setup
         d3Zoom = d3.zoom()
-            .scaleExtent([0.15, 3])
+            .scaleExtent([0.02, 3])
             .on("zoom", (event) => {
                 mainGroup.attr("transform", event.transform);
             });
@@ -1796,14 +1826,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cachedTreeHierarchy && cachedLayoutWidth === width && cachedLayoutHeight === height && cachedTreeHierarchy.data === data) {
             root = cachedTreeHierarchy;
         } else {
-            const treemap = d3.tree().size([height - 80, width - 260]);
+            const treemap = d3.tree().nodeSize(compact ? [48, 58] : [34, 165]);
             root = d3.hierarchy(data, d => d.children);
-            root.x0 = height / 2;
-            root.y0 = 40;
             treemap(root);
-            root.descendants().forEach(d => {
-                d.y = d.y + 40;
-            });
             cachedTreeHierarchy = root;
             cachedLayoutWidth = width;
             cachedLayoutHeight = height;
@@ -1812,8 +1837,11 @@ document.addEventListener("DOMContentLoaded", () => {
         cachedLayoutCaseFile = currentCaseFile;
         cachedLayoutActiveNodesKey = currentNodesKey;
 
+        const horizontal = d => compact ? d.x : d.y;
+        const vertical = d => compact ? d.y : d.x;
+
         // Add Links
-        const link = mainGroup.selectAll("path.tree-link")
+        mainGroup.selectAll("path.tree-link")
             .data(root.links())
             .enter().append("path")
             .attr("class", d => {
@@ -1821,9 +1849,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const hasPath = activePathNodes.length > 0;
                 return `tree-link ${isActive ? 'path-active' : ''} ${hasPath && !isActive ? 'dimmed' : ''}`;
             })
-            .attr("d", d3.linkHorizontal()
-                .x(d => d.y)
-                .y(d => d.x)
+            .attr("d", (compact ? d3.linkVertical() : d3.linkHorizontal())
+                .x(horizontal)
+                .y(vertical)
             );
 
         // Add Nodes Group
@@ -1836,7 +1864,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const isLeaf = d.data.type === "leaf";
                 return `tree-node ${isLeaf ? 'leaf' : 'decision'} ${isActive ? 'path-active' : ''} ${hasPath && !isActive ? 'dimmed' : ''}`;
             })
-            .attr("transform", d => `translate(${d.y},${d.x})`)
+            .attr("transform", d => `translate(${horizontal(d)},${vertical(d)})`)
             .on("mouseover", (event, d) => {
                 tooltip.transition().duration(180).style("opacity", 1);
                 
@@ -1908,15 +1936,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Add text labels
         node.append("text")
-            .attr("dy", ".31em")
-            .attr("x", d => d.children ? -12 : 12)
-            .attr("text-anchor", d => d.children ? "end" : "start")
-            .text(d => d.data.name.length > 30 ? d.data.name.substring(0, 28) + "..." : d.data.name)
-            .style("text-shadow", "0 0 4px #FBF8F1");
+            .attr("dy", compact ? 23 : ".31em")
+            .attr("x", d => compact ? 0 : (d.children ? -12 : 12))
+            .attr("text-anchor", d => compact ? "middle" : (d.children ? "end" : "start"))
+            .text(d => compact ? d.data.id : (
+                d.data.name.length > 30 ? d.data.name.substring(0, 28) + "..." : d.data.name
+            ));
 
-        // Fit tree inside view
-        const initialTransform = d3.zoomIdentity.translate(20, 20).scale(0.85);
-        svg.call(d3Zoom.transform, initialTransform);
+        fitDecisionTree();
 
         // Auto-populate node inspector panel with the active case's leaf verdict
         if (activePathNodes && activePathNodes.length > 0) {
