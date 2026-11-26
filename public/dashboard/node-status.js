@@ -270,7 +270,8 @@ Thank you!`
             const isStaticPage = !response.headers.get("content-type")?.includes("json") &&
                 (response.status === 404 || response.status === 405 ||
                     response.headers.get("content-type")?.includes("text/html"));
-            if (!isGatewayFailure && !isStaticPage) return response;
+            const isMissingTree = method === "GET" && endpoint === "/api/tree" && response.status === 404;
+            if (!isGatewayFailure && !isStaticPage && !isMissingTree) return response;
             if (isGatewayFailure) failure = new Error(`HTTP ${response.status} from backend on ${endpoint}`);
         } catch (err) {
             failure = err;
@@ -281,6 +282,7 @@ Thank you!`
             const demoAsset = {
                 "/api/case-registry": "case-registry.json",
                 "/api/cases": "cases.json",
+                "/api/tree": "tree.json",
                 "/api/delay-precedents": "delay-precedents.json"
             }[endpoint] || (caseMatch && `cases/${caseMatch[1]}.json`);
             if (demoAsset) {

@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
             globalTreeData = await res.json();
             document.getElementById("tree-loading").style.display = "none";
         } catch (err) {
-            document.getElementById("tree-loading").innerHTML = `<span style="color: #B3402E">Connect the live backend to view the full decision tree.</span>`;
+            document.getElementById("tree-loading").innerHTML = `<span style="color: #B3402E">The decision tree could not be loaded. Refresh the dashboard to retry.</span>`;
             throw err;
         }
     }

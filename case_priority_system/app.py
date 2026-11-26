@@ -622,7 +622,7 @@ def _upload_case_sync(file: UploadFile):
         if case_manager is not None:
             try:
                 with open(temp_path, 'rb') as fh:
-                    reg_case = case_manager.create_case(title=filename, created_by='', source='AUTO_ID')
+                    reg_case = case_manager.create_case(title=filename, created_by='', source='AUTO_ID', auto_title=True)
                     reg_doc = case_manager.add_document(reg_case.case_id, fh, doc_type='FIR', filename=filename)
                 case_manager.attach_analysis(
                     reg_case.case_id, reg_doc.doc_id,
@@ -985,11 +985,13 @@ def create_case(case_title: str = Form(""), created_by: str = Form(""),
     if fir_name and not any(fir_name.lower().endswith(ext) for ext in _FIR_EXTS):
         raise HTTPException(status_code=400, detail="FIR must be a PDF or image file (PDF, JPG, PNG, WEBP).")
     source = "FIR_UPLOADED" if fir_name else "AUTO_ID"
-    # No title typed? Name the case after the FIR document so the officer
-    # only ever has to give the case a name OR drop in the FIR.
-    if not (case_title or "").strip() and fir_name:
-        case_title = os.path.splitext(fir_name)[0].replace("_", " ").strip()
-    case = case_manager.create_case(title=case_title, created_by=created_by, source=source)
+    if not case_title.strip() and fir_name:
+        provisional_title = os.path.splitext(fir_name)[0].replace("_", " ").strip()
+        case = case_manager.create_case(
+            title=provisional_title, created_by=created_by, source=source, auto_title=True,
+        )
+    else:
+        case = case_manager.create_case(title=case_title, created_by=created_by, source=source)
     if fir_file:
         try:
             doc = case_manager.add_document(case.case_id, fir_file.file, doc_type="FIR", filename=fir_name)

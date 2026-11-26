@@ -111,6 +111,8 @@ class Case:
     # the case's own verdict.
     case_level: dict = field(default_factory=dict)
     sessions: list[CaseSession] = field(default_factory=list)
+    auto_title: Optional[bool] = None
+    title_for_analysis: Optional[str] = None
 
     # ---- helpers -----------------------------------------------------
 
@@ -149,6 +151,16 @@ class Case:
         }
 
 
+def _placeholder_title(title: str) -> bool:
+    name = os.path.splitext((title or "").strip())[0] if re.search(
+        r"\.(pdf|jpe?g|png|webp|bmp|tiff)$", title or "", re.I
+    ) else (title or "").strip()
+    return bool(re.fullmatch(
+        r"(?:untitled(?: case)?(?: ANV-\d{4}-\d+)?|(?:e|doc(?:ument)?|exhibit|fir|case)?[ _-]*\d*|unknown|test|n/?a)",
+        name, re.I,
+    ))
+
+
 class CaseManager:
     """Thread-safe registry of cases with disk persistence."""
 
@@ -164,7 +176,8 @@ class CaseManager:
 
     # ---- case lifecycle ----------------------------------------------
 
-    def create_case(self, title: str = "", created_by: str = "", source: str = "AUTO_ID", case_id: Optional[str] = None) -> Case:
+    def create_case(self, title: str = "", created_by: str = "", source: str = "AUTO_ID", case_id: Optional[str] = None,
+                    *, auto_title: Optional[bool] = None) -> Case:
         """Create an empty case. The case id is system-assigned or specified."""
         if case_id:
             if not self.valid_case_id(case_id):
@@ -188,6 +201,7 @@ class CaseManager:
             created_at=_now_iso(),
             created_by=(created_by or "").strip() or "Officer",
             source=source if source in ("FIR_UPLOADED", "AUTO_ID") else "AUTO_ID",
+            auto_title=_placeholder_title(title) if auto_title is None else auto_title,
         )
         with self._lock:
             if case_id in self._cases or os.path.exists(os.path.join(self.cases_dir, f"{case_id}.json")):
@@ -502,6 +516,8 @@ class CaseManager:
         in the rationale (and on each document) as auditable detail — they never
         decide the case.
         """
+        with self._lock:
+            self._assign_evidence_title(case)
         fallback_priority, fallback_rationale = self.compute_aggregate_priority(case)
         case_level = {}
         try:
@@ -523,6 +539,30 @@ class CaseManager:
                 case.aggregate_priority = fallback_priority
                 case.aggregate_rationale = fallback_rationale
             self._persist(case)
+
+    @staticmethod
+    def _assign_evidence_title(case: Case) -> None:
+        """Use extracted parties and matter type to name an untitled case."""
+        if case.auto_title is False or case.title_for_analysis is not None:
+            return
+        if case.auto_title is None and not _placeholder_title(case.title):
+            return
+        leading_types = {"fir", "complaint", "petition", "plaint", "charge sheet"}
+        documents = sorted(case.documents, key=lambda doc: doc.doc_type.lower() not in leading_types)
+        for doc in documents:
+            features = doc.analysis or {}
+            parties = " ".join(str(features.get("main_parties") or "").split())
+            if not parties or parties.casefold() in {"unknown", "unknown parties", "n/a", "none", "not mentioned", "not specified"}:
+                continue
+            category = str(features.get("case_category") or "").strip().replace("/", " & ")
+            suffix = f" — {category}" if category and category != "N/A" else ""
+            caption = re.sub(r"\s+(?:vs\.?|versus)\s+", " v. ", parties, flags=re.I)
+            limit = 120 - len(suffix)
+            if len(caption) > limit:
+                caption = caption[:limit - 1].rstrip() + "…"
+            case.title_for_analysis = case.title
+            case.title = caption + suffix
+            return
 
     @staticmethod
     def _document_breakdown(case: Case) -> str:
@@ -947,6 +987,8 @@ def _case_from_dict(data: dict) -> Case:
             aggregate_rationale=data.get("aggregate_rationale", ""),
             case_level=data.get("case_level", {}),
             sessions=sessions,
+            auto_title=data.get("auto_title"),
+            title_for_analysis=data.get("title_for_analysis"),
         )
 
 

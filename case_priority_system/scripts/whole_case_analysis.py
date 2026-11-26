@@ -694,7 +694,9 @@ def analyze_case_whole(case, model_data=None) -> dict:
     )
 
     docs = [d for d in case.documents if d.analysis]
-    synthesis_text = f"{case.title}. {merged.get('case_gist', '')} {merged.get('plain_summary', '')} " + " ".join(
+    # A display caption derived from evidence must never change inference inputs.
+    analysis_title = getattr(case, "title_for_analysis", None) or case.title
+    synthesis_text = f"{analysis_title}. {merged.get('case_gist', '')} {merged.get('plain_summary', '')} " + " ".join(
         (d.analysis or {}).get("plain_summary", "") for d in docs
     )
     try:
@@ -777,7 +779,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
             category=tuned.get("case_category", ""),
             crime_type=tuned.get("crime_type", ""),
             severity=tuned.get("severity", ""),
-            case_title=case.title,
+            case_title=analysis_title,
             case_text=f"{merged.get('case_gist', '')} {synthesis_text}",
         )
     except Exception as e:
@@ -792,7 +794,7 @@ def analyze_case_whole(case, model_data=None) -> dict:
             determine_ipc_sections,
             calculate_turnaround_time,
         )
-        context_text = f"{case.title} {merged.get('case_gist', '')} {synthesis_text}"
+        context_text = f"{analysis_title} {merged.get('case_gist', '')} {synthesis_text}"
         statutory_sections = determine_statutory_sections(
             category=tuned.get("case_category", ""),
             crime_type=tuned.get("crime_type", ""),
