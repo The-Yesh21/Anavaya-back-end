@@ -552,10 +552,13 @@
 
 @media (max-width: 720px), (max-height: 500px) {
     .case-chat-float-btn {
-        right: max(12px, env(safe-area-inset-right));
-        bottom: max(12px, env(safe-area-inset-bottom));
+        position: static;
+        display: flex;
+        width: fit-content;
+        margin: var(--space-3) 0 0 auto;
         min-height: 44px;
     }
+    .case-chat-float-btn .chat-float-badge { display: none; }
     .case-chat-drawer {
         inset-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
         bottom: calc(var(--chat-viewport-bottom, 0px) + max(12px, env(safe-area-inset-bottom)));

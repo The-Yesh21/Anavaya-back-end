@@ -149,6 +149,14 @@
                         <i data-lucide="layers" aria-hidden="true"></i>
                     </button>
                 </div>
+                <button id="case-chat-float-btn" class="case-chat-float-btn" type="button" aria-label="Open Case AI Copilot" title="Ask Case AI">
+                    <span class="float-icon-wrap">
+                        <i data-lucide="bot"></i>
+                        <span class="float-pulse-dot"></span>
+                    </span>
+                    <span class="chat-float-label">Case AI</span>
+                    <span class="chat-float-badge">qwen2.5</span>
+                </button>
             </div>
             <div class="cases-list case-document-list" id="cases-list-container" hidden></div>
         </section>
@@ -767,16 +775,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Case AI Floating Copilot Launcher -->
-    <button id="case-chat-float-btn" class="case-chat-float-btn" type="button" aria-label="Open Case AI Copilot" title="Ask Case AI">
-        <span class="float-icon-wrap">
-            <i data-lucide="bot"></i>
-            <span class="float-pulse-dot"></span>
-        </span>
-        <span class="chat-float-label">Case AI</span>
-        <span class="chat-float-badge">qwen2.5</span>
-    </button>
 
     <!-- Case AI Chat Drawer -->
     <aside id="case-chat-drawer" class="case-chat-drawer" aria-hidden="true" inert role="dialog" aria-labelledby="chat-header-title">
