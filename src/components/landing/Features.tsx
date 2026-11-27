@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Bot, FileText, FolderKanban, Network, Pause, Play, Video } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { DepthCarousel } from "./DepthCarousel";
 
 const features = [
   {
@@ -45,24 +46,7 @@ export function Features() {
           </div>
         </Reveal>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <Reveal key={f.title} delay={i * 140}>
-                <div className="glass-card group relative h-full overflow-hidden rounded-2xl border border-border p-5 transition-all sm:p-7 duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-sm">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-surface text-primary shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50">
-                    <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
-                  </span>
-                  <h3 className="font-display mt-6 text-xl font-semibold text-foreground transition-colors group-hover:text-primary">
-                    {f.title}
-                  </h3>
-                  <p className="mt-3 text-[0.9375rem] leading-[1.65] text-muted-foreground">{f.text}</p>
-                </div>
-              </Reveal>
-            );
-          })}
-        </div>
+        <DepthCarousel items={features} label="Key features" />
       </div>
     </section>
   );
