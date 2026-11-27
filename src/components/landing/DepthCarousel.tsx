@@ -1,14 +1,9 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { LandingCardContent, type LandingCardData } from "./LandingCardContent";
 import "./depth-carousel.css";
 
-interface DepthCard {
-  icon: LucideIcon;
-  title: string;
-  text: string;
-}
-
-export function DepthCarousel({ items, label }: { items: DepthCard[]; label: string }) {
+export function DepthCarousel({ items, label }: { items: LandingCardData[]; label: string }) {
   const [active, setActive] = useState(0);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const count = items.length;
@@ -59,11 +54,11 @@ export function DepthCarousel({ items, label }: { items: DepthCard[]; label: str
           swipeStart.current = null;
         }}
       >
-        {items.map(({ icon: Icon, title, text }, index) => {
+        {items.map((item, index) => {
           const depth = (index - active + count) % count;
           return (
             <div
-              key={title}
+              key={item.title}
               className="depth-carousel-card flex items-start gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:gap-6 sm:p-8"
               style={{ "--depth": depth, "--layer": count - depth } as CSSProperties}
               data-depth={depth}
@@ -72,17 +67,7 @@ export function DepthCarousel({ items, label }: { items: DepthCard[]; label: str
               aria-label={`${index + 1} of ${count}`}
               aria-hidden={depth !== 0}
             >
-              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-surface text-primary sm:size-12">
-                <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="font-display text-lg font-semibold text-foreground sm:text-xl">
-                  {title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  {text}
-                </p>
-              </div>
+              <LandingCardContent {...item} />
             </div>
           );
         })}

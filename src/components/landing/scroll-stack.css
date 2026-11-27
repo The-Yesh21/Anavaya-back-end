@@ -1,0 +1,30 @@
+@media (prefers-reduced-motion: no-preference) and (min-height: 34rem) {
+  .scroll-stack {
+    --stack-step: clamp(0.625rem, 2vw, 1.25rem);
+    isolation: isolate;
+    grid-auto-rows: 1fr;
+    row-gap: clamp(2.5rem, 9svh, 5rem);
+    padding-bottom: clamp(5.5rem, 16svh, 9rem);
+  }
+
+  .scroll-stack-slot {
+    position: sticky;
+    top: calc(5.5rem + var(--stack-index) * var(--stack-step));
+    z-index: var(--stack-index);
+  }
+
+  .scroll-stack-card {
+    transform: scale(var(--stack-scale, 1));
+    transform-origin: center top;
+  }
+
+  .scroll-stack-card::after {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: #000;
+    opacity: var(--stack-dim, 0);
+    pointer-events: none;
+    content: "";
+  }
+}
