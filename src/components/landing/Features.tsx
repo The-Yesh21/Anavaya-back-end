@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bot, FileText, FolderKanban, Network, Pause, Play, Video } from "lucide-react";
 import { Reveal } from "./Reveal";
-import { ScrollCardStack } from "./ScrollCardStack";
+import { DepthCarousel } from "./DepthCarousel";
 
 const features = [
   {
@@ -46,7 +46,7 @@ export function Features() {
           </div>
         </Reveal>
 
-        <ScrollCardStack cards={features} />
+        <DepthCarousel items={features} label="Key features" />
       </div>
     </section>
   );

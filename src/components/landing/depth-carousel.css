@@ -1,0 +1,47 @@
+.depth-carousel-stage {
+  display: grid;
+  margin-inline-end: clamp(1.25rem, 9%, 4.5rem);
+  perspective: 900px;
+  touch-action: pan-y pinch-zoom;
+}
+
+.depth-carousel-card {
+  grid-area: 1 / 1;
+  z-index: var(--layer);
+  transform: translate3d(
+      calc(var(--depth) * clamp(10px, 3vw, 36px)),
+      calc(var(--depth) * 8px),
+      calc(var(--depth) * -55px)
+    )
+    rotateY(calc(var(--depth) * -7deg));
+  transition:
+    transform 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.depth-carousel-card[data-depth="1"] {
+  opacity: 0.75;
+}
+
+.depth-carousel-card[data-depth="2"] {
+  opacity: 0.48;
+}
+
+.depth-carousel-card:not([data-depth="0"], [data-depth="1"], [data-depth="2"]) {
+  opacity: 0;
+}
+
+.depth-carousel-card[aria-hidden="true"] > * {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .depth-carousel-card {
+    transform: none;
+    transition: none;
+  }
+
+  .depth-carousel-card[aria-hidden="true"] {
+    opacity: 0;
+  }
+}
