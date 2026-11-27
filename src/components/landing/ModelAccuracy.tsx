@@ -20,6 +20,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
+import { DepthCarousel } from "./DepthCarousel";
 import { Reveal } from "./Reveal";
 import { MODEL_METRICS } from "@/data/model-metrics";
 
@@ -212,7 +213,6 @@ const technicalCards = [
     value: pct(headline.baselineAccuracy),
     label: "Baseline to beat",
     detail: `What a naive model scores by guessing "${headline.baselineClass}" on every case. Published to anchor the evaluation.`,
-    muted: true,
   },
 ] as const;
 
@@ -453,33 +453,17 @@ export function ModelAccuracy() {
 
         {activeTab === "comparison" ? (
           <>
-            {/* Real-World Impact Metric Banners */}
-            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {IMPACT_METRICS.map((m, i) => {
-                const Icon = m.icon;
-                return (
-                  <Reveal key={m.label} delay={i * 80}>
-                    <div className="glass-panel flex h-full flex-col justify-between rounded-2xl border border-border/80 p-6 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_10px_28px_-8px_color-mix(in_oklab,var(--primary)_15%,transparent)]">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/[0.08] text-primary shadow-xs">
-                            <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
-                          </span>
-                          <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[0.6875rem] font-semibold tracking-wider text-primary uppercase">
-                            {m.badge}
-                          </span>
-                        </div>
-                        <p className="font-display tnum text-glass mt-4 text-4xl font-semibold tracking-tight">
-                          {m.stat}
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-foreground/95">{m.label}</p>
-                      </div>
-                      <p className="mt-4 text-[0.8125rem] leading-[1.65] text-muted-foreground">{m.detail}</p>
-                    </div>
-                  </Reveal>
-                );
-              })}
-            </div>
+            <DepthCarousel
+              key="comparison-metrics"
+              label="System comparison metrics"
+              items={IMPACT_METRICS.map(({ icon, label, stat, badge, detail }) => ({
+                icon,
+                title: label,
+                value: stat,
+                badge,
+                text: detail,
+              }))}
+            />
 
             {/* Head-to-Head Comparative Architecture Cards */}
             <div className="mt-12 space-y-6">
@@ -590,47 +574,17 @@ export function ModelAccuracy() {
           <>
             {/* Technical Diagnostic View (Preserved for ML Validation & Auditing) */}
             <div className="mt-12">
-              {/* Technical Headline figures */}
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {technicalCards.map((c, i) => {
-                  const Icon = c.icon;
-                  const featured = "emphasis" in c && c.emphasis;
-                  const muted = "muted" in c && c.muted;
-                  return (
-                    <Reveal key={c.label} delay={i * 90}>
-                      <div
-                        className={`glass-panel flex h-full flex-col justify-between rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-1 ${
-                          featured
-                            ? "border-primary/50 bg-primary/[0.08] shadow-[0_10px_32px_-8px_color-mix(in_oklab,var(--primary)_22%,transparent)]"
-                            : "border-border/80 shadow-xs hover:border-primary/40 hover:shadow-[0_8px_24px_-8px_color-mix(in_oklab,var(--primary)_15%,transparent)]"
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08] text-primary shadow-xs">
-                              <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
-                            </span>
-                            {featured && (
-                              <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold tracking-wider text-primary uppercase">
-                                Primary Benchmark
-                              </span>
-                            )}
-                          </div>
-                          <p
-                            className={`font-display tnum mt-4 text-4xl font-semibold tracking-tight ${
-                              muted ? "text-muted-foreground" : "text-foreground"
-                            }`}
-                          >
-                            {c.value}
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-foreground/90">{c.label}</p>
-                        </div>
-                        <p className="mt-4 text-[0.8125rem] leading-[1.65] text-muted-foreground">{c.detail}</p>
-                      </div>
-                    </Reveal>
-                  );
-                })}
-              </div>
+              <DepthCarousel
+                key="verification-metrics"
+                label="Model verification metrics"
+                items={technicalCards.map((card) => ({
+                  icon: card.icon,
+                  title: card.label,
+                  value: card.value,
+                  badge: "emphasis" in card && card.emphasis ? "Primary Benchmark" : undefined,
+                  text: card.detail,
+                }))}
+              />
 
               {/* Tables */}
               <div className="mt-8 grid gap-6 lg:grid-cols-2">

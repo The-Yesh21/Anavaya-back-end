@@ -6,6 +6,8 @@ interface DepthCard {
   icon: LucideIcon;
   title: string;
   text: string;
+  value?: string;
+  badge?: string;
 }
 
 export function DepthCarousel({ items, label }: { items: DepthCard[]; label: string }) {
@@ -59,7 +61,7 @@ export function DepthCarousel({ items, label }: { items: DepthCard[]; label: str
           swipeStart.current = null;
         }}
       >
-        {items.map(({ icon: Icon, title, text }, index) => {
+        {items.map(({ icon: Icon, title, text, value, badge }, index) => {
           const depth = (index - active + count) % count;
           return (
             <div
@@ -76,9 +78,19 @@ export function DepthCarousel({ items, label }: { items: DepthCard[]; label: str
                 <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
               </span>
               <div className="min-w-0">
+                {badge && (
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-primary uppercase">
+                    {badge}
+                  </p>
+                )}
                 <h3 className="font-display text-lg font-semibold text-foreground sm:text-xl">
                   {title}
                 </h3>
+                {value && (
+                  <p className="font-display tnum text-glass mt-2 text-3xl font-semibold sm:text-4xl">
+                    {value}
+                  </p>
+                )}
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
                   {text}
                 </p>
