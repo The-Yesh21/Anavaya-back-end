@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import { DepthCarousel } from "./DepthCarousel";
+import { ScrollStack } from "./ScrollStack";
 import { Reveal } from "./Reveal";
 import { MODEL_METRICS } from "@/data/model-metrics";
 
@@ -453,7 +454,7 @@ export function ModelAccuracy() {
 
         {activeTab === "comparison" ? (
           <>
-            <DepthCarousel
+            <ScrollStack
               key="comparison-metrics"
               label="System comparison metrics"
               items={IMPACT_METRICS.map(({ icon, label, stat, badge, detail }) => ({
