@@ -1,5 +1,6 @@
 import { Eye, ShieldCheck, UserCheck } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { ScrollCardStack } from "./ScrollCardStack";
 
 const safeguards = [
   {
@@ -30,17 +31,7 @@ export function WhyItMatters() {
             record brings together the underlying evidence, the decision path, and the report.
           </p>
         </Reveal>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {safeguards.map(({ icon: Icon, title, text }, index) => (
-            <Reveal key={title} delay={index * 100}>
-              <div className="glass-card h-full rounded-2xl border border-border p-5">
-                <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-                <h3 className="mt-3 font-display text-lg font-semibold text-foreground">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        <ScrollCardStack cards={safeguards} />
       </div>
     </section>
   );
