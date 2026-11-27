@@ -256,6 +256,7 @@ When anything in this project changes, append an entry here (date · what change
 
 | Date | Change |
 |---|---|
+| 2026-11-27 | Key features and System Comparison use a React Bits-style stack driven by page scroll. Judicial oversight and Model Verification retain the swipeable depth carousel. |
 | 2026-11-27 | The Performance and model checks section uses the depth carousel for the headline metrics in both System Comparison and Model Verification. |
 | 2026-11-27 | Feature and judicial oversight cards now use a React Bits-inspired depth carousel. Advance with touch swipes, arrows, or card indicators. Vertical gestures scroll the page, and reduced motion disables the depth transition. |
 | 2026-11-27 | Landing page feature and judicial oversight cards now overlap as visitors scroll on mobile and desktop. Visitors with reduced motion enabled or short viewports see a regular list. |
