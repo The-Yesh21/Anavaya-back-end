@@ -1,6 +1,6 @@
 import { Eye, ShieldCheck, UserCheck } from "lucide-react";
 import { Reveal } from "./Reveal";
-import { ScrollCardStack } from "./ScrollCardStack";
+import { DepthCarousel } from "./DepthCarousel";
 
 const safeguards = [
   {
@@ -31,7 +31,7 @@ export function WhyItMatters() {
             record brings together the underlying evidence, the decision path, and the report.
           </p>
         </Reveal>
-        <ScrollCardStack cards={safeguards} />
+        <DepthCarousel items={safeguards} label="Judicial oversight and privacy" />
       </div>
     </section>
   );
