@@ -581,7 +581,7 @@ export function ModelAccuracy() {
                   icon: card.icon,
                   title: card.label,
                   value: card.value,
-                  badge: "emphasis" in card && card.emphasis ? "Primary Benchmark" : undefined,
+                  ...("emphasis" in card && card.emphasis && { badge: "Primary Benchmark" }),
                   text: card.detail,
                 }))}
               />
